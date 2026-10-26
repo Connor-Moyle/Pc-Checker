@@ -1,0 +1,83 @@
+using System.Diagnostics;
+using System.Text;
+using PcChecker.Core.Common;
+
+namespace PcChecker.Core.Power;
+
+/// <summary>Result of one <c>powercfg</c> call.</summary>
+public sealed record PowerCfgResult(int ExitCode, string StdOut, string StdErr)
+{
+    public bool Success => ExitCode == 0;
+}
+
+/// <summary>Runs <c>powercfg.exe</c> without a window and captures its output. Never throws for a failed call.</summary>
+public static class PowerCfg
+{
+    public static readonly TimeSpan Timeout = TimeSpan.FromSeconds(20);
+
+    public static async Task<PowerCfgResult> RunAsync(string arguments, CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(arguments);
+        if (!PlatformGuard.IsWindows)
+        {
+            return new PowerCfgResult(-1, string.Empty, "powercfg is only available on Windows.");
+        }
+
+        var psi = new ProcessStartInfo
+        {
+            FileName = "powercfg.exe",
+            Arguments = arguments,
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            CreateNoWindow = true,
+        };
+
+        try
+        {
+            using var process = new Process { StartInfo = psi };
+            var stdout = new StringBuilder();
+            var stderr = new StringBuilder();
+            process.OutputDataReceived += (_, e) => { if (e.Data is not null) { stdout.AppendLine(e.Data); } };
+            process.ErrorDataReceived += (_, e) => { if (e.Data is not null) { stderr.AppendLine(e.Data); } };
+            process.Start();
+            process.BeginOutputReadLine();
+            process.BeginErrorReadLine();
+
+            using var timeoutCts = new CancellationTokenSource(Timeout);
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
+            try
+            {
+                await process.WaitForExitAsync(linked.Token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                try
+                {
+                    process.Kill(true);
+                }
+                catch
+                {
+                    // Already gone.
+                }
+
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    throw;
+                }
+
+                return new PowerCfgResult(-2, stdout.ToString(), "powercfg did not respond in time.");
+            }
+
+            return new PowerCfgResult(process.ExitCode, stdout.ToString(), stderr.ToString());
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            return new PowerCfgResult(-1, string.Empty, ex.Message);
+        }
+    }
+}
