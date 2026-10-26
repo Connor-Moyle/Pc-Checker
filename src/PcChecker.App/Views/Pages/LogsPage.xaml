@@ -3,13 +3,47 @@
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
       xmlns:controls="clr-namespace:PcChecker.App.Controls"
+      xmlns:conv="clr-namespace:PcChecker.App.Converters"
+      xmlns:helpers="clr-namespace:PcChecker.App.Helpers"
       xmlns:vm="clr-namespace:PcChecker.App.ViewModels"
+      xmlns:logs="clr-namespace:PcChecker.App.ViewModels.Logs"
       d:DataContext="{d:DesignInstance vm:LogsViewModel}"
       xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
       xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
       mc:Ignorable="d"
       Title="Logs"
       ScrollViewer.CanContentScroll="False">
+  <Page.Resources>
+    <conv:LogLevelToBrushConverter x:Key="LogLevelToBrush" />
+    <conv:OutcomeToBrushConverter x:Key="OutcomeToBrush" />
+
+    <Style x:Key="ToolbarButton" TargetType="ui:Button" BasedOn="{StaticResource {x:Type ui:Button}}">
+      <Setter Property="Margin" Value="0,0,8,8" />
+      <Setter Property="Padding" Value="10,6" />
+    </Style>
+    <Style x:Key="MonoText" TargetType="ui:TextBox" BasedOn="{StaticResource {x:Type ui:TextBox}}">
+      <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, Courier New" />
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="IsReadOnly" Value="True" />
+      <Setter Property="TextWrapping" Value="Wrap" />
+      <Setter Property="AcceptsReturn" Value="True" />
+      <Setter Property="VerticalScrollBarVisibility" Value="Auto" />
+    </Style>
+    <Style x:Key="FormLabel" TargetType="ui:TextBlock">
+      <Setter Property="FontTypography" Value="BodyStrong" />
+      <Setter Property="Margin" Value="0,0,0,4" />
+    </Style>
+    <Style x:Key="FormHint" TargetType="ui:TextBlock">
+      <Setter Property="Appearance" Value="Secondary" />
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="TextWrapping" Value="Wrap" />
+      <Setter Property="Margin" Value="0,4,0,0" />
+    </Style>
+    <Style x:Key="FormGroup" TargetType="StackPanel">
+      <Setter Property="Margin" Value="0,0,0,16" />
+    </Style>
+  </Page.Resources>
+
   <Grid Style="{StaticResource PageRoot}">
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto" />
@@ -17,7 +51,16 @@
       <RowDefinition Height="*" />
     </Grid.RowDefinitions>
 
-    <controls:SectionHeader Grid.Row="0" Title="Logs" Subtitle="Live application log and the journal of changes made to this PC." />
+    <controls:SectionHeader Grid.Row="0" Title="Logs" Subtitle="Live application log, the journal of changes made to this PC, and how much detail to record.">
+      <controls:SectionHeader.Actions>
+        <StackPanel Orientation="Horizontal">
+          <ui:Button Content="Open log folder" Icon="{ui:SymbolIcon FolderOpen24}" Command="{Binding OpenLogFolderCommand}" Margin="0,0,8,0"
+                     ToolTip="Opens the folder that holds the log files in File Explorer." />
+          <ui:Button Content="Export diagnostics" Icon="{ui:SymbolIcon ArrowDownload24}" Appearance="Primary" Command="{Binding ExportDiagnosticsCommand}"
+                     ToolTip="Saves a zip with the log files, the action journal, the in-app log buffer and your settings (API key removed). Attach it to a bug report." />
+        </StackPanel>
+      </controls:SectionHeader.Actions>
+    </controls:SectionHeader>
 
     <ui:InfoBar Grid.Row="1"
                 Severity="Error"
@@ -27,10 +70,390 @@
                 IsClosable="True"
                 Margin="0,0,0,12" />
 
-    <controls:EmptyState Grid.Row="2"
-                         Icon="DocumentText24"
-                         Title="This section is being prepared"
-                         Message="Live application log and the journal of changes made to this PC." />
+    <TabControl Grid.Row="2" Padding="0,12,0,0" Background="Transparent" BorderThickness="0">
+
+      <!-- ═══════════════════════════ Live log ═══════════════════════════ -->
+      <TabItem>
+        <TabItem.Header>
+          <StackPanel Orientation="Horizontal">
+            <ui:SymbolIcon Symbol="DocumentText24" Margin="0,0,8,0" />
+            <TextBlock Text="Live log" />
+          </StackPanel>
+        </TabItem.Header>
+        <Grid>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+          </Grid.RowDefinitions>
+
+          <!-- Toolbar -->
+          <WrapPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,4">
+            <ComboBox Margin="0,0,8,8"
+                      ItemsSource="{Binding LevelOptions}"
+                      SelectedItem="{Binding SelectedLevel}"
+                      DisplayMemberPath="Label"
+                      MinWidth="250"
+                      ToolTip="Hide lines below this level. Verbose shows everything." />
+            <ComboBox Margin="0,0,8,8"
+                      ItemsSource="{Binding CategoryOptions}"
+                      SelectedItem="{Binding SelectedCategory}"
+                      MinWidth="170"
+                      ToolTip="Show only one area of the app, for example Sensors or Drivers." />
+            <ui:TextBox Width="260"
+                        Margin="0,0,8,8"
+                        PlaceholderText="Search messages…"
+                        Icon="{ui:SymbolIcon Search24}"
+                        Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                        ToolTip="Filters by message, area or exception text. Updates as you type." />
+            <ui:Button Style="{StaticResource ToolbarButton}" Content="Clear filters" Icon="{ui:SymbolIcon Filter24}" Command="{Binding ClearFiltersCommand}" />
+            <ui:Button Style="{StaticResource ToolbarButton}" Content="{Binding PauseButtonText}" Icon="{ui:SymbolIcon Pause24}" Command="{Binding TogglePauseCommand}"
+                       ToolTip="Pause stops the view from updating so you can read; new lines are kept and shown when you resume." />
+            <ui:Button Style="{StaticResource ToolbarButton}" Content="Copy line" Icon="{ui:SymbolIcon Copy24}" Command="{Binding CopySelectedCommand}" />
+            <ui:Button Style="{StaticResource ToolbarButton}" Content="Copy all shown" Icon="{ui:SymbolIcon ClipboardTextLtr24}" Command="{Binding CopyVisibleCommand}" />
+            <ui:Button Style="{StaticResource ToolbarButton}" Content="Clear view" Icon="{ui:SymbolIcon Delete24}" Command="{Binding ClearViewCommand}"
+                       ToolTip="Empties the in-app buffer. Log files on disk are not touched." />
+            <ui:ToggleSwitch Content="Follow new lines" IsChecked="{Binding AutoScroll}" Margin="4,0,8,8" VerticalAlignment="Center"
+                             ToolTip="Keeps the newest line in view as it arrives." />
+          </WrapPanel>
+
+          <!-- Status line -->
+          <WrapPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,8">
+            <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding StatusText}" VerticalAlignment="Center" />
+            <ui:TextBlock Style="{StaticResource Muted}" Text=" · " VerticalAlignment="Center" />
+            <ui:TextBlock Style="{StaticResource Muted}" Text="Current file: " VerticalAlignment="Center" />
+            <ui:HyperlinkButton Content="{Binding CurrentFileText}" Command="{Binding OpenCurrentFileCommand}" Padding="2,0" FontSize="12"
+                                ToolTip="{Binding CurrentFilePath}" />
+            <Border Background="{StaticResource AccentYellowBrush}" CornerRadius="4" Padding="8,2" Margin="8,0,0,0"
+                    Visibility="{Binding IsPaused, Converter={StaticResource BoolToVisibility}}">
+              <StackPanel Orientation="Horizontal">
+                <TextBlock Text="Paused" FontWeight="SemiBold" Foreground="#1F2937" FontSize="12" />
+                <TextBlock Text=" · " Foreground="#1F2937" FontSize="12" />
+                <TextBlock Text="{Binding PendingWhilePaused}" Foreground="#1F2937" FontSize="12" />
+                <TextBlock Text=" new lines waiting" Foreground="#1F2937" FontSize="12" />
+              </StackPanel>
+            </Border>
+          </WrapPanel>
+
+          <!-- Entries -->
+          <Border Grid.Row="2" BorderThickness="1" BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}" CornerRadius="6" Background="{DynamicResource ControlFillColorDefaultBrush}">
+            <Grid>
+              <ListView ItemsSource="{Binding Entries}"
+                        SelectedItem="{Binding SelectedEntry}"
+                        HorizontalContentAlignment="Stretch"
+                        helpers:AutoScrollBehavior.AutoScroll="{Binding AutoScroll}"
+                        Grid.IsSharedSizeScope="True"
+                        VirtualizingPanel.IsVirtualizing="True"
+                        VirtualizingPanel.VirtualizationMode="Recycling"
+                        ScrollViewer.CanContentScroll="True"
+                        ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                        BorderThickness="0"
+                        Background="Transparent"
+                        Padding="4">
+                <ListView.ItemTemplate>
+                  <DataTemplate DataType="{x:Type logs:LogEntryRow}">
+                    <Grid>
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" SharedSizeGroup="LogTime" />
+                        <ColumnDefinition Width="Auto" SharedSizeGroup="LogLevel" />
+                        <ColumnDefinition Width="Auto" SharedSizeGroup="LogCategory" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                      </Grid.ColumnDefinitions>
+                      <TextBlock Grid.Column="0" Text="{Binding TimeText}" FontFamily="Cascadia Mono, Consolas" FontSize="12" Opacity="0.7" VerticalAlignment="Center" Margin="0,0,12,0" />
+                      <Border Grid.Column="1" CornerRadius="4" Padding="6,1" Margin="0,0,12,0" VerticalAlignment="Center"
+                              BorderThickness="1" BorderBrush="{Binding Level, Converter={StaticResource LogLevelToBrush}}">
+                        <TextBlock Text="{Binding LevelText}" FontSize="11" FontWeight="SemiBold" Foreground="{Binding Level, Converter={StaticResource LogLevelToBrush}}" />
+                      </Border>
+                      <TextBlock Grid.Column="2" Text="{Binding Category}" FontSize="12" Opacity="0.8" VerticalAlignment="Center" Margin="0,0,12,0" />
+                      <TextBlock Grid.Column="3" Text="{Binding FirstLine}" FontSize="13" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" ToolTip="{Binding Message}" />
+                      <ui:SymbolIcon Grid.Column="4" Symbol="ErrorCircle24" FontSize="14" Margin="8,0,0,0" VerticalAlignment="Center"
+                                     Foreground="{StaticResource AccentRedBrush}"
+                                     Visibility="{Binding HasException, Converter={StaticResource BoolToVisibility}}"
+                                     ToolTip="This line has an exception. Select it to read the details." />
+                    </Grid>
+                  </DataTemplate>
+                </ListView.ItemTemplate>
+              </ListView>
+              <controls:EmptyState Icon="DocumentText24"
+                                   Title="No log lines to show"
+                                   Message="Lines appear here as the app works. If a filter is active, clear it to see everything in the buffer."
+                                   Visibility="{Binding HasEntries, Converter={StaticResource InverseBoolToVisibility}}" />
+            </Grid>
+          </Border>
+
+          <!-- Selected entry details -->
+          <ui:Card Grid.Row="3" Margin="0,12,0,0" Padding="12"
+                   Visibility="{Binding HasSelectedEntry, Converter={StaticResource BoolToVisibility}}">
+            <StackPanel>
+              <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                <ui:TextBlock FontTypography="BodyStrong" Text="Selected line" Margin="0,0,12,0" />
+                <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding SelectedEntry.DateText}" VerticalAlignment="Center" Margin="0,0,12,0" />
+                <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding SelectedEntry.Category}" VerticalAlignment="Center" Margin="0,0,12,0" />
+                <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding SelectedEntry.LevelText}" VerticalAlignment="Center" />
+              </StackPanel>
+              <ui:TextBox Style="{StaticResource MonoText}" Text="{Binding SelectedEntry.Message, Mode=OneWay}" MaxHeight="90" />
+              <ui:TextBlock FontTypography="BodyStrong" Text="Exception" Margin="0,8,0,4"
+                            Visibility="{Binding SelectedEntry.HasException, Converter={StaticResource BoolToVisibility}}" />
+              <ui:TextBox Style="{StaticResource MonoText}" Text="{Binding SelectedEntry.Exception, Mode=OneWay}" MaxHeight="160"
+                          Visibility="{Binding SelectedEntry.HasException, Converter={StaticResource BoolToVisibility}}" />
+            </StackPanel>
+          </ui:Card>
+        </Grid>
+      </TabItem>
+
+      <!-- ═══════════════════════════ Action journal ═══════════════════════════ -->
+      <TabItem>
+        <TabItem.Header>
+          <StackPanel Orientation="Horizontal">
+            <ui:SymbolIcon Symbol="History24" Margin="0,0,8,0" />
+            <TextBlock Text="Action journal" />
+          </StackPanel>
+        </TabItem.Header>
+        <Grid>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+          </Grid.RowDefinitions>
+
+          <WrapPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,4">
+            <ui:Button Style="{StaticResource ToolbarButton}" Content="Refresh" Icon="{ui:SymbolIcon ArrowSync24}" Command="{Binding RefreshJournalCommand}" />
+            <ui:Button Style="{StaticResource ToolbarButton}" Content="Copy entry" Icon="{ui:SymbolIcon Copy24}" Command="{Binding CopyRecordCommand}" />
+            <ui:Button Style="{StaticResource ToolbarButton}" Content="Open journal file" Icon="{ui:SymbolIcon DocumentBulletList24}" Command="{Binding OpenJournalFileCommand}"
+                       ToolTip="{Binding JournalPath}" />
+            <ui:Button Style="{StaticResource ToolbarButton}" Content="Open journal folder" Icon="{ui:SymbolIcon FolderOpen24}" Command="{Binding OpenJournalFolderCommand}" />
+            <ui:Button Style="{StaticResource ToolbarButton}" Content="Open System Restore" Icon="{ui:SymbolIcon ShieldCheckmark24}" Command="{Binding OpenSystemRestoreCommand}"
+                       ToolTip="Opens Windows System Restore so you can go back to a restore point listed here." />
+          </WrapPanel>
+
+          <ui:TextBlock Grid.Row="1" Style="{StaticResource Muted}" Text="{Binding JournalSummary}" TextWrapping="Wrap" Margin="0,0,0,8" />
+
+          <Border Grid.Row="2" BorderThickness="1" BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}" CornerRadius="6" Background="{DynamicResource ControlFillColorDefaultBrush}">
+            <Grid>
+              <ListView ItemsSource="{Binding JournalRecords}"
+                        SelectedItem="{Binding SelectedRecord}"
+                        HorizontalContentAlignment="Stretch"
+                        Grid.IsSharedSizeScope="True"
+                        VirtualizingPanel.IsVirtualizing="True"
+                        ScrollViewer.CanContentScroll="True"
+                        ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                        BorderThickness="0"
+                        Background="Transparent"
+                        Padding="4">
+                <ListView.ItemTemplate>
+                  <DataTemplate DataType="{x:Type logs:ActionRecordRow}">
+                    <Grid>
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" SharedSizeGroup="JTime" />
+                        <ColumnDefinition Width="Auto" SharedSizeGroup="JModule" />
+                        <ColumnDefinition Width="Auto" SharedSizeGroup="JAction" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" SharedSizeGroup="JOutcome" />
+                        <ColumnDefinition Width="Auto" SharedSizeGroup="JRestore" />
+                        <ColumnDefinition Width="Auto" SharedSizeGroup="JReversible" />
+                      </Grid.ColumnDefinitions>
+                      <TextBlock Grid.Column="0" Text="{Binding TimeText}" FontFamily="Cascadia Mono, Consolas" FontSize="12" Opacity="0.7" VerticalAlignment="Center" Margin="0,0,12,0" />
+                      <TextBlock Grid.Column="1" Text="{Binding Module}" FontSize="12" Opacity="0.8" VerticalAlignment="Center" Margin="0,0,12,0" />
+                      <TextBlock Grid.Column="2" Text="{Binding Action}" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,12,0" />
+                      <TextBlock Grid.Column="3" Text="{Binding Target}" FontSize="13" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" ToolTip="{Binding Target}" />
+                      <Border Grid.Column="4" CornerRadius="4" Padding="6,1" Margin="12,0,0,0" VerticalAlignment="Center"
+                              BorderThickness="1" BorderBrush="{Binding Outcome, Converter={StaticResource OutcomeToBrush}}">
+                        <TextBlock Text="{Binding Outcome}" FontSize="11" FontWeight="SemiBold" MaxWidth="220" TextTrimming="CharacterEllipsis"
+                                   Foreground="{Binding Outcome, Converter={StaticResource OutcomeToBrush}}" ToolTip="{Binding Outcome}" />
+                      </Border>
+                      <StackPanel Grid.Column="5" Orientation="Horizontal" Margin="12,0,0,0" VerticalAlignment="Center" ToolTip="System Restore point created before this change">
+                        <ui:SymbolIcon Symbol="ShieldCheckmark24" FontSize="14" Margin="0,0,4,0" Visibility="{Binding HasRestorePoint, Converter={StaticResource BoolToVisibility}}" />
+                        <TextBlock Text="{Binding RestorePointText}" FontSize="12" Opacity="0.8" />
+                      </StackPanel>
+                      <StackPanel Grid.Column="6" Orientation="Horizontal" Margin="12,0,0,0" VerticalAlignment="Center" ToolTip="Whether the app can undo this change">
+                        <ui:SymbolIcon Symbol="ArrowUndo24" FontSize="14" Margin="0,0,4,0" Visibility="{Binding Reversible, Converter={StaticResource BoolToVisibility}}" />
+                        <TextBlock Text="{Binding ReversibleText}" FontSize="12" Opacity="0.8" />
+                      </StackPanel>
+                    </Grid>
+                  </DataTemplate>
+                </ListView.ItemTemplate>
+              </ListView>
+              <controls:EmptyState Icon="History24"
+                                   Title="No changes recorded yet"
+                                   Message="Every change the app makes to this PC (optimizations, cleanups, driver installs, uninstalls, fan or lighting profiles) is listed here with what it was before and how to undo it."
+                                   Visibility="{Binding HasJournalRecords, Converter={StaticResource InverseBoolToVisibility}}" />
+            </Grid>
+          </Border>
+
+          <ui:Card Grid.Row="3" Margin="0,12,0,0" Padding="12"
+                   Visibility="{Binding HasSelectedRecord, Converter={StaticResource BoolToVisibility}}">
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+              <StackPanel Grid.Column="0" Margin="0,0,16,0">
+                <ui:TextBlock FontTypography="BodyStrong" Text="Before" />
+                <ui:TextBlock Text="{Binding SelectedRecord.BeforeText}" TextWrapping="Wrap" Margin="0,4,0,0" />
+              </StackPanel>
+              <StackPanel Grid.Column="1" Margin="0,0,16,0">
+                <ui:TextBlock FontTypography="BodyStrong" Text="After" />
+                <ui:TextBlock Text="{Binding SelectedRecord.AfterText}" TextWrapping="Wrap" Margin="0,4,0,0" />
+              </StackPanel>
+              <StackPanel Grid.Column="2">
+                <ui:TextBlock FontTypography="BodyStrong" Text="How to undo" />
+                <ui:TextBlock Text="{Binding SelectedRecord.UndoText}" TextWrapping="Wrap" Margin="0,4,0,0" />
+              </StackPanel>
+            </Grid>
+          </ui:Card>
+        </Grid>
+      </TabItem>
+
+      <!-- ═══════════════════════════ Logging settings ═══════════════════════════ -->
+      <TabItem>
+        <TabItem.Header>
+          <StackPanel Orientation="Horizontal">
+            <ui:SymbolIcon Symbol="Settings24" Margin="0,0,8,0" />
+            <TextBlock Text="Logging settings" />
+          </StackPanel>
+        </TabItem.Header>
+        <Grid>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+          </Grid.RowDefinitions>
+          <ScrollViewer Grid.Row="0" Style="{StaticResource PageScroll}">
+            <StackPanel MaxWidth="980" HorizontalAlignment="Left">
+
+              <ui:Card Style="{StaticResource CardSpacing}">
+                <StackPanel>
+                  <ui:TextBlock Style="{StaticResource CardTitle}" Text="What to record" />
+                  <Grid>
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="*" />
+                      <ColumnDefinition Width="24" />
+                      <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" Style="{StaticResource FormGroup}">
+                      <ui:TextBlock Style="{StaticResource FormLabel}" Text="Minimum level" />
+                      <ComboBox ItemsSource="{Binding MinimumLevelOptions}" SelectedItem="{Binding EditMinimumLevel}" DisplayMemberPath="Label" HorizontalAlignment="Stretch" />
+                      <ui:TextBlock Style="{StaticResource FormHint}" Text="Information is right for everyday use. Pick Debug or Verbose only while chasing a problem; they write a lot more." />
+                    </StackPanel>
+                    <StackPanel Grid.Column="2" Style="{StaticResource FormGroup}">
+                      <ui:TextBlock Style="{StaticResource FormLabel}" Text="Lines kept in the live viewer" />
+                      <ui:NumberBox Value="{Binding EditBufferSize, Mode=TwoWay}" Minimum="100" Maximum="50000" HorizontalAlignment="Stretch" />
+                      <ui:TextBlock Style="{StaticResource FormHint}" Text="How many recent lines the Live log tab holds in memory (100 – 50,000). Files on disk are not limited by this." />
+                    </StackPanel>
+                  </Grid>
+                  <ui:ToggleSwitch Content="Hide serial numbers and MAC addresses in logs" IsChecked="{Binding EditRedactSerials}" Margin="0,0,0,8"
+                                   ToolTip="Replaces serial-number-like values with [redacted] before they are written anywhere. Useful before sharing a diagnostics export." />
+                  <ui:ToggleSwitch Content="Log every sensor sample (very chatty)" IsChecked="{Binding EditLogSensorSamples}"
+                                   ToolTip="Writes each temperature and load reading at Verbose level. Only turn this on to diagnose sensor problems." />
+                </StackPanel>
+              </ui:Card>
+
+              <ui:Card Style="{StaticResource CardSpacing}">
+                <StackPanel>
+                  <ui:TextBlock Style="{StaticResource CardTitle}" Text="Log files" />
+                  <ui:ToggleSwitch Content="Write log files to disk" IsChecked="{Binding EditFileEnabled}" Margin="0,0,0,12"
+                                   ToolTip="When off, lines are only kept in the live viewer and are lost when the app closes." />
+                  <StackPanel Style="{StaticResource FormGroup}" IsEnabled="{Binding EditFileEnabled}">
+                    <ui:TextBlock Style="{StaticResource FormLabel}" Text="Folder" />
+                    <Grid>
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                      </Grid.ColumnDefinitions>
+                      <ui:TextBox Grid.Column="0" Text="{Binding EditDirectory, UpdateSourceTrigger=PropertyChanged}" PlaceholderText="{Binding DefaultDirectory}" />
+                      <ui:Button Grid.Column="1" Content="Browse…" Icon="{ui:SymbolIcon FolderOpen24}" Command="{Binding BrowseDirectoryCommand}" Margin="8,0,0,0" />
+                      <ui:Button Grid.Column="2" Content="Default" Icon="{ui:SymbolIcon ArrowReset24}" Command="{Binding ResetDirectoryCommand}" Margin="8,0,0,0" />
+                    </Grid>
+                    <ui:TextBlock Style="{StaticResource FormHint}" Text="{Binding CurrentFileText, StringFormat='Current file: {0}'}" />
+                  </StackPanel>
+                  <Grid IsEnabled="{Binding EditFileEnabled}">
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="*" />
+                      <ColumnDefinition Width="24" />
+                      <ColumnDefinition Width="*" />
+                      <ColumnDefinition Width="24" />
+                      <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" Style="{StaticResource FormGroup}">
+                      <ui:TextBlock Style="{StaticResource FormLabel}" Text="Start a new file" />
+                      <ComboBox ItemsSource="{Binding RollingOptions}" SelectedItem="{Binding EditRolling}" DisplayMemberPath="Label" HorizontalAlignment="Stretch" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="2" Style="{StaticResource FormGroup}">
+                      <ui:TextBlock Style="{StaticResource FormLabel}" Text="Size limit per file (MB)" />
+                      <ui:NumberBox Value="{Binding EditFileSizeMb, Mode=TwoWay}" Minimum="1" Maximum="1024" HorizontalAlignment="Stretch" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="4" Style="{StaticResource FormGroup}">
+                      <ui:TextBlock Style="{StaticResource FormLabel}" Text="Files to keep" />
+                      <ui:NumberBox Value="{Binding EditRetainedFiles, Mode=TwoWay}" Minimum="1" Maximum="365" HorizontalAlignment="Stretch" />
+                    </StackPanel>
+                  </Grid>
+                  <ui:ToggleSwitch Content="JSON format (one object per line, for log tools)" IsChecked="{Binding EditJsonFormat}" IsEnabled="{Binding EditFileEnabled}" Margin="0,0,0,12" />
+                  <StackPanel Style="{StaticResource FormGroup}" IsEnabled="{Binding EditFileEnabled}"
+                              Visibility="{Binding EditJsonFormat, Converter={StaticResource InverseBoolToVisibility}}">
+                    <ui:TextBlock Style="{StaticResource FormLabel}" Text="Text line layout (output template)" />
+                    <Grid>
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                      </Grid.ColumnDefinitions>
+                      <ui:TextBox Grid.Column="0" Text="{Binding EditOutputTemplate, UpdateSourceTrigger=PropertyChanged}" FontFamily="Cascadia Mono, Consolas" FontSize="12" />
+                      <ui:Button Grid.Column="1" Content="Reset" Icon="{ui:SymbolIcon ArrowReset24}" Command="{Binding ResetTemplateCommand}" Margin="8,0,0,0" />
+                    </Grid>
+                    <ui:TextBlock Style="{StaticResource FormHint}" Text="Placeholders: {Timestamp}, {Level}, {Category}, {Message}, {NewLine}, {Exception}. Leave the default unless a log tool needs a specific layout." />
+                  </StackPanel>
+                </StackPanel>
+              </ui:Card>
+
+              <ui:CardExpander Margin="0,0,0,12" Icon="{ui:SymbolIcon Filter24}" IsExpanded="False">
+                <ui:CardExpander.Header>
+                  <StackPanel>
+                    <ui:TextBlock FontTypography="BodyStrong" Text="Detail per area" />
+                    <ui:TextBlock Style="{StaticResource Muted}" Text="Record more (or less) from one part of the app without changing the rest. Leave everything on the minimum level unless support asks for a specific area." TextWrapping="Wrap" />
+                  </StackPanel>
+                </ui:CardExpander.Header>
+                <StackPanel>
+                  <ui:Button Content="Use the minimum level everywhere" Icon="{ui:SymbolIcon ArrowReset24}" Command="{Binding ClearCategoryOverridesCommand}" Margin="0,0,0,12" HorizontalAlignment="Left" />
+                  <ItemsControl ItemsSource="{Binding CategoryRows}" Grid.IsSharedSizeScope="True">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate DataType="{x:Type logs:CategoryLevelRow}">
+                        <Grid Margin="0,0,0,8">
+                          <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" SharedSizeGroup="CatName" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                          </Grid.ColumnDefinitions>
+                          <ui:TextBlock Grid.Column="0" FontTypography="BodyStrong" Text="{Binding Category}" VerticalAlignment="Center" MinWidth="110" />
+                          <ui:TextBlock Grid.Column="1" Style="{StaticResource Muted}" Text="{Binding Description}" VerticalAlignment="Center" TextWrapping="Wrap" Margin="12,0" />
+                          <ComboBox Grid.Column="2" ItemsSource="{Binding Choices}" SelectedItem="{Binding Selected}" DisplayMemberPath="Label" MinWidth="280" />
+                        </Grid>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </StackPanel>
+              </ui:CardExpander>
+            </StackPanel>
+          </ScrollViewer>
+
+          <!-- Save bar -->
+          <Border Grid.Row="1" Margin="0,8,0,0" Padding="0,8,0,0" BorderThickness="0,1,0,0" BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}">
+            <StackPanel>
+              <ui:InfoBar Severity="Warning" Title="Check the settings" Message="{Binding SettingsValidationMessage}" IsClosable="False" IsOpen="True"
+                          Visibility="{Binding SettingsValidationMessage, Converter={StaticResource NullToVisibility}}" Margin="0,0,0,8" />
+              <StackPanel Orientation="Horizontal">
+                <ui:Button Content="Save and apply" Icon="{ui:SymbolIcon Save24}" Appearance="Primary" Command="{Binding SaveSettingsCommand}" Margin="0,0,8,0" />
+                <ui:Button Content="Discard changes" Icon="{ui:SymbolIcon ArrowUndo24}" Command="{Binding DiscardSettingsCommand}" Margin="0,0,16,0" />
+                <ui:TextBlock Style="{StaticResource Muted}" VerticalAlignment="Center" Text="Changes take effect immediately; no restart is needed."
+                              Visibility="{Binding SettingsDirty, Converter={StaticResource BoolToVisibility}}" />
+              </StackPanel>
+            </StackPanel>
+          </Border>
+        </Grid>
+      </TabItem>
+    </TabControl>
 
     <controls:BusyOverlay Grid.Row="0" Grid.RowSpan="3"
                           IsBusy="{Binding IsBusy}"

@@ -25,7 +25,15 @@ public sealed class LoggingSettings
         "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] [{Category}] {Message:lj}{NewLine}{Exception}";
 
     public LogLevelSetting MinimumLevel { get; set; } = LogLevelSetting.Information;
-    public Dictionary<string, LogLevelSetting> CategoryLevels { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+    private Dictionary<string, LogLevelSetting> _categoryLevels = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Per-category overrides keyed by category name (case-insensitive, also after loading from JSON).</summary>
+    public Dictionary<string, LogLevelSetting> CategoryLevels
+    {
+        get => _categoryLevels;
+        set => _categoryLevels = value is null ? new(StringComparer.OrdinalIgnoreCase) : new(value, StringComparer.OrdinalIgnoreCase);
+    }
+
     public bool FileEnabled { get; set; } = true;
     public string Directory { get; set; } = DefaultDirectory();
     public LogRollingInterval RollingInterval { get; set; } = LogRollingInterval.Day;
