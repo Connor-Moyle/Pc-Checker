@@ -17,6 +17,9 @@ namespace PcChecker.App.ViewModels;
 public sealed partial class LatencyViewModel : ViewModelBase
 {
     private const int HistorySize = 5;
+
+    /// <summary>Sample length of the automatic first check: short, because the user did not ask for it yet.</summary>
+    private const int QuickSampleSeconds = 5;
     public const string LatencyMonUrl = "https://www.resplendence.com/latencymon";
     public const string WpaUrl = "https://learn.microsoft.com/windows-hardware/test/wpt/";
 
@@ -25,7 +28,7 @@ public sealed partial class LatencyViewModel : ViewModelBase
     private readonly IDialogService _dialogs;
     private readonly INotificationService _notifications;
     private readonly ILogger<LatencyViewModel> _logger;
-    private readonly List<LatencyFindingItem> _allFindings = [];
+    private readonly List<(LatencyFinding Finding, OptimizationAction? Action)> _allFindings = [];
 
     [ObservableProperty]
     private int _sampleSeconds = 10;
@@ -110,20 +113,23 @@ public sealed partial class LatencyViewModel : ViewModelBase
             return Task.CompletedTask;
         }
 
-        return RunCheckAsync();
+        // First visit: run a short check so the page is populated; the user can pick a longer sample afterwards.
+        return RunCheckCoreAsync(QuickSampleSeconds, "Starting a quick latency check…");
     }
 
     public override Task RefreshAsync(CancellationToken cancellationToken) => RunCheckAsync();
 
     [RelayCommand]
-    private Task RunCheckAsync() => RunBusyAsync(async ct =>
+    private Task RunCheckAsync() => RunCheckCoreAsync(SampleSeconds, "Starting latency check…");
+
+    private Task RunCheckCoreAsync(int sampleSeconds, string busyText) => RunBusyAsync(async ct =>
     {
         var progress = new Progress<ProgressUpdate>(p =>
             BusyText = p.Percent is { } pct ? $"{p.Stage} ({pct:0}%){(p.Detail is null ? string.Empty : " — " + p.Detail)}" : p.Stage);
-        var report = await _latency.AnalyzeAsync(SampleSeconds, IncludeNetwork, progress, ct);
+        var report = await _latency.AnalyzeAsync(sampleSeconds, IncludeNetwork, progress, ct);
         Apply(report);
         PushHistory(report);
-    }, "Starting latency check…");
+    }, busyText);
 
     [RelayCommand]
     private Task PingAgainAsync() => RunBusyAsync(async ct =>
@@ -255,7 +261,7 @@ public sealed partial class LatencyViewModel : ViewModelBase
         foreach (var f in report.Findings.OrderByDescending(f => f.Severity))
         {
             var action = f.ActionId is null ? null : actions.FirstOrDefault(a => a.Id.Equals(f.ActionId, StringComparison.OrdinalIgnoreCase));
-            _allFindings.Add(new LatencyFindingItem(f, action));
+            _allFindings.Add((f, action));
         }
 
         FilterFindings();
@@ -266,15 +272,17 @@ public sealed partial class LatencyViewModel : ViewModelBase
     {
         Findings.Clear();
         int hidden = 0;
-        foreach (var item in _allFindings)
+        foreach (var (finding, action) in _allFindings)
         {
-            if (item.AdvancedOnly && !IsAdvancedMode)
+            if (finding.AdvancedOnly && !IsAdvancedMode)
             {
                 hidden++;
                 continue;
             }
 
-            Findings.Add(item);
+            // A finding may stay visible while its fix is an advanced-only catalog action: show the advice without the button.
+            var offered = action is { AdvancedOnly: true } && !IsAdvancedMode ? null : action;
+            Findings.Add(new LatencyFindingItem(finding, offered));
         }
 
         HiddenAdvancedCount = hidden;

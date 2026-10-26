@@ -47,14 +47,18 @@ public sealed partial class LatencyFindingItem : ObservableObject
     };
 
     public bool AdvancedOnly => Finding.AdvancedOnly;
-    public string RiskText => Finding.Risk switch
+
+    /// <summary>The risk of the fix when one is offered, otherwise the finding's own rating, so the badge matches the catalog.</summary>
+    public RiskLevel Risk => Action?.Risk ?? Finding.Risk;
+
+    public string RiskText => Risk switch
     {
         RiskLevel.Safe => "Safe",
         RiskLevel.Moderate => "Moderate",
         _ => "Advanced",
     };
 
-    public Brush RiskBrush => Finding.Risk switch
+    public Brush RiskBrush => Risk switch
     {
         RiskLevel.Safe => HealthStatusToBrushConverter.Good,
         RiskLevel.Moderate => HealthStatusToBrushConverter.Warning,

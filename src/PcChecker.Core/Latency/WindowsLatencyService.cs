@@ -82,11 +82,12 @@ public sealed class WindowsLatencyService : ILatencyService
         // 4. Game Mode, mouse acceleration, network adapter power saving.
         bool? gameMode = LatencyProbes.ReadGameMode();
         bool? pointerPrecision = LatencyProbes.ReadPointerPrecision();
-        var adapters = LatencyProbes.ReadNetworkAdapters();
-        bool? nicPowerSaving = adapters.Count == 0 ? null : NicPowerRules.AnyPowerSaving(adapters.Select(a => a.State));
-        foreach (var adapter in adapters.Where(a => a.State.IsPowerSaving))
+        var adapterStates = LatencyProbes.ReadNetworkAdapters().Select(a => a.State).ToList();
+        bool? nicPowerSaving = adapterStates.Count == 0 ? null : NicPowerRules.AnyPowerSaving(adapterStates);
+        foreach (var adapter in adapterStates)
         {
-            warnings.Add($"{adapter.State.Name}: power saving is on (EEE {Flag(adapter.State.EnergyEfficientEthernet)}, Green Ethernet {Flag(adapter.State.GreenEthernet)}, Windows may turn it off {Flag(adapter.State.PowerManagementAllowed)}).");
+            _logger.LogDebug("Adapter {Name}: power management allowed {Pm}, EEE {Eee}, Green Ethernet {Green}, interrupt moderation {Im}, flow control {Fc}.",
+                adapter.Name, adapter.PowerManagementAllowed, adapter.EnergyEfficientEthernet, adapter.GreenEthernet, adapter.InterruptModeration, adapter.FlowControl);
         }
 
         // 5. Mouse polling rate.
@@ -123,7 +124,7 @@ public sealed class WindowsLatencyService : ILatencyService
             timer?.CurrentMs, timer?.MinMs,
             hpetForced, dynamicTickDisabled, hags, planName, coreParking, usbSuspend, aspmEnabled,
             gameMode, pointerPrecision, pollingHz, dnsMs, network, [], 0, DateTimeOffset.Now, warnings);
-        var findings = LatencyRules.BuildFindings(facts, hasNvidia, nicPowerSaving);
+        var findings = LatencyRules.BuildFindings(facts, hasNvidia, nicPowerSaving, adapterStates);
         Last = facts with { Findings = findings, Score = LatencyRules.Score(findings) };
         _logger.LogInformation("Latency check finished in {Elapsed:0.0} s: score {Score}, {Findings} findings, {Warnings} warnings.",
             stopwatch.Elapsed.TotalSeconds, Last.Score, findings.Count, warnings.Count);
@@ -225,5 +226,4 @@ public sealed class WindowsLatencyService : ILatencyService
         }
     }
 
-    private static string Flag(bool? value) => value switch { true => "yes", false => "no", _ => "unknown" };
 }

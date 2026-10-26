@@ -16,7 +16,7 @@ public static class LatencyRules
     public const double DnsSlowMs = 100;
 
     /// <summary>Findings for a report whose measurements are filled in (its own Findings/Score are ignored).</summary>
-    public static IReadOnlyList<LatencyFinding> BuildFindings(LatencyReport facts, bool hasNvidiaGpu = false, bool? nicPowerSaving = null)
+    public static IReadOnlyList<LatencyFinding> BuildFindings(LatencyReport facts, bool hasNvidiaGpu = false, bool? nicPowerSaving = null, IReadOnlyList<NicPowerState>? adapters = null)
     {
         ArgumentNullException.ThrowIfNull(facts);
         var list = new List<LatencyFinding>();
@@ -77,8 +77,11 @@ public static class LatencyRules
 
         if (nicPowerSaving == true)
         {
-            list.Add(new("latency.nic.powersaving", Severity.Low, "Network adapter power saving is on",
-                "Energy-Efficient Ethernet, Green Ethernet or \"turn off this device to save power\" is enabled on a network adapter. These can add wake-up delay and jitter.", LatencyActionIds.NicPowerSavingOff, RiskLevel.Safe, false));
+            var saving = (adapters ?? []).Where(a => a.IsPowerSaving).ToList();
+            string detail = saving.Count == 0
+                ? "Energy-Efficient Ethernet, Green Ethernet or \"turn off this device to save power\" is enabled on a network adapter. These can add wake-up delay and jitter."
+                : "These can add wake-up delay and jitter. " + string.Join(" ", saving.Select(a => $"{a.Name}: {a.PowerSavingSummary}."));
+            list.Add(new("latency.nic.powersaving", Severity.Low, "Network adapter power saving is on", detail, LatencyActionIds.NicPowerSavingOff, RiskLevel.Safe, false));
         }
 
         if (facts.GameMode == false)
@@ -102,7 +105,7 @@ public static class LatencyRules
         if (facts.DnsMs is > DnsSlowMs)
         {
             list.Add(new("latency.dns.slow", Severity.Low, "Slow DNS lookups",
-                $"Looking up a web address took {facts.DnsMs:0} ms. A faster DNS server (for example Cloudflare 1.1.1.1) makes every new connection start sooner.", "dns.cloudflare", RiskLevel.Safe, false));
+                $"Looking up a web address took {facts.DnsMs:0} ms. A faster DNS server (for example Cloudflare 1.1.1.1) makes every new connection start sooner. Changing DNS is an advanced option: it is offered when advanced mode is on, or you can set it in your network adapter settings.", "dns.cloudflare", RiskLevel.Advanced, false));
         }
 
         foreach (var n in facts.Network ?? [])

@@ -22,7 +22,7 @@ public static class LatencyProbes
 
     // powercfg sub-group / setting GUIDs.
     public const string UsbSubgroup = "2a737441-1930-4402-8d77-b2bebba308a3";
-    public const string UsbSelectiveSuspendSetting = "48e6b7a6-50f5-4782-a5d4-53bb50ff";
+    public const string UsbSelectiveSuspendSetting = "48e6b7a6-50f5-4782-a5d4-53bb50ff42bd";
     public const string PciSubgroup = "501a4d13-42af-4429-9fd1-a8218c268e20";
     public const string PciAspmSetting = "ee12f906-d277-404b-b6da-e5fa1a576df5";
     public const string ProcessorSubgroup = "54533251-82be-4824-96c1-47b60b740d00";
@@ -93,6 +93,53 @@ public static class LatencyProbes
         catch
         {
             return null;
+        }
+    }
+
+    /// <summary>
+    /// Reads a value that may be REG_MULTI_SZ (for example the static <c>IPAddress</c> list of a TCP/IP interface) as
+    /// a list of strings. A plain string value becomes a single-item list; missing values give an empty list.
+    /// </summary>
+    public static IReadOnlyList<string> ReadStrings(RegistryHive hive, string subKey, string valueName)
+    {
+        if (!PlatformGuard.IsWindows)
+        {
+            return [];
+        }
+
+        try
+        {
+            using var key = RegistryKey.OpenBaseKey(hive, RegistryView.Registry64).OpenSubKey(subKey, false);
+            return key?.GetValue(valueName) switch
+            {
+                string[] many => many,
+                string one => [one],
+                null => [],
+                var other => [other.ToString() ?? string.Empty],
+            };
+        }
+        catch
+        {
+            return [];
+        }
+    }
+
+    /// <summary>True when the value exists under the key (regardless of its content).</summary>
+    public static bool ValueExists(RegistryHive hive, string subKey, string valueName)
+    {
+        if (!PlatformGuard.IsWindows)
+        {
+            return false;
+        }
+
+        try
+        {
+            using var key = RegistryKey.OpenBaseKey(hive, RegistryView.Registry64).OpenSubKey(subKey, false);
+            return key?.GetValue(valueName) is not null;
+        }
+        catch
+        {
+            return false;
         }
     }
 
@@ -277,7 +324,8 @@ public static class LatencyProbes
                 ReadString(RegistryHive.LocalMachine, subKey, "PnPCapabilities"),
                 ReadString(RegistryHive.LocalMachine, subKey, "*EEE"),
                 ReadString(RegistryHive.LocalMachine, subKey, "EnableGreenEthernet"),
-                ReadString(RegistryHive.LocalMachine, subKey, "*InterruptModeration"))));
+                ReadString(RegistryHive.LocalMachine, subKey, "*InterruptModeration"),
+                ReadString(RegistryHive.LocalMachine, subKey, "*FlowControl"))));
         }
 
         return list;
@@ -298,9 +346,13 @@ public static class LatencyProbes
     }
 
     /// <summary>Sets a power setting for both AC and DC in the active scheme and re-activates it.</summary>
-    public static async Task<OperationResult> SetPowerSettingAsync(string subgroup, string setting, int value, CancellationToken cancellationToken)
+    public static Task<OperationResult> SetPowerSettingAsync(string subgroup, string setting, int value, CancellationToken cancellationToken) =>
+        SetPowerSettingAsync(subgroup, setting, value, value, cancellationToken);
+
+    /// <summary>Sets separate AC and DC indexes of a power setting in the active scheme and re-activates it.</summary>
+    public static async Task<OperationResult> SetPowerSettingAsync(string subgroup, string setting, int acValue, int dcValue, CancellationToken cancellationToken)
     {
-        foreach (var verb in new[] { "/setacvalueindex", "/setdcvalueindex" })
+        foreach (var (verb, value) in new[] { ("/setacvalueindex", acValue), ("/setdcvalueindex", dcValue) })
         {
             var run = await RunAsync("powercfg.exe", $"{verb} SCHEME_CURRENT {subgroup} {setting} {value}", cancellationToken).ConfigureAwait(false);
             if (run.ExitCode != 0)
@@ -311,7 +363,7 @@ public static class LatencyProbes
 
         var activate = await RunAsync("powercfg.exe", "/setactive SCHEME_CURRENT", cancellationToken).ConfigureAwait(false);
         return activate.ExitCode == 0
-            ? OperationResult.Ok($"Power setting {setting} set to {value}.")
+            ? OperationResult.Ok(acValue == dcValue ? $"Power setting {setting} set to {acValue}." : $"Power setting {setting} set to AC {acValue} / DC {dcValue}.")
             : OperationResult.Fail("powercfg /setactive failed: " + Describe(activate));
     }
 

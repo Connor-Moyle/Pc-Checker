@@ -72,8 +72,10 @@ public sealed class DemoLatencyService : ILatencyService
             Findings: [],
             Score: 0,
             Captured: DateTimeOffset.Now,
-            Warnings: ["Sample data: this is the demo build of PC Checker, nothing on this PC was measured."]);
-        var findings = LatencyRules.BuildFindings(facts, hasNvidiaGpu: true, nicPowerSaving: !Applied(LatencyActionIds.NicPowerSavingOff));
+            Warnings: []);
+        bool nicSaving = !Applied(LatencyActionIds.NicPowerSavingOff);
+        var findings = LatencyRules.BuildFindings(facts, hasNvidiaGpu: true, nicPowerSaving: nicSaving,
+            adapters: [new NicPowerState("Intel I225-V 2.5GbE", PowerManagementAllowed: nicSaving, EnergyEfficientEthernet: nicSaving, GreenEthernet: false, InterruptModeration: true, FlowControl: true)]);
         Last = facts with { Findings = findings, Score = LatencyRules.Score(findings) };
         return Last;
     }

@@ -127,6 +127,48 @@ public class LatencyRulesTests
     }
 
     [Fact]
+    public void Slow_dns_finding_is_visible_but_rated_advanced_like_its_catalog_action()
+    {
+        var finding = Assert.Single(LatencyRules.BuildFindings(Healthy() with { DnsMs = 180 }));
+        Assert.Equal("latency.dns.slow", finding.Id);
+        Assert.Equal(RiskLevel.Advanced, finding.Risk);
+        Assert.False(finding.AdvancedOnly);
+        var catalog = OptimizationCatalog.All.Single(a => a.Id == "dns.cloudflare");
+        Assert.Equal(catalog.Risk, finding.Risk);
+        Assert.True(catalog.AdvancedOnly);
+    }
+
+    [Fact]
+    public void Nic_finding_names_the_adapters_that_save_power()
+    {
+        var adapters = new List<NicPowerState>
+        {
+            NicPowerRules.Interpret("Intel I225-V", "24", "1", "0", "1", "1"),
+            NicPowerRules.Interpret("Realtek PCIe GbE", "24", "0", "0", "1", "0"),
+        };
+        var finding = Assert.Single(LatencyRules.BuildFindings(Healthy(), nicPowerSaving: true, adapters: adapters));
+        Assert.Equal(LatencyActionIds.NicPowerSavingOff, finding.ActionId);
+        Assert.Contains("Intel I225-V: Energy-Efficient Ethernet", finding.Detail);
+        Assert.DoesNotContain("Realtek", finding.Detail);
+        Assert.Equal("nothing", adapters[1].PowerSavingSummary);
+    }
+
+    [Fact]
+    public void Power_setting_guids_are_complete()
+    {
+        foreach (var guid in new[]
+                 {
+                     LatencyProbes.UsbSubgroup, LatencyProbes.UsbSelectiveSuspendSetting, LatencyProbes.PciSubgroup,
+                     LatencyProbes.PciAspmSetting, LatencyProbes.ProcessorSubgroup, LatencyProbes.CoreParkingMinCoresSetting,
+                 })
+        {
+            Assert.True(Guid.TryParseExact(guid, "D", out _), guid + " is not a full GUID");
+        }
+
+        Assert.Equal("48e6b7a6-50f5-4782-a5d4-53bb50ff42bd", LatencyProbes.UsbSelectiveSuspendSetting);
+    }
+
+    [Fact]
     public void Score_subtracts_weights_and_never_goes_below_zero()
     {
         LatencyFinding Make(Severity s) => new("x", s, "t", "d", null, RiskLevel.Safe, false);
@@ -192,7 +234,7 @@ public class LatencyParserTests
         const string sample = """
             Power Scheme GUID: 381b4222-f694-41f0-9685-ff5bb260df2e  (Balanced)
               Subgroup GUID: 2a737441-1930-4402-8d77-b2bebba308a3  (USB settings)
-                Power Setting GUID: 48e6b7a6-50f5-4782-a5d4-53bb50ff  (USB selective suspend setting)
+                Power Setting GUID: 48e6b7a6-50f5-4782-a5d4-53bb50ff42bd  (USB selective suspend setting)
                   Possible Setting Index: 000
                   Possible Setting Friendly Name: Disabled
                   Possible Setting Index: 001
@@ -241,6 +283,26 @@ public class NicPowerRulesTests
         Assert.True(NicPowerRules.Interpret("Realtek", "24", "0", "1", null).IsPowerSaving);
         Assert.True(NicPowerRules.AnyPowerSaving([NicPowerRules.Interpret("a", "24", "0", "0", null), NicPowerRules.Interpret("b", "0", "0", "0", null)]));
         Assert.False(NicPowerRules.AnyPowerSaving([]));
+    }
+
+    [Fact]
+    public void Flow_control_is_read_but_does_not_count_as_power_saving()
+    {
+        var state = NicPowerRules.Interpret("Intel I225-V", "24", "0", "0", "1", "3");
+        Assert.True(state.FlowControl);
+        Assert.False(state.IsPowerSaving);
+        Assert.Null(NicPowerRules.Interpret("Wi-Fi 6E", "24", null, null, null).FlowControl);
+    }
+
+    [Fact]
+    public void Tcp_interface_counts_as_active_only_with_a_real_address()
+    {
+        Assert.False(NicPowerRules.InterfaceHoldsAddress(null, null));
+        Assert.False(NicPowerRules.InterfaceHoldsAddress("0.0.0.0", ["0.0.0.0"]));
+        Assert.False(NicPowerRules.InterfaceHoldsAddress(string.Empty, []));
+        Assert.True(NicPowerRules.InterfaceHoldsAddress("192.168.1.20", null));
+        Assert.True(NicPowerRules.InterfaceHoldsAddress("0.0.0.0", ["0.0.0.0", "10.0.0.5"]));
+        Assert.False(NicPowerRules.InterfaceHoldsAddress(null, ["0.0.0.0"]));
     }
 
     [Theory]

@@ -6,10 +6,36 @@ public sealed record NicPowerState(
     bool? PowerManagementAllowed,
     bool? EnergyEfficientEthernet,
     bool? GreenEthernet,
-    bool? InterruptModeration)
+    bool? InterruptModeration,
+    bool? FlowControl = null)
 {
     /// <summary>True when any power-saving feature is on or Windows may turn the adapter off.</summary>
     public bool IsPowerSaving => PowerManagementAllowed != false || EnergyEfficientEthernet == true || GreenEthernet == true;
+
+    /// <summary>Short plain-English list of what is on, for example "EEE, Green Ethernet, Windows may turn it off".</summary>
+    public string PowerSavingSummary
+    {
+        get
+        {
+            var parts = new List<string>(3);
+            if (EnergyEfficientEthernet == true)
+            {
+                parts.Add("Energy-Efficient Ethernet");
+            }
+
+            if (GreenEthernet == true)
+            {
+                parts.Add("Green Ethernet");
+            }
+
+            if (PowerManagementAllowed != false)
+            {
+                parts.Add("Windows may turn it off to save power");
+            }
+
+            return parts.Count == 0 ? "nothing" : string.Join(", ", parts);
+        }
+    }
 }
 
 /// <summary>
@@ -35,10 +61,24 @@ public static class NicPowerRules
     ];
 
     /// <summary>Builds the state from the raw registry strings (null when a value is missing).</summary>
-    public static NicPowerState Interpret(string name, string? pnpCapabilities, string? eee, string? greenEthernet, string? interruptModeration)
+    public static NicPowerState Interpret(string name, string? pnpCapabilities, string? eee, string? greenEthernet, string? interruptModeration, string? flowControl = null)
     {
         bool? powerAllowed = ParseInt(pnpCapabilities) is { } caps ? (caps & PnpDisablePowerManagement) == 0 : true;
-        return new NicPowerState(name, powerAllowed, ParseFlag(eee), ParseFlag(greenEthernet), ParseFlag(interruptModeration));
+        return new NicPowerState(name, powerAllowed, ParseFlag(eee), ParseFlag(greenEthernet), ParseFlag(interruptModeration), ParseFlag(flowControl));
+    }
+
+    /// <summary>
+    /// True when a TCP/IP interface key holds an IPv4 address: a DHCP lease other than 0.0.0.0, or a static address list
+    /// (REG_MULTI_SZ <c>IPAddress</c>) with any entry other than 0.0.0.0. Pure.
+    /// </summary>
+    public static bool InterfaceHoldsAddress(string? dhcpAddress, IEnumerable<string>? staticAddresses)
+    {
+        if (!string.IsNullOrWhiteSpace(dhcpAddress) && dhcpAddress.Trim() != "0.0.0.0")
+        {
+            return true;
+        }
+
+        return staticAddresses?.Any(a => !string.IsNullOrWhiteSpace(a) && a.Trim() != "0.0.0.0") == true;
     }
 
     /// <summary>True when the adapter name looks like a virtual, VPN or Bluetooth adapter that should not be changed.</summary>
