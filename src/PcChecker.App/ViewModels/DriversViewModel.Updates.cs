@@ -37,8 +37,13 @@ public sealed partial class DriversViewModel
     public string UpdatesTabHeader => UpdatesAvailable == 0 ? "Updates" : $"Updates ({UpdatesAvailable})";
 
     [RelayCommand]
-    private Task CheckForUpdatesAsync() => RunBusyAsync(async ct =>
+    private Task CheckForUpdatesAsync() => RunUpdateCheckAsync(CancellationToken.None);
+
+    /// <summary>The update check behind the button and demo-mode initialization; see <c>RunScanAsync</c> for the token handling.</summary>
+    private Task RunUpdateCheckAsync(CancellationToken outer) => RunBusyAsync(async busyToken =>
     {
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(busyToken, outer);
+        var ct = linked.Token;
         var progress = new Progress<ProgressUpdate>(p => BusyText = p.Stage + (p.Detail is null ? string.Empty : " — " + p.Detail));
         var result = await _drivers.CheckForUpdatesAsync(progress, ct);
         Updates.Clear();
@@ -64,7 +69,7 @@ public sealed partial class DriversViewModel
         UpdatesAvailable = Updates.Count;
         UpdatesChecked = true;
         LastCheckText = "Checked " + result.Captured.ToString("t", CultureInfo.CurrentCulture);
-        MergeWarnings(result.Warnings);
+        SetWarnings(WarningSource.UpdateCheck, result.Warnings);
         OnPropertyChanged(nameof(SelectedUpdateCount));
     }, "Checking Windows Update for driver updates…");
 

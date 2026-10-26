@@ -50,7 +50,11 @@ public sealed record DriverUpdateInfo(
     string? DownloadUrl,
     bool IsDownloaded,
     bool IsInstalled,
-    bool RebootRequired);
+    bool RebootRequired)
+{
+    /// <summary>The driver publisher as Windows Update reports it (DriverProvider), or null when unknown.</summary>
+    public string? Provider { get; init; }
+}
 
 public sealed record DriverScanResult(IReadOnlyList<DriverInfo> Drivers, IReadOnlyList<string> Warnings, DateTimeOffset Captured)
 {

@@ -33,10 +33,16 @@ public sealed class DemoDriverService : IDriverService, IDriverStoreProvider, ID
         {
             new("wu-intel-i2c", "Intel Corporation - System - 30.100.2417.47",
                 "Intel(R) Serial IO I2C Host Controller · Intel Corporation · System\nIntel Corporation System driver update released in October 2024.",
-                "30.100.2417.47", new DateTime(2024, 10, 3), 2_900_000, DriverUpdateSource.WindowsUpdate, @"PCI\VEN_8086&DEV_7A4C", null, null, false, false, false),
+                "30.100.2417.47", new DateTime(2024, 10, 3), 2_900_000, DriverUpdateSource.WindowsUpdate, @"PCI\VEN_8086&DEV_7A4C", null, null, false, false, false)
+            {
+                Provider = "Intel Corporation",
+            },
             new("wu-realtek-audio", "Realtek Semiconductor Corp. - MEDIA - 6.0.9728.1",
                 "Realtek(R) Audio · Realtek Semiconductor Corp. · MEDIA\nRealtek audio driver update released in April 2025.",
-                "6.0.9728.1", new DateTime(2025, 4, 22), 48_500_000, DriverUpdateSource.WindowsUpdate, @"HDAUDIO\FUNC_01&VEN_10EC&DEV_4080", null, null, false, false, true),
+                "6.0.9728.1", new DateTime(2025, 4, 22), 48_500_000, DriverUpdateSource.WindowsUpdate, @"HDAUDIO\FUNC_01&VEN_10EC&DEV_4080", null, null, false, false, true)
+            {
+                Provider = "Realtek Semiconductor Corp.",
+            },
         };
         var links = DriverRules.VendorLinksFor(DemoHardwareInventoryService.Build());
         progress?.Report(new ProgressUpdate("Done", 100));

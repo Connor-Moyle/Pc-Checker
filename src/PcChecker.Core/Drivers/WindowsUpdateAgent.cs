@@ -381,7 +381,10 @@ internal sealed class WindowsUpdateAgent
         var fullDescription = string.IsNullOrWhiteSpace(detail) ? description : (string.IsNullOrWhiteSpace(description) ? detail : detail + "\n" + description);
 
         return new DriverUpdateInfo(id, title, fullDescription, version, date, size, DriverUpdateSource.WindowsUpdate,
-            hardwareId, kb, null, downloaded, installed, reboot);
+            hardwareId, kb, null, downloaded, installed, reboot)
+        {
+            Provider = string.IsNullOrWhiteSpace(provider) ? null : provider.Trim(),
+        };
     }
 
     /// <summary>Windows Update driver titles look like "Intel Corporation - System - 30.100.2417.47"; the last part is the version.</summary>

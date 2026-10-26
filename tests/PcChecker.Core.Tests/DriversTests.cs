@@ -514,6 +514,7 @@ public class DemoDriverServiceTests
         var check = await svc.CheckForUpdatesAsync(null, CancellationToken.None);
         Assert.Equal(2, check.Updates.Count);
         Assert.All(check.Updates, u => Assert.Equal(DriverUpdateSource.WindowsUpdate, u.Source));
+        Assert.All(check.Updates, u => Assert.False(string.IsNullOrWhiteSpace(u.Provider)));
         Assert.NotEmpty(check.VendorLinks);
         var store = await svc.GetDriverStoreAsync(CancellationToken.None);
         Assert.True(store.Packages.Count >= 10);

@@ -176,7 +176,9 @@ public sealed class WindowsDriverService : IDriverService, IDriverStoreProvider,
             async ct =>
             {
                 var r = await _agent.InstallAsync(updates, progress, ct).ConfigureAwait(false);
-                return OperationResult<DriverInstallResult>.Ok(r, Summarize(r), r.RebootRequired);
+                // The per-update results travel with the outcome either way; only Success decides how the change
+                // guard records it (journal entry, optional "after" restore point).
+                return new OperationResult<DriverInstallResult>(r.Success, Summarize(r), r, null, r.RebootRequired);
             },
             progress,
             cancellationToken).ConfigureAwait(false);

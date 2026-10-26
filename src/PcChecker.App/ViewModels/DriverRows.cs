@@ -92,6 +92,7 @@ public sealed partial class DriverUpdateRow : ObservableObject
 
     public string Title => Update.Title;
     public string Description => Update.Description ?? string.Empty;
+    public string Provider => Update.Provider ?? "—";
     public string Version => Update.Version ?? "—";
     public string DateText => Update.ReleaseDate?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) ?? "—";
     public string SizeText => Update.SizeBytes > 0 ? ByteSize.Format(Update.SizeBytes) : "—";

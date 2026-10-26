@@ -23,6 +23,7 @@ public sealed partial class DriversViewModel : ViewModelBase
     private readonly INotificationService _notifications;
     private readonly ILogger<DriversViewModel> _logger;
     private readonly List<DriverRow> _allDrivers = [];
+    private readonly Dictionary<WarningSource, IReadOnlyList<string>> _warningsBySource = [];
 
     [ObservableProperty]
     private string? _searchText;
@@ -126,14 +127,16 @@ public sealed partial class DriversViewModel : ViewModelBase
     /// </summary>
     public override async Task InitializeAsync(CancellationToken cancellationToken)
     {
-        await ScanAsync();
+        await RunScanAsync(cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
         if (AppOptions.Current.IsDemo)
         {
-            await CheckForUpdatesAsync();
+            await RunUpdateCheckAsync(cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
         }
     }
 
-    public override Task RefreshAsync(CancellationToken cancellationToken) => ScanAsync();
+    public override Task RefreshAsync(CancellationToken cancellationToken) => RunScanAsync(cancellationToken);
 
     partial void OnSearchTextChanged(string? value) => ApplyFilters();
     partial void OnThirdPartyOnlyChanged(bool value) => ApplyFilters();
@@ -150,8 +153,16 @@ public sealed partial class DriversViewModel : ViewModelBase
     protected override void OnBusyError(Exception exception) => _logger.LogError(exception, "Drivers page operation failed.");
 
     [RelayCommand]
-    private Task ScanAsync() => RunBusyAsync(async ct =>
+    private Task ScanAsync() => RunScanAsync(CancellationToken.None);
+
+    /// <summary>
+    /// The scan behind the Scan button, Refresh and page initialization. The busy overlay's Cancel button and the
+    /// caller's token (navigation away, screenshot runner) both stop the work.
+    /// </summary>
+    private Task RunScanAsync(CancellationToken outer) => RunBusyAsync(async busyToken =>
     {
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(busyToken, outer);
+        var ct = linked.Token;
         var progress = new Progress<ProgressUpdate>(p => BusyText = p.Stage + (p.Detail is null ? string.Empty : " — " + p.Detail));
         await ScanAsyncCore(progress, ct);
         if (IsAdvancedMode && SupportsDriverStore)
@@ -310,7 +321,7 @@ public sealed partial class DriversViewModel : ViewModelBase
         _allDrivers.AddRange(result.Drivers.Select(d => new DriverRow(d)));
         UpdateSummary();
         LastScanText = "Scanned " + result.Captured.ToString("t", CultureInfo.CurrentCulture);
-        MergeWarnings(result.Warnings);
+        SetWarnings(WarningSource.Scan, result.Warnings);
         ApplyFilters();
     }
 
@@ -340,7 +351,7 @@ public sealed partial class DriversViewModel : ViewModelBase
         }
 
         DriverStoreLoaded = true;
-        MergeWarnings(store.Warnings);
+        SetWarnings(WarningSource.DriverStore, store.Warnings);
     }
 
     /// <summary>Turning advanced mode on after a scan reveals the driver-store section; fill it so it is not empty.</summary>
@@ -369,15 +380,23 @@ public sealed partial class DriversViewModel : ViewModelBase
         VisibleDriverCount = FilteredDrivers.Count;
     }
 
-    private void MergeWarnings(IReadOnlyList<string> warnings)
+    /// <summary>
+    /// Replaces the warnings of one source (scan, update check, driver store) and rebuilds the InfoBar text, so a
+    /// warning from an earlier failed run disappears once the same operation succeeds, while warnings from the other
+    /// sources stay visible.
+    /// </summary>
+    private void SetWarnings(WarningSource source, IReadOnlyList<string> warnings)
     {
-        if (warnings.Count == 0)
-        {
-            return;
-        }
+        _warningsBySource[source] = warnings;
+        var all = _warningsBySource.OrderBy(kv => kv.Key).SelectMany(kv => kv.Value).Where(w => !string.IsNullOrWhiteSpace(w)).Distinct().ToList();
+        Warnings = all.Count == 0 ? null : string.Join("\n", all);
+    }
 
-        var existing = string.IsNullOrWhiteSpace(Warnings) ? Array.Empty<string>() : Warnings.Split('\n');
-        Warnings = string.Join("\n", existing.Concat(warnings).Distinct());
+    private enum WarningSource
+    {
+        Scan,
+        UpdateCheck,
+        DriverStore,
     }
 
     private void ShowResult(bool success, string message, string title)
