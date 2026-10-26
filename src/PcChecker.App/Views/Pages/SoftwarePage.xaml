@@ -4,20 +4,58 @@
       xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
       xmlns:controls="clr-namespace:PcChecker.App.Controls"
       xmlns:vm="clr-namespace:PcChecker.App.ViewModels"
-      d:DataContext="{d:DesignInstance vm:SoftwareViewModel}"
       xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
       xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+      d:DataContext="{d:DesignInstance vm:SoftwareViewModel}"
       mc:Ignorable="d"
       Title="Software"
       ScrollViewer.CanContentScroll="False">
+  <Page.Resources>
+    <!-- Small rounded label used for the source and bundle badges. -->
+    <Style x:Key="Badge" TargetType="Border">
+      <Setter Property="CornerRadius" Value="6" />
+      <Setter Property="Padding" Value="7,2" />
+      <Setter Property="Margin" Value="6,0,0,0" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="Background" Value="{DynamicResource ControlFillColorSecondaryBrush}" />
+    </Style>
+    <Style x:Key="BadgeText" TargetType="TextBlock">
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+    </Style>
+    <DataTemplate x:Key="EnumItem">
+      <TextBlock Text="{Binding Converter={StaticResource EnumToString}}" />
+    </DataTemplate>
+  </Page.Resources>
+
   <Grid Style="{StaticResource PageRoot}">
     <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="Auto" />
       <RowDefinition Height="Auto" />
       <RowDefinition Height="Auto" />
       <RowDefinition Height="*" />
     </Grid.RowDefinitions>
 
-    <controls:SectionHeader Grid.Row="0" Title="Software" Subtitle="Installed programs, where they live and what came bundled with them." />
+    <!-- Header with the main actions. -->
+    <controls:SectionHeader Grid.Row="0" Title="Software" Subtitle="Installed programs and Store apps, where they live, what came bundled with them, and a safe way to remove them.">
+      <controls:SectionHeader.Actions>
+        <StackPanel Orientation="Horizontal">
+          <ui:Button Content="Scan" Appearance="Primary" Icon="{ui:SymbolIcon Search24}" Command="{Binding ScanCommand}" Margin="0,0,8,0"
+                     ToolTip="Read the installed-programs lists from the registry and the Store." />
+          <ui:Button Content="Calculate sizes" Icon="{ui:SymbolIcon Ruler24}" Command="{Binding CalculateSizesCommand}" IsEnabled="{Binding HasResults}" Margin="0,0,8,0"
+                     ToolTip="Measure each program's install folder. Takes a moment on large drives; you can cancel." />
+          <ui:Button Content="Export CSV" Icon="{ui:SymbolIcon DocumentTable24}" Command="{Binding ExportCsvCommand}" IsEnabled="{Binding HasResults}" Margin="0,0,8,0"
+                     ToolTip="Save the whole list as a spreadsheet file." />
+          <ui:Button Content="Check for upgrades" Icon="{ui:SymbolIcon ArrowDownload24}" Command="{Binding CheckWingetUpgradesCommand}"
+                     Visibility="{Binding IsAdvancedMode, Converter={StaticResource BoolToVisibility}}"
+                     ToolTip="Ask the Windows Package Manager (winget) which programs have a newer version. Nothing is installed." />
+        </StackPanel>
+      </controls:SectionHeader.Actions>
+    </controls:SectionHeader>
 
     <ui:InfoBar Grid.Row="1"
                 Severity="Error"
@@ -27,12 +65,287 @@
                 IsClosable="True"
                 Margin="0,0,0,12" />
 
-    <controls:EmptyState Grid.Row="2"
-                         Icon="Apps24"
-                         Title="This section is being prepared"
-                         Message="Installed programs, where they live and what came bundled with them." />
+    <ui:InfoBar Grid.Row="2"
+                Severity="Warning"
+                Title="Some entries could not be read"
+                IsOpen="{Binding HasWarnings, Mode=OneWay}"
+                IsClosable="True"
+                Margin="0,0,0,12">
+      <ItemsControl ItemsSource="{Binding Warnings}" Margin="0,0,0,4">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate>
+            <ui:TextBlock Text="{Binding}" TextWrapping="Wrap" FontSize="12" />
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </ui:InfoBar>
 
-    <controls:BusyOverlay Grid.Row="0" Grid.RowSpan="3"
+    <!-- Headline numbers. -->
+    <UniformGrid Grid.Row="3" Columns="4" Margin="-6,0,-6,12" Visibility="{Binding HasScanned, Converter={StaticResource BoolToVisibility}}">
+      <controls:StatCard Title="Programs" Value="{Binding ProgramCount}" Icon="Apps24" Accent="{StaticResource AccentCyanBrush}" Subtitle="{Binding LastScanText}" Margin="6,0" />
+      <controls:StatCard Title="Store apps" Value="{Binding StoreAppCount}" Icon="StoreMicrosoft24" Accent="{StaticResource AccentPurpleBrush}" Subtitle="From the Microsoft Store" Margin="6,0" />
+      <controls:StatCard Title="Bundles detected" Value="{Binding BundleCount}" Icon="BoxMultiple24" Accent="{StaticResource AccentOrangeBrush}" Subtitle="Programs that arrived together" Margin="6,0" />
+      <controls:StatCard Title="Total size known" Value="{Binding TotalSizeText}" Icon="HardDrive24" Accent="{StaticResource AccentGreenBrush}" Subtitle="{Binding SizeKnownText}" Margin="6,0" />
+    </UniformGrid>
+
+    <!-- Filter bar. -->
+    <ui:Card Grid.Row="4" Padding="12" Margin="0,0,0,12" Visibility="{Binding HasResults, Converter={StaticResource BoolToVisibility}}">
+      <Grid>
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*" MinWidth="200" />
+          <ColumnDefinition Width="Auto" />
+          <ColumnDefinition Width="Auto" />
+          <ColumnDefinition Width="Auto" />
+          <ColumnDefinition Width="Auto" />
+          <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+        <ui:TextBox Grid.Column="0"
+                    Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                    PlaceholderText="Search by name, publisher, version or folder"
+                    Icon="{ui:SymbolIcon Search24}"
+                    ClearButtonEnabled="True"
+                    Margin="0,0,12,0" />
+        <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="0,0,12,0" VerticalAlignment="Center">
+          <ui:TextBlock Text="Show" Style="{StaticResource Muted}" VerticalAlignment="Center" Margin="0,0,6,0" />
+          <ComboBox MinWidth="170" ItemsSource="{Binding SourceFilters}" SelectedItem="{Binding SourceFilter}" ItemTemplate="{StaticResource EnumItem}" />
+        </StackPanel>
+        <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="0,0,12,0" VerticalAlignment="Center">
+          <ui:TextBlock Text="Sort by" Style="{StaticResource Muted}" VerticalAlignment="Center" Margin="0,0,6,0" />
+          <ComboBox MinWidth="190" ItemsSource="{Binding SortOrders}" SelectedItem="{Binding SortOrder}" ItemTemplate="{StaticResource EnumItem}" />
+        </StackPanel>
+        <ui:ToggleSwitch Grid.Column="3" Content="Show bundled groups" IsChecked="{Binding ShowBundles}" Margin="0,0,12,0"
+                         ToolTip="Show cards for programs that were installed together, such as a browser that came with an antivirus." />
+        <ui:ToggleSwitch Grid.Column="4" Content="Quiet uninstall" IsChecked="{Binding QuietUninstall}" Margin="0,0,12,0"
+                         ToolTip="Run uninstallers with their silent switches so no installer windows appear. Turn off to follow each uninstaller's own prompts." />
+        <ui:TextBlock Grid.Column="5" Text="{Binding FilterSummary}" Style="{StaticResource Muted}" VerticalAlignment="Center" />
+      </Grid>
+    </ui:Card>
+
+    <!-- Bundle cards. -->
+    <ui:CardExpander Grid.Row="5" Margin="0,0,0,12" IsExpanded="True" Icon="{ui:SymbolIcon BoxMultiple24}"
+                     Visibility="{Binding ShowBundleSection, Converter={StaticResource BoolToVisibility}}">
+      <ui:CardExpander.Header>
+        <StackPanel>
+          <ui:TextBlock FontTypography="BodyStrong" Text="Installed alongside" />
+          <ui:TextBlock Style="{StaticResource Muted}" Text="Programs that arrived together. Extras you did not ask for can be removed; runtime dependencies are best kept." TextWrapping="Wrap" />
+        </StackPanel>
+      </ui:CardExpander.Header>
+      <ScrollViewer MaxHeight="240" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <ItemsControl ItemsSource="{Binding Bundles}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <WrapPanel />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate>
+              <ui:Card Width="380" Margin="0,0,12,12" Padding="14">
+                <StackPanel>
+                  <ui:TextBlock FontTypography="BodyStrong" Text="{Binding ParentName}" TextTrimming="CharacterEllipsis" />
+                  <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding Reason}" TextWrapping="Wrap" Margin="0,2,0,8" />
+                  <ItemsControl ItemsSource="{Binding Children}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate>
+                        <Grid Margin="0,2">
+                          <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                          </Grid.ColumnDefinitions>
+                          <ui:TextBlock Grid.Column="0" Text="{Binding Name}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                          <Border Grid.Column="1" Style="{StaticResource Badge}">
+                            <TextBlock Style="{StaticResource BadgeText}" Text="{Binding Kind}" />
+                          </Border>
+                        </Grid>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                  <ui:Button Content="{Binding RemoveButtonText}" Appearance="Danger" Icon="{ui:SymbolIcon Delete24}" Margin="0,10,0,0"
+                             Command="{Binding DataContext.UninstallExtrasCommand, RelativeSource={RelativeSource AncestorType={x:Type Page}}}"
+                             CommandParameter="{Binding}"
+                             Visibility="{Binding HasRemovable, Converter={StaticResource BoolToVisibility}}" />
+                </StackPanel>
+              </ui:Card>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </ScrollViewer>
+    </ui:CardExpander>
+
+    <!-- winget upgrades (advanced). -->
+    <ui:CardExpander Grid.Row="6" Margin="0,0,0,12" IsExpanded="True" Icon="{ui:SymbolIcon ArrowDownload24}"
+                     Visibility="{Binding WingetStatus, Converter={StaticResource NullToVisibility}}">
+      <ui:CardExpander.Header>
+        <StackPanel>
+          <ui:TextBlock FontTypography="BodyStrong" Text="Upgrades available via winget" />
+          <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding WingetStatus}" TextWrapping="Wrap" />
+        </StackPanel>
+      </ui:CardExpander.Header>
+      <StackPanel>
+        <ItemsControl ItemsSource="{Binding WingetUpgrades}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate>
+              <Grid Margin="0,3">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="2*" />
+                  <ColumnDefinition Width="2*" />
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="Auto" />
+                  <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <ui:TextBlock Grid.Column="0" Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                <ui:TextBlock Grid.Column="1" Text="{Binding Id}" Style="{StaticResource Muted}" TextTrimming="CharacterEllipsis" />
+                <ui:TextBlock Grid.Column="2" Text="{Binding Version}" Style="{StaticResource Muted}" />
+                <ui:SymbolIcon Grid.Column="3" Symbol="ArrowRight16" Margin="8,0" />
+                <ui:TextBlock Grid.Column="4" Text="{Binding Available}" FontWeight="SemiBold" />
+              </Grid>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <StackPanel Orientation="Horizontal" Margin="0,8,0,0" Visibility="{Binding HasWingetUpgrades, Converter={StaticResource BoolToVisibility}}">
+          <ui:TextBlock Style="{StaticResource Muted}" VerticalAlignment="Center"
+                        Text="To upgrade, open a terminal and run: winget upgrade --id &lt;Id&gt; (or winget upgrade --all)." />
+          <ui:HyperlinkButton Content="How winget upgrade works" Command="{Binding OpenWingetUpgradeHelpCommand}" Margin="8,0,0,0" />
+        </StackPanel>
+      </StackPanel>
+    </ui:CardExpander>
+
+    <!-- Main list. -->
+    <Grid Grid.Row="7">
+      <ui:DataGrid ItemsSource="{Binding Programs}"
+                   SelectedItem="{Binding SelectedProgram, Mode=TwoWay}"
+                   AutoGenerateColumns="False"
+                   IsReadOnly="True"
+                   CanUserAddRows="False"
+                   CanUserDeleteRows="False"
+                   CanUserReorderColumns="True"
+                   CanUserResizeRows="False"
+                   SelectionMode="Single"
+                   HeadersVisibility="Column"
+                   GridLinesVisibility="None"
+                   RowDetailsVisibilityMode="VisibleWhenSelected"
+                   VerticalScrollBarVisibility="Auto"
+                   HorizontalScrollBarVisibility="Auto"
+                   Visibility="{Binding HasFilteredRows, Converter={StaticResource BoolToVisibility}}">
+        <ui:DataGrid.Columns>
+          <DataGridTemplateColumn Header="Name" Width="2.2*" SortMemberPath="Name">
+            <DataGridTemplateColumn.CellTemplate>
+              <DataTemplate>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                  <ui:SymbolIcon Symbol="LockClosed16" Margin="0,0,6,0" Foreground="{StaticResource AccentYellowBrush}"
+                                 ToolTip="{Binding ProtectionReason}"
+                                 Visibility="{Binding IsProtected, Converter={StaticResource BoolToVisibility}}" />
+                  <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" ToolTip="{Binding Name}" />
+                  <Border Style="{StaticResource Badge}" Background="#33F97316" ToolTip="Other programs were installed together with this one."
+                          Visibility="{Binding HasBundledChildren, Converter={StaticResource BoolToVisibility}}">
+                    <TextBlock Style="{StaticResource BadgeText}" Text="{Binding BundledBadgeText}" />
+                  </Border>
+                  <Border Style="{StaticResource Badge}" ToolTip="This program arrived together with another install; see the details below."
+                          Visibility="{Binding IsBundledChild, Converter={StaticResource BoolToVisibility}}">
+                    <TextBlock Style="{StaticResource BadgeText}" Text="{Binding BundledWithName, StringFormat='came with {0}'}" />
+                  </Border>
+                </StackPanel>
+              </DataTemplate>
+            </DataGridTemplateColumn.CellTemplate>
+          </DataGridTemplateColumn>
+          <DataGridTextColumn Header="Version" Binding="{Binding Version}" Width="0.9*" />
+          <DataGridTextColumn Header="Publisher" Binding="{Binding Publisher}" Width="1.3*" />
+          <DataGridTextColumn Header="Installed" Binding="{Binding InstallDateText}" Width="Auto" SortMemberPath="SortDate" />
+          <DataGridTextColumn Header="Size" Binding="{Binding SizeText}" Width="Auto" SortMemberPath="SortSize" />
+          <DataGridTemplateColumn Header="Source" Width="Auto" SortMemberPath="SourceLabel">
+            <DataGridTemplateColumn.CellTemplate>
+              <DataTemplate>
+                <Border Style="{StaticResource Badge}" Margin="0" ToolTip="{Binding SourceTooltip}">
+                  <TextBlock Style="{StaticResource BadgeText}" Text="{Binding SourceLabel}" />
+                </Border>
+              </DataTemplate>
+            </DataGridTemplateColumn.CellTemplate>
+          </DataGridTemplateColumn>
+          <DataGridTemplateColumn Header="Location" Width="1.6*" SortMemberPath="Location">
+            <DataGridTemplateColumn.CellTemplate>
+              <DataTemplate>
+                <ui:HyperlinkButton Content="{Binding Location}" Padding="4,2" ToolTip="Open this folder in File Explorer"
+                                    Command="{Binding DataContext.OpenInstallFolderCommand, RelativeSource={RelativeSource AncestorType={x:Type Page}}}"
+                                    CommandParameter="{Binding}"
+                                    Visibility="{Binding HasLocation, Converter={StaticResource BoolToVisibility}}" />
+              </DataTemplate>
+            </DataGridTemplateColumn.CellTemplate>
+          </DataGridTemplateColumn>
+        </ui:DataGrid.Columns>
+
+        <!-- Expanded details for the selected row. -->
+        <ui:DataGrid.RowDetailsTemplate>
+          <DataTemplate>
+            <Border Padding="16,12" Background="{DynamicResource ControlFillColorDefaultBrush}" CornerRadius="6" Margin="8,4,8,8">
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0" Margin="0,0,16,0">
+                  <controls:KeyValueList ItemsSource="{Binding Details}" KeyColumnWidth="170" />
+                  <StackPanel Visibility="{Binding HasBundledChildren, Converter={StaticResource BoolToVisibility}}" Margin="0,8,0,0">
+                    <ui:TextBlock FontTypography="BodyStrong" Text="Installed alongside this program" Margin="0,0,0,4" />
+                    <ItemsControl ItemsSource="{Binding BundleChildren}">
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                          <StackPanel Orientation="Horizontal" Margin="0,2">
+                            <ui:TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
+                            <Border Style="{StaticResource Badge}">
+                              <TextBlock Style="{StaticResource BadgeText}" Text="{Binding Kind}" />
+                            </Border>
+                            <ui:TextBlock Text="{Binding Reason}" Style="{StaticResource Caption}" VerticalAlignment="Center" Margin="8,0,0,0" />
+                          </StackPanel>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                  </StackPanel>
+                  <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                    <ui:SymbolIcon Symbol="LockClosed16" Margin="0,0,6,0" Foreground="{StaticResource AccentYellowBrush}"
+                                   Visibility="{Binding IsProtected, Converter={StaticResource BoolToVisibility}}" />
+                    <ui:TextBlock Text="{Binding UninstallReason}" Style="{StaticResource Muted}" TextWrapping="Wrap" />
+                  </StackPanel>
+                </StackPanel>
+                <StackPanel Grid.Column="1" MinWidth="200">
+                  <ui:Button Content="Uninstall" Appearance="Danger" Icon="{ui:SymbolIcon Delete24}" HorizontalAlignment="Stretch"
+                             IsEnabled="{Binding CanUninstall}"
+                             Command="{Binding DataContext.UninstallCommand, RelativeSource={RelativeSource AncestorType={x:Type Page}}}"
+                             CommandParameter="{Binding}"
+                             ToolTip="Removes the program with its own uninstaller. You will be asked to confirm first." />
+                  <ui:Button Content="Open install folder" Icon="{ui:SymbolIcon FolderOpen24}" HorizontalAlignment="Stretch" Margin="0,8,0,0"
+                             IsEnabled="{Binding HasLocation}"
+                             Command="{Binding DataContext.OpenInstallFolderCommand, RelativeSource={RelativeSource AncestorType={x:Type Page}}}"
+                             CommandParameter="{Binding}" />
+                  <ui:Button Content="Open publisher page" Icon="{ui:SymbolIcon Globe24}" HorizontalAlignment="Stretch" Margin="0,8,0,0"
+                             IsEnabled="{Binding HasAboutUrl}"
+                             Command="{Binding DataContext.OpenPublisherPageCommand, RelativeSource={RelativeSource AncestorType={x:Type Page}}}"
+                             CommandParameter="{Binding}" />
+                </StackPanel>
+              </Grid>
+            </Border>
+          </DataTemplate>
+        </ui:DataGrid.RowDetailsTemplate>
+      </ui:DataGrid>
+
+      <controls:EmptyState Icon="Apps24"
+                           Title="No installed programs found"
+                           Message="Run a scan to read the installed-programs lists from Windows."
+                           Visibility="{Binding IsEmpty, Converter={StaticResource BoolToVisibility}}">
+        <controls:EmptyState.Action>
+          <ui:Button Content="Scan now" Appearance="Primary" Icon="{ui:SymbolIcon Search24}" Command="{Binding ScanCommand}" />
+        </controls:EmptyState.Action>
+      </controls:EmptyState>
+
+      <controls:EmptyState Icon="Filter24"
+                           Title="Nothing matches your filter"
+                           Message="Try a different search term or pick another source."
+                           Visibility="{Binding NoMatches, Converter={StaticResource BoolToVisibility}}">
+        <controls:EmptyState.Action>
+          <ui:Button Content="Clear search" Icon="{ui:SymbolIcon Dismiss24}" Command="{Binding ClearSearchCommand}" />
+        </controls:EmptyState.Action>
+      </controls:EmptyState>
+    </Grid>
+
+    <controls:BusyOverlay Grid.Row="0" Grid.RowSpan="8"
                           IsBusy="{Binding IsBusy}"
                           Text="{Binding BusyText}"
                           CancelCommand="{Binding CancelCommand}" />
