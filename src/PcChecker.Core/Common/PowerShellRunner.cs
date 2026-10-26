@@ -33,7 +33,7 @@ public static class PowerShellRunner
             return new PowerShellResult(-1, string.Empty, "PowerShell is only available on Windows.", false);
         }
 
-        var encoded = Convert.ToBase64String(Encoding.Unicode.GetBytes(command));
+        var encoded = Convert.ToBase64String(Encoding.Unicode.GetBytes(WithUtf8OutputPrelude(command)));
         var psi = new ProcessStartInfo
         {
             FileName = "powershell.exe",
@@ -131,6 +131,14 @@ public static class PowerShellRunner
             return default;
         }
     }
+
+    /// <summary>
+    /// Prefixes a command so Windows PowerShell writes redirected stdout/stderr as UTF-8.
+    /// Without this, powershell.exe emits the OEM code page and every non-ASCII character
+    /// decoded with <see cref="Encoding.UTF8"/> would become U+FFFD.
+    /// </summary>
+    public static string WithUtf8OutputPrelude(string command) =>
+        "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; " + command;
 
     /// <summary>Escapes a string for use inside a single-quoted PowerShell literal.</summary>
     public static string Quote(string value) => "'" + value.Replace("'", "''") + "'";

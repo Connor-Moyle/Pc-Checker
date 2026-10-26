@@ -156,6 +156,14 @@ public class PowerShellRunnerTests
     }
 
     [Fact]
+    public void WithUtf8OutputPrelude_forces_utf8_console_output_before_command()
+    {
+        var prefixed = PowerShellRunner.WithUtf8OutputPrelude("Get-AppxPackage | ConvertTo-Json");
+        Assert.StartsWith("[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; ", prefixed);
+        Assert.EndsWith("Get-AppxPackage | ConvertTo-Json", prefixed);
+    }
+
+    [Fact]
     public async Task RunAsync_degrades_gracefully_off_windows()
     {
         if (OperatingSystem.IsWindows())
