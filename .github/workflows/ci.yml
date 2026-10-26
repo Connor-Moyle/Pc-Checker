@@ -2,17 +2,17 @@ name: CI
 
 on:
   push:
-    branches: [main]
-    paths-ignore:
-      - "**.md"
-      - "docs/**"
-      - ".github/ISSUE_TEMPLATE/**"
+    branches: ["**"]
   pull_request:
     branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   DOTNET_NOLOGO: true
@@ -21,20 +21,16 @@ env:
 
 jobs:
   build:
-    name: Build and test (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [windows-latest, ubuntu-latest]
+    name: Build, test and publish (Windows)
+    runs-on: windows-latest
     steps:
       - name: Check out
         uses: actions/checkout@v4
 
-      - name: Set up .NET
+      - name: Set up .NET 8
         uses: actions/setup-dotnet@v4
         with:
-          global-json-file: global.json
+          dotnet-version: 8.0.x
 
       - name: Restore
         run: dotnet restore PcChecker.sln
@@ -49,31 +45,81 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-results-${{ matrix.os }}
+          name: test-results-windows
           path: TestResults/*.trx
+          if-no-files-found: ignore
 
-  publish-preview:
-    name: Publish preview build
-    needs: build
-    if: github.event_name != 'pull_request'
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
-        with:
-          global-json-file: global.json
-
-      - name: Publish portable (self-contained, single file)
+      - name: Publish self-contained win-x64
         run: >
           dotnet publish src/PcChecker.App/PcChecker.App.csproj
           -c Release -r win-x64 --self-contained true
           -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
           -p:VersionSuffix=ci.${{ github.run_number }}
-          -o artifacts/portable
+          -o publish/win-x64
 
-      - name: Upload portable build
+      - name: Upload publish output
         uses: actions/upload-artifact@v4
         with:
-          name: PcChecker-portable-win-x64-ci${{ github.run_number }}
-          path: artifacts/portable/PcChecker.exe
+          name: PcChecker-win-x64
+          path: publish/win-x64
           retention-days: 14
+
+  test-linux:
+    name: Build and test (Linux)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore
+        run: dotnet restore PcChecker.sln
+
+      - name: Build
+        run: dotnet build PcChecker.sln -c Release --no-restore
+
+      - name: Test
+        run: dotnet test PcChecker.sln -c Release --no-build --logger "trx;LogFileName=results.trx" --results-directory TestResults
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-linux
+          path: TestResults/*.trx
+          if-no-files-found: ignore
+
+  screenshots:
+    name: Capture demo-mode screenshots
+    needs: build
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - name: Download publish output
+        uses: actions/download-artifact@v4
+        with:
+          name: PcChecker-win-x64
+          path: publish/win-x64
+
+      - name: Run the screenshot runner
+        shell: pwsh
+        run: |
+          $exe = Join-Path $PWD 'publish\win-x64\PcChecker.exe'
+          $out = Join-Path $PWD 'screenshots'
+          Write-Host "Running $exe --screenshots $out --demo"
+          $p = Start-Process -FilePath $exe -ArgumentList @('--screenshots', $out, '--demo') -PassThru -Wait
+          Write-Host "Exit code: $($p.ExitCode)"
+          if ($p.ExitCode -ne 0) { throw "The screenshot runner failed with exit code $($p.ExitCode)." }
+          Get-ChildItem $out | Format-Table Name, Length
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots
+          path: screenshots/
+          if-no-files-found: error

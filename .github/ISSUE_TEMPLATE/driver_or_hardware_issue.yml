@@ -1,0 +1,91 @@
+name: Driver or hardware issue
+description: A sensor, fan, GPU, CPU tool, RGB device, monitor, audio or input device is missing, wrong or cannot be controlled.
+labels: ["hardware"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Hardware reports are the most useful reports we get. Support for new chips and devices depends on knowing what people have and what the app says about it.
+  - type: input
+    id: version
+    attributes:
+      label: PC Checker version
+      placeholder: "0.1.0"
+    validations:
+      required: true
+  - type: input
+    id: windows
+    attributes:
+      label: Windows version
+      description: Run `winver` and copy the version and build.
+      placeholder: "Windows 11 24H2 (build 26100.1234)"
+    validations:
+      required: true
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What kind of device?
+      options:
+        - Temperature or other sensor (Temperatures / Power page)
+        - Fan (Fans page)
+        - GPU tuning (Overclock page)
+        - CPU tuning (Overclock page)
+        - RGB lighting (Lighting page)
+        - Monitor (Displays page)
+        - Audio device (Audio page)
+        - Keyboard or mouse (Keyboard & Mouse page)
+        - Drive (Storage / Health page)
+        - Memory (Memory page)
+        - Driver (Drivers page)
+        - Other
+    validations:
+      required: true
+  - type: dropdown
+    id: symptom
+    attributes:
+      label: What is wrong?
+      options:
+        - Not detected at all
+        - Detected but shows no values or wrong values
+        - Detected but cannot be controlled
+        - Control works but the value does not stick
+        - Causes an error message
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: models
+    attributes:
+      label: Hardware
+      description: Model names of the parts involved. For fans and sensors include the motherboard model. For GPUs include the driver version. For RGB include the OpenRGB version.
+      placeholder: |
+        Motherboard: ASUS ROG STRIX Z790-E
+        CPU: Intel Core i7-13700K
+        GPU: NVIDIA GeForce RTX 4070 (driver 560.xx)
+        Cooler / fans: ...
+    validations:
+      required: true
+  - type: textarea
+    id: status
+    attributes:
+      label: What does the page say?
+      description: >-
+        Copy the support level or status text the page shows (for example
+        "Not supported on this device" with its reason, or "OpenRGB not running").
+  - type: textarea
+    id: vendor
+    attributes:
+      label: Does the vendor's own software work?
+      description: For example Armoury Crate, Fan Control, MSI Afterburner, OpenRGB itself, HWiNFO. This tells us whether the hardware is reachable at all.
+  - type: textarea
+    id: logs
+    attributes:
+      label: Diagnostics export
+      description: Logs page → **Export diagnostics**, then drag the zip here. For a detection problem, also attach the Hardware page's **Export JSON**.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I read the hardware support matrix in `docs/SUPPORTED-HARDWARE.md` and the FAQ.
+        - label: Other monitoring or RGB software was closed when I tried (they can hold the hardware).
