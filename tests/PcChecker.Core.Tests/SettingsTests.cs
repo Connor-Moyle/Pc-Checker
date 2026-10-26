@@ -142,4 +142,88 @@ public class SettingsTests : IDisposable
 
         Assert.Throws<PlatformNotSupportedException>(() => new DpapiSecretStore().Protect("x"));
     }
+    [Fact]
+    public async Task Round_trip_keeps_every_v2_section()
+    {
+        var svc = new JsonSettingsService(_dir);
+        var c = svc.Current;
+        c.Updates.Channel = UpdateChannel.Beta;
+        c.Updates.AutoDownload = true;
+        c.Updates.LastCheckedUtc = new DateTimeOffset(2026, 10, 26, 12, 0, 0, TimeSpan.Zero);
+        c.General.PricePerKwh = 0.42;
+        c.General.CurrencySymbol = "€";
+        c.General.MinimizeToTray = true;
+        c.Fans.RevertToAutoOnExit = false;
+        c.Fans.MinimumPercent = 35;
+        c.Fans.Profiles.Add(new Fans.FanProfile { Name = "Quiet", Fans = { ["fan.cpu"] = new Fans.FanAssignment { Mode = Fans.FanMode.Manual, ManualPercent = 40 } } });
+        c.Lighting.OpenRgbHost = "192.168.1.20";
+        c.Lighting.OpenRgbPort = 7000;
+        c.Lighting.AutoConnect = false;
+        c.Latency.PingTargets = ["gateway", "9.9.9.9"];
+        c.Latency.PingCount = 25;
+        c.Memory.WarnOnLowMemory = false;
+        c.Memory.LowMemoryPercent = 15;
+        c.Startup.ManyStartupItems = 20;
+        c.Monitoring.DiskCritC = 70;
+        await svc.SaveAsync();
+
+        var reloaded = new JsonSettingsService(_dir);
+        await reloaded.LoadAsync();
+        var r = reloaded.Current;
+        Assert.Equal(UpdateChannel.Beta, r.Updates.Channel);
+        Assert.True(r.Updates.AutoDownload);
+        Assert.Equal(c.Updates.LastCheckedUtc, r.Updates.LastCheckedUtc);
+        Assert.Equal(0.42, r.General.PricePerKwh);
+        Assert.Equal("€", r.General.CurrencySymbol);
+        Assert.True(r.General.MinimizeToTray);
+        Assert.False(r.Fans.RevertToAutoOnExit);
+        Assert.Equal(35, r.Fans.MinimumPercent);
+        var profile = Assert.Single(r.Fans.Profiles);
+        Assert.Equal(40, profile.Fans["fan.cpu"].ManualPercent);
+        Assert.Equal("192.168.1.20", r.Lighting.OpenRgbHost);
+        Assert.Equal(7000, r.Lighting.OpenRgbPort);
+        Assert.False(r.Lighting.AutoConnect);
+        Assert.Equal(["gateway", "9.9.9.9"], r.Latency.PingTargets);
+        Assert.Equal(25, r.Latency.PingCount);
+        Assert.False(r.Memory.WarnOnLowMemory);
+        Assert.Equal(15, r.Memory.LowMemoryPercent);
+        Assert.Equal(20, r.Startup.ManyStartupItems);
+        Assert.Equal(70, r.Monitoring.DiskCritC);
+    }
+
+    [Fact]
+    public async Task Old_settings_file_without_v2_sections_loads_with_defaults()
+    {
+        Directory.CreateDirectory(_dir);
+        await File.WriteAllTextAsync(Path.Combine(_dir, "settings.json"), "{ \"General\": { \"Theme\": \"Dark\" }, \"Updates\": { \"Channel\": \"Beta\" }, \"Latency\": { \"PingTargets\": null } }");
+        var svc = new JsonSettingsService(_dir);
+        await svc.LoadAsync();
+        Assert.Equal(AppTheme.Dark, svc.Current.General.Theme);
+        Assert.Equal(UpdateChannel.Beta, svc.Current.Updates.Channel);
+        Assert.Equal(3, svc.Current.Latency.PingTargets.Count);
+        Assert.Equal(20, svc.Current.Fans.MinimumPercent);
+        Assert.Equal(6742, svc.Current.Lighting.OpenRgbPort);
+        Assert.True(svc.Current.Startup.WarnOnManyStartupItems);
+    }
+
+    [Theory]
+    [InlineData(AppTheme.Dark, false, true)]
+    [InlineData(AppTheme.Dark, true, true)]
+    [InlineData(AppTheme.Light, true, false)]
+    [InlineData(AppTheme.Light, false, false)]
+    [InlineData(AppTheme.System, true, true)]
+    [InlineData(AppTheme.System, false, false)]
+    public void Theme_resolves_to_light_or_dark(AppTheme theme, bool systemIsDark, bool expectDark) =>
+        Assert.Equal(expectDark, ThemeResolver.IsDark(theme, systemIsDark));
+
+    [Fact]
+    public void Theme_names_parse_and_describe()
+    {
+        Assert.Equal(AppTheme.Dark, ThemeResolver.Parse("dark"));
+        Assert.Equal(AppTheme.Light, ThemeResolver.Parse(" Light "));
+        Assert.Equal(AppTheme.System, ThemeResolver.Parse("follow windows"));
+        Assert.Equal(AppTheme.System, ThemeResolver.Parse(null));
+        Assert.Equal("Follow Windows", ThemeResolver.Describe(AppTheme.System));
+        Assert.Equal("Dark", ThemeResolver.Describe(AppTheme.Dark));
+    }
 }
