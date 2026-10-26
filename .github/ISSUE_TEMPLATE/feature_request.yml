@@ -1,0 +1,43 @@
+name: Feature request
+description: Suggest something new or an improvement to an existing feature.
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem are you trying to solve?
+      description: Describe the situation, not the solution. "I can't tell which startup app is slowing my boot" rather than "add a column".
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: What would you like to happen?
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you have considered
+      description: Other apps or workarounds, and why they are not enough.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Hardware / sensors / power
+        - Health and diagnostics
+        - Drivers
+        - Software and cleanup
+        - Performance and optimization
+        - Windows features
+        - Overclocking
+        - Overlay
+        - Logging and reports
+        - Claude assistant
+        - Updates / installation
+        - Other
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety
+      options:
+        - label: This feature changes the system (deletes, installs, edits settings) and I understand it will need a confirmation and a restore point.

@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <PackageReference Include="System.Management" />
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" />
     <PackageReference Include="LibreHardwareMonitorLib" />
     <PackageReference Include="NvAPIWrapper.Net" />
     <PackageReference Include="Serilog" />

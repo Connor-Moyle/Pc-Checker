@@ -57,4 +57,48 @@ public class DriverRulesTests
         Assert.Contains(links, l => l.Vendor == "ASUS");
         Assert.All(links, l => Assert.StartsWith("https://", l.Url));
     }
+
+    [Fact]
+    public void No_manufacturers_means_no_links()
+    {
+        Assert.Empty(DriverRules.BuildVendorLinks([]));
+        Assert.Empty(DriverRules.BuildVendorLinks([null, "", "Unknown Vendor Ltd"]));
+    }
+
+    [Fact]
+    public void Vendor_table_is_consistent()
+    {
+        Assert.Equal(DriverRules.VendorTable.Count, DriverRules.VendorTable.Select(v => v.Keyword.ToLowerInvariant()).Distinct().Count());
+        Assert.All(DriverRules.VendorTable, v =>
+        {
+            Assert.True(Uri.TryCreate(v.Url, UriKind.Absolute, out var uri) && uri.Scheme == "https", v.Url);
+            Assert.False(string.IsNullOrWhiteSpace(v.Note));
+        });
+    }
+
+    [Fact]
+    public void Old_driver_threshold_is_three_years()
+    {
+        Assert.DoesNotContain(DriverRules.Evaluate(Driver(date: DateTime.Today.AddDays(-DriverRules.OldDriverDays + 1))), f => f.Title == "Old driver");
+        var flag = Assert.Single(DriverRules.Evaluate(Driver(date: DateTime.Today.AddDays(-DriverRules.OldDriverDays))));
+        Assert.Equal("Old driver", flag.Title);
+        Assert.Contains("3 years", flag.Detail);
+    }
+
+    [Fact]
+    public void Driver_without_date_is_not_flagged_as_old()
+    {
+        var driver = new DriverInfo("d", "id", "c", null, null, null, null, true, null, false, [], null, 0, null);
+        Assert.Empty(DriverRules.Evaluate(driver));
+    }
+
+    [Fact]
+    public void Multiple_issues_are_all_reported_and_need_attention()
+    {
+        var driver = Driver(signed: false, date: DateTime.Today.AddYears(-5), problem: 28);
+        var flags = DriverRules.Evaluate(driver);
+        Assert.Equal(3, flags.Count);
+        Assert.True(DriverRules.NeedsAttention(driver));
+        Assert.Contains(flags, f => f.Title.Contains("code 28") && f.Severity == Severity.High);
+    }
 }

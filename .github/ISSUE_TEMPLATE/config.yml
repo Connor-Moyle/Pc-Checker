@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions and ideas
+    url: https://github.com/Connor-Moyle/test-pcchecker/discussions
+    about: Ask how something works or float an idea before filing a request.
+  - name: Security report
+    url: https://github.com/Connor-Moyle/test-pcchecker/security/advisories/new
+    about: Report a vulnerability privately. Please do not open a public issue.

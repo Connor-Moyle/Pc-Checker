@@ -49,12 +49,17 @@ public sealed record PartitionInfo(
     bool? BootPartition, bool? PrimaryPartition, IReadOnlyDictionary<string, string> Properties)
     : HardwareItem(Name, "Partition", null, DeviceId, null, Properties);
 
+/// <summary>A physical drive (Win32_DiskDrive + MSFT_PhysicalDisk) and the partitions laid out on it.</summary>
 public sealed record PhysicalDiskInfo(
     string Name, string? Manufacturer, string? DeviceId, string? Status, string? Model, string? SerialNumber,
-    string? FirmwareRevision, string? InterfaceType, string? MediaType, string? BusType, long? SizeBytes, int? Partitions,
-    string? HealthStatusText, int? SpindleSpeed, string? PnpDeviceId, IReadOnlyList<PartitionInfo> PartitionList,
+    string? FirmwareRevision, string? InterfaceType, string? MediaType, string? BusType, long? SizeBytes,
+    string? HealthStatusText, int? SpindleSpeed, string? PnpDeviceId, PartitionInfo[] Partitions,
     IReadOnlyDictionary<string, string> Properties)
-    : HardwareItem(Name, "Storage", Manufacturer, DeviceId, Status, Properties);
+    : HardwareItem(Name, "Storage", Manufacturer, DeviceId, Status, Properties)
+{
+    /// <summary>Number of partitions found on the drive.</summary>
+    public int PartitionCount => Partitions.Length;
+}
 
 public sealed record LogicalDriveInfo(
     string Name, string? DeviceId, string? VolumeName, string? FileSystem, string? DriveTypeText, long? SizeBytes,

@@ -1,0 +1,73 @@
+name: Bug report
+description: Something is broken or behaves unexpectedly.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for the report. The more detail you give, the faster it gets fixed.
+  - type: input
+    id: version
+    attributes:
+      label: PC Checker version
+      description: Settings → About, or the version shown in the title bar.
+      placeholder: "0.1.0"
+    validations:
+      required: true
+  - type: input
+    id: windows
+    attributes:
+      label: Windows version
+      description: Run `winver` and copy the version and build.
+      placeholder: "Windows 11 24H2 (build 26100.1234)"
+    validations:
+      required: true
+  - type: dropdown
+    id: page
+    attributes:
+      label: Which page?
+      options:
+        - Dashboard
+        - Hardware
+        - Health
+        - Temperatures
+        - Power
+        - Drivers
+        - Software
+        - Performance
+        - Optimize
+        - Cleanup
+        - Windows Features
+        - Overclock
+        - Overlay
+        - Logs
+        - Ask Claude
+        - Settings
+        - Startup / installation / updates
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open the Cleanup page
+        2. Click Scan
+        3. ...
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Logs page → Export, then drag the zip here. Serial numbers are removed when *Redact serial numbers* is on in Settings → Logging.
+  - type: textarea
+    id: hardware
+    attributes:
+      label: Hardware (optional)
+      description: CPU, GPU, motherboard, laptop model. Helpful for sensor, driver and overclock issues.

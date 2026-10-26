@@ -39,5 +39,52 @@ public class InboxAppCatalogTests
     {
         Assert.Equal(RiskLevel.Moderate, InboxAppCatalog.RiskFor("Contoso.Mystery"));
         Assert.Null(InboxAppCatalog.Find(null));
+        Assert.Null(InboxAppCatalog.Find("   "));
+    }
+
+    [Fact]
+    public void Lookup_ignores_case_and_matches_family_names()
+    {
+        Assert.Equal("Weather", InboxAppCatalog.Find("microsoft.bingweather_8wekyb3d8bbwe")!.FriendlyName);
+        Assert.Equal("Maps", InboxAppCatalog.FriendlyName("Microsoft.WindowsMaps"));
+        Assert.Equal("Cortana", InboxAppCatalog.FriendlyName("Microsoft.549981C3F5F10_4.2204.13303.0_x64__8wekyb3d8bbwe"));
+    }
+
+    [Fact]
+    public void Advanced_entries_are_advanced_only_and_carry_do_not_remove_style_notes()
+    {
+        var advanced = InboxAppCatalog.All.Where(e => e.Risk == RiskLevel.Advanced).ToList();
+        Assert.NotEmpty(advanced);
+        Assert.All(advanced, e => Assert.True(e.AdvancedOnly, e.PackageFamilyPrefix));
+        Assert.All(InboxAppCatalog.All.Where(e => e.Risk != RiskLevel.Advanced), e => Assert.False(e.AdvancedOnly, e.PackageFamilyPrefix));
+        Assert.Contains(advanced, e => e.PackageFamilyPrefix == "Microsoft.DesktopAppInstaller");
+        Assert.Contains(advanced, e => e.PackageFamilyPrefix == "Microsoft.SecHealthUI");
+    }
+
+    [Fact]
+    public void Safe_entries_say_they_are_safe_to_remove()
+    {
+        var safe = InboxAppCatalog.All.Where(e => e.Risk == RiskLevel.Safe).ToList();
+        Assert.True(safe.Count >= 20);
+        Assert.All(safe, e => Assert.Contains("safe to remove", e.Note, StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void Prefixes_do_not_shadow_each_other()
+    {
+        // A shorter prefix listed before a longer one would hide the longer entry from Find().
+        foreach (var entry in InboxAppCatalog.All)
+        {
+            Assert.Same(entry, InboxAppCatalog.Find(entry.PackageFamilyPrefix + "_1.0.0.0_x64__8wekyb3d8bbwe"));
+        }
+    }
+
+    [Fact]
+    public void Gaming_components_are_never_marked_safe()
+    {
+        foreach (var name in new[] { "Microsoft.XboxApp", "Microsoft.GamingApp", "Microsoft.XboxGamingOverlay", "Microsoft.XboxIdentityProvider" })
+        {
+            Assert.NotEqual(RiskLevel.Safe, InboxAppCatalog.RiskFor(name));
+        }
     }
 }
