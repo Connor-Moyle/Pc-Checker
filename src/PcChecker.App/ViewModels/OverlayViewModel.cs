@@ -60,6 +60,8 @@ public sealed partial class OverlayViewModel : ViewModelBase
     private readonly ILogger<OverlayViewModel> _logger;
     private readonly DispatcherTimer _saveTimer;
     private bool _loading;
+    private bool _pageVisible;
+    private bool _previewRunning;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(OverlayStateText))]
@@ -194,8 +196,54 @@ public sealed partial class OverlayViewModel : ViewModelBase
     public override Task InitializeAsync(CancellationToken cancellationToken)
     {
         LoadFromSettings();
-        Preview.Start();
+        if (_pageVisible)
+        {
+            StartPreview();
+        }
+
         return Task.CompletedTask;
+    }
+
+    /// <summary>Page Loaded: the live preview polls sensors only while this page is on screen.</summary>
+    public void OnPageLoaded()
+    {
+        _pageVisible = true;
+        if (IsInitialized)
+        {
+            StartPreview();
+        }
+    }
+
+    /// <summary>
+    /// Page Unloaded: release the preview's hold on the shared overlay timer (the view model is a singleton), so hiding
+    /// the overlay actually stops live updates while another page is shown.
+    /// </summary>
+    public void OnPageUnloaded()
+    {
+        _pageVisible = false;
+        StopPreview();
+    }
+
+    private void StartPreview()
+    {
+        if (_previewRunning)
+        {
+            return;
+        }
+
+        _previewRunning = true;
+        Preview.Start();
+    }
+
+    private void StopPreview()
+    {
+        if (!_previewRunning)
+        {
+            return;
+        }
+
+        _previewRunning = false;
+        Preview.Stop();
     }
 
     public override Task RefreshAsync(CancellationToken cancellationToken)
