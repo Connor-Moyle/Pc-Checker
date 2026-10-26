@@ -17,7 +17,10 @@ public static class SmartRules
 
     public sealed record Verdict(HealthStatus Status, string Summary, IReadOnlyList<string> Reasons);
 
-    /// <summary>Evaluates a disk: any failed attribute or reallocated/pending/uncorrectable sectors degrade the verdict.</summary>
+    /// <summary>
+    /// Evaluates a disk: a failed (pre-fail) attribute or reallocated/pending/uncorrectable sectors degrade the verdict;
+    /// an old-age attribute at or below its threshold only warns.
+    /// </summary>
     public static Verdict Evaluate(DiskHealth disk, double diskWarnC = 55, double diskCritC = 65)
     {
         ArgumentNullException.ThrowIfNull(disk);
@@ -33,10 +36,14 @@ public static class SmartRules
             }
         }
 
-        if (!string.IsNullOrWhiteSpace(disk.SmartStatusText) && !disk.SmartStatusText.Equals("OK", StringComparison.OrdinalIgnoreCase)
-            && !disk.SmartStatusText.Equals("Healthy", StringComparison.OrdinalIgnoreCase))
+        switch (ClassifyStatusText(disk.SmartStatusText))
         {
-            Raise(HealthStatus.Critical, $"The drive reports its own status as \"{disk.SmartStatusText}\".");
+            case HealthStatus.Warning:
+                Raise(HealthStatus.Warning, $"Windows reports this drive's status as \"{disk.SmartStatusText}\".");
+                break;
+            case HealthStatus.Critical:
+                Raise(HealthStatus.Critical, $"The drive reports its own status as \"{disk.SmartStatusText}\".");
+                break;
         }
 
         foreach (var attr in disk.Attributes)
@@ -47,7 +54,10 @@ public static class SmartRules
             }
             else if (attr.Threshold is { } t && attr.Current is { } c && t > 0 && c <= t)
             {
-                Raise(HealthStatus.Critical, $"SMART attribute {attr.Id} ({attr.Name}) is at or below its failure threshold.");
+                // Without the pre-fail flag (SmartBlobParser only sets Failed for pre-fail attributes) a threshold
+                // crossing is advisory: old-age attributes such as Seagate's Airflow Temperature (190, threshold 45)
+                // dip below their threshold on a merely warm drive, so this must not read as imminent failure.
+                Raise(HealthStatus.Warning, $"SMART attribute {attr.Id} ({attr.Name}) is at or below its threshold.");
             }
         }
 
@@ -104,6 +114,24 @@ public static class SmartRules
             _ => "No problems reported by the drive's self-check.",
         };
         return new Verdict(status, summary, reasons);
+    }
+
+    /// <summary>
+    /// Maps the drive's self-reported status text: OK/Healthy or no text at all (Unknown) count as nothing to report,
+    /// "Warning" (MSFT_PhysicalDisk HealthStatus 1) is a warning and anything else ("Unhealthy", "Predicting failure") is critical.
+    /// </summary>
+    public static HealthStatus ClassifyStatusText(string? statusText)
+    {
+        var text = statusText?.Trim();
+        if (string.IsNullOrEmpty(text)
+            || text.Equals("OK", StringComparison.OrdinalIgnoreCase)
+            || text.Equals("Healthy", StringComparison.OrdinalIgnoreCase)
+            || text.Equals("Unknown", StringComparison.OrdinalIgnoreCase))
+        {
+            return HealthStatus.Good;
+        }
+
+        return text.Equals("Warning", StringComparison.OrdinalIgnoreCase) ? HealthStatus.Warning : HealthStatus.Critical;
     }
 
     /// <summary>Reads wear from common SSD attributes (177/231/233) when the drive does not expose a direct value.</summary>
