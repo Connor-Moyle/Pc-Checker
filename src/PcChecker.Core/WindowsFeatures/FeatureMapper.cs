@@ -23,7 +23,9 @@ public sealed class AppxPackageRow
     public string? Name { get; set; }
     public string? PackageFullName { get; set; }
     public string? PackageFamilyName { get; set; }
-    public string? Version { get; set; }
+
+    /// <summary>Kept as a raw element: Windows PowerShell 5.1 emits System.Version as an object, newer hosts as a string.</summary>
+    public JsonElement Version { get; set; }
     public string? Publisher { get; set; }
     public JsonElement NonRemovable { get; set; }
     public JsonElement IsFramework { get; set; }

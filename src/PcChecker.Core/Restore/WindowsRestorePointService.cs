@@ -17,6 +17,13 @@ public sealed class WindowsRestorePointService : IRestorePointService
     private const string FrequencyValue = "SystemRestorePointCreationFrequency";
     private const string WmiPath = @"\\.\root\default:SystemRestore";
 
+    /// <summary>SystemRestore.CreateRestorePoint accepts up to 256 characters (MAX_DESC_W).</summary>
+    public const int MaxDescriptionLength = 256;
+
+    public const string NoNewPointMessage =
+        "Windows reported success but no new restore point appeared. Windows normally creates only one restore point per 24 hours; " +
+        "turn on \"Allow more than one restore point per day\" in Settings → Restore points, or wait and try again";
+
     private static readonly TimeSpan CreateTimeout = TimeSpan.FromMinutes(2);
     private static readonly TimeSpan ListTimeout = TimeSpan.FromSeconds(45);
 
@@ -76,7 +83,11 @@ public sealed class WindowsRestorePointService : IRestorePointService
             return OperationResult.Fail($"Could not turn on System Protection for {root}: {error}");
         }
 
-        TryApplyFrequencyOverride();
+        if (_settings.Current.RestorePoints.BypassFrequencyLimit)
+        {
+            TryApplyFrequencyOverride();
+        }
+
         _logger.LogInformation("System Protection enabled on {Drive}.", root);
         return OperationResult.Ok($"System Protection is now on for {root}. Windows will keep restore points on this drive.");
     }
@@ -88,6 +99,12 @@ public sealed class WindowsRestorePointService : IRestorePointService
             return [];
         }
 
+        return await TryQueryPointsAsync(cancellationToken).ConfigureAwait(false) ?? [];
+    }
+
+    /// <summary>Lists restore points newest first; null when neither WMI nor PowerShell could answer.</summary>
+    private async Task<List<RestorePoint>?> TryQueryPointsAsync(CancellationToken cancellationToken)
+    {
         try
         {
             var points = await Task.Run(QueryViaWmi, cancellationToken).WaitAsync(ListTimeout, cancellationToken).ConfigureAwait(false);
@@ -104,9 +121,28 @@ public sealed class WindowsRestorePointService : IRestorePointService
 
         try
         {
-            var rows = await PowerShellRunner.RunJsonAsync<List<RestorePointRow>>(
-                "Get-ComputerRestorePoint | Select-Object SequenceNumber, Description, CreationTime, RestorePointType", ListTimeout, cancellationToken).ConfigureAwait(false);
-            return (rows ?? [])
+            var result = await PowerShellRunner.RunAsync(
+                "(Get-ComputerRestorePoint | Select-Object SequenceNumber, Description, CreationTime, RestorePointType) | ConvertTo-Json -Depth 4 -Compress",
+                ListTimeout, cancellationToken).ConfigureAwait(false);
+            if (!result.Success)
+            {
+                _logger.LogWarning("Get-ComputerRestorePoint failed: {Error}", FirstLine(result.StdErr) ?? $"exit code {result.ExitCode}");
+                return null;
+            }
+
+            if (string.IsNullOrWhiteSpace(result.StdOut))
+            {
+                return [];
+            }
+
+            var rows = PowerShellRunner.ParseJson<List<RestorePointRow>>(result.StdOut);
+            if (rows is null)
+            {
+                _logger.LogWarning("Get-ComputerRestorePoint output could not be read.");
+                return null;
+            }
+
+            return rows
                 .Select(r => new RestorePoint(r.SequenceNumber, r.Description ?? string.Empty, DmtfDateTime.ParseOrDefault(r.CreationTime, DateTimeOffset.MinValue), RestorePointResultCodes.TypeName(r.RestorePointType)))
                 .OrderByDescending(p => p.SequenceNumber)
                 .ToList();
@@ -118,7 +154,7 @@ public sealed class WindowsRestorePointService : IRestorePointService
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Get-ComputerRestorePoint failed.");
-            return [];
+            return null;
         }
     }
 
@@ -130,15 +166,20 @@ public sealed class WindowsRestorePointService : IRestorePointService
         }
 
         description = string.IsNullOrWhiteSpace(description) ? "PC Checker restore point" : description.Trim();
-        if (description.Length > 64)
+        if (description.Length > MaxDescriptionLength)
         {
-            description = description[..64];
+            description = description[..MaxDescriptionLength];
         }
 
         if (_settings.Current.RestorePoints.BypassFrequencyLimit)
         {
             TryApplyFrequencyOverride();
         }
+
+        // Snapshot the newest sequence number first: CreateRestorePoint returns 0 even when the 24-hour frequency
+        // limit silently suppresses creation, so success is confirmed by a new point appearing afterwards.
+        var before = await TryQueryPointsAsync(cancellationToken).ConfigureAwait(false);
+        long? previousNewest = before is null ? null : before.Count == 0 ? 0 : before.Max(p => p.SequenceNumber);
 
         uint returnValue;
         try
@@ -167,28 +208,44 @@ public sealed class WindowsRestorePointService : IRestorePointService
             return OperationResult<RestorePoint>.Fail(message);
         }
 
-        var created = await FindCreatedAsync(description, cancellationToken).ConfigureAwait(false)
-                      ?? new RestorePoint(0, description, DateTimeOffset.Now, RestorePointResultCodes.TypeName(RestorePointResultCodes.TypeModifySettings));
+        var after = await TryQueryPointsAsync(cancellationToken).ConfigureAwait(false);
+        if (after is null)
+        {
+            // Windows said it succeeded but the list cannot be read; report the point without a sequence number.
+            var unverified = new RestorePoint(0, description, DateTimeOffset.Now, RestorePointResultCodes.TypeName(RestorePointResultCodes.TypeModifySettings));
+            _logger.LogWarning("CreateRestorePoint succeeded but the restore point list could not be read to confirm it.");
+            return OperationResult<RestorePoint>.Ok(unverified, $"Restore point \"{description}\" created (Windows did not report its details).");
+        }
+
+        var created = RestorePointLookup.FindCreated(after, description, previousNewest);
+        if (created is null)
+        {
+            _logger.LogWarning("CreateRestorePoint returned 0 but no new restore point appeared (newest before: {Before}, after: {After}).",
+                previousNewest, after.Count == 0 ? 0 : after.Max(p => p.SequenceNumber));
+            return OperationResult<RestorePoint>.Fail(NoNewPointMessage);
+        }
+
         _logger.LogInformation("Restore point {Sequence} created: {Description}", created.SequenceNumber, created.Description);
         return OperationResult<RestorePoint>.Ok(created, $"Restore point \"{created.Description}\" created.");
     }
 
-    private async Task<RestorePoint?> FindCreatedAsync(string description, CancellationToken cancellationToken)
+    private static string? FirstLine(string? text)
     {
-        try
+        if (string.IsNullOrWhiteSpace(text))
         {
-            var points = await ListAsync(cancellationToken).ConfigureAwait(false);
-            return points.FirstOrDefault(p => p.Description.Equals(description, StringComparison.OrdinalIgnoreCase)) ?? points.FirstOrDefault();
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogDebug(ex, "Could not look up the restore point that was just created.");
             return null;
         }
+
+        foreach (var line in text.Split('\n'))
+        {
+            var trimmed = line.Trim();
+            if (trimmed.Length > 0)
+            {
+                return trimmed;
+            }
+        }
+
+        return null;
     }
 
     private static uint InvokeCreate(string description)

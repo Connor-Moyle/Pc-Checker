@@ -22,6 +22,7 @@ public sealed partial class WindowsFeaturesViewModel : ViewModelBase
     private readonly INotificationService _notifications;
     private readonly ILogger<WindowsFeaturesViewModel> _logger;
     private IReadOnlyList<FeatureRow> _all = [];
+    private bool? _protectionEnabled;
 
     [ObservableProperty]
     private string? _searchText;
@@ -89,6 +90,7 @@ public sealed partial class WindowsFeaturesViewModel : ViewModelBase
                 ApplyFilters();
             }
         };
+        settings.Changed += (_, _) => DispatcherHelper.PostToUi(RefreshRestorePointPolicy);
     }
 
     public ObservableCollection<FeatureRow> OptionalFeatures { get; } = [];
@@ -110,9 +112,9 @@ public sealed partial class WindowsFeaturesViewModel : ViewModelBase
     public bool IsCapabilitiesEmpty => HasLoaded && Capabilities.Count == 0;
     public bool IsInboxAppsEmpty => HasLoaded && InboxApps.Count == 0;
 
-    public override Task InitializeAsync(CancellationToken cancellationToken) => RunBusyAsync(LoadAsync, "Reading Windows features…");
+    public override Task InitializeAsync(CancellationToken cancellationToken) => LoadBusyAsync(cancellationToken);
 
-    public override Task RefreshAsync(CancellationToken cancellationToken) => RunBusyAsync(LoadAsync, "Reading Windows features…");
+    public override Task RefreshAsync(CancellationToken cancellationToken) => LoadBusyAsync(cancellationToken);
 
     [RelayCommand]
     private Task RefreshListAsync() => RunBusyAsync(LoadAsync, "Reading Windows features…");
@@ -199,6 +201,13 @@ public sealed partial class WindowsFeaturesViewModel : ViewModelBase
 
     protected override void OnBusyError(Exception exception) => _logger.LogError(exception, "Windows Features page error.");
 
+    /// <summary>Runs the scan under the busy overlay, honouring both the caller's token (navigation, screenshot runner) and Cancel.</summary>
+    private Task LoadBusyAsync(CancellationToken cancellationToken) => RunBusyAsync(async busyToken =>
+    {
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(busyToken, cancellationToken);
+        await LoadAsync(linked.Token);
+    }, "Reading Windows features…");
+
     private async Task LoadAsync(CancellationToken cancellationToken)
     {
         var progress = new Progress<ProgressUpdate>(u => BusyText = u.Stage);
@@ -209,8 +218,7 @@ public sealed partial class WindowsFeaturesViewModel : ViewModelBase
 
         try
         {
-            bool enabled = await _restorePoints.IsEnabledAsync(cancellationToken);
-            IsProtectionOff = RestorePointsBeforeChanges && !enabled;
+            _protectionEnabled = await _restorePoints.IsEnabledAsync(cancellationToken);
         }
         catch (OperationCanceledException)
         {
@@ -219,9 +227,16 @@ public sealed partial class WindowsFeaturesViewModel : ViewModelBase
         catch (Exception ex)
         {
             _logger.LogDebug(ex, "Could not determine whether System Protection is on.");
-            IsProtectionOff = false;
+            _protectionEnabled = null;
         }
 
+        RefreshRestorePointPolicy();
+    }
+
+    /// <summary>Re-reads the restore-point setting (also when it changes on the Settings page) and updates the warning and stat card.</summary>
+    private void RefreshRestorePointPolicy()
+    {
+        IsProtectionOff = RestorePointsBeforeChanges && _protectionEnabled == false;
         OnPropertyChanged(nameof(RestorePointsBeforeChanges));
         OnPropertyChanged(nameof(RestorePointPolicyText));
     }

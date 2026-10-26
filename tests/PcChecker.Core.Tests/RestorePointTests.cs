@@ -217,3 +217,56 @@ public class RestorePointHelperTests
         Assert.True((await svc.EnableAsync("C:\\", CancellationToken.None)).Success);
     }
 }
+
+public class RestorePointLookupTests
+{
+    private static RestorePoint Point(long seq, string description) => new(seq, description, DateTimeOffset.Now.AddMinutes(seq), "Modify settings");
+
+    [Fact]
+    public void Returns_point_matching_description_when_it_is_new()
+    {
+        var points = new[] { Point(12, "PC Checker: before Enable Hyper-V"), Point(11, "Windows Update") };
+        var found = RestorePointLookup.FindCreated(points, "pc checker: before enable hyper-v", 11);
+        Assert.NotNull(found);
+        Assert.Equal(12, found!.SequenceNumber);
+    }
+
+    [Fact]
+    public void Does_not_fall_back_to_an_older_unrelated_point()
+    {
+        var points = new[] { Point(11, "Windows Update"), Point(10, "Driver install") };
+        Assert.Null(RestorePointLookup.FindCreated(points, "PC Checker: before Remove Solitaire", 11));
+        Assert.Null(RestorePointLookup.FindCreated(points, "PC Checker: before Remove Solitaire", null));
+        Assert.Null(RestorePointLookup.FindCreated(Array.Empty<RestorePoint>(), "anything", 0));
+    }
+
+    [Fact]
+    public void Ignores_an_older_point_that_happens_to_share_the_description()
+    {
+        var points = new[] { Point(11, "Windows Update"), Point(9, "PC Checker: before Enable Hyper-V") };
+        Assert.Null(RestorePointLookup.FindCreated(points, "PC Checker: before Enable Hyper-V", 11));
+    }
+
+    [Fact]
+    public void Uses_sequence_number_when_windows_rewrote_the_description()
+    {
+        var points = new[] { Point(13, "Scheduled Checkpoint"), Point(12, "Something else"), Point(11, "Windows Update") };
+        var found = RestorePointLookup.FindCreated(points, "PC Checker: before Enable Hyper-V", 11);
+        Assert.NotNull(found);
+        Assert.Equal(13, found!.SequenceNumber);
+    }
+
+    [Fact]
+    public void Without_a_snapshot_only_the_description_counts()
+    {
+        var points = new[] { Point(13, "Scheduled Checkpoint"), Point(12, "PC Checker: before Enable Hyper-V") };
+        var found = RestorePointLookup.FindCreated(points, "PC Checker: before Enable Hyper-V", null);
+        Assert.Equal(12, found!.SequenceNumber);
+    }
+
+    [Fact]
+    public void Description_limit_is_the_wide_api_maximum()
+    {
+        Assert.Equal(256, WindowsRestorePointService.MaxDescriptionLength);
+    }
+}

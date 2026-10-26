@@ -137,32 +137,83 @@ public sealed class WindowsFeatureService : IWindowsFeatureService
         return OperationResult.Ok(restart ? successMessage + " Restart Windows to finish." : successMessage, restart);
     }
 
-    private static async Task<IReadOnlyList<WindowsFeature>> ListOptionalFeaturesAsync(CancellationToken cancellationToken)
+    private async Task<IReadOnlyList<WindowsFeature>> ListOptionalFeaturesAsync(CancellationToken cancellationToken)
     {
-        var rows = await PowerShellRunner.RunJsonAsync<List<OptionalFeatureRow>>(
+        var rows = await QueryAsync<List<OptionalFeatureRow>>("Optional features",
             "Get-WindowsOptionalFeature -Online | Select-Object FeatureName, @{ n = 'State'; e = { $_.State.ToString() } }",
-            ListTimeout, cancellationToken).ConfigureAwait(false);
+            cancellationToken).ConfigureAwait(false);
         return FeatureMapper.MapOptionalFeatures(rows);
     }
 
-    private static async Task<IReadOnlyList<WindowsFeature>> ListCapabilitiesAsync(CancellationToken cancellationToken)
+    private async Task<IReadOnlyList<WindowsFeature>> ListCapabilitiesAsync(CancellationToken cancellationToken)
     {
-        var rows = await PowerShellRunner.RunJsonAsync<List<CapabilityRow>>(
+        var rows = await QueryAsync<List<CapabilityRow>>("Capabilities",
             "Get-WindowsCapability -Online | Where-Object { $_.State -ne 'NotPresent' } | Select-Object Name, @{ n = 'State'; e = { $_.State.ToString() } }",
-            ListTimeout, cancellationToken).ConfigureAwait(false);
+            cancellationToken).ConfigureAwait(false);
         return FeatureMapper.MapCapabilities(rows);
     }
 
-    private static async Task<IReadOnlyList<WindowsFeature>> ListInboxAppsAsync(CancellationToken cancellationToken)
+    private async Task<IReadOnlyList<WindowsFeature>> ListInboxAppsAsync(CancellationToken cancellationToken)
     {
-        var rows = await PowerShellRunner.RunJsonAsync<List<AppxPackageRow>>(
+        // Version and SignatureKind are projected to strings: Windows PowerShell 5.1 serializes System.Version and enums
+        // as nested objects, which would not deserialize into the string row properties.
+        var rows = await QueryAsync<List<AppxPackageRow>>("Built-in apps",
             "Get-AppxPackage -AllUsers | Where-Object { $_.SignatureKind -eq 'System' -or $_.Publisher -like '*Microsoft*' } " +
-            "| Select-Object Name, PackageFullName, PackageFamilyName, Version, Publisher, NonRemovable, IsFramework, @{ n = 'SignatureKind'; e = { $_.SignatureKind.ToString() } }",
-            ListTimeout, cancellationToken).ConfigureAwait(false);
-        var provisioned = await PowerShellRunner.RunJsonAsync<List<ProvisionedPackageRow>>(
+            "| Select-Object Name, PackageFullName, PackageFamilyName, @{ n = 'Version'; e = { [string]$_.Version } }, Publisher, NonRemovable, IsFramework, @{ n = 'SignatureKind'; e = { [string]$_.SignatureKind } }",
+            cancellationToken).ConfigureAwait(false);
+        var provisioned = await QueryAsync<List<ProvisionedPackageRow>>("Provisioned apps",
             "Get-AppxProvisionedPackage -Online | Select-Object DisplayName, PackageName",
-            ListTimeout, cancellationToken).ConfigureAwait(false);
+            cancellationToken).ConfigureAwait(false);
         return FeatureMapper.MapInboxApps(rows, provisioned);
+    }
+
+    /// <summary>
+    /// Runs a listing cmdlet and deserializes its JSON. A failed, timed-out or unparseable query returns null and is
+    /// logged as a warning with the cmdlet's first error line, so an empty tab can be explained from the Logs page.
+    /// </summary>
+    private async Task<T?> QueryAsync<T>(string section, string command, CancellationToken cancellationToken) where T : class
+    {
+        PowerShellResult result;
+        try
+        {
+            result = await PowerShellRunner.RunAsync($"({command}) | ConvertTo-Json -Depth 4 -Compress", ListTimeout, cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "{Section}: the PowerShell query could not be started; the list will be empty.", section);
+            return null;
+        }
+
+        if (result.TimedOut)
+        {
+            _logger.LogWarning("{Section}: the query did not finish within {Minutes} minutes (DISM or the Appx service may be busy); the list will be empty.", section, ListTimeout.TotalMinutes);
+            return null;
+        }
+
+        if (!result.Success)
+        {
+            var error = FirstLine(result.StdErr) ?? FirstLine(result.StdOut) ?? $"PowerShell exit code {result.ExitCode}.";
+            _logger.LogWarning("{Section}: the query failed, so the list will be empty. {Error}", section, error);
+            return null;
+        }
+
+        if (string.IsNullOrWhiteSpace(result.StdOut))
+        {
+            _logger.LogInformation("{Section}: the query returned no items.", section);
+            return null;
+        }
+
+        var parsed = PowerShellRunner.ParseJson<T>(result.StdOut);
+        if (parsed is null)
+        {
+            _logger.LogWarning("{Section}: the query output could not be read as JSON, so the list will be empty. First line: {Line}", section, FirstLine(result.StdOut));
+        }
+
+        return parsed;
     }
 
     private static string? FirstLine(string? text)
