@@ -51,8 +51,19 @@ Every system change made through the app is recorded with:
 - the outcome (succeeded, failed with reason, cancelled)
 - the System Restore point sequence number created before the change
 
-The journal is shown on the Logs page under **Actions** with a *Revert*
-button where the app can undo the change itself.
+The journal is shown on the Logs page under **Action journal**. Selecting an
+entry shows the before/after values and how to undo the change (the page that
+made it offers the revert, or the System Restore point listed next to it).
+The file is append-only; once it reaches 5 MB it is archived as
+`actions-<date>.jsonl` next to the live file and a fresh one is started.
+
+## Diagnostics export
+
+**Logs → Export diagnostics** writes a zip containing the log files, the action
+journal, the lines currently in the live viewer, a short system summary (OS,
+runtime, app version, logging settings) and a copy of `settings.json` with the
+API key and any other secret removed. When *Redact serial numbers* is on, the
+exported files are masked as well.
 
 ## For developers
 

@@ -59,10 +59,15 @@ public partial class App : Application
 
         var logService = new SerilogLogService(settings.Current.Logging);
         settings.Changed += (_, s) => logService.Reconfigure(s.Logging);
+        var appVersion = typeof(App).Assembly.GetName().Version?.ToString(3) ?? "0.0.0";
+        logService.Export.SettingsFilePath = settings.SettingsFilePath;
+        logService.Export.AppVersion = appVersion;
+        logService.Export.ExtraNote = $"Mode: {options.Mode}";
 
         _services = BuildServices(settings, logService, options.Mode);
+        logService.Export.JournalPath = _services.GetRequiredService<IActionJournal>().JournalPath;
         _logger = logService.CreateLogger<App>();
-        _logger.LogInformation("PC Checker starting in {Mode} mode. Settings: {Path}", options.Mode, settings.SettingsFilePath);
+        _logger.LogInformation("Application started v{Version} in {Mode} mode. Settings: {Path}", appVersion, options.Mode, settings.SettingsFilePath);
         if (options.UnknownArguments.Count > 0)
         {
             _logger.LogWarning("Ignoring unknown command line arguments: {Args}", string.Join(" ", options.UnknownArguments));
@@ -109,6 +114,10 @@ public partial class App : Application
         // Infrastructure created before the container exists.
         services.AddSingleton(settings);
         services.AddSingleton(logService);
+        if (logService is SerilogLogService serilog)
+        {
+            services.AddSingleton(serilog.LoggerFactory);
+        }
 
         // Everything else: the one place that picks Windows* or Demo* implementations.
         ServiceRegistration.Register(services, mode);
