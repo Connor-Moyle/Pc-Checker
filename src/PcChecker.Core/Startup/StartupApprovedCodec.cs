@@ -3,7 +3,8 @@ namespace PcChecker.Core.Startup;
 /// <summary>
 /// Encodes and decodes the 12-byte values Windows keeps under
 /// <c>Explorer\StartupApproved\{Run,Run32,StartupFolder}</c> to remember whether a startup entry is enabled.
-/// Byte 0 is 0x02 (enabled) or 0x03 (disabled); bytes 4–11 hold the FILETIME of when it was disabled.
+/// Byte 0 is 0x02 (enabled) or 0x03 (disabled) — 0x06/0x07 for items Windows enabled or disabled itself;
+/// bytes 4–11 hold the FILETIME of when it was disabled (zero while enabled). Pure, so it can be unit-tested anywhere.
 /// </summary>
 public static class StartupApprovedCodec
 {
@@ -12,15 +13,26 @@ public static class StartupApprovedCodec
     public const byte DisabledFlag = 0x03;
 
     /// <summary>Builds the value for an enabled or disabled entry. <paramref name="disabledAt"/> defaults to now (UTC).</summary>
-    public static byte[] Encode(bool enabled, DateTime? disabledAt = null)
+    public static byte[] Encode(bool enabled, DateTimeOffset? disabledAt = null)
     {
         var bytes = new byte[Length];
         bytes[0] = enabled ? EnabledFlag : DisabledFlag;
         if (!enabled)
         {
-            var when = disabledAt ?? DateTime.UtcNow;
-            long fileTime = when.Kind == DateTimeKind.Utc ? when.ToFileTimeUtc() : when.ToUniversalTime().ToFileTimeUtc();
+            long fileTime = (disabledAt ?? DateTimeOffset.UtcNow).ToFileTime();
             BitConverter.TryWriteBytes(bytes.AsSpan(4, 8), fileTime);
+        }
+
+        return bytes;
+    }
+
+    /// <summary>Flips an existing value, keeping Windows' own 0x06/0x07 "system" flavour of the flag.</summary>
+    public static byte[] Toggle(byte[]? existing, bool enabled, DateTimeOffset? disabledAt = null)
+    {
+        var bytes = Encode(enabled, disabledAt);
+        if (existing is { Length: > 0 } && (existing[0] & 0x04) != 0)
+        {
+            bytes[0] |= 0x04;
         }
 
         return bytes;
@@ -61,4 +73,8 @@ public static class StartupApprovedCodec
 
     /// <summary>Shortcut for callers that only need the flag.</summary>
     public static bool IsEnabled(byte[]? value) => Decode(value).Enabled;
+
+    /// <summary>The moment the item was disabled, or null when enabled or no timestamp was written.</summary>
+    public static DateTimeOffset? DisabledAt(byte[]? value) =>
+        Decode(value).DisabledAt is { } when ? new DateTimeOffset(when, TimeSpan.Zero) : null;
 }

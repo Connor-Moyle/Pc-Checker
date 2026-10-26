@@ -24,7 +24,7 @@ public sealed partial class PerformanceViewModel : ViewModelBase
     private readonly INotificationService _notifications;
     private readonly INavigationService _navigation;
     private readonly ILogger<PerformanceViewModel> _logger;
-    private readonly List<ServiceRow> _allServices = [];
+    private readonly List<PerformanceServiceRow> _allServices = [];
     private readonly HashSet<string> _ignored = new(StringComparer.OrdinalIgnoreCase);
 
     [ObservableProperty] private bool _hasReport;
@@ -78,8 +78,8 @@ public sealed partial class PerformanceViewModel : ViewModelBase
     }
 
     public ObservableCollection<FindingItem> Findings { get; } = [];
-    public ObservableCollection<StartupItemRow> StartupItems { get; } = [];
-    public ObservableCollection<ServiceRow> Services { get; } = [];
+    public ObservableCollection<PerformanceStartupRow> StartupItems { get; } = [];
+    public ObservableCollection<PerformanceServiceRow> Services { get; } = [];
     public ObservableCollection<ProcessRow> TopProcesses { get; } = [];
     public ObservableCollection<DriveRow> Drives { get; } = [];
     public IReadOnlyList<QuickWin> QuickWins { get; }
@@ -124,11 +124,11 @@ public sealed partial class PerformanceViewModel : ViewModelBase
         StartupItems.Clear();
         foreach (var item in report.StartupItems.OrderByDescending(s => s.Enabled).ThenBy(s => s.Name, StringComparer.OrdinalIgnoreCase))
         {
-            StartupItems.Add(new StartupItemRow(item, ToggleStartupAsync));
+            StartupItems.Add(new PerformanceStartupRow(item, ToggleStartupAsync));
         }
 
         _allServices.Clear();
-        _allServices.AddRange(report.Services.Select(s => new ServiceRow(s)));
+        _allServices.AddRange(report.Services.Select(s => new PerformanceServiceRow(s)));
         ApplyServiceFilter();
 
         TopProcesses.Clear();
@@ -254,7 +254,7 @@ public sealed partial class PerformanceViewModel : ViewModelBase
         OnPropertyChanged(nameof(HasNoFindings));
     }
 
-    private async Task ToggleStartupAsync(StartupItemRow row, bool enabled)
+    private async Task ToggleStartupAsync(PerformanceStartupRow row, bool enabled)
     {
         if (row.IsBusy)
         {
@@ -301,7 +301,7 @@ public sealed partial class PerformanceViewModel : ViewModelBase
     }
 
     [RelayCommand]
-    private async Task ApplyServiceModeAsync(ServiceRow? row)
+    private async Task ApplyServiceModeAsync(PerformanceServiceRow? row)
     {
         if (row is null || !row.IsDirty || row.IsBusy)
         {

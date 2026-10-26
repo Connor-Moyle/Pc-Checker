@@ -39,6 +39,33 @@ public class StartupApprovedCodecTests
     {
         Assert.Equal(expectedEnabled, StartupApprovedCodec.IsEnabled(value));
     }
+
+    [Fact]
+    public void Enabled_and_disabled_values_round_trip()
+    {
+        var enabled = StartupApprovedCodec.Encode(true);
+        Assert.Equal(12, enabled.Length);
+        Assert.Equal(0x02, enabled[0]);
+        Assert.True(StartupApprovedCodec.IsEnabled(enabled));
+        Assert.Null(StartupApprovedCodec.DisabledAt(enabled));
+
+        var when = new DateTimeOffset(2025, 3, 4, 5, 6, 7, TimeSpan.Zero);
+        var disabled = StartupApprovedCodec.Encode(false, when);
+        Assert.Equal(0x03, disabled[0]);
+        Assert.False(StartupApprovedCodec.IsEnabled(disabled));
+        Assert.Equal(when, StartupApprovedCodec.DisabledAt(disabled));
+    }
+
+    [Fact]
+    public void Windows_own_flags_are_recognised_and_preserved()
+    {
+        Assert.True(StartupApprovedCodec.IsEnabled([0x06, 0, 0, 0]));
+        Assert.False(StartupApprovedCodec.IsEnabled([0x07, 0, 0, 0]));
+        var toggled = StartupApprovedCodec.Toggle([0x06, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], enabled: false, DateTimeOffset.UtcNow);
+        Assert.Equal(0x07, toggled[0]);
+        Assert.False(StartupApprovedCodec.IsEnabled(toggled));
+        Assert.Equal(0x02, StartupApprovedCodec.Toggle([0x03], enabled: true)[0]);
+    }
 }
 
 public class StartupCommandParserTests

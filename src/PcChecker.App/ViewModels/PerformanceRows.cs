@@ -114,9 +114,9 @@ public sealed partial class FindingItem : ObservableObject
 }
 
 /// <summary>A startup program with a two-way enabled toggle that asks the view model before changing anything.</summary>
-public sealed partial class StartupItemRow : ObservableObject
+public sealed partial class PerformanceStartupRow : ObservableObject
 {
-    private readonly Func<StartupItemRow, bool, Task> _onToggle;
+    private readonly Func<PerformanceStartupRow, bool, Task> _onToggle;
     private bool _silent;
 
     [ObservableProperty]
@@ -125,7 +125,7 @@ public sealed partial class StartupItemRow : ObservableObject
     [ObservableProperty]
     private bool _isBusy;
 
-    public StartupItemRow(StartupItem item, Func<StartupItemRow, bool, Task> onToggle)
+    public PerformanceStartupRow(StartupItem item, Func<PerformanceStartupRow, bool, Task> onToggle)
     {
         Item = item;
         _onToggle = onToggle;
@@ -170,7 +170,7 @@ public sealed partial class StartupItemRow : ObservableObject
 }
 
 /// <summary>A Windows service with an editable start mode.</summary>
-public sealed partial class ServiceRow : ObservableObject
+public sealed partial class PerformanceServiceRow : ObservableObject
 {
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsDirty))]
@@ -179,7 +179,7 @@ public sealed partial class ServiceRow : ObservableObject
     [ObservableProperty]
     private bool _isBusy;
 
-    public ServiceRow(ServiceInfo service)
+    public PerformanceServiceRow(ServiceInfo service)
     {
         Service = service;
         OriginalStartMode = service.StartMode;
