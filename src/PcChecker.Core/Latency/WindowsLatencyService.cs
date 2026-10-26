@@ -29,14 +29,21 @@ public sealed class WindowsLatencyService : ILatencyService
 
     public LatencyReport? Last { get; private set; }
 
-    public async Task<LatencyReport> AnalyzeAsync(int sampleSeconds, bool includeNetwork, IProgress<ProgressUpdate>? progress, CancellationToken cancellationToken)
+    public Task<LatencyReport> AnalyzeAsync(int sampleSeconds, bool includeNetwork, IProgress<ProgressUpdate>? progress, CancellationToken cancellationToken)
     {
         if (!PlatformGuard.IsWindows)
         {
             Last = LatencyReport.Empty("Latency checks need Windows.");
-            return Last;
+            return Task.FromResult(Last);
         }
 
+        // Every probe below (PerformanceCounter construction loads perflib/PDH, registry and WMI reads) can block for
+        // seconds, so none of it may run on the caller's (UI) thread before the first real await.
+        return Task.Run(() => AnalyzeCoreAsync(sampleSeconds, includeNetwork, progress, cancellationToken), cancellationToken);
+    }
+
+    private async Task<LatencyReport> AnalyzeCoreAsync(int sampleSeconds, bool includeNetwork, IProgress<ProgressUpdate>? progress, CancellationToken cancellationToken)
+    {
         sampleSeconds = Math.Clamp(sampleSeconds, 1, 120);
         var warnings = new List<string>();
         var stopwatch = Stopwatch.StartNew();
@@ -184,14 +191,18 @@ public sealed class WindowsLatencyService : ILatencyService
         PerformanceCounter? dpc = null, isr = null, dpcs = null, interrupts = null;
         try
         {
-            dpc = new PerformanceCounter("Processor", "% DPC Time", "_Total", true);
-            isr = new PerformanceCounter("Processor", "% Interrupt Time", "_Total", true);
-            dpcs = new PerformanceCounter("Processor", "DPCs Queued/sec", "_Total", true);
-            interrupts = new PerformanceCounter("Processor", "Interrupts/sec", "_Total", true);
-            foreach (var c in new[] { dpc, isr, dpcs, interrupts })
+            // Counter construction and priming hit perflib/PDH and the registry; keep them off the caller's thread.
+            await Task.Run(() =>
             {
-                c.NextValue();
-            }
+                dpc = new PerformanceCounter("Processor", "% DPC Time", "_Total", true);
+                isr = new PerformanceCounter("Processor", "% Interrupt Time", "_Total", true);
+                dpcs = new PerformanceCounter("Processor", "DPCs Queued/sec", "_Total", true);
+                interrupts = new PerformanceCounter("Processor", "Interrupts/sec", "_Total", true);
+                foreach (var c in new[] { dpc, isr, dpcs, interrupts })
+                {
+                    c.NextValue();
+                }
+            }, cancellationToken).ConfigureAwait(false);
 
             var dpcSamples = new List<float>();
             var isrSamples = new List<float>();
@@ -200,10 +211,10 @@ public sealed class WindowsLatencyService : ILatencyService
             for (int i = 0; i < seconds; i++)
             {
                 await Task.Delay(1000, cancellationToken).ConfigureAwait(false);
-                dpcSamples.Add(dpc.NextValue());
-                isrSamples.Add(isr.NextValue());
-                dpcsSamples.Add(dpcs.NextValue());
-                intSamples.Add(interrupts.NextValue());
+                dpcSamples.Add(dpc!.NextValue());
+                isrSamples.Add(isr!.NextValue());
+                dpcsSamples.Add(dpcs!.NextValue());
+                intSamples.Add(interrupts!.NextValue());
                 progress?.Report(new ProgressUpdate("Sampling driver and interrupt load", 50.0 * (i + 1) / seconds, $"{i + 1}/{seconds} s"));
             }
 
