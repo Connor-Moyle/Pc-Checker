@@ -1,58 +1,58 @@
 namespace PcChecker.App.Services;
 
 /// <summary>
-/// Hands a pre-written question from any page to the Ask Claude page. The sender calls <see cref="Set"/> and
-/// navigates; the Assistant page calls <see cref="Take"/> when it loads (or listens to <see cref="Changed"/>).
+/// Static holder that lets any page prefill a question for the Ask Claude page before navigating to it.
+/// The sender assigns <see cref="PendingQuestion"/> (or calls <see cref="Set"/>) and navigates; the Assistant
+/// page reads and clears it when it loads (<see cref="Take"/>) or reacts to <see cref="Changed"/> when it is
+/// already open.
 /// </summary>
 public static class AssistantPrompt
 {
     private static readonly object Gate = new();
-    private static string? _pending;
+    private static string? _pendingQuestion;
 
-    /// <summary>Raised after <see cref="Set"/> so an already-open Assistant page can pick the prompt up immediately.</summary>
+    /// <summary>Raised after the question changes so an already-open Assistant page can pick it up immediately.</summary>
     public static event EventHandler? Changed;
 
-    /// <summary>The waiting prompt, or null when there is none. Reading does not clear it; use <see cref="Take"/> for that.</summary>
-    public static string? Pending
+    /// <summary>The question waiting to be sent, or null when there is none. Assigning raises <see cref="Changed"/>.</summary>
+    public static string? PendingQuestion
     {
         get
         {
             lock (Gate)
             {
-                return _pending;
+                return _pendingQuestion;
             }
         }
-    }
-
-    public static bool HasPending => Pending is not null;
-
-    public static void Set(string prompt)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(prompt);
-        lock (Gate)
+        set
         {
-            _pending = prompt.Trim();
-        }
+            var trimmed = string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+            lock (Gate)
+            {
+                _pendingQuestion = trimmed;
+            }
 
-        Changed?.Invoke(null, EventArgs.Empty);
+            Changed?.Invoke(null, EventArgs.Empty);
+        }
     }
 
-    /// <summary>Returns the waiting prompt and clears it.</summary>
+    public static bool HasPending => PendingQuestion is not null;
+
+    /// <summary>Stores a non-empty question; equivalent to assigning <see cref="PendingQuestion"/>.</summary>
+    public static void Set(string question)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(question);
+        PendingQuestion = question;
+    }
+
+    /// <summary>Returns the waiting question and clears it, without raising <see cref="Changed"/>.</summary>
     public static string? Take()
     {
         lock (Gate)
         {
-            var prompt = _pending;
-            _pending = null;
-            return prompt;
-        }
-    }
-
-    public static void Clear()
-    {
-        lock (Gate)
-        {
-            _pending = null;
+            var question = _pendingQuestion;
+            _pendingQuestion = null;
+            return question;
         }
     }
 }

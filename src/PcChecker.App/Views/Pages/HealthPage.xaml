@@ -4,7 +4,6 @@
       xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
       xmlns:controls="clr-namespace:PcChecker.App.Controls"
       xmlns:vm="clr-namespace:PcChecker.App.ViewModels"
-      xmlns:local="clr-namespace:PcChecker.App.Views.Pages"
       d:DataContext="{d:DesignInstance vm:HealthViewModel}"
       xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
       xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -12,7 +11,6 @@
       Title="Health"
       ScrollViewer.CanContentScroll="False">
   <Page.Resources>
-    <local:AllTrueToVisibilityConverter x:Key="AllTrueToVisibility" />
     <!-- Small coloured pill showing a HealthStatus. -->
     <DataTemplate x:Key="StatusBadge">
       <Border CornerRadius="10" Padding="8,2" VerticalAlignment="Center"
@@ -52,8 +50,8 @@
           <ui:Button Grid.Column="2" Margin="0,10,12,10" VerticalAlignment="Top"
                      Appearance="Secondary"
                      Icon="{ui:SymbolIcon Chat24}"
-                     Content="Explain with Claude"
-                     ToolTip="Opens Ask Claude with this finding filled in so you can ask what it means and what to do."
+                     Content="{Binding DataContext.ExplainButtonText, RelativeSource={RelativeSource AncestorType=Page}}"
+                     ToolTip="{Binding DataContext.ExplainButtonToolTip, RelativeSource={RelativeSource AncestorType=Page}}"
                      Command="{Binding DataContext.ExplainWithClaudeCommand, RelativeSource={RelativeSource AncestorType=Page}}"
                      CommandParameter="{Binding}" />
         </Grid>
@@ -257,14 +255,11 @@
               <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
 
-            <Grid Grid.Column="0" Width="136" Height="136" Margin="4,0,24,0">
-              <ui:ProgressRing IsIndeterminate="False" Progress="{Binding Score}" Width="136" Height="136"
-                               Foreground="{Binding OverallStatus, Converter={StaticResource HealthStatusToBrush}}" />
-              <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                <ui:TextBlock FontTypography="TitleLarge" FontWeight="SemiBold" HorizontalAlignment="Center" Text="{Binding Score}" />
-                <ui:TextBlock Style="{StaticResource Caption}" HorizontalAlignment="Center" Text="out of 100" />
-              </StackPanel>
-            </Grid>
+            <!-- Score gauge. The gauge colours by "value above threshold", so the view model flips the thresholds
+                 (GaugeWarnAt/GaugeCritAt) to make a low score red and a middling one yellow. -->
+            <controls:GaugeControl Grid.Column="0" Width="160" Height="126" Margin="4,0,24,0" VerticalAlignment="Center"
+                                   Value="{Binding Score}" Minimum="0" Maximum="100" Unit="" Label="out of 100" ValueFormat="0"
+                                   WarnAt="{Binding GaugeWarnAt}" CritAt="{Binding GaugeCritAt}" />
 
             <StackPanel Grid.Column="1" VerticalAlignment="Center">
               <StackPanel Orientation="Horizontal">

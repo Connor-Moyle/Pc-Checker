@@ -293,6 +293,21 @@ public class HealthItemRulesTests
         Assert.Equal(HealthStatus.Warning, hot[1].Status);
     }
 
+    [Theory]
+    [InlineData(null, HealthStatus.Good)]
+    [InlineData("OK", HealthStatus.Good)]
+    [InlineData("Healthy", HealthStatus.Good)]
+    [InlineData("Unknown", HealthStatus.Good)]
+    [InlineData("Warning", HealthStatus.Warning)]
+    [InlineData("Unhealthy", HealthStatus.Critical)]
+    [InlineData("Predicting failure", HealthStatus.Critical)]
+    public void Drive_status_text_is_not_mistaken_for_failure(string? statusText, HealthStatus expected)
+    {
+        var disk = new DiskHealth("Model X", "SN", null, 1_000_000_000_000, "SSD", HealthStatus.Unknown, statusText, 35, 1_000, 0, 0, 0, 5, 1_200, []);
+        Assert.Equal(expected, SmartRules.ClassifyStatusText(statusText));
+        Assert.Equal(expected, SmartRules.Evaluate(disk).Status);
+    }
+
     [Fact]
     public void Disk_item_wording_follows_the_verdict()
     {
@@ -364,6 +379,8 @@ public class HealthCodesTests
         Assert.Equal("SSD", HealthCodes.MediaType(4));
         Assert.Equal("NVMe", HealthCodes.BusType(17));
         Assert.Equal("Unhealthy", HealthCodes.PhysicalDiskHealth(2));
+        Assert.Null(HealthCodes.PhysicalDiskHealth(5));
+        Assert.Null(HealthCodes.PhysicalDiskHealth(null));
         Assert.Equal("SSD", HealthCodes.GuessMediaType("Samsung SSD 990 PRO 2TB", "SCSI", null));
         Assert.Equal("HDD", HealthCodes.GuessMediaType("WDC WD40EZAZ", "SCSI", 5400));
         Assert.Equal("External", HealthCodes.GuessMediaType("Seagate Expansion", "USB", null));

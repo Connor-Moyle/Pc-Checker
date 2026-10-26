@@ -63,13 +63,16 @@ public static class HealthCodes
         _ => "Unknown",
     };
 
-    /// <summary>MSFT_PhysicalDisk.HealthStatus.</summary>
-    public static string PhysicalDiskHealth(int? code) => code switch
+    /// <summary>
+    /// MSFT_PhysicalDisk.HealthStatus. Returns null for Unknown (5) or a missing value so callers do not treat
+    /// "no status" as a drive-reported problem.
+    /// </summary>
+    public static string? PhysicalDiskHealth(int? code) => code switch
     {
         0 => "Healthy",
         1 => "Warning",
         2 => "Unhealthy",
-        _ => "Unknown",
+        _ => null,
     };
 
     /// <summary>Guesses SSD/HDD from the Win32_DiskDrive model and interface when MSFT_PhysicalDisk is unavailable.</summary>
