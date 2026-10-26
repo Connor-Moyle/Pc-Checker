@@ -82,6 +82,16 @@ public partial class App : Application
         FanLifecycleHooks.OnStartup(_services);
         _ = OverclockStartupGuard.CheckAsync(_services, _logger);
 
+        try
+        {
+            // Registers the overlay toggle hotkey and shows the overlay when it was left enabled.
+            _services.GetRequiredService<IOverlayService>().Initialize();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "The overlay could not be initialized.");
+        }
+
         if (options.ScreenshotsDirectory is { } directory)
         {
             _ = RunScreenshotsAsync(window, directory);

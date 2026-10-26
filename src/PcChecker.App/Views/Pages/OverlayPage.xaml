@@ -4,12 +4,21 @@
       xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
       xmlns:controls="clr-namespace:PcChecker.App.Controls"
       xmlns:vm="clr-namespace:PcChecker.App.ViewModels"
-      d:DataContext="{d:DesignInstance vm:OverlayViewModel}"
       xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
       xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+      d:DataContext="{d:DesignInstance vm:OverlayViewModel}"
       mc:Ignorable="d"
       Title="Overlay"
       ScrollViewer.CanContentScroll="False">
+  <Page.Resources>
+    <DataTemplate x:Key="EnumItem">
+      <TextBlock Text="{Binding Converter={StaticResource EnumToString}}" />
+    </DataTemplate>
+    <Style x:Key="SettingRow" TargetType="Grid">
+      <Setter Property="Margin" Value="0,6" />
+    </Style>
+  </Page.Resources>
+
   <Grid Style="{StaticResource PageRoot}">
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto" />
@@ -17,7 +26,20 @@
       <RowDefinition Height="*" />
     </Grid.RowDefinitions>
 
-    <controls:SectionHeader Grid.Row="0" Title="Overlay" Subtitle="Customise the in-game performance overlay." />
+    <controls:SectionHeader Grid.Row="0" Title="Overlay" Subtitle="A small always-on-top panel with live readings while you play. Changes apply straight away.">
+      <controls:SectionHeader.Actions>
+        <StackPanel Orientation="Horizontal">
+          <ui:ToggleSwitch Content="Edit position on screen"
+                           IsChecked="{Binding IsEditMode, Mode=TwoWay}"
+                           Margin="0,0,16,0"
+                           ToolTip="Shows the overlay with a dashed frame you can drag. Turn it off when it sits where you want it." />
+          <ui:Button Appearance="Primary"
+                     Content="{Binding ToggleButtonText}"
+                     Icon="{ui:SymbolIcon Eye24}"
+                     Command="{Binding ToggleOverlayCommand}" />
+        </StackPanel>
+      </controls:SectionHeader.Actions>
+    </controls:SectionHeader>
 
     <ui:InfoBar Grid.Row="1"
                 Severity="Error"
@@ -27,10 +49,394 @@
                 IsClosable="True"
                 Margin="0,0,0,12" />
 
-    <controls:EmptyState Grid.Row="2"
-                         Icon="Layer24"
-                         Title="This section is being prepared"
-                         Message="Customise the in-game performance overlay." />
+    <ScrollViewer Grid.Row="2" Style="{StaticResource PageScroll}">
+      <Grid>
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*" MinWidth="420" />
+          <ColumnDefinition Width="24" />
+          <ColumnDefinition Width="420" />
+        </Grid.ColumnDefinitions>
+
+        <!-- ================= Left column: settings ================= -->
+        <StackPanel Grid.Column="0">
+
+          <!-- Status and hotkey -->
+          <ui:Card Style="{StaticResource CardSpacing}">
+            <StackPanel>
+              <ui:TextBlock Style="{StaticResource CardTitle}" Text="Show and hide" />
+              <Grid Style="{StaticResource SettingRow}">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0" Margin="0,0,16,0">
+                  <ui:TextBlock Text="{Binding OverlayStateText}" />
+                  <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap"
+                                Text="The overlay is click-through: it never takes the mouse away from the game. It shows over windowed and borderless games; exclusive full-screen games hide every desktop window, so switch the game to borderless if you cannot see it." />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top">
+                  <ui:Button Content="Show" Command="{Binding ShowOverlayCommand}" Margin="0,0,8,0" />
+                  <ui:Button Content="Hide" Command="{Binding HideOverlayCommand}" />
+                </StackPanel>
+              </Grid>
+
+              <Separator Margin="0,8" />
+
+              <ui:TextBlock Text="Toggle hotkey" FontWeight="SemiBold" />
+              <ui:TextBlock Style="{StaticResource Muted}" Margin="0,0,0,6"
+                            Text="Works everywhere while PC Checker is running, even from the tray. Use Ctrl, Alt, Shift or Win plus a key." />
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <ui:TextBox Grid.Column="0"
+                            Text="{Binding HotkeyText, UpdateSourceTrigger=PropertyChanged}"
+                            PlaceholderText="Ctrl+Shift+O"
+                            MaxWidth="320"
+                            HorizontalAlignment="Left"
+                            MinWidth="220" />
+                <ui:Button Grid.Column="1" Content="Apply hotkey" Command="{Binding ApplyHotkeyCommand}" Margin="8,0,0,0" />
+              </Grid>
+              <ui:TextBlock Style="{StaticResource Muted}" Margin="0,6,0,0" Text="{Binding HotkeyStatus}"
+                            Visibility="{Binding HasHotkeyError, Converter={StaticResource InverseBoolToVisibility}}" />
+              <ui:TextBlock Margin="0,6,0,0" Foreground="{StaticResource AccentOrangeBrush}" TextWrapping="Wrap" Text="{Binding HotkeyError}"
+                            Visibility="{Binding HasHotkeyError, Converter={StaticResource BoolToVisibility}}" />
+            </StackPanel>
+          </ui:Card>
+
+          <!-- Metrics -->
+          <ui:Card Style="{StaticResource CardSpacing}">
+            <StackPanel>
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0">
+                  <ui:TextBlock Style="{StaticResource CardTitle}" Text="Metrics" Margin="0" />
+                  <ui:TextBlock Style="{StaticResource Muted}" Margin="0,2,0,8">
+                    <Run Text="Tick what to show and use the arrows to set the order. " /><Run Text="{Binding EnabledMetricCount, Mode=OneWay}" /><Run Text=" selected. A metric with no sensor on this PC shows “--”." />
+                  </ui:TextBlock>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top">
+                  <ui:Button Content="All" Command="{Binding EnableAllMetricsCommand}" Margin="0,0,6,0" ToolTip="Show every metric" />
+                  <ui:Button Content="None" Command="{Binding DisableAllMetricsCommand}" Margin="0,0,6,0" ToolTip="Hide every metric" />
+                  <ui:Button Content="Reset labels" Command="{Binding ResetMetricLabelsCommand}" ToolTip="Put the default label back on every metric" />
+                </StackPanel>
+              </Grid>
+
+              <ItemsControl ItemsSource="{Binding Metrics}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate DataType="{x:Type vm:OverlayMetricRow}">
+                    <Grid Margin="0,3">
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                      </Grid.ColumnDefinitions>
+                      <CheckBox Grid.Column="0" IsChecked="{Binding Enabled}" VerticalAlignment="Center" Margin="0,0,8,0" MinWidth="0" />
+                      <ui:TextBox Grid.Column="1"
+                                  Text="{Binding Label}"
+                                  PlaceholderText="{Binding DefaultLabel}"
+                                  MaxWidth="260"
+                                  HorizontalAlignment="Left"
+                                  MinWidth="200"
+                                  ToolTip="The label shown in the overlay. Leave empty for the default." />
+                      <ui:TextBlock Grid.Column="2" Style="{StaticResource Muted}" Text="{Binding UnitHint}" VerticalAlignment="Center" Margin="12,0" MinWidth="48" />
+                      <ui:Button Grid.Column="3" Icon="{ui:SymbolIcon ChevronUp24}" Padding="6,4" Margin="0,0,4,0" ToolTip="Move up"
+                                 Command="{Binding DataContext.MoveMetricUpCommand, RelativeSource={RelativeSource AncestorType=Page}}"
+                                 CommandParameter="{Binding}" />
+                      <ui:Button Grid.Column="4" Icon="{ui:SymbolIcon ChevronDown24}" Padding="6,4" ToolTip="Move down"
+                                 Command="{Binding DataContext.MoveMetricDownCommand, RelativeSource={RelativeSource AncestorType=Page}}"
+                                 CommandParameter="{Binding}" />
+                    </Grid>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
+          </ui:Card>
+
+          <!-- Position and size -->
+          <ui:Card Style="{StaticResource CardSpacing}">
+            <StackPanel>
+              <ui:TextBlock Style="{StaticResource CardTitle}" Text="Position and size" />
+
+              <Grid Style="{StaticResource SettingRow}">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0">
+                  <ui:TextBlock Text="Screen corner" />
+                  <ui:TextBlock Style="{StaticResource Muted}" Text="Pick a corner of the monitor under your mouse, or Custom to drag it anywhere with “Edit position on screen”." TextWrapping="Wrap" />
+                </StackPanel>
+                <ComboBox Grid.Column="1" MinWidth="170" VerticalAlignment="Center"
+                          ItemsSource="{Binding Corners}" SelectedItem="{Binding Corner}" ItemTemplate="{StaticResource EnumItem}" />
+              </Grid>
+
+              <Grid Style="{StaticResource SettingRow}" Visibility="{Binding IsCustomCorner, Converter={StaticResource BoolToVisibility}}">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="Auto" />
+                  <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <ui:TextBlock Grid.Column="0" Text="Custom position (pixels from the top-left of the screen)" VerticalAlignment="Center" />
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="0,0,12,0">
+                  <ui:TextBlock Text="X" VerticalAlignment="Center" Margin="0,0,6,0" />
+                  <ui:NumberBox Value="{Binding CustomX, Mode=TwoWay}" Minimum="0" Maximum="20000" SmallChange="10" MaxDecimalPlaces="0" MinWidth="120" />
+                </StackPanel>
+                <StackPanel Grid.Column="2" Orientation="Horizontal">
+                  <ui:TextBlock Text="Y" VerticalAlignment="Center" Margin="0,0,6,0" />
+                  <ui:NumberBox Value="{Binding CustomY, Mode=TwoWay}" Minimum="0" Maximum="20000" SmallChange="10" MaxDecimalPlaces="0" MinWidth="120" />
+                </StackPanel>
+              </Grid>
+
+              <Grid Style="{StaticResource SettingRow}">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0">
+                  <ui:TextBlock Text="Layout" />
+                  <ui:TextBlock Style="{StaticResource Muted}" Text="A vertical list or one horizontal strip." />
+                </StackPanel>
+                <ComboBox Grid.Column="1" MinWidth="170" VerticalAlignment="Center"
+                          ItemsSource="{Binding Orientations}" SelectedItem="{Binding Orientation}" ItemTemplate="{StaticResource EnumItem}" />
+              </Grid>
+
+              <Grid Style="{StaticResource SettingRow}">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="160" />
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="64" />
+                </Grid.ColumnDefinitions>
+                <ui:TextBlock Grid.Column="0" Text="Opacity" VerticalAlignment="Center" />
+                <Slider Grid.Column="1" Minimum="0.1" Maximum="1" TickFrequency="0.05" IsSnapToTickEnabled="True" Value="{Binding Opacity}" VerticalAlignment="Center" />
+                <ui:TextBlock Grid.Column="2" Text="{Binding OpacityPercentText}" HorizontalAlignment="Right" VerticalAlignment="Center" />
+              </Grid>
+
+              <Grid Style="{StaticResource SettingRow}">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="160" />
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="64" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                  <ui:TextBlock Text="Size" />
+                  <ui:TextBlock Style="{StaticResource Muted}" Text="Scales the whole panel." />
+                </StackPanel>
+                <Slider Grid.Column="1" Minimum="0.5" Maximum="3" TickFrequency="0.05" IsSnapToTickEnabled="True" Value="{Binding Scale}" VerticalAlignment="Center" />
+                <ui:TextBlock Grid.Column="2" Text="{Binding ScaleText}" HorizontalAlignment="Right" VerticalAlignment="Center" />
+              </Grid>
+            </StackPanel>
+          </ui:Card>
+
+          <!-- Appearance -->
+          <ui:Card Style="{StaticResource CardSpacing}">
+            <StackPanel>
+              <ui:TextBlock Style="{StaticResource CardTitle}" Text="Appearance" />
+
+              <Grid Style="{StaticResource SettingRow}">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <ui:TextBlock Grid.Column="0" Text="Font" VerticalAlignment="Center" />
+                <ComboBox Grid.Column="1" MinWidth="170" ItemsSource="{Binding FontFamilies}" SelectedItem="{Binding FontFamily}" />
+              </Grid>
+
+              <Grid Style="{StaticResource SettingRow}">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="160" />
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="64" />
+                </Grid.ColumnDefinitions>
+                <ui:TextBlock Grid.Column="0" Text="Font size" VerticalAlignment="Center" />
+                <Slider Grid.Column="1" Minimum="8" Maximum="48" TickFrequency="1" IsSnapToTickEnabled="True" Value="{Binding FontSize}" VerticalAlignment="Center" />
+                <ui:TextBlock Grid.Column="2" Text="{Binding FontSize, StringFormat={}{0:0} px}" HorizontalAlignment="Right" VerticalAlignment="Center" />
+              </Grid>
+
+              <Grid Style="{StaticResource SettingRow}">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0">
+                  <ui:TextBlock Text="Background panel" />
+                  <ui:TextBlock Style="{StaticResource Muted}" Text="Turn off for text only." />
+                </StackPanel>
+                <ui:ToggleSwitch Grid.Column="1" IsChecked="{Binding ShowBackground}" />
+              </Grid>
+
+              <ui:TextBlock Text="Colours" FontWeight="SemiBold" Margin="0,8,0,0" />
+              <ui:TextBlock Style="{StaticResource Muted}" Text="Hex colours: #RRGGBB, or #AARRGGBB where AA is transparency (CC ≈ 80 %)." Margin="0,0,0,4" />
+              <UniformGrid Columns="3">
+                <StackPanel Margin="0,0,12,0">
+                  <ui:TextBlock Style="{StaticResource Muted}" Text="Background" />
+                  <Grid>
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="Auto" />
+                      <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Border Grid.Column="0" Width="28" Height="28" CornerRadius="6" Margin="0,0,8,0" BorderThickness="1" BorderBrush="{StaticResource AccentGreyBrush}" Background="{Binding BackgroundPreview}" />
+                    <ui:TextBox Grid.Column="1" Text="{Binding BackgroundColor, UpdateSourceTrigger=PropertyChanged}" PlaceholderText="#CC101010" />
+                  </Grid>
+                </StackPanel>
+                <StackPanel Margin="0,0,12,0">
+                  <ui:TextBlock Style="{StaticResource Muted}" Text="Labels" />
+                  <Grid>
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="Auto" />
+                      <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Border Grid.Column="0" Width="28" Height="28" CornerRadius="6" Margin="0,0,8,0" BorderThickness="1" BorderBrush="{StaticResource AccentGreyBrush}" Background="{Binding TextPreview}" />
+                    <ui:TextBox Grid.Column="1" Text="{Binding TextColor, UpdateSourceTrigger=PropertyChanged}" PlaceholderText="#FFFFFFFF" />
+                  </Grid>
+                </StackPanel>
+                <StackPanel>
+                  <ui:TextBlock Style="{StaticResource Muted}" Text="Values" />
+                  <Grid>
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="Auto" />
+                      <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Border Grid.Column="0" Width="28" Height="28" CornerRadius="6" Margin="0,0,8,0" BorderThickness="1" BorderBrush="{StaticResource AccentGreyBrush}" Background="{Binding AccentPreview}" />
+                    <ui:TextBox Grid.Column="1" Text="{Binding AccentColor, UpdateSourceTrigger=PropertyChanged}" PlaceholderText="#FF4CC2FF" />
+                  </Grid>
+                </StackPanel>
+              </UniformGrid>
+              <ui:TextBlock Margin="0,6,0,0" Foreground="{StaticResource AccentOrangeBrush}" TextWrapping="Wrap" Text="{Binding ColorError}"
+                            Visibility="{Binding HasColorError, Converter={StaticResource BoolToVisibility}}" />
+              <ui:TextBlock Style="{StaticResource Muted}" Margin="0,6,0,0" TextWrapping="Wrap"
+                            Text="Temperatures turn yellow at the warning level and red at the critical level set on the Temperatures page." />
+
+              <Separator Margin="0,10" />
+
+              <Grid Style="{StaticResource SettingRow}">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0">
+                  <ui:TextBlock Text="Sparklines" />
+                  <ui:TextBlock Style="{StaticResource Muted}" Text="A tiny graph of the last minute next to each value." />
+                </StackPanel>
+                <ui:ToggleSwitch Grid.Column="1" IsChecked="{Binding ShowSparklines}" />
+              </Grid>
+
+              <Grid Style="{StaticResource SettingRow}">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0">
+                  <ui:TextBlock Text="Update every (milliseconds)" />
+                  <ui:TextBlock Style="{StaticResource Muted}" Text="1000 is once a second. Higher values use slightly less CPU." />
+                </StackPanel>
+                <ui:NumberBox Grid.Column="1" Value="{Binding UpdateIntervalMs, Mode=TwoWay}" Minimum="250" Maximum="10000" SmallChange="250" MaxDecimalPlaces="0" MinWidth="140" />
+              </Grid>
+            </StackPanel>
+          </ui:Card>
+
+          <!-- Presets -->
+          <ui:Card Style="{StaticResource CardSpacing}">
+            <StackPanel>
+              <ui:TextBlock Style="{StaticResource CardTitle}" Text="Presets" />
+              <ui:TextBlock Style="{StaticResource Muted}" Margin="0,0,0,8" TextWrapping="Wrap"
+                            Text="A preset remembers which metrics are shown, their order, the corner, opacity, size and layout. Colours, font and the hotkey stay as they are." />
+              <ItemsControl ItemsSource="{Binding Presets}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate DataType="{x:Type vm:OverlayPresetRow}">
+                    <Grid Margin="0,4">
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                      </Grid.ColumnDefinitions>
+                      <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal">
+                          <ui:TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                          <ui:TextBlock Style="{StaticResource Caption}" Text="built-in" Margin="8,0,0,0" VerticalAlignment="Center"
+                                        Visibility="{Binding IsBuiltIn, Converter={StaticResource BoolToVisibility}}" />
+                        </StackPanel>
+                        <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding Summary}" />
+                      </StackPanel>
+                      <ui:Button Grid.Column="1" Content="Load" Margin="8,0,0,0"
+                                 Command="{Binding DataContext.LoadPresetCommand, RelativeSource={RelativeSource AncestorType=Page}}"
+                                 CommandParameter="{Binding}" />
+                      <ui:Button Grid.Column="2" Content="Delete" Appearance="Danger" Margin="8,0,0,0"
+                                 Visibility="{Binding IsBuiltIn, Converter={StaticResource InverseBoolToVisibility}}"
+                                 Command="{Binding DataContext.DeletePresetCommand, RelativeSource={RelativeSource AncestorType=Page}}"
+                                 CommandParameter="{Binding}" />
+                    </Grid>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+
+              <Separator Margin="0,8" />
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="Auto" />
+                  <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <ui:TextBox Grid.Column="0" Text="{Binding NewPresetName, UpdateSourceTrigger=PropertyChanged}" PlaceholderText="Name for the current layout, e.g. Benchmarking" MaxWidth="360" HorizontalAlignment="Left" MinWidth="240" />
+                <ui:Button Grid.Column="1" Content="Save as preset" Command="{Binding SavePresetCommand}" Margin="8,0,0,0" />
+                <ui:Button Grid.Column="2" Content="Reset to defaults" Command="{Binding ResetToDefaultsCommand}" Margin="8,0,0,0" ToolTip="Puts every overlay setting back to its default. Saved presets are kept." />
+              </Grid>
+            </StackPanel>
+          </ui:Card>
+        </StackPanel>
+
+        <!-- ================= Right column: live preview and tips ================= -->
+        <StackPanel Grid.Column="2">
+          <ui:Card Style="{StaticResource CardSpacing}">
+            <StackPanel>
+              <ui:TextBlock Style="{StaticResource CardTitle}" Text="Live preview" />
+              <ui:TextBlock Style="{StaticResource Muted}" Margin="0,0,0,8" Text="Exactly what the overlay shows right now, over a sample game scene." />
+              <Border CornerRadius="8" ClipToBounds="True" MinHeight="260">
+                <Border.Background>
+                  <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                    <GradientStop Color="#1B2A4A" Offset="0" />
+                    <GradientStop Color="#0F172A" Offset="0.55" />
+                    <GradientStop Color="#2A1240" Offset="1" />
+                  </LinearGradientBrush>
+                </Border.Background>
+                <Grid>
+                  <!-- A few shapes so the panel's transparency is visible. -->
+                  <Ellipse Width="180" Height="180" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,-40,-60" Opacity="0.35">
+                    <Ellipse.Fill>
+                      <RadialGradientBrush>
+                        <GradientStop Color="#4CC2FF" Offset="0" />
+                        <GradientStop Color="#004CC2FF" Offset="1" />
+                      </RadialGradientBrush>
+                    </Ellipse.Fill>
+                  </Ellipse>
+                  <Rectangle Height="2" VerticalAlignment="Center" Margin="24,0" Opacity="0.15" Fill="White" />
+                  <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" Margin="12">
+                    <controls:OverlayPanel DataContext="{Binding Preview}" />
+                  </ScrollViewer>
+                </Grid>
+              </Border>
+            </StackPanel>
+          </ui:Card>
+
+          <ui:Card Style="{StaticResource CardSpacing}">
+            <StackPanel>
+              <ui:TextBlock Style="{StaticResource CardTitle}" Text="Good to know" />
+              <ui:TextBlock TextWrapping="Wrap" Margin="0,0,0,6" Text="• Works over windowed and borderless-window games. Exclusive full-screen games hide every desktop window, including this one: switch the game to borderless." />
+              <ui:TextBlock TextWrapping="Wrap" Margin="0,0,0,6" Text="• Some anti-cheat systems block overlays. If a game refuses to start with the overlay on, turn it off for that game." />
+              <ui:TextBlock TextWrapping="Wrap" Margin="0,0,0,6" Text="• Readings come from the same sensors as the Temperatures page. A metric your hardware does not report shows “--”." />
+              <ui:TextBlock TextWrapping="Wrap" Margin="0,0,0,6" Text="• RAM, network and disk activity are read from Windows directly, so they work even without hardware sensors." />
+              <ui:TextBlock TextWrapping="Wrap" Text="• Corners follow the monitor your mouse is on when the overlay is shown; use Custom to pin it to one spot." />
+            </StackPanel>
+          </ui:Card>
+        </StackPanel>
+      </Grid>
+    </ScrollViewer>
 
     <controls:BusyOverlay Grid.Row="0" Grid.RowSpan="3"
                           IsBusy="{Binding IsBusy}"

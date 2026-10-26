@@ -7,4 +7,7 @@ public interface IHotkeyService
     bool Register(string id, string hotkeyText, Action callback);
     void Unregister(string id);
     bool IsRegistered(string id);
+
+    /// <summary>Plain-English reason the last <see cref="Register"/> call failed; null after a success.</summary>
+    string? LastError { get; }
 }
