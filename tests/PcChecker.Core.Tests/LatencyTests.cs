@@ -228,6 +228,37 @@ public class LatencyParserTests
         Assert.Empty(BcdEditParser.Parse(null));
     }
 
+    [Theory]
+    [InlineData("Ja", true)]
+    [InlineData("Nein", false)]
+    [InlineData("Oui", true)]
+    [InlineData("Non", false)]
+    [InlineData("Sí", true)]
+    [InlineData("はい", true)]
+    [InlineData("いいえ", false)]
+    [InlineData("Tak", true)]
+    [InlineData("Nie", false)]
+    [InlineData("YES", true)]
+    [InlineData("Wahrscheinlich", null)]
+    public void BcdEdit_booleans_accept_localized_yes_and_no(string word, bool? expected)
+    {
+        var map = BcdEditParser.Parse("Windows Boot Loader\n-------------------\nuseplatformclock        " + word + "\n");
+        Assert.Equal(expected, BcdEditParser.GetBool(map, "useplatformclock"));
+        Assert.Equal(expected, BcdEditParser.GetFlag(map, "useplatformclock"));
+    }
+
+    [Fact]
+    public void BcdEdit_flags_are_false_when_absent_and_unknown_when_unreadable()
+    {
+        var map = BcdEditParser.Parse(BcdSample);
+        Assert.False(BcdEditParser.GetFlag(map, "missing"));
+        Assert.True(BcdEditParser.GetFlag(map, "useplatformclock"));
+        Assert.False(BcdEditParser.GetFlag(map, "disabledynamictick"));
+        var odd = BcdEditParser.Parse("disabledynamictick      Igen-ish\n");
+        Assert.Null(BcdEditParser.GetFlag(odd, "disabledynamictick"));
+        Assert.Null(BcdEditParser.GetBool(odd, "disabledynamictick"));
+    }
+
     [Fact]
     public void PowerCfg_query_parser_reads_ac_and_dc_indexes_in_hex_and_decimal()
     {

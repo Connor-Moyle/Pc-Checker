@@ -59,8 +59,12 @@ public sealed class WindowsLatencyService : ILatencyService
             warnings.Add("bcdedit could not be read (it needs administrator rights), so HPET and dynamic tick are unknown.");
         }
 
-        bool? hpetForced = boot is null ? null : BcdEditParser.GetBool(boot, "useplatformclock") ?? false;
-        bool? dynamicTickDisabled = boot is null ? null : BcdEditParser.GetBool(boot, "disabledynamictick") ?? false;
+        bool? hpetForced = boot is null ? null : BcdEditParser.GetFlag(boot, "useplatformclock");
+        bool? dynamicTickDisabled = boot is null ? null : BcdEditParser.GetFlag(boot, "disabledynamictick");
+        if (boot is not null && (hpetForced is null || dynamicTickDisabled is null))
+        {
+            warnings.Add("bcdedit printed a Yes/No value in a language PC Checker does not recognise, so HPET or dynamic tick is unknown.");
+        }
         bool? hags = LatencyProbes.ReadHags();
         bool hasNvidia = LatencyProbes.HasNvidiaGpu();
 

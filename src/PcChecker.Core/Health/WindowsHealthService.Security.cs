@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Globalization;
 using System.Management;
+using System.Runtime.InteropServices;
 using Microsoft.Extensions.Logging;
 using Microsoft.Win32;
 using PcChecker.Core.Common;
@@ -82,7 +83,14 @@ public sealed partial class WindowsHealthService
 
         TryStep(notes, "firewall", () =>
         {
-            IReadOnlyDictionary<string, bool> profiles = ReadFirewallFromRegistry();
+            // The firewall policy API sees the effective state (including Group Policy); the registry and netsh are
+            // fallbacks, netsh last because it prints in the display language.
+            IReadOnlyDictionary<string, bool> profiles = ReadFirewallFromPolicyApi();
+            if (profiles.Count == 0)
+            {
+                profiles = ReadFirewallFromRegistry();
+            }
+
             if (profiles.Count == 0)
             {
                 profiles = SecurityRules.ParseNetshProfiles(RunNetsh("advfirewall show allprofiles", ct));
@@ -110,6 +118,41 @@ public sealed partial class WindowsHealthService
         {
             ctx.Warnings.Add("Security basics: " + n);
         }
+    }
+
+    /// <summary>Per-profile state from the Windows Firewall policy COM API (INetFwPolicy2.FirewallEnabled); empty when unavailable.</summary>
+    private static Dictionary<string, bool> ReadFirewallFromPolicyApi()
+    {
+        var result = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+        object? policy = null;
+        try
+        {
+            var type = Type.GetTypeFromProgID("HNetCfg.FwPolicy2");
+            if (type is null)
+            {
+                return result;
+            }
+
+            policy = Activator.CreateInstance(type);
+            dynamic fw = policy!;
+            foreach (var (profile, name) in new (int, string)[] { (1, "Domain"), (2, "Private"), (4, "Public") })
+            {
+                result[name] = (bool)fw.FirewallEnabled[profile];
+            }
+        }
+        catch (Exception)
+        {
+            result.Clear();
+        }
+        finally
+        {
+            if (policy is not null && Marshal.IsComObject(policy))
+            {
+                Marshal.FinalReleaseComObject(policy);
+            }
+        }
+
+        return result;
     }
 
     private static Dictionary<string, bool> ReadFirewallFromRegistry()

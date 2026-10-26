@@ -350,3 +350,52 @@ public class OptimizationLinksTests
         Assert.False((await svc.GetStateAsync("transparency.disable", CancellationToken.None)).IsApplied);
     }
 }
+
+public class SfcResultParserTests
+{
+    [Fact]
+    public void English_console_verdicts_are_read_directly()
+    {
+        Assert.Equal(SfcOutcome.NoViolations, SfcResultParser.FromConsole("Windows Resource Protection did not find any integrity violations."));
+        Assert.Equal(SfcOutcome.Repaired, SfcResultParser.FromConsole("Windows Resource Protection found corrupt files and successfully repaired them."));
+        Assert.Equal(SfcOutcome.CouldNotRepair, SfcResultParser.FromConsole("Windows Resource Protection found corrupt files but was unable to fix some of them."));
+        Assert.Equal(SfcOutcome.Unknown, SfcResultParser.FromConsole("Der Windows-Ressourcenschutz hat keine Integritätsverletzungen gefunden."));
+        Assert.Equal(SfcOutcome.Unknown, SfcResultParser.FromConsole(null));
+    }
+
+    [Fact]
+    public void Localized_console_falls_back_to_the_english_cbs_log_entries()
+    {
+        string[] clean =
+        [
+            "2026-10-26 10:00:01, Info                  CSI    00000a1b [SR] Verifying 100 components",
+            "2026-10-26 10:00:02, Info                  CSI    00000a1c [SR] Beginning Verify and Repair transaction",
+            "2026-10-26 10:00:03, Info                  CSI    00000a1d [SR] Verify complete",
+            "2026-10-26 10:00:04, Info                  CSI    00000a1e [SR] Repairing 0 components",
+        ];
+        Assert.Equal(SfcOutcome.NoViolations, SfcResultParser.Interpret("Der Windows-Ressourcenschutz hat keine Integritätsverletzungen gefunden.", clean));
+
+        string[] repaired =
+        [
+            "... [SR] Verify complete",
+            "... [SR] Cannot repair member file [l:34{17}]\"Accessibility.dll\" of Accessibility, Version = 6.0.6000.16386",
+            "... [SR] Repaired file \\??\\C:\\Windows\\System32\\Accessibility.dll by copying from backup",
+            "... [SR] Repairing 1 components",
+            "... [SR] Repair complete",
+        ];
+        Assert.Equal(SfcOutcome.Repaired, SfcResultParser.Interpret("Le programme de protection des ressources Windows a trouvé des fichiers endommagés", repaired));
+
+        string[] partial =
+        [
+            "... [SR] Verify complete",
+            "... [SR] Cannot repair member file [l:34{17}]\"Accessibility.dll\" of Accessibility",
+            "... [SR] Cannot repair member file [l:20{10}]\"other.dll\" of Other",
+            "... [SR] Repaired file \\??\\C:\\Windows\\System32\\Accessibility.dll by copying from backup",
+        ];
+        Assert.Equal(SfcOutcome.ViolationsFound, SfcResultParser.Interpret("localized", partial));
+
+        Assert.Equal(SfcOutcome.Unknown, SfcResultParser.Interpret("localized", ["unrelated line", ""]));
+        Assert.Equal(SfcOutcome.Unknown, SfcResultParser.Interpret("localized", null));
+        Assert.Equal(SfcOutcome.NoViolations, SfcResultParser.Interpret("did not find any integrity violations", partial));
+    }
+}

@@ -456,6 +456,102 @@ public class PnpUtilParserTests
         Assert.Equal((null, null), PnpUtilParser.ParseExportSummary(string.Empty));
     }
 
+    [Fact]
+    public void Localized_enum_drivers_output_is_mapped_by_value_shape_and_print_order()
+    {
+        const string german = """
+            Microsoft-PnP-Dienstprogramm
+
+            Veröffentlichter Name:     oem12.inf
+            Ursprünglicher Name:       nv_dispi.inf
+            Anbietername:              NVIDIA Corporation
+            Klassenname:               Grafikkarten
+            Klassen-GUID:              {4d36e968-e325-11ce-bfc1-08002be10318}
+            Klassenversion:            1.0
+            Treiberversion:            02/10/2025 32.0.15.6094
+            Signaturgebername:         Microsoft Windows Hardware Compatibility Publisher
+
+            Veröffentlichter Name:     oem3.inf
+            Ursprünglicher Name:       unsigned.inf
+            Anbietername:              Example
+            Klassenname:               Systemgeräte
+            Treiberversion:            01/05/2021 1.0
+
+            """;
+        var packages = PnpUtilParser.ParseEnumDrivers(german);
+        Assert.Equal(2, packages.Count);
+        var nv = packages[0];
+        Assert.Equal("oem12.inf", nv.PublishedName);
+        Assert.Equal("nv_dispi.inf", nv.OriginalName);
+        Assert.Equal("NVIDIA Corporation", nv.Provider);
+        Assert.Equal("Grafikkarten", nv.ClassName);
+        Assert.Equal("{4d36e968-e325-11ce-bfc1-08002be10318}", nv.ClassGuid);
+        Assert.Equal("32.0.15.6094", nv.Version);
+        Assert.Equal(new DateTime(2025, 2, 10), nv.Date);
+        Assert.Equal("Microsoft Windows Hardware Compatibility Publisher", nv.Signer);
+        Assert.Equal("Example", packages[1].Provider);
+        Assert.Equal("Systemgeräte", packages[1].ClassName);
+        Assert.Null(packages[1].ClassGuid);
+        Assert.Null(packages[1].Signer);
+        Assert.Equal("1.0", packages[1].Version);
+
+        const string japanese = "公開名：     oem7.inf\r\n元の名前：   intel.inf\r\nプロバイダー名： Intel\r\n";
+        var jp = PnpUtilParser.ParseEnumDrivers(japanese);
+        Assert.Single(jp);
+        Assert.Equal("oem7.inf", jp[0].PublishedName);
+        Assert.Equal("intel.inf", jp[0].OriginalName);
+        Assert.Equal("Intel", jp[0].Provider);
+
+        Assert.True(PnpUtilParser.ContainsFieldLines(german));
+        Assert.False(PnpUtilParser.ContainsFieldLines("Microsoft PnP Utility\r\n\r\n"));
+        Assert.False(PnpUtilParser.ContainsFieldLines(null));
+    }
+
+    [Fact]
+    public void Localized_export_progress_and_summary_are_recognised_by_shape()
+    {
+        string[] lines =
+        [
+            "Microsoft-PnP-Dienstprogramm",
+            "",
+            "Treiberpaket wird exportiert: oem0.inf",
+            "Treiberpaket wurde erfolgreich exportiert.",
+            "Treiberpaket wird exportiert: oem1.inf",
+            "Treiberpaket wurde erfolgreich exportiert.",
+            "",
+            "Treiberpakete gesamt:  2",
+            "Exportierte Treiberpakete:  1",
+        ];
+        Assert.Equal(2, PnpUtilParser.CountExportLines(lines));
+        Assert.True(PnpUtilParser.IsExportLine("ドライバー パッケージをエクスポートしています： oem7.inf"));
+        Assert.False(PnpUtilParser.IsExportLine("Treiberpaket wurde erfolgreich exportiert."));
+        Assert.False(PnpUtilParser.IsExportLine("Total driver packages:  2"));
+        Assert.False(PnpUtilParser.IsExportLine(null));
+        var (total, exported) = PnpUtilParser.ParseExportSummary(string.Join("\r\n", lines));
+        Assert.Equal(2, total);
+        Assert.Equal(1, exported);
+        Assert.Equal((null, null), PnpUtilParser.ParseExportSummary("Treiberpakete gesamt:  2"));
+    }
+
+    [Fact]
+    public void Setup_api_exit_codes_are_explained()
+    {
+        var blocked = PnpUtilParser.InterpretExitCode(unchecked((int)0xE0000247));
+        Assert.False(blocked.Success);
+        Assert.Contains("blocked", blocked.Text, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("in use", blocked.Text, StringComparison.OrdinalIgnoreCase);
+
+        var inUse = PnpUtilParser.InterpretExitCode(unchecked((int)0xE000024A));
+        Assert.False(inUse.Success);
+        Assert.Contains("in use", inUse.Text, StringComparison.OrdinalIgnoreCase);
+
+        Assert.Contains("No device", PnpUtilParser.InterpretExitCode(unchecked((int)0xE0000228)).Text);
+        var other = PnpUtilParser.InterpretExitCode(unchecked((int)0xE0000212));
+        Assert.False(other.Success);
+        Assert.Contains("0xE0000212", other.Text);
+        Assert.Contains("code 12345", PnpUtilParser.InterpretExitCode(12345).Text);
+    }
+
     [Theory]
     [InlineData(0, true, false)]
     [InlineData(259, true, false)]

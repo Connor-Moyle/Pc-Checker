@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Management;
 using Microsoft.Extensions.Logging;
 using PcChecker.Core.Common;
@@ -338,6 +339,11 @@ public sealed class WindowsDriverService : IDriverService, IDriverStoreProvider,
         if (packages.Count == 0 && result.ExitCode != 0)
         {
             warnings.Add("pnputil /enum-drivers failed: " + PnpUtilParser.InterpretExitCode(result.ExitCode).Text);
+        }
+        else if (packages.Count == 0 && PnpUtilParser.ContainsFieldLines(result.Output))
+        {
+            _logger.LogWarning("pnputil /enum-drivers printed a listing that could not be parsed (display language {Culture}).", CultureInfo.CurrentUICulture.Name);
+            warnings.Add("pnputil listed driver packages in a format PC Checker could not read (it prints in the Windows display language). The driver store list is incomplete.");
         }
 
         return new DriverStoreResult(packages.OrderBy(p => p.Provider).ThenBy(p => p.OriginalName).ToList(), warnings, DateTimeOffset.Now);

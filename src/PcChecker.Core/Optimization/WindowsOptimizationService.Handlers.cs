@@ -1,4 +1,5 @@
 using System.Text;
+using Microsoft.Extensions.Logging;
 using Microsoft.Win32;
 using PcChecker.Core.Common;
 using PcChecker.Core.Performance;
@@ -480,31 +481,93 @@ public sealed partial class WindowsOptimizationService
     private async Task<OperationResult> RunSfcAsync(CancellationToken ct)
     {
         Emit("> sfc /scannow");
+        var cbsLog = CbsLogPath();
+        long logStart = FileLength(cbsLog);
         var result = await ExternalCommand.RunAsync("sfc.exe", "/scannow", ct, LongToolTimeout, Emit, Encoding.Unicode).ConfigureAwait(false);
         if (result.TimedOut)
         {
             return OperationResult.Fail("System File Checker did not finish within 45 minutes and was stopped.");
         }
 
-        var text = result.Combined;
-        if (text.Contains("did not find any integrity violations", StringComparison.OrdinalIgnoreCase))
+        // sfc prints its verdict in the display language; the [SR] lines it appends to CBS.log are always English.
+        var outcome = SfcResultParser.Interpret(result.Combined, ReadLinesSince(cbsLog, logStart));
+        switch (outcome)
         {
-            return OperationResult.Ok("System File Checker found no damaged files.");
+            case SfcOutcome.NoViolations:
+                return OperationResult.Ok("System File Checker found no damaged files.");
+            case SfcOutcome.Repaired:
+                return OperationResult.Ok("System File Checker repaired damaged files. Restart to complete the repair.", rebootRequired: true);
+            case SfcOutcome.ViolationsFound:
+                return OperationResult.Ok("System File Checker found and repaired damaged files; check the output above (or CBS.log) in case some could not be fixed. Restart to complete the repair.", rebootRequired: true);
+            case SfcOutcome.CouldNotRepair:
+                return OperationResult.Fail("System File Checker found damaged files it could not repair. Run \"Repair the Windows image (DISM)\" first, then try again.");
         }
 
-        if (text.Contains("successfully repaired", StringComparison.OrdinalIgnoreCase))
+        if (!result.Success)
         {
-            return OperationResult.Ok("System File Checker repaired damaged files. Restart to complete the repair.", rebootRequired: true);
+            return OperationResult.Fail($"System File Checker reported a problem (exit code {result.ExitCode}): {result.LastLine}");
         }
 
-        if (text.Contains("unable to fix", StringComparison.OrdinalIgnoreCase))
-        {
-            return OperationResult.Fail("System File Checker found damaged files it could not repair. Run \"Repair the Windows image (DISM)\" first, then try again.");
-        }
+        _logger.LogWarning("sfc /scannow finished (exit 0) but its verdict could not be read from the console output or CBS.log.");
+        return OperationResult.Ok("System File Checker finished, but its verdict could not be read (it is printed in the Windows display language). See the output above for the result.");
+    }
 
-        return result.Success
-            ? OperationResult.Ok("System File Checker finished. See the output above for details.")
-            : OperationResult.Fail($"System File Checker reported a problem (exit code {result.ExitCode}): {result.LastLine}");
+    private static string CbsLogPath()
+    {
+        try
+        {
+            return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "Logs", "CBS", "CBS.log");
+        }
+        catch (Exception)
+        {
+            return string.Empty;
+        }
+    }
+
+    private static long FileLength(string path)
+    {
+        try
+        {
+            return path.Length > 0 && File.Exists(path) ? new FileInfo(path).Length : 0;
+        }
+        catch (Exception)
+        {
+            return 0;
+        }
+    }
+
+    /// <summary>The [SR] lines appended to the log since <paramref name="offset"/>; null when the log cannot be read.</summary>
+    private static List<string>? ReadLinesSince(string path, long offset)
+    {
+        try
+        {
+            if (path.Length == 0 || !File.Exists(path))
+            {
+                return null;
+            }
+
+            using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            if (offset > 0 && offset <= stream.Length)
+            {
+                stream.Seek(offset, SeekOrigin.Begin); // when the log shrank it was rotated, so it is read from the start
+            }
+
+            using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
+            var lines = new List<string>();
+            while (reader.ReadLine() is { } line)
+            {
+                if (line.Contains("[SR]", StringComparison.Ordinal))
+                {
+                    lines.Add(line);
+                }
+            }
+
+            return lines;
+        }
+        catch (Exception)
+        {
+            return null;
+        }
     }
 
     private static string Last(string first, string second)

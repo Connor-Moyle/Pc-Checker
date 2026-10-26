@@ -15,8 +15,40 @@ public static partial class PnpUtilParser
     /// <summary>Exit code pnputil returns when nothing matched (ERROR_NO_MORE_ITEMS); not a failure.</summary>
     public const int NoMoreItemsExitCode = 259;
 
-    [GeneratedRegex(@"^\s*([A-Za-z][A-Za-z ]*?)\s*:\s*(.*?)\s*$")]
+    /// <summary>SetupAPI ERROR_DRIVER_INSTALL_BLOCKED (0xE0000247): the driver is unsigned or blocked by policy.</summary>
+    public const int DriverInstallBlockedExitCode = unchecked((int)0xE0000247);
+
+    /// <summary>SetupAPI ERROR_DRIVER_STORE_DELETE_FAILED (0xE000024A): the package is still in use by a device.</summary>
+    public const int DriverStoreDeleteFailedExitCode = unchecked((int)0xE000024A);
+
+    /// <summary>SetupAPI ERROR_NO_COMPAT_DRIVERS (0xE0000228): no device on this PC matches the package.</summary>
+    public const int NoCompatibleDriversExitCode = unchecked((int)0xE0000228);
+
+    /// <summary>SetupAPI ERROR_NO_CATALOG_FOR_OEM_INF (0xE000023F): the package has no signed catalog.</summary>
+    public const int NoCatalogExitCode = unchecked((int)0xE000023F);
+
+    /// <summary>SetupAPI ERROR_SIGNATURE_OSATTRIBUTE_MISMATCH (0xE0000244): signed for a different Windows version.</summary>
+    public const int SignatureOsMismatchExitCode = unchecked((int)0xE0000244);
+
+    private const int SetupApiFacilityMask = unchecked((int)0xFFFF0000);
+    private const int SetupApiFacility = unchecked((int)0xE0000000);
+
+    /// <summary>A "Label: value" line in any language (the label is localized, so anything up to the first colon counts).</summary>
+    [GeneratedRegex(@"^\s*([^:\uFF1A]+?)\s*[:\uFF1A]\s*(.*?)\s*$")]
     private static partial Regex KeyValueLine();
+
+    [GeneratedRegex(@"^oem\d+\.inf$", RegexOptions.IgnoreCase)]
+    private static partial Regex PublishedName();
+
+    [GeneratedRegex(@"^\{[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\}$")]
+    private static partial Regex ClassGuid();
+
+    /// <summary>pnputil's "Driver Version" value: a date followed by a dotted version ("02/10/2025 32.0.15.6094").</summary>
+    [GeneratedRegex(@"^\S+\s+\d+(?:\.\d+){1,3}$")]
+    private static partial Regex DriverVersionField();
+
+    [GeneratedRegex(@"^\d+$")]
+    private static partial Regex WholeNumber();
 
     [GeneratedRegex(@"(\d+)\s*$")]
     private static partial Regex TrailingNumber();
@@ -31,8 +63,10 @@ public static partial class PnpUtilParser
     ];
 
     /// <summary>
-    /// Parses the output of <c>pnputil /enum-drivers</c>: blank-line separated blocks of "Key: Value" lines.
-    /// Unknown keys are ignored; blocks without a published name are skipped.
+    /// Parses the output of <c>pnputil /enum-drivers</c>: blank-line separated blocks of "Label: Value" lines. The labels
+    /// are printed in the Windows display language, so the English names are used when present and otherwise the
+    /// fields are recognised by the shape of their values and by pnputil's fixed print order (see <see cref="MapFields"/>).
+    /// Unknown fields are ignored; blocks without a published name are skipped.
     /// </summary>
     public static IReadOnlyList<DriverPackage> ParseEnumDrivers(string? output)
     {
@@ -42,7 +76,7 @@ public static partial class PnpUtilParser
             return packages;
         }
 
-        var block = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var entries = new List<(string Key, string Value)>();
         foreach (var raw in output.Split('\n'))
         {
             var line = raw.TrimEnd('\r');
@@ -55,7 +89,7 @@ public static partial class PnpUtilParser
             var m = KeyValueLine().Match(line);
             if (m.Success)
             {
-                block[Normalize(m.Groups[1].Value)] = m.Groups[2].Value.Trim();
+                entries.Add((m.Groups[1].Value, m.Groups[2].Value.Trim()));
             }
         }
 
@@ -64,23 +98,101 @@ public static partial class PnpUtilParser
 
         void Flush()
         {
-            if (block.TryGetValue("publishedname", out var published) && !string.IsNullOrWhiteSpace(published))
+            if (entries.Count > 0)
             {
-                var (date, version) = SplitVersionField(block.GetValueOrDefault("driverversion"));
-                packages.Add(new DriverPackage(
-                    published,
-                    block.GetValueOrDefault("originalname"),
-                    block.GetValueOrDefault("providername"),
-                    block.GetValueOrDefault("classname"),
-                    block.GetValueOrDefault("classguid"),
-                    version,
-                    date,
-                    block.GetValueOrDefault("signername")));
+                var block = MapFields(entries);
+                if (block.TryGetValue("publishedname", out var published) && !string.IsNullOrWhiteSpace(published))
+                {
+                    var (date, version) = SplitVersionField(block.GetValueOrDefault("driverversion"));
+                    packages.Add(new DriverPackage(
+                        published,
+                        block.GetValueOrDefault("originalname"),
+                        block.GetValueOrDefault("providername"),
+                        block.GetValueOrDefault("classname"),
+                        block.GetValueOrDefault("classguid"),
+                        version,
+                        date,
+                        block.GetValueOrDefault("signername")));
+                }
             }
 
-            block.Clear();
+            entries.Clear();
         }
     }
+
+    /// <summary>
+    /// True when the text contains "Label: value" lines, i.e. pnputil printed a listing. Used to tell an empty driver
+    /// store (nothing to parse) from a listing whose fields were not recognised.
+    /// </summary>
+    public static bool ContainsFieldLines(string? output) =>
+        !string.IsNullOrWhiteSpace(output) && output.Split('\n').Any(l => KeyValueLine().IsMatch(l.TrimEnd('\r')));
+
+    /// <summary>
+    /// Maps one block's lines to pnputil's English field names. When the labels are not English, the fields are found
+    /// by value shape (published name "oemN.inf", original name "*.inf", class GUID "{…}", driver version "date x.y.z.w")
+    /// and by pnputil's fixed print order: Published Name, Original Name, Provider Name, Class Name, Class GUID,
+    /// [Class Version], Driver Version, Signer Name.
+    /// </summary>
+    private static Dictionary<string, string> MapFields(List<(string Key, string Value)> entries)
+    {
+        var byKey = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (key, value) in entries)
+        {
+            byKey.TryAdd(Normalize(key), value);
+        }
+
+        if (byKey.ContainsKey("publishedname"))
+        {
+            return byKey;
+        }
+
+        int published = entries.FindIndex(e => PublishedName().IsMatch(e.Value));
+        if (published < 0)
+        {
+            return byKey;
+        }
+
+        var mapped = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) { ["publishedname"] = entries[published].Value };
+        int original = entries.FindIndex(published + 1, e => IsInfName(e.Value));
+        int guid = entries.FindIndex(e => ClassGuid().IsMatch(e.Value));
+        int version = entries.FindLastIndex(e => DriverVersionField().IsMatch(e.Value));
+        if (original >= 0)
+        {
+            mapped["originalname"] = entries[original].Value;
+        }
+
+        if (guid >= 0)
+        {
+            mapped["classguid"] = entries[guid].Value;
+        }
+
+        if (version >= 0)
+        {
+            mapped["driverversion"] = entries[version].Value;
+            if (version + 1 < entries.Count)
+            {
+                mapped["signername"] = entries[version + 1].Value;
+            }
+        }
+
+        // Provider and class name sit between the original name and the class GUID (or the driver version).
+        int first = (original >= 0 ? original : published) + 1;
+        int end = guid >= 0 ? guid : version >= 0 ? version : entries.Count;
+        if (end - first >= 1)
+        {
+            mapped["providername"] = entries[first].Value;
+        }
+
+        if (end - first >= 2)
+        {
+            mapped["classname"] = entries[first + 1].Value;
+        }
+
+        return mapped;
+    }
+
+    private static bool IsInfName(string value) =>
+        value.Length > 4 && value.EndsWith(".inf", StringComparison.OrdinalIgnoreCase) && !value.Any(char.IsWhiteSpace);
 
     /// <summary>Splits pnputil's "Driver Version" field ("03/22/2023 1.4.1.0") into a date and a version.</summary>
     public static (DateTime? Date, string? Version) SplitVersionField(string? field)
@@ -150,14 +262,26 @@ public static partial class PnpUtilParser
         return lines.Count(IsExportLine);
     }
 
-    /// <summary>True for a progress line of <c>pnputil /export-driver</c> ("Exporting driver package: oem3.inf").</summary>
-    public static bool IsExportLine(string? line) =>
-        !string.IsNullOrWhiteSpace(line)
-        && line.Contains("driver package", StringComparison.OrdinalIgnoreCase)
-        && line.Contains("export", StringComparison.OrdinalIgnoreCase)
-        && line.Contains(".inf", StringComparison.OrdinalIgnoreCase);
+    /// <summary>
+    /// True for a progress line of <c>pnputil /export-driver</c> ("Exporting driver package: oem3.inf"). The wording is
+    /// localized, so the line is recognised by shape: a label, a colon and an .inf name. The "exported successfully"
+    /// and summary lines carry no .inf name.
+    /// </summary>
+    public static bool IsExportLine(string? line)
+    {
+        if (string.IsNullOrWhiteSpace(line))
+        {
+            return false;
+        }
 
-    /// <summary>Reads the "Total driver packages: N" / "Exported driver packages: N" summary lines when present.</summary>
+        int colon = line.LastIndexOfAny([':', '\uFF1A']);
+        return colon > 0 && IsInfName(line[(colon + 1)..].Trim());
+    }
+
+    /// <summary>
+    /// Reads the "Total driver packages: N" / "Exported driver packages: N" summary lines when present. With localized
+    /// labels the summary is the last two "label: number" lines, printed total first.
+    /// </summary>
     public static (int? Total, int? Exported) ParseExportSummary(string? output)
     {
         int? total = null, exported = null;
@@ -166,16 +290,24 @@ public static partial class PnpUtilParser
             return (total, exported);
         }
 
+        var counts = new List<int>();
         foreach (var raw in output.Split('\n'))
         {
             var line = raw.Trim();
-            if (!line.Contains("driver packages", StringComparison.OrdinalIgnoreCase))
+            int colon = line.LastIndexOfAny([':', '\uFF1A']);
+            if (colon <= 0)
             {
                 continue;
             }
 
-            var m = TrailingNumber().Match(line);
-            if (!m.Success || !int.TryParse(m.Groups[1].Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var n))
+            var value = line[(colon + 1)..].Trim();
+            if (!WholeNumber().IsMatch(value) || !int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var n))
+            {
+                continue;
+            }
+
+            counts.Add(n);
+            if (!line.Contains("driver packages", StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
@@ -188,6 +320,12 @@ public static partial class PnpUtilParser
             {
                 exported = n;
             }
+        }
+
+        if (total is null && exported is null && counts.Count >= 2)
+        {
+            total = counts[^2];
+            exported = counts[^1];
         }
 
         return (total, exported);
@@ -205,7 +343,12 @@ public static partial class PnpUtilParser
         5 => (false, false, "Access was denied. Run PC Checker as an administrator."),
         87 => (false, false, "pnputil rejected the arguments."),
         1168 => (false, false, "The driver package was not found in the driver store."),
-        -536870329 => (false, false, "The driver package is in use by a device and could not be removed. Try again with the device uninstalled."),
+        DriverInstallBlockedExitCode => (false, false, "Windows blocked this driver: it is unsigned, or driver installation is blocked by policy (for example Memory Integrity or a Group Policy setting)."),
+        DriverStoreDeleteFailedExitCode => (false, false, "The driver package is in use by a device and could not be removed. Try again with the device uninstalled."),
+        NoCompatibleDriversExitCode => (false, false, "No device on this PC matches the driver package, so it was not installed."),
+        NoCatalogExitCode => (false, false, "The driver package has no signed catalog (.cat) file, so Windows refused it."),
+        SignatureOsMismatchExitCode => (false, false, "The driver is signed for a different version of Windows."),
+        _ when (exitCode & SetupApiFacilityMask) == SetupApiFacility => (false, false, $"Windows setup reported error 0x{exitCode:X8} while handling the driver package."),
         _ => (false, false, $"pnputil exited with code {exitCode}."),
     };
 
