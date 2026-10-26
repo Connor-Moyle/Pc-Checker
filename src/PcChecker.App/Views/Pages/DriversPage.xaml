@@ -4,9 +4,9 @@
       xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
       xmlns:controls="clr-namespace:PcChecker.App.Controls"
       xmlns:vm="clr-namespace:PcChecker.App.ViewModels"
-      d:DataContext="{d:DesignInstance vm:DriversViewModel}"
       xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
       xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+      d:DataContext="{d:DesignInstance vm:DriversViewModel}"
       mc:Ignorable="d"
       Title="Drivers"
       ScrollViewer.CanContentScroll="False">
@@ -14,25 +14,317 @@
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto" />
       <RowDefinition Height="Auto" />
+      <RowDefinition Height="Auto" />
       <RowDefinition Height="*" />
     </Grid.RowDefinitions>
 
-    <controls:SectionHeader Grid.Row="0" Title="Drivers" Subtitle="Installed drivers, available updates and vendor downloads." />
+    <!-- Header with the main actions -->
+    <controls:SectionHeader Grid.Row="0" Title="Drivers" Subtitle="Every installed driver, what needs attention, and updates from Windows Update and your hardware makers.">
+      <controls:SectionHeader.Actions>
+        <StackPanel Orientation="Horizontal">
+          <ui:Button Content="Scan drivers" Icon="{ui:SymbolIcon ArrowSync24}" Appearance="Primary" Command="{Binding ScanCommand}" Margin="0,0,8,0"
+                     ToolTip="Reads every installed driver from Windows and flags problems, old or unsigned drivers." />
+          <ui:Button Content="Check for updates" Icon="{ui:SymbolIcon CloudArrowDown24}" Command="{Binding CheckForUpdatesCommand}" Margin="0,0,8,0"
+                     ToolTip="Asks Windows Update for driver updates that are not installed yet. This can take a minute." />
+          <ui:Button Content="Back up all drivers" Icon="{ui:SymbolIcon FolderArrowRight24}" Command="{Binding BackupCommand}" Margin="0,0,8,0"
+                     ToolTip="Copies every third-party driver package to a folder you choose, so you can reinstall them after a reset." />
+          <ui:Button Content="Install .inf" Icon="{ui:SymbolIcon DocumentAdd24}" Command="{Binding InstallInfCommand}" Margin="0,0,8,0"
+                     Visibility="{Binding IsAdvancedMode, Converter={StaticResource BoolToVisibility}}"
+                     ToolTip="Advanced: adds a driver package (.inf) from disk to Windows and installs it on matching devices." />
+          <ui:Button Icon="{ui:SymbolIcon DeveloperBoard24}" Command="{Binding OpenDeviceManagerCommand}" ToolTip="Open Device Manager" Margin="0,0,8,0" />
+          <ui:Button Icon="{ui:SymbolIcon ArrowExportLtr24}" Command="{Binding ExportListCommand}" ToolTip="Export the installed driver list as a CSV file" />
+        </StackPanel>
+      </controls:SectionHeader.Actions>
+    </controls:SectionHeader>
 
-    <ui:InfoBar Grid.Row="1"
-                Severity="Error"
-                Title="Something went wrong"
-                Message="{Binding ErrorMessage}"
-                IsOpen="{Binding HasError, Mode=OneWay}"
-                IsClosable="True"
-                Margin="0,0,0,12" />
+    <!-- Headline numbers -->
+    <UniformGrid Grid.Row="1" Columns="6" Margin="0,0,0,12">
+      <controls:StatCard Title="Installed drivers" Value="{Binding TotalDrivers}" Icon="Wrench24" Accent="{StaticResource AccentCyanBrush}" Subtitle="{Binding LastScanText}" Margin="0,0,12,0" />
+      <controls:StatCard Title="Third-party" Value="{Binding ThirdPartyCount}" Icon="Box24" Accent="{StaticResource AccentPurpleBrush}" Subtitle="Not shipped with Windows" Margin="0,0,12,0" />
+      <controls:StatCard Title="With problems" Value="{Binding ProblemCount}" Icon="Warning24" Accent="{StaticResource AccentRedBrush}" Subtitle="Device Manager error codes" Margin="0,0,12,0" />
+      <controls:StatCard Title="Older than 3 years" Value="{Binding OldCount}" Icon="History24" Accent="{StaticResource AccentOrangeBrush}" Subtitle="Third-party only" Margin="0,0,12,0" />
+      <controls:StatCard Title="Unsigned" Value="{Binding UnsignedCount}" Icon="ShieldError24" Accent="{StaticResource AccentYellowBrush}" Subtitle="No valid signature" Margin="0,0,12,0" />
+      <controls:StatCard Title="Updates available" Value="{Binding UpdatesAvailable}" Icon="CloudArrowDown24" Accent="{StaticResource AccentGreenBrush}" Subtitle="{Binding LastCheckText}" />
+    </UniformGrid>
 
-    <controls:EmptyState Grid.Row="2"
-                         Icon="Wrench24"
-                         Title="This section is being prepared"
-                         Message="Installed drivers, available updates and vendor downloads." />
+    <!-- Messages -->
+    <StackPanel Grid.Row="2">
+      <ui:InfoBar Severity="Error" Title="Something went wrong" Message="{Binding ErrorMessage}" IsOpen="{Binding HasError, Mode=OneWay}" IsClosable="True" Margin="0,0,0,8" />
+      <ui:InfoBar Severity="Warning" Title="Some information is missing" Message="{Binding Warnings}" IsOpen="{Binding HasWarnings, Mode=OneWay}" IsClosable="True" Margin="0,0,0,8" />
+      <ui:InfoBar Severity="Informational" Title="Restart needed" IsOpen="{Binding RebootRequired, Mode=OneWay}" IsClosable="False" Margin="0,0,0,8"
+                  Message="Windows needs a restart to finish installing the new driver(s). Save your work first.">
+        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+          <ui:Button Content="Restart now" Appearance="Primary" Command="{Binding RestartNowCommand}" Margin="0,0,8,0" />
+          <ui:Button Content="Later" Command="{Binding DismissRebootCommand}" />
+        </StackPanel>
+      </ui:InfoBar>
+      <ui:InfoBar Severity="Success" Title="Done" Message="{Binding LastResultMessage}" IsOpen="{Binding ShowSuccessResult, Mode=OneWay}" IsClosable="True" Margin="0,0,0,8" />
+      <ui:InfoBar Severity="Error" Title="That did not work" Message="{Binding LastResultMessage}" IsOpen="{Binding ShowFailureResult, Mode=OneWay}" IsClosable="True" Margin="0,0,0,8" />
+    </StackPanel>
 
-    <controls:BusyOverlay Grid.Row="0" Grid.RowSpan="3"
+    <!-- Updates / Installed -->
+    <TabControl Grid.Row="3" Padding="0,8,0,0">
+
+      <!-- Tab 1: Updates available -->
+      <TabItem Header="{Binding UpdatesTabHeader}">
+        <Grid Margin="0,8,0,0">
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+          </Grid.RowDefinitions>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="340" />
+          </Grid.ColumnDefinitions>
+
+          <Grid Grid.Row="0" Grid.Column="0" Margin="0,0,0,8">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="Auto" />
+              <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0" Orientation="Horizontal">
+              <ui:Button Content="Install selected" Icon="{ui:SymbolIcon ArrowDownload24}" Appearance="Primary" Command="{Binding InstallSelectedCommand}" Margin="0,0,8,0"
+                         ToolTip="Downloads (if needed) and installs the ticked updates after creating a restore point." />
+              <ui:Button Content="Download only" Icon="{ui:SymbolIcon CloudArrowDown24}" Command="{Binding DownloadSelectedCommand}" Margin="0,0,8,0"
+                         ToolTip="Fetches the ticked updates now so they install faster later." />
+              <ui:Button Content="Select all" Command="{Binding SelectAllUpdatesCommand}" Margin="0,0,4,0" />
+              <ui:Button Content="Clear" Command="{Binding ClearUpdateSelectionCommand}" Margin="0,0,12,0" />
+              <ui:TextBlock Style="{StaticResource Muted}" VerticalAlignment="Center">
+                <Run Text="{Binding SelectedUpdateCount, Mode=OneWay}" /><Run Text=" selected" />
+              </ui:TextBlock>
+            </StackPanel>
+            <ui:Button Grid.Column="1" HorizontalAlignment="Right" Content="Windows Update optional updates" Icon="{ui:SymbolIcon Open24}" Command="{Binding OpenOptionalUpdatesCommand}"
+                       ToolTip="Opens the Windows Settings page that lists optional driver updates." />
+          </Grid>
+
+          <Grid Grid.Row="1" Grid.Column="0" Margin="0,0,12,0">
+            <ui:DataGrid ItemsSource="{Binding Updates}"
+                         AutoGenerateColumns="False"
+                         CanUserAddRows="False"
+                         CanUserDeleteRows="False"
+                         CanUserReorderColumns="False"
+                         SelectionMode="Single"
+                         GridLinesVisibility="Horizontal"
+                         HeadersVisibility="Column"
+                         RowDetailsVisibilityMode="VisibleWhenSelected"
+                         Visibility="{Binding HasUpdates, Converter={StaticResource BoolToVisibility}}">
+              <ui:DataGrid.Columns>
+                <DataGridTemplateColumn Width="44">
+                  <DataGridTemplateColumn.CellTemplate>
+                    <DataTemplate>
+                      <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="4,0" />
+                    </DataTemplate>
+                  </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTextColumn Header="Update" Binding="{Binding Title}" Width="*" IsReadOnly="True" />
+                <DataGridTextColumn Header="Provider" Binding="{Binding Provider}" Width="150" IsReadOnly="True" />
+                <DataGridTextColumn Header="Version" Binding="{Binding Version}" Width="130" IsReadOnly="True" />
+                <DataGridTextColumn Header="Released" Binding="{Binding DateText}" Width="100" IsReadOnly="True" />
+                <DataGridTextColumn Header="Size" Binding="{Binding SizeText}" Width="80" IsReadOnly="True" />
+                <DataGridTextColumn Header="Source" Binding="{Binding SourceText}" Width="120" IsReadOnly="True" />
+                <DataGridTextColumn Header="State" Binding="{Binding StateText}" Width="140" IsReadOnly="True" />
+              </ui:DataGrid.Columns>
+              <ui:DataGrid.RowDetailsTemplate>
+                <DataTemplate>
+                  <StackPanel Margin="48,8,16,12">
+                    <ui:TextBlock Text="{Binding Description}" TextWrapping="Wrap" />
+                    <ui:TextBlock Style="{StaticResource Caption}" Margin="0,6,0,0" Visibility="{Binding KbText, Converter={StaticResource NullToVisibility}}">
+                      <Run Text="Knowledge Base article: " /><Run Text="{Binding KbText, Mode=OneWay}" />
+                    </ui:TextBlock>
+                    <ui:TextBlock Style="{StaticResource Caption}" Margin="0,2,0,0" Text="A restart will be needed after this update." Visibility="{Binding RebootRequired, Converter={StaticResource BoolToVisibility}}" />
+                  </StackPanel>
+                </DataTemplate>
+              </ui:DataGrid.RowDetailsTemplate>
+            </ui:DataGrid>
+
+            <ui:Card Visibility="{Binding HasUpdates, Converter={StaticResource InverseBoolToVisibility}}" VerticalAlignment="Stretch">
+              <Grid>
+                <controls:EmptyState Icon="CheckmarkCircle24" Title="No driver updates waiting"
+                                     Message="Windows Update has nothing new for your devices. Graphics and peripheral makers often publish newer drivers on their own sites: see the links on the right."
+                                     Visibility="{Binding UpdatesChecked, Converter={StaticResource BoolToVisibility}}" />
+                <controls:EmptyState Icon="CloudArrowDown24" Title="Not checked yet"
+                                     Message="Use 'Check for updates' to ask Windows Update for driver updates. Nothing is installed until you choose to."
+                                     Visibility="{Binding UpdatesChecked, Converter={StaticResource InverseBoolToVisibility}}" />
+              </Grid>
+            </ui:Card>
+          </Grid>
+
+          <!-- Vendor links -->
+          <ui:Card Grid.Row="0" Grid.RowSpan="2" Grid.Column="1" Padding="16" VerticalAlignment="Stretch">
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+              <StackPanel>
+                <ui:TextBlock Style="{StaticResource CardTitle}" Text="Download from the maker" />
+                <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,10"
+                              Text="Windows Update only carries basic drivers. For graphics cards, chipsets and gaming peripherals, the manufacturer's site usually has the newest version." />
+                <ItemsControl ItemsSource="{Binding VendorLinks}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                      <Border BorderThickness="0,0,0,1" BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}" Padding="0,6">
+                        <StackPanel>
+                          <ui:HyperlinkButton NavigateUri="{Binding Url}" Padding="0" Margin="0">
+                            <ui:HyperlinkButton.Content>
+                              <TextBlock>
+                                <Run Text="{Binding Vendor, Mode=OneWay}" FontWeight="SemiBold" /><Run Text=" — " /><Run Text="{Binding Component, Mode=OneWay}" />
+                              </TextBlock>
+                            </ui:HyperlinkButton.Content>
+                          </ui:HyperlinkButton>
+                          <ui:TextBlock Style="{StaticResource Caption}" Text="{Binding Note}" TextWrapping="Wrap" />
+                        </StackPanel>
+                      </Border>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <ui:TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,8,0,0"
+                              Text="Run a hardware scan first so the links match your exact parts."
+                              Visibility="{Binding HasVendorLinks, Converter={StaticResource InverseBoolToVisibility}}" />
+              </StackPanel>
+            </ScrollViewer>
+          </ui:Card>
+        </Grid>
+      </TabItem>
+
+      <!-- Tab 2: Installed drivers -->
+      <TabItem Header="{Binding InstalledTabHeader}">
+        <Grid Margin="0,8,0,0">
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+          </Grid.RowDefinitions>
+
+          <!-- Search and filters -->
+          <Grid Grid.Row="0" Margin="0,0,0,8">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="320" />
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <ui:TextBox Grid.Column="0" PlaceholderText="Search device, maker, version, hardware id…" Icon="{ui:SymbolIcon Search24}" ClearButtonEnabled="True"
+                        Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" />
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="16,0,0,0" VerticalAlignment="Center">
+              <CheckBox Content="Third-party only" IsChecked="{Binding ThirdPartyOnly}" Margin="0,0,12,0" ToolTip="Hide the drivers that ship with Windows." />
+              <CheckBox Content="Problems only" IsChecked="{Binding ProblemsOnly}" Margin="0,0,12,0" ToolTip="Only devices with a Device Manager error code." />
+              <CheckBox Content="Older than 3 years" IsChecked="{Binding OldOnly}" Margin="0,0,12,0" />
+              <CheckBox Content="Unsigned" IsChecked="{Binding UnsignedOnly}" Margin="0,0,12,0" ToolTip="Drivers without a valid digital signature." />
+              <CheckBox Content="{Binding DisconnectedText}" IsChecked="{Binding ShowDisconnected}" Margin="0,0,12,0"
+                        Visibility="{Binding HasDisconnected, Converter={StaticResource BoolToVisibility}}"
+                        ToolTip="Devices Windows remembers but that are not plugged in right now, such as USB sticks, phones and old monitors. Device Manager hides these too; they are not counted as problems." />
+              <ui:Button Content="Clear filters" Appearance="Transparent" Command="{Binding ClearFiltersCommand}" Padding="8,4" />
+            </StackPanel>
+            <ui:TextBlock Grid.Column="2" Style="{StaticResource Muted}" VerticalAlignment="Center" Text="{Binding LastScanText}" />
+          </Grid>
+
+          <Grid Grid.Row="1">
+            <ui:DataGrid x:Name="DriverGrid"
+                         ItemsSource="{Binding FilteredDrivers}"
+                         SelectedItem="{Binding SelectedDriver}"
+                         AutoGenerateColumns="False"
+                         IsReadOnly="True"
+                         CanUserAddRows="False"
+                         CanUserDeleteRows="False"
+                         SelectionMode="Single"
+                         GridLinesVisibility="Horizontal"
+                         HeadersVisibility="Column"
+                         RowDetailsVisibilityMode="VisibleWhenSelected"
+                         Visibility="{Binding HasDrivers, Converter={StaticResource BoolToVisibility}}">
+              <ui:DataGrid.Columns>
+                <DataGridTemplateColumn Width="32" CanUserSort="False">
+                  <DataGridTemplateColumn.CellTemplate>
+                    <DataTemplate>
+                      <Ellipse Width="10" Height="10" HorizontalAlignment="Center" VerticalAlignment="Center"
+                               Fill="{Binding Severity, Converter={StaticResource SeverityToBrush}}"
+                               ToolTip="{Binding IssueSummary}"
+                               Visibility="{Binding NeedsAttention, Converter={StaticResource BoolToVisibility}}" />
+                    </DataTemplate>
+                  </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTextColumn Header="Device" Binding="{Binding DeviceName}" Width="*" />
+                <DataGridTextColumn Header="Class" Binding="{Binding DeviceClass}" Width="110" />
+                <DataGridTextColumn Header="Provider" Binding="{Binding Provider}" Width="150" />
+                <DataGridTextColumn Header="Version" Binding="{Binding Version}" Width="120" />
+                <DataGridTextColumn Header="Date" Binding="{Binding DateText}" Width="96" />
+                <DataGridTextColumn Header="Age" Binding="{Binding AgeText}" Width="64" />
+                <DataGridTextColumn Header="Signed" Binding="{Binding SignedText}" Width="64" />
+                <DataGridTextColumn Header="Source" Binding="{Binding SourceText}" Width="90" />
+                <DataGridTextColumn Header="Status" Binding="{Binding StatusText}" Width="130" />
+              </ui:DataGrid.Columns>
+              <ui:DataGrid.RowDetailsTemplate>
+                <DataTemplate>
+                  <Grid Margin="32,8,16,12">
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="*" />
+                      <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <controls:KeyValueList Grid.Column="0" ItemsSource="{Binding Details}" KeyColumnWidth="150" />
+                    <StackPanel Grid.Column="1" Margin="16,0,0,0">
+                      <ui:Button Content="Open Device Manager" Icon="{ui:SymbolIcon DeveloperBoard24}" HorizontalAlignment="Stretch" Margin="0,0,0,8"
+                                 Command="{Binding DataContext.OpenDeviceManagerCommand, RelativeSource={RelativeSource AncestorType=Page}}" />
+                      <ui:Button Content="Remove third-party driver" Icon="{ui:SymbolIcon ArrowUndo24}" Appearance="Danger" HorizontalAlignment="Stretch"
+                                 Command="{Binding DataContext.RollbackCommand, RelativeSource={RelativeSource AncestorType=Page}}"
+                                 CommandParameter="{Binding}"
+                                 IsEnabled="{Binding CanRollBack}"
+                                 Visibility="{Binding DataContext.IsAdvancedMode, RelativeSource={RelativeSource AncestorType=Page}, Converter={StaticResource BoolToVisibility}}"
+                                 ToolTip="Advanced: removes this device's third-party driver package so Windows falls back to its own driver. Only available for packages in the driver store (oemN.inf)." />
+                    </StackPanel>
+                  </Grid>
+                </DataTemplate>
+              </ui:DataGrid.RowDetailsTemplate>
+            </ui:DataGrid>
+
+            <ui:Card Visibility="{Binding HasDrivers, Converter={StaticResource InverseBoolToVisibility}}" VerticalAlignment="Stretch">
+              <controls:EmptyState Icon="Wrench24" Title="No drivers scanned yet" Message="Use 'Scan drivers' to read every installed driver from Windows." />
+            </ui:Card>
+          </Grid>
+
+          <!-- Advanced: driver store -->
+          <ui:CardExpander Grid.Row="2" Margin="0,12,0,0" IsExpanded="False" ContentPadding="12"
+                           Icon="{ui:SymbolIcon Archive24}"
+                           Visibility="{Binding IsAdvancedMode, Converter={StaticResource BoolToVisibility}}">
+            <ui:CardExpander.Header>
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0">
+                  <ui:TextBlock FontTypography="BodyStrong" Text="Driver store (third-party packages)" />
+                  <ui:TextBlock Style="{StaticResource Muted}" Text="The oemN.inf packages Windows has staged, as listed by pnputil /enum-drivers. These are what 'Back up all drivers' exports." TextWrapping="Wrap" />
+                </StackPanel>
+                <ui:Button Grid.Column="1" Content="Refresh" Icon="{ui:SymbolIcon ArrowSync24}" Command="{Binding LoadDriverStoreCommand}" Margin="12,0,0,0" VerticalAlignment="Center"
+                           ToolTip="Runs pnputil /enum-drivers and lists every third-party package in the driver store." />
+              </Grid>
+            </ui:CardExpander.Header>
+            <Grid>
+              <controls:EmptyState Icon="Archive24" Title="Driver store not read yet"
+                                   Message="Press Refresh to list the third-party driver packages Windows has staged. This takes a few seconds."
+                                   Visibility="{Binding DriverStoreLoaded, Converter={StaticResource InverseBoolToVisibility}}" />
+              <ui:DataGrid ItemsSource="{Binding DriverStore}"
+                         AutoGenerateColumns="False"
+                         IsReadOnly="True"
+                         CanUserAddRows="False"
+                         SelectionMode="Single"
+                         GridLinesVisibility="Horizontal"
+                         HeadersVisibility="Column"
+                         MaxHeight="260"
+                         Visibility="{Binding DriverStoreLoaded, Converter={StaticResource BoolToVisibility}}">
+              <ui:DataGrid.Columns>
+                <DataGridTextColumn Header="Published" Binding="{Binding PublishedName}" Width="100" />
+                <DataGridTextColumn Header="Original name" Binding="{Binding OriginalName}" Width="180" />
+                <DataGridTextColumn Header="Provider" Binding="{Binding Provider}" Width="200" />
+                <DataGridTextColumn Header="Class" Binding="{Binding ClassName}" Width="*" />
+                <DataGridTextColumn Header="Version" Binding="{Binding Version}" Width="120" />
+                <DataGridTextColumn Header="Date" Binding="{Binding DateText}" Width="96" />
+                <DataGridTextColumn Header="Age" Binding="{Binding AgeText}" Width="64" />
+                <DataGridTextColumn Header="Signer" Binding="{Binding SignerText}" Width="220" />
+              </ui:DataGrid.Columns>
+              </ui:DataGrid>
+            </Grid>
+          </ui:CardExpander>
+        </Grid>
+      </TabItem>
+    </TabControl>
+
+    <controls:BusyOverlay Grid.Row="0" Grid.RowSpan="4"
                           IsBusy="{Binding IsBusy}"
                           Text="{Binding BusyText}"
                           CancelCommand="{Binding CancelCommand}" />

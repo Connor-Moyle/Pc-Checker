@@ -1,4 +1,5 @@
 using PcChecker.Core.Common;
+using PcChecker.Core.Hardware;
 using PcChecker.Core.Health;
 
 namespace PcChecker.Core.Drivers;
@@ -8,6 +9,12 @@ public static class DriverRules
 {
     public const int OldDriverDays = 365 * 3;
 
+    /// <summary>Deep link to the Windows Update page that lists optional driver updates.</summary>
+    public const string OptionalUpdatesUri = "ms-settings:windowsupdate-optionalupdates";
+
+    /// <summary>Device Manager snap-in.</summary>
+    public const string DeviceManagerCommand = "devmgmt.msc";
+
     public sealed record Flag(Severity Severity, string Title, string Detail);
 
     /// <summary>Returns the issues found for one driver (empty when it looks fine).</summary>
@@ -16,7 +23,7 @@ public static class DriverRules
         ArgumentNullException.ThrowIfNull(driver);
         var flags = new List<Flag>();
 
-        if (driver.ProblemCode != 0)
+        if (driver.HasProblem)
         {
             var d = DeviceProblemCodes.Describe(driver.ProblemCode);
             flags.Add(new Flag(driver.ProblemCode is 22 or 45 ? Severity.Low : Severity.High,
@@ -40,6 +47,72 @@ public static class DriverRules
 
     /// <summary>True when a driver is worth showing in an "attention" list.</summary>
     public static bool NeedsAttention(DriverInfo driver) => Evaluate(driver).Count > 0;
+
+    /// <summary>Third-party drivers older than <see cref="OldDriverDays"/>. Inbox drivers are never "old": Windows services them.</summary>
+    public static bool IsOld(DriverInfo driver)
+    {
+        ArgumentNullException.ThrowIfNull(driver);
+        return !driver.IsInbox && driver.AgeDays is { } age && age >= OldDriverDays;
+    }
+
+    /// <summary>Third-party drivers that were staged into the driver store (oemN.inf) can be removed with pnputil.</summary>
+    public static bool CanRollBack(DriverInfo driver)
+    {
+        ArgumentNullException.ThrowIfNull(driver);
+        return !driver.IsInbox && DriverInfoBuilder.IsOemInf(driver.InfName);
+    }
+
+    /// <summary>
+    /// Vendor download pages for the machine described by a hardware inventory: GPU vendors, CPU vendor (chipset),
+    /// motherboard and system manufacturer, plus storage and peripheral makers. Empty when nothing is known.
+    /// </summary>
+    public static IReadOnlyList<VendorLink> VendorLinksFor(HardwareInventory? inventory)
+    {
+        if (inventory is null)
+        {
+            return [];
+        }
+
+        var names = new List<string?>();
+        foreach (var gpu in inventory.Graphics)
+        {
+            names.Add(gpu.Vendor);
+            names.Add(gpu.Manufacturer);
+            names.Add(gpu.Name);
+        }
+
+        foreach (var cpu in inventory.Processors)
+        {
+            names.Add(cpu.Manufacturer);
+            names.Add(cpu.Name);
+        }
+
+        names.Add(inventory.Motherboard?.Manufacturer);
+        names.Add(inventory.Motherboard?.Name);
+        names.Add(inventory.System?.Manufacturer);
+        foreach (var disk in inventory.PhysicalDisks)
+        {
+            names.Add(disk.Manufacturer);
+            names.Add(disk.Name);
+        }
+
+        foreach (var nic in inventory.NetworkAdapters)
+        {
+            names.Add(nic.Manufacturer);
+        }
+
+        foreach (var audio in inventory.AudioDevices)
+        {
+            names.Add(audio.Manufacturer);
+        }
+
+        foreach (var input in inventory.InputDevices)
+        {
+            names.Add(input.Manufacturer);
+        }
+
+        return BuildVendorLinks(names);
+    }
 
     /// <summary>Known vendor download pages keyed by a case-insensitive vendor keyword.</summary>
     public static IReadOnlyList<(string Keyword, string Vendor, string Component, string Url, string Note)> VendorTable { get; } =
