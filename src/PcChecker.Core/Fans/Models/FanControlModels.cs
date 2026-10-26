@@ -59,10 +59,10 @@ public interface IFanControlAdvanced
     /// <summary>What this PC lets the app control, one line per hardware group (e.g. "Case fans: Nuvoton NCT6798D on the motherboard").</summary>
     IReadOnlyList<string> CapabilityNotes { get; }
 
-    /// <summary>Temperature sensors a curve can follow, with their current values.</summary>
+    /// <summary>Temperature sensors a curve can follow, with their current values. May wait on the hardware monitor lock: call it off the UI thread.</summary>
     IReadOnlyList<FanTemperatureSource> GetTemperatureSources();
 
-    /// <summary>Every control the hardware monitor exposes, for the advanced panel.</summary>
+    /// <summary>Every control the hardware monitor exposes, for the advanced panel. May wait on the hardware monitor lock: call it off the UI thread.</summary>
     IReadOnlyList<RawFanControl> GetRawControls();
 
     /// <summary>Recent alerts (newest last).</summary>

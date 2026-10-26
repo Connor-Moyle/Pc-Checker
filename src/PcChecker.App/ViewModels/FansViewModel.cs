@@ -137,10 +137,13 @@ public sealed partial class FansViewModel : ViewModelBase
         UnavailableReason = _fans.UnavailableReason;
         CapabilityText = _advanced is null ? null : string.Join("\n", _advanced.CapabilityNotes);
 
+        // Built-in profiles, temperature sources and raw controls can all read through the hardware monitor, whose lock
+        // the sensor poll loop holds for a full hardware update: fetch them on the thread pool, apply them here.
+        await Task.Run(() => _fans.BuiltInProfiles, ct);
         MergeFans(fans);
-        RefreshTemperatureSources(force: true);
+        await RefreshTemperatureSourcesAsync(force: true);
         RefreshProfiles();
-        RefreshRawControls();
+        await RefreshRawControlsAsync();
         ActiveProfileName = _fans.ActiveProfile?.Name;
         LastAppliedProfileName = Settings.Current.Fans.ActiveProfileName;
         if (_advanced is not null)
@@ -208,7 +211,7 @@ public sealed partial class FansViewModel : ViewModelBase
         }
     }
 
-    private void RefreshTemperatureSources(bool force)
+    private async Task RefreshTemperatureSourcesAsync(bool force)
     {
         if (_advanced is null)
         {
@@ -221,10 +224,11 @@ public sealed partial class FansViewModel : ViewModelBase
         }
 
         _lastSourceRefresh = DateTimeOffset.Now;
+        var advanced = _advanced;
         IReadOnlyList<FanTemperatureSource> sources;
         try
         {
-            sources = _advanced.GetTemperatureSources();
+            sources = await Task.Run(advanced.GetTemperatureSources);
         }
         catch (Exception ex)
         {
@@ -261,17 +265,19 @@ public sealed partial class FansViewModel : ViewModelBase
         fan.CurrentTemperature = source?.Value;
     }
 
-    private void RefreshRawControls()
+    private async Task RefreshRawControlsAsync()
     {
         if (_advanced is null)
         {
             return;
         }
 
+        var advanced = _advanced;
         try
         {
+            var controls = await Task.Run(advanced.GetRawControls);
             RawControls.Clear();
-            foreach (var raw in _advanced.GetRawControls())
+            foreach (var raw in controls)
             {
                 RawControls.Add(raw);
             }
@@ -290,7 +296,7 @@ public sealed partial class FansViewModel : ViewModelBase
         }
 
         MergeFans(devices);
-        RefreshTemperatureSources(force: false);
+        _ = RefreshTemperatureSourcesAsync(force: false);
     });
 
     private void OnAlertRaised(object? sender, FanControlAlert alert) => DispatcherHelper.PostToUi(() =>

@@ -355,6 +355,83 @@ public class FansTests : IDisposable
         Assert.Equal(60, (await demo.GetFansAsync(CancellationToken.None)).First(f => f.Id == "fan.case.front").Percent);
     }
 
+    // ---- Threading ----------------------------------------------------------------------------------------------
+
+    [Fact]
+    public async Task Fan_discovery_never_touches_the_hardware_monitor_on_the_calling_thread()
+    {
+        var host = new RecordingHost();
+        var settings = new FakeSettingsService();
+        using var sensors = new DemoSensorService();
+        using var svc = new LibreHardwareFanControlService(host, sensors, settings, new PassThroughGuard(),
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<LibreHardwareFanControlService>.Instance);
+
+        // The host is already open, so every await before the hardware walk completes synchronously; the walk must
+        // still be moved off the caller (in the app, the UI thread).
+        Task<IReadOnlyList<FanDevice>>? pending = null;
+        int callerThread = 0;
+        var caller = new Thread(() =>
+        {
+            callerThread = Environment.CurrentManagedThreadId;
+            pending = svc.GetFansAsync(CancellationToken.None);
+        });
+        caller.Start();
+        caller.Join();
+
+        await pending!;
+        Assert.NotEmpty(host.CallingThreads);
+        Assert.DoesNotContain(callerThread, host.CallingThreads);
+    }
+
+    private sealed class RecordingHost : IHardwareMonitorHost
+    {
+        private readonly object _lock = new();
+        private readonly List<int> _threads = [];
+
+        public bool IsOpen => true;
+        public string? OpenError => null;
+
+        public IReadOnlyList<int> CallingThreads
+        {
+            get
+            {
+                lock (_lock)
+                {
+                    return _threads.ToList();
+                }
+            }
+        }
+
+        public Task EnsureOpenAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+
+        public T? WithComputer<T>(Func<LibreHardwareMonitor.Hardware.IComputer, T> func)
+        {
+            Record();
+            return default;
+        }
+
+        public void WithComputer(Action<LibreHardwareMonitor.Hardware.IComputer> action) => Record();
+
+        private void Record()
+        {
+            lock (_lock)
+            {
+                _threads.Add(Environment.CurrentManagedThreadId);
+            }
+        }
+    }
+
+    private sealed class PassThroughGuard : PcChecker.Core.Restore.IChangeGuard
+    {
+        public Task<PcChecker.Core.Common.OperationResult<T>> RunGuardedAsync<T>(string description, PcChecker.Core.Restore.ChangeOptions options,
+            Func<CancellationToken, Task<PcChecker.Core.Common.OperationResult<T>>> change, IProgress<PcChecker.Core.Common.ProgressUpdate>? progress,
+            CancellationToken cancellationToken) => change(cancellationToken);
+
+        public Task<PcChecker.Core.Common.OperationResult> RunGuardedAsync(string description, PcChecker.Core.Restore.ChangeOptions options,
+            Func<CancellationToken, Task<PcChecker.Core.Common.OperationResult>> change, IProgress<PcChecker.Core.Common.ProgressUpdate>? progress,
+            CancellationToken cancellationToken) => change(cancellationToken);
+    }
+
     private sealed class FakeSettingsService : ISettingsService
     {
         public AppSettings Current { get; } = new();

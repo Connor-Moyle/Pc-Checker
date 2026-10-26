@@ -30,7 +30,7 @@ public sealed partial class LibreHardwareFanControlService
         if (list.Count == 0)
         {
             // Copy under the gate, read through the host outside it: the host lock can be held by a slow hardware
-            // update, and this runs on the UI thread.
+            // update. This takes the host lock, so UI callers must invoke it from a background thread.
             KeyValuePair<string, ISensor>[] lhm;
             lock (_gate)
             {

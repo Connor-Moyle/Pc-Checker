@@ -10,7 +10,9 @@ namespace PcChecker.Core.Fans;
 /// <summary>
 /// Fan control through the shared LibreHardwareMonitor host: enumerates every fan control (motherboard SuperIO
 /// headers, GPU fans, some coolers), pairs it with its RPM sensor, and drives manual speeds, curves and profiles
-/// from a one-second loop. Every hardware access happens inside <see cref="IHardwareMonitorHost.WithComputer(Action{IComputer})"/>.
+/// from a one-second loop. Every hardware access happens inside <see cref="IHardwareMonitorHost.WithComputer(Action{IComputer})"/>,
+/// and the public async methods always run that access on a thread-pool thread: the host lock is shared with the
+/// sensor poll loop, so taking it (and calling <c>IHardware.Update()</c>) on the caller's UI thread would freeze the window.
 /// </summary>
 public sealed partial class LibreHardwareFanControlService : IFanControlService, IFanControlAdvanced, IDisposable
 {
@@ -135,7 +137,7 @@ public sealed partial class LibreHardwareFanControlService : IFanControlService,
         double clamped = FanSafetyRules.ClampManual(percent, _settings.Current.Fans.MinimumPercent, allowBelowMinimum, entry.MinPercent, entry.MaxPercent);
         return await _guard.RunGuardedAsync($"Set {entry.Name} to {clamped:0} %",
             new ChangeOptions(false, false, ModuleName, entry.Id, true, "Fans → Revert all to automatic"),
-            _ =>
+            _ => Task.Run(() =>
             {
                 var result = ApplySoftware(entry, clamped, "manual");
                 if (result.Success)
@@ -152,8 +154,8 @@ public sealed partial class LibreHardwareFanControlService : IFanControlService,
                     EnsureTimer();
                 }
 
-                return Task.FromResult(result);
-            }, null, cancellationToken).ConfigureAwait(false);
+                return result;
+            }), null, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<OperationResult> SetAutoAsync(string fanId, CancellationToken cancellationToken)
@@ -167,12 +169,12 @@ public sealed partial class LibreHardwareFanControlService : IFanControlService,
 
         return await _guard.RunGuardedAsync($"Return {entry.Name} to automatic control",
             new ChangeOptions(false, false, ModuleName, entry.Id, false, null),
-            _ =>
+            _ => Task.Run(() =>
             {
                 var result = ApplyDefault(entry);
                 UpdateSessionFile();
-                return Task.FromResult(result);
-            }, null, cancellationToken).ConfigureAwait(false);
+                return result;
+            }), null, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<OperationResult> SetCurveAsync(string fanId, FanCurve curve, CancellationToken cancellationToken)
@@ -193,7 +195,7 @@ public sealed partial class LibreHardwareFanControlService : IFanControlService,
 
         return await _guard.RunGuardedAsync($"Put {entry.Name} on a fan curve",
             new ChangeOptions(false, false, ModuleName, entry.Id, true, "Fans → Revert all to automatic"),
-            _ => Task.FromResult(ApplyCurveCore(entry, curve, "curve")), null, cancellationToken).ConfigureAwait(false);
+            _ => Task.Run(() => ApplyCurveCore(entry, curve, "curve")), null, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<OperationResult> ApplyProfileAsync(FanProfile profile, CancellationToken cancellationToken)
@@ -207,7 +209,7 @@ public sealed partial class LibreHardwareFanControlService : IFanControlService,
 
         return await _guard.RunGuardedAsync($"Apply fan profile \"{profile.Name}\"",
             new ChangeOptions(false, false, ModuleName, profile.Name, true, "Fans → Revert all to automatic"),
-            _ => Task.FromResult(ApplyProfileCore(profile)), null, cancellationToken).ConfigureAwait(false);
+            _ => Task.Run(() => ApplyProfileCore(profile)), null, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<OperationResult> RevertAllToAutoAsync(CancellationToken cancellationToken)
@@ -227,7 +229,7 @@ public sealed partial class LibreHardwareFanControlService : IFanControlService,
 
         return await _guard.RunGuardedAsync("Return all fans to automatic control",
             new ChangeOptions(false, false, ModuleName, "all fans", false, null),
-            _ =>
+            _ => Task.Run(() =>
             {
                 int ok = 0;
                 var failures = new List<string>();
@@ -247,10 +249,10 @@ public sealed partial class LibreHardwareFanControlService : IFanControlService,
                 ActiveProfile = null;
                 UpdateSessionFile();
                 FansUpdated?.Invoke(this, Snapshot());
-                return Task.FromResult(failures.Count == 0
+                return failures.Count == 0
                     ? OperationResult.Ok($"{ok} fan{(ok == 1 ? string.Empty : "s")} returned to automatic control.")
-                    : OperationResult.Fail($"{ok} fans reverted; {failures.Count} did not: {string.Join("; ", failures)}"));
-            }, null, cancellationToken).ConfigureAwait(false);
+                    : OperationResult.Fail($"{ok} fans reverted; {failures.Count} did not: {string.Join("; ", failures)}");
+            }), null, cancellationToken).ConfigureAwait(false);
     }
 
     private async Task DiscoverAsync(CancellationToken cancellationToken, bool force = false)
@@ -286,13 +288,17 @@ public sealed partial class LibreHardwareFanControlService : IFanControlService,
             var discovered = new List<(FanSensorInfo Info, ISensor Sensor)>();
             var hardwareWithFans = new List<IHardware>();
             var temps = new Dictionary<string, ISensor>(StringComparer.OrdinalIgnoreCase);
-            _host.WithComputer(computer =>
+
+            // Both awaits above complete synchronously once the host is open, so without this hop the walk (and its
+            // hardware.Update() calls under the host lock shared with the sensor poll loop) would run on the caller's
+            // UI thread. Everything after it continues on the thread pool (ConfigureAwait(false)).
+            await Task.Run(() => _host.WithComputer(computer =>
             {
                 foreach (var hardware in computer.Hardware)
                 {
                     Walk(hardware, discovered, hardwareWithFans, temps);
                 }
-            });
+            }), cancellationToken).ConfigureAwait(false);
 
             var pairs = FanPairing.Pair(discovered.Select(d => d.Info));
             var unpaired = FanPairing.Unpaired(discovered.Select(d => d.Info), pairs);
@@ -353,6 +359,17 @@ public sealed partial class LibreHardwareFanControlService : IFanControlService,
             if (_entries.Count > 0)
             {
                 EnsureTimer();
+            }
+
+            // Rebuild the built-in profiles here, off the UI thread: building them can read temperatures through the
+            // host, and the Fans page reads BuiltInProfiles on the UI thread right after discovery.
+            try
+            {
+                _ = BuiltInProfiles;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "Could not pre-build the built-in fan profiles.");
             }
         }
         catch (OperationCanceledException)
