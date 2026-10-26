@@ -3,9 +3,10 @@ using PcChecker.Core.Common;
 namespace PcChecker.Core.Audio;
 
 /// <summary>Demo audio: speakers, a USB headset, monitor audio, two microphones and a few app sessions.</summary>
-public sealed class DemoAudioService : IAudioService
+public sealed class DemoAudioService : IAudioService, IAudioLevelMeter
 {
     private readonly object _gate = new();
+    private int _meterTick;
     private readonly List<AudioDevice> _devices =
     [
         new("{0.0.0.00000000}.{demo-speakers}", "Speakers", "Realtek(R) Audio", AudioFlow.Render, true, false, "Active", 42, false, "24 bit, 48000 Hz", 0.12f),
@@ -31,8 +32,37 @@ public sealed class DemoAudioService : IAudioService
         var random = DemoData.CreateRandom(Environment.TickCount / 300);
         lock (_gate)
         {
-            return _devices.Select(d => d with { PeakLevel = d.Muted ? 0 : (float)Math.Clamp(DemoData.Jitter(random, d.PeakLevel ?? 0.1, 0.08), 0, 1) }).ToList();
+            return AudioText.SortDevices(_devices.Select(d => d with { PeakLevel = d.Muted ? 0 : (float)Math.Clamp(DemoData.Jitter(random, d.PeakLevel ?? 0.1, 0.08), 0, 1) }));
         }
+    }
+
+    /// <summary>Animated levels: the default output "plays music", the default microphone picks up a little room noise.</summary>
+    public Task<IReadOnlyDictionary<string, float>> ReadPeakLevelsAsync(CancellationToken cancellationToken)
+    {
+        int tick = Interlocked.Increment(ref _meterTick);
+        var levels = new Dictionary<string, float>(StringComparer.Ordinal);
+        lock (_gate)
+        {
+            foreach (var d in _devices)
+            {
+                if (d.Muted || d.State != "Active")
+                {
+                    levels[d.Id] = 0;
+                    continue;
+                }
+
+                double phase = tick / 7.0;
+                float level = (d.Flow, d.IsDefault) switch
+                {
+                    (AudioFlow.Render, true) => (float)(0.35 + 0.25 * Math.Sin(phase) + 0.12 * Math.Sin(phase * 3.3)),
+                    (AudioFlow.Capture, true) => (float)(0.08 + 0.05 * Math.Abs(Math.Sin(phase * 1.7))),
+                    _ => 0f,
+                };
+                levels[d.Id] = Math.Clamp(level, 0f, 1f);
+            }
+        }
+
+        return Task.FromResult<IReadOnlyDictionary<string, float>>(levels);
     }
 
     public async Task<OperationResult> SetDefaultDeviceAsync(string deviceId, AudioFlow flow, bool forCommunications, CancellationToken cancellationToken)
