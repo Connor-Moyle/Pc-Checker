@@ -105,6 +105,26 @@ public static class OverclockSafetyValidator
     }
 
     /// <summary>Returns a copy of the profile with every value clamped into the user's and the hardware's limits.</summary>
+    /// <summary>
+    /// Rejects a change while the CPU or GPU is already at or above the user's temperature limit. Unknown readings
+    /// (no sensor) do not block; the caller decides how to warn about that.
+    /// </summary>
+    public static OperationResult? CheckTemperatures(double? cpuTempC, double? gpuTempC, OverclockSettings settings)
+    {
+        ArgumentNullException.ThrowIfNull(settings);
+        if (cpuTempC is { } c && c >= settings.MaxCpuTempC)
+        {
+            return OperationResult.Fail($"The CPU is already at {c:0} °C, above your {settings.MaxCpuTempC} °C limit. Let it cool down before applying changes.");
+        }
+
+        if (gpuTempC is { } g && g >= settings.MaxGpuTempLimitC)
+        {
+            return OperationResult.Fail($"The GPU is already at {g:0} °C, above your {settings.MaxGpuTempLimitC} °C limit. Let it cool down before applying changes.");
+        }
+
+        return null;
+    }
+
     public static OverclockProfile Clamp(OverclockProfile profile, OverclockSettings settings, GpuLimits? limits)
     {
         ArgumentNullException.ThrowIfNull(profile);

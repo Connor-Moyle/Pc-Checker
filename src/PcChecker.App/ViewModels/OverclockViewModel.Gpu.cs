@@ -2,6 +2,7 @@ using System.IO;
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Microsoft.Extensions.Logging;
 using PcChecker.App.Services;
 using PcChecker.Core.Common;
 using PcChecker.Core.Overclocking;
@@ -156,9 +157,39 @@ public sealed partial class OverclockViewModel
     private Task ApplyGpu() => ApplyProfileAsync(BuildProfile(SelectedProfile?.Name ?? "Custom"), gpuOnly: true);
 
     [RelayCommand]
-    private Task ApplyCpu() => ApplyProfileAsync(BuildProfile(SelectedProfile?.Name ?? "Custom"), gpuOnly: false);
+    private async Task ApplyCpu()
+    {
+        var profile = BuildProfile(SelectedProfile?.Name ?? "Custom");
+        if (profile.CpuAllCoreRatio is null && profile.CpuVoltageOffsetMv is null && profile.CpuPowerLimitW is null)
+        {
+            ErrorMessage = "Tick at least one CPU setting first.";
+            return;
+        }
 
-    private async Task ApplyProfileAsync(OverclockProfile profile, bool gpuOnly)
+        // Only the CPU values from this card are sent; the GPU keeps whatever is applied right now.
+        var current = await CurrentlyAppliedAsync();
+        profile.GpuCoreOffsetMhz = current.GpuCoreOffsetMhz;
+        profile.GpuMemoryOffsetMhz = current.GpuMemoryOffsetMhz;
+        profile.GpuPowerLimitPercent = current.GpuPowerLimitPercent;
+        profile.GpuTempLimitC = current.GpuTempLimitC;
+        profile.GpuFanPercent = current.GpuFanPercent;
+        await ApplyProfileAsync(profile, gpuOnly: false, cpuOnly: true);
+    }
+
+    private async Task<OverclockProfile> CurrentlyAppliedAsync()
+    {
+        try
+        {
+            return (await _overclock.GetStateAsync(CancellationToken.None)).Current;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Could not read the applied profile; assuming stock.");
+            return OverclockProfile.Stock();
+        }
+    }
+
+    private async Task ApplyProfileAsync(OverclockProfile profile, bool gpuOnly, bool cpuOnly = false)
     {
         if (gpuOnly)
         {
@@ -181,9 +212,24 @@ public sealed partial class OverclockViewModel
             return;
         }
 
-        var changes = string.Join("\n• ", OverclockPresets.Describe(profile));
+        var described = profile;
+        if (cpuOnly)
+        {
+            // The dialog lists only what changes; the GPU values are the ones already live.
+            described = profile.Clone();
+            described.GpuCoreOffsetMhz = 0;
+            described.GpuMemoryOffsetMhz = 0;
+            described.GpuPowerLimitPercent = 100;
+            described.GpuTempLimitC = null;
+            described.GpuFanPercent = null;
+        }
+
+        var changes = string.Join("\n• ", OverclockPresets.Describe(described));
         bool restore = Settings.Current.RestorePoints.CreateBeforeChanges;
+        bool ryzenAdj = caps.CpuMethod == CpuControlMethod.RyzenAdj;
         string message = $"PC Checker will apply:\n\n• {changes}\n\n"
+            + (cpuOnly ? "The GPU keeps its current settings. " : string.Empty)
+            + (ryzenAdj && !gpuOnly && profile.CpuPowerLimitW is not null ? "CPU power limits set through ryzenadj stay until the next reboot; Reset cannot undo them. " : string.Empty)
             + (restore ? "A restore point is created first. " : string.Empty)
             + "A watchdog file is written so the change is undone automatically if the PC crashes and restarts. "
             + "Clock offsets do not survive a reboot. Save your work before continuing.";
@@ -215,7 +261,10 @@ public sealed partial class OverclockViewModel
     [RelayCommand]
     private async Task ResetToDefaults()
     {
-        if (!await _dialogs.ConfirmAsync("Reset to defaults?", "Every GPU and CPU change made from this page is undone and the card returns to its stock settings. Fans return to automatic control.", "Reset", isDanger: true))
+        string resetText = Capabilities?.CpuMethod == CpuControlMethod.RyzenAdj
+            ? "Every GPU change made from this page is undone and the card returns to its stock settings. Fans return to automatic control. CPU power limits set through ryzenadj cannot be undone from here; they stay until the next reboot."
+            : "Every GPU and CPU change made from this page is undone and the card returns to its stock settings. Fans return to automatic control.";
+        if (!await _dialogs.ConfirmAsync("Reset to defaults?", resetText, "Reset", isDanger: true))
         {
             return;
         }

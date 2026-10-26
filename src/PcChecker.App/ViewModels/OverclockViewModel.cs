@@ -33,6 +33,9 @@ public sealed partial class OverclockViewModel : ViewModelBase
     private readonly ILogger<OverclockViewModel> _logger;
     private readonly DispatcherTimer _liveTimer;
     private bool _liveTickRunning;
+    private bool _pageVisible;
+    private double _abortCpuDefault;
+    private double _abortGpuDefault;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowConsentGate))]
@@ -132,6 +135,9 @@ public sealed partial class OverclockViewModel : ViewModelBase
         }
 
         _activeProfileName = settings.Current.Overclock.ActiveProfileName;
+        _abortCpuDefault = _abortCpuTemp = settings.Current.Overclock.MaxCpuTempC;
+        _abortGpuDefault = _abortGpuTemp = settings.Current.Overclock.MaxGpuTempLimitC;
+        settings.Changed += OnOverclockSettingsChanged;
         LoadLimitsFromSettings();
         RebuildProfiles();
 
@@ -218,6 +224,43 @@ public sealed partial class OverclockViewModel : ViewModelBase
     /// <summary>Shown on the page when the app reverted a profile after a crash (set by App startup).</summary>
     public void ShowRecoveryNotice(string message) => DispatcherHelper.PostToUi(() => RecoveryMessage = message);
 
+    /// <summary>Page Loaded: live readouts poll the driver only while this page is on screen.</summary>
+    public void OnPageLoaded()
+    {
+        _pageVisible = true;
+        if (IsInitialized)
+        {
+            StartLive();
+        }
+    }
+
+    /// <summary>Page Unloaded: stop polling while another page is shown (the view model is a singleton).</summary>
+    public void OnPageUnloaded()
+    {
+        _pageVisible = false;
+        _liveTimer.Stop();
+    }
+
+    private void OnOverclockSettingsChanged(object? sender, AppSettings settings) => DispatcherHelper.PostToUi(() => FollowSettingsDefaults(settings.Overclock));
+
+    /// <summary>The stress-test abort temperatures follow Settings until the user types their own value.</summary>
+    private void FollowSettingsDefaults(OverclockSettings overclock)
+    {
+        if (AbortCpuTemp == _abortCpuDefault)
+        {
+            AbortCpuTemp = overclock.MaxCpuTempC;
+        }
+
+        if (AbortGpuTemp == _abortGpuDefault)
+        {
+            AbortGpuTemp = overclock.MaxGpuTempLimitC;
+        }
+
+        _abortCpuDefault = overclock.MaxCpuTempC;
+        _abortGpuDefault = overclock.MaxGpuTempLimitC;
+        LoadLimitsFromSettings();
+    }
+
     private async Task DetectAsync(CancellationToken cancellationToken)
     {
         var caps = await _overclock.DetectAsync(cancellationToken);
@@ -301,7 +344,7 @@ public sealed partial class OverclockViewModel : ViewModelBase
             _logger.LogDebug(ex, "Sensor service could not be started from the Overclock page.");
         }
 
-        if (!_liveTimer.IsEnabled)
+        if (_pageVisible && !_liveTimer.IsEnabled)
         {
             _liveTimer.Start();
         }

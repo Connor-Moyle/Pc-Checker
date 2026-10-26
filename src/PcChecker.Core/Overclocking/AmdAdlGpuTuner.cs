@@ -216,6 +216,17 @@ public sealed class AmdAdlGpuTuner : IGpuTuner
         return Send(new Dictionary<int, int> { [Od8Feature.OperatingTempMax] = tempC }, $"Temperature limit set to {tempC} °C.");
     }
 
+    public OperationResult ResetTempLimit()
+    {
+        var temp = AdlValueRules.Find(_ranges, Od8Feature.OperatingTempMax);
+        if (temp is not { IsSupported: true })
+        {
+            return OperationResult.Ok("No temperature limit to reset.");
+        }
+
+        return Send(new Dictionary<int, int> { [Od8Feature.OperatingTempMax] = temp.Default }, $"Temperature limit back to the default {temp.Default} °C.");
+    }
+
     public OperationResult SetFan(int? percent) =>
         OperationResult.Fail("AMD fan control goes through the Fans page (shared hardware monitor), not Overdrive8.");
 

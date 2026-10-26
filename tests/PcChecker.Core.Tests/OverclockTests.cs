@@ -2,6 +2,7 @@ using PcChecker.Core.Common;
 using PcChecker.Core.Hardware;
 using PcChecker.Core.Overclocking;
 using PcChecker.Core.Sensors;
+using PcChecker.Core.Settings;
 using Xunit;
 
 namespace PcChecker.Core.Tests;
@@ -210,6 +211,21 @@ public class ThrottleHeuristicTests
         Assert.Contains("throttling", ThrottleHeuristic.Summarize(StressTarget.Both, 0, false, true, 80, 70, 90, 87));
         Assert.StartsWith("Stable", ThrottleHeuristic.Summarize(StressTarget.Gpu, 0, false, false, null, 71, 90, 87));
     }
+
+    [Fact]
+    public void Missing_temperature_data_is_called_out_instead_of_passing()
+    {
+        Assert.True(ThrottleHeuristic.LacksTemperatureData(StressTarget.Cpu, null, 70));
+        Assert.False(ThrottleHeuristic.LacksTemperatureData(StressTarget.Cpu, 80, null));
+        Assert.True(ThrottleHeuristic.LacksTemperatureData(StressTarget.Gpu, 80, null));
+        Assert.True(ThrottleHeuristic.LacksTemperatureData(StressTarget.Both, null, null));
+        Assert.False(ThrottleHeuristic.LacksTemperatureData(StressTarget.Both, null, 70));
+
+        string summary = ThrottleHeuristic.Summarize(StressTarget.Cpu, 0, false, false, null, null, 90, 87);
+        Assert.DoesNotContain("Stable", summary);
+        Assert.Contains("no temperature data", summary);
+        Assert.Contains("watchdog", summary);
+    }
 }
 
 public class OverclockSessionStoreTests
@@ -375,7 +391,8 @@ public class IgclValueRulesTests
         Assert.Equal(79, limits.PowerLimitMinPercent);
         Assert.Equal(120, limits.PowerLimitMaxPercent);
         Assert.Equal(100, limits.TempLimitMaxC);
-        Assert.Contains("waiver", IgclValueRules.DescribeResult(0x44000006));
+        Assert.Contains("waiver", IgclValueRules.DescribeResult(0x44000008));
+        Assert.Contains("voltage-locked", IgclValueRules.DescribeResult(0x44000006));
     }
 }
 
@@ -500,4 +517,46 @@ public class DemoOverclockServiceTests
 
         Assert.True((await demo.ResetAsync(CancellationToken.None)).Success);
     }
+}
+
+public class OverclockTemperatureGateTests
+{
+    [Fact]
+    public void Rejects_when_hot_and_allows_cool_or_unknown_readings()
+    {
+        var settings = new OverclockSettings { MaxCpuTempC = 90, MaxGpuTempLimitC = 87 };
+
+        var cpuHot = OverclockSafetyValidator.CheckTemperatures(91, 60, settings);
+        Assert.NotNull(cpuHot);
+        Assert.False(cpuHot!.Success);
+        Assert.Contains("CPU", cpuHot.Message);
+
+        var cpuAtLimit = OverclockSafetyValidator.CheckTemperatures(90, null, settings);
+        Assert.NotNull(cpuAtLimit);
+
+        var gpuHot = OverclockSafetyValidator.CheckTemperatures(50, 87, settings);
+        Assert.NotNull(gpuHot);
+        Assert.Contains("GPU", gpuHot!.Message);
+
+        Assert.Null(OverclockSafetyValidator.CheckTemperatures(70, 60, settings));
+        Assert.Null(OverclockSafetyValidator.CheckTemperatures(null, null, settings));
+        Assert.Null(OverclockSafetyValidator.CheckTemperatures(89.9, 86.9, settings));
+    }
+}
+
+public class IgclResultCodeTests
+{
+    [Theory]
+    [InlineData(0x00000000u, "OK")]
+    [InlineData(0x40000009u, "unsupported version")]
+    [InlineData(0x4000000Cu, "invalid API handle")]
+    [InlineData(0x4000000Du, "invalid null handle")]
+    [InlineData(0x4000000Fu, "invalid size")]
+    [InlineData(0x40000010u, "unsupported size")]
+    [InlineData(0x44000001u, "not supported")]
+    [InlineData(0x44000003u, "frequency")]
+    [InlineData(0x44000008u, "waiver")]
+    [InlineData(0x4400FFFFu, "0x4400FFFF")]
+    public void Result_codes_follow_the_public_igcl_header(uint code, string expected) =>
+        Assert.Contains(expected, IgclValueRules.DescribeResult(code));
 }

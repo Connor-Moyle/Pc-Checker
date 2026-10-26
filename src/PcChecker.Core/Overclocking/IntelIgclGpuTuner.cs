@@ -268,6 +268,17 @@ public sealed class IntelIgclGpuTuner : IGpuTuner
         }
     }
 
+    public OperationResult ResetTempLimit()
+    {
+        if (!_temp.Supported || _temp.Default <= 0)
+        {
+            return OperationResult.Ok("No temperature limit to reset.");
+        }
+
+        var r = SetTempLimit((int)Math.Round(_temp.Default));
+        return r.Success ? OperationResult.Ok($"Temperature limit back to the default {_temp.Default:0} °C.") : r;
+    }
+
     public OperationResult SetFan(int? percent) =>
         OperationResult.Fail("Intel Arc fan control goes through the Fans page (shared hardware monitor) or Intel Graphics Software.");
 

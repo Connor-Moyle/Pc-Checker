@@ -207,6 +207,12 @@ public sealed partial class WindowsOverclockService : IOverclockService, IDispos
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
+            // Remember what was true before, so a profile that fails completely leaves no trace of itself behind.
+            var previousSession = OverclockSessionStore.Load(SessionPath);
+            var previousApplied = _applied;
+            string? previousActiveName = _settings.Current.Overclock.ActiveProfileName;
+            bool previousClean = _settings.Current.Overclock.LastSessionClean;
+
             var session = OverclockSessionStore.Load(SessionPath) ?? new OverclockSession();
             session.Profile = profile.Clone();
             session.AppliedUtc = DateTimeOffset.UtcNow;
@@ -225,17 +231,32 @@ public sealed partial class WindowsOverclockService : IOverclockService, IDispos
             var messages = new List<string>();
             var failures = new List<string>();
 
-            bool touchesGpu = profile.GpuCoreOffsetMhz != 0 || profile.GpuMemoryOffsetMhz != 0 || profile.GpuPowerLimitPercent != 100 || profile.GpuTempLimitC is not null || profile.GpuFanPercent is not null || !_applied.IsStock;
-            if (touchesGpu && _tuner is not null)
+            bool gpuRequested = profile.GpuCoreOffsetMhz != 0 || profile.GpuMemoryOffsetMhz != 0 || profile.GpuPowerLimitPercent != 100 || profile.GpuTempLimitC is not null || profile.GpuFanPercent is not null;
+            bool gpuUnchanged = SameGpuSettings(profile, _applied);
+            bool gpuOk = true;
+            if (_tuner is not null && (gpuRequested || !_applied.IsStock))
             {
-                await Task.Run(() => ApplyGpu(profile, messages, failures), cancellationToken).ConfigureAwait(false);
+                if (gpuUnchanged)
+                {
+                    // A CPU-only apply carries the GPU values that are already live; do not re-send them.
+                    if (gpuRequested)
+                    {
+                        messages.Add("GPU settings left as they are.");
+                    }
+                }
+                else
+                {
+                    gpuOk = await Task.Run(() => ApplyGpu(profile, messages, failures), cancellationToken).ConfigureAwait(false);
+                }
             }
 
             bool touchesCpu = profile.CpuAllCoreRatio is not null || profile.CpuVoltageOffsetMv is not null || profile.CpuPowerLimitW is not null;
+            bool cpuOk = true;
             if (touchesCpu)
             {
                 var cpu = await ApplyCpuAsync(profile, session, cancellationToken).ConfigureAwait(false);
                 (cpu.Success ? messages : failures).Add(cpu.Message);
+                cpuOk = cpu.Success;
                 if (cpu.Success)
                 {
                     session.CpuTouched = true;
@@ -243,11 +264,44 @@ public sealed partial class WindowsOverclockService : IOverclockService, IDispos
                 }
             }
 
-            _applied = profile.Clone();
             if (failures.Count > 0 && messages.Count == 0)
             {
+                // Nothing took: put the session file and settings back exactly as they were.
+                if (previousSession is null)
+                {
+                    OverclockSessionStore.Delete(SessionPath);
+                }
+                else
+                {
+                    OverclockSessionStore.Save(SessionPath, previousSession);
+                }
+
+                _applied = previousApplied;
+                _settings.Current.Overclock.ActiveProfileName = previousActiveName;
+                _settings.Current.Overclock.LastSessionClean = previousClean;
+                await _settings.SaveAsync().ConfigureAwait(false);
                 return OperationResult.Fail(string.Join(" ", failures));
             }
+
+            // Record only what really took: GPU values from the previous state when the GPU half failed, no CPU values when the CPU half failed.
+            var applied = profile.Clone();
+            if (!gpuOk)
+            {
+                applied.GpuCoreOffsetMhz = previousApplied.GpuCoreOffsetMhz;
+                applied.GpuMemoryOffsetMhz = previousApplied.GpuMemoryOffsetMhz;
+                applied.GpuPowerLimitPercent = previousApplied.GpuPowerLimitPercent;
+                applied.GpuTempLimitC = previousApplied.GpuTempLimitC;
+                applied.GpuFanPercent = previousApplied.GpuFanPercent;
+            }
+
+            if (!cpuOk)
+            {
+                applied.CpuAllCoreRatio = null;
+                applied.CpuVoltageOffsetMv = null;
+                applied.CpuPowerLimitW = null;
+            }
+
+            _applied = applied;
 
             string summary = string.Join(" ", messages);
             return failures.Count > 0
@@ -260,8 +314,10 @@ public sealed partial class WindowsOverclockService : IOverclockService, IDispos
         }
     }
 
-    private void ApplyGpu(OverclockProfile profile, List<string> messages, List<string> failures)
+    /// <summary>Sends every GPU setting of the profile to the tuner; returns false when nothing at all succeeded.</summary>
+    private bool ApplyGpu(OverclockProfile profile, List<string> messages, List<string> failures)
     {
+        int before = messages.Count;
         var offsets = _tuner!.ApplyOffsets(profile.GpuCoreOffsetMhz, profile.GpuMemoryOffsetMhz);
         (offsets.Success ? messages : failures).Add(offsets.Message);
 
@@ -276,6 +332,12 @@ public sealed partial class WindowsOverclockService : IOverclockService, IDispos
             var t = _tuner.SetTempLimit(temp);
             (t.Success ? messages : failures).Add(t.Message);
         }
+        else if (_applied.GpuTempLimitC is not null)
+        {
+            // The previous profile set a limit and this one does not: return it to the driver default.
+            var t = _tuner.ResetTempLimit();
+            (t.Success ? messages : failures).Add(t.Message);
+        }
 
         if (profile.GpuFanPercent is { } fan)
         {
@@ -287,7 +349,16 @@ public sealed partial class WindowsOverclockService : IOverclockService, IDispos
             var f = _fanViaHost ? HostFanControl.Set(_host, null) : _tuner.SetFan(null);
             (f.Success ? messages : failures).Add(f.Message);
         }
+
+        return messages.Count > before;
     }
+
+    private static bool SameGpuSettings(OverclockProfile a, OverclockProfile b) =>
+        a.GpuCoreOffsetMhz == b.GpuCoreOffsetMhz
+        && a.GpuMemoryOffsetMhz == b.GpuMemoryOffsetMhz
+        && a.GpuPowerLimitPercent == b.GpuPowerLimitPercent
+        && a.GpuTempLimitC == b.GpuTempLimitC
+        && a.GpuFanPercent == b.GpuFanPercent;
 
     private async Task<OperationResult> ApplyCpuAsync(OverclockProfile profile, OverclockSession session, CancellationToken cancellationToken)
     {
@@ -354,7 +425,9 @@ public sealed partial class WindowsOverclockService : IOverclockService, IDispos
                 }
 
                 var run = await PowerShellRunner.RunAsync($"& '{_cpuTool.ToolPath.Replace("'", "''")}' {CpuToolLocator.RyzenAdjArguments(watts)}", TimeSpan.FromSeconds(30), cancellationToken).ConfigureAwait(false);
-                return run.Success ? OperationResult.Ok($"CPU power limits set to {watts} W through ryzenadj.") : OperationResult.Fail("ryzenadj failed: " + (run.StdErr.Length > 0 ? run.StdErr : run.StdOut));
+                return run.Success
+                    ? OperationResult.Ok($"CPU power limits set to {watts} W through ryzenadj. They stay in place until the next reboot; Reset cannot undo them.")
+                    : OperationResult.Fail("ryzenadj failed: " + (run.StdErr.Length > 0 ? run.StdErr : run.StdOut));
             }
 
             case CpuControlMethod.RyzenMaster:
@@ -396,6 +469,12 @@ public sealed partial class WindowsOverclockService : IOverclockService, IDispos
                 (cpu.Success ? messages : failures).Add(cpu.Message);
             }
 
+            if (session is { CpuTouched: true, CpuMethod: CpuControlMethod.RyzenAdj })
+            {
+                // ryzenadj has no reset command and the previous limits are not readable, so be honest about it.
+                messages.Add("CPU power limits set through ryzenadj stay in place until the next reboot; restart the PC to return to the BIOS values.");
+            }
+
             OverclockSessionStore.Delete(SessionPath);
             _applied = OverclockProfile.Stock();
             _settings.Current.Overclock.LastSessionClean = true;
@@ -418,19 +497,7 @@ public sealed partial class WindowsOverclockService : IOverclockService, IDispos
     private OperationResult? CheckTemperatures(OverclockSettings settings)
     {
         var snapshot = _sensors.Latest;
-        double? cpu = SensorPicker.MaxCpuTemp(snapshot);
-        double? gpu = SensorPicker.MaxGpuTemp(snapshot);
-        if (cpu is { } c && c >= settings.MaxCpuTempC)
-        {
-            return OperationResult.Fail($"The CPU is already at {c:0} °C, above your {settings.MaxCpuTempC} °C limit. Let it cool down before applying changes.");
-        }
-
-        if (gpu is { } g && g >= settings.MaxGpuTempLimitC)
-        {
-            return OperationResult.Fail($"The GPU is already at {g:0} °C, above your {settings.MaxGpuTempLimitC} °C limit. Let it cool down before applying changes.");
-        }
-
-        return null;
+        return OverclockSafetyValidator.CheckTemperatures(SensorPicker.MaxCpuTemp(snapshot), SensorPicker.MaxGpuTemp(snapshot), settings);
     }
 
     private GpuTunerDetection DetectGpuTuner(GpuVendor vendor, string? gpuName)

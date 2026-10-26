@@ -10,9 +10,12 @@ internal static class IntelIgclNative
 {
     public const string LibraryName = "ControlLib.dll";
     public const uint Success = 0;
-    public const uint ErrorInvalidSize = 0x4000000C;
-    public const uint ErrorUnsupportedSize = 0x4000000D;
-    public const uint ErrorUnsupportedVersion = 0x40000008;
+
+    // ctl_result_t values from igcl_api.h (CTL_RESULT_ERROR_*). These three drive the legacy-layout retry in
+    // ReadOcProperties, so they must match the header exactly.
+    public const uint ErrorUnsupportedVersion = 0x40000009;
+    public const uint ErrorInvalidSize = 0x4000000F;
+    public const uint ErrorUnsupportedSize = 0x40000010;
     public const int MaxDeviceNameLength = 100;
     public const int MaxReservedSize = 112;
     public const uint DeviceTypeGraphics = 1;

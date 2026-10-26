@@ -15,8 +15,9 @@ public sealed partial class OverclockViewModel
 
     [ObservableProperty] private StressTarget _selectedStressTarget = StressTarget.Cpu;
     [ObservableProperty] private double _stressMinutes = 2;
-    [ObservableProperty] private double _abortCpuTemp = 90;
-    [ObservableProperty] private double _abortGpuTemp = 87;
+    // Initialised from OverclockSettings.MaxCpuTempC / MaxGpuTempLimitC in the constructor.
+    [ObservableProperty] private double _abortCpuTemp;
+    [ObservableProperty] private double _abortGpuTemp;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(StressIdle))]

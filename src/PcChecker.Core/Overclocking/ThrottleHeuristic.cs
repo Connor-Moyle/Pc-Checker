@@ -51,6 +51,17 @@ public static class ThrottleHeuristic
     }
 
     /// <summary>Plain-English verdict for the stress result.</summary>
+    /// <summary>
+    /// True when the run saw no temperature for the part under test, so the watchdog could not have stepped in.
+    /// A combined test counts as covered when either part reported a temperature.
+    /// </summary>
+    public static bool LacksTemperatureData(StressTarget target, double? maxCpu, double? maxGpu) => target switch
+    {
+        StressTarget.Cpu => maxCpu is null,
+        StressTarget.Gpu => maxGpu is null,
+        _ => maxCpu is null && maxGpu is null,
+    };
+
     public static string Summarize(StressTarget target, int errors, bool aborted, bool throttle, double? maxCpu, double? maxGpu, double abortCpu, double abortGpu)
     {
         if (aborted)
@@ -66,6 +77,11 @@ public static class ThrottleHeuristic
         if (throttle)
         {
             return "Completed, but clocks dropped under load, which usually means thermal throttling. Improve cooling or lower the power limit before pushing further.";
+        }
+
+        if (LacksTemperatureData(target, maxCpu, maxGpu))
+        {
+            return "Completed with no calculation errors, but no temperature data was available, so the watchdog could not protect the hardware. Check the hardware monitor on the Sensors page and treat this result with caution.";
         }
 
         var temps = string.Join(", ", new[]

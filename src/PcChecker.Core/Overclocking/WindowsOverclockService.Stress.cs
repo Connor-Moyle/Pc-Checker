@@ -76,7 +76,8 @@ public sealed partial class WindowsOverclockService
         }
 
         bool throttle = (burnCpu && ThrottleHeuristic.Suspect(cpuClocks, cpuLoads)) || (target != StressTarget.Cpu && ThrottleHeuristic.Suspect(gpuClocks, gpuLoads));
-        bool passed = stats.Errors == 0 && !aborted && !throttle;
+        bool noTemperatureData = ThrottleHeuristic.LacksTemperatureData(target, maxCpu, maxGpu);
+        bool passed = stats.Errors == 0 && !aborted && !throttle && !noTemperatureData;
         string summary = ThrottleHeuristic.Summarize(target, stats.Errors, aborted, throttle, maxCpu, maxGpu, abortCpuTempC, abortGpuTempC);
         if (target == StressTarget.Gpu && !aborted)
         {

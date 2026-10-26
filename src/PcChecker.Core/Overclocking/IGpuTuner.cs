@@ -34,6 +34,9 @@ public interface IGpuTuner : IDisposable
 
     OperationResult SetTempLimit(int tempC);
 
+    /// <summary>Returns the temperature limit to the driver default (a no-op success when the card has none).</summary>
+    OperationResult ResetTempLimit();
+
     /// <summary>Fixed fan speed, or null to return the fan to automatic control.</summary>
     OperationResult SetFan(int? percent);
 

@@ -239,6 +239,17 @@ public sealed class NvApiGpuTuner : IGpuTuner
         }
     }
 
+    public OperationResult ResetTempLimit()
+    {
+        if (_thermal is not { } t)
+        {
+            return OperationResult.Ok("No temperature limit to reset.");
+        }
+
+        var r = SetTempLimit(t.DefaultC);
+        return r.Success ? OperationResult.Ok($"Temperature limit back to the default {t.DefaultC} °C.") : r;
+    }
+
     public OperationResult SetFan(int? percent)
     {
         if (_gpu is null)
