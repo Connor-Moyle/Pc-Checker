@@ -109,7 +109,9 @@ public static class BundleDetector
                     break;
                 }
 
-                if (SamePublisher(a, b))
+                // The same publisher usually means one suite, except when one half is a known bundled extra
+                // (an antivirus that brings its own browser, for example).
+                if (SamePublisher(a, b) && !IsKnownBundledExtra(a) && !IsKnownBundledExtra(b))
                 {
                     continue;
                 }
