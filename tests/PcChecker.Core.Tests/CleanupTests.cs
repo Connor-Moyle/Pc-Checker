@@ -15,6 +15,8 @@ public class CleanupSafetyTests
     [InlineData(@"C:\Users\me\AppData\Local\Temp", false)]
     [InlineData(@"C:\Users\me\AppData\Local\TempFiles\x", false)]
     [InlineData(@"C:\Users\me\Documents\important.docx", false)]
+    [InlineData(@"D:\Users\me\AppData\Local\Temp\file.tmp", false)]
+    [InlineData(@"D:\Windows\Temp\x.log", false)]
     [InlineData(@"C:\Users\me\AppData\Local\Temp\..\..\Documents\x", false)]
     [InlineData("", false)]
     public void IsPathAllowed_only_inside_roots(string path, bool expected)

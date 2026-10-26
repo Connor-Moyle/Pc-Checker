@@ -12,7 +12,8 @@ internal static class CleanupNativeMethods
     private const uint ShErbNoSound = 0x00000004;
     private const int EUnexpected = unchecked((int)0x8000FFFF);
 
-    [StructLayout(LayoutKind.Sequential)]
+    /// <summary>Mirrors SHQUERYRBINFO, which the Windows SDK declares with 1-byte packing (20 bytes, i64Size at offset 4).</summary>
+    [StructLayout(LayoutKind.Sequential, Pack = 1)]
     private struct ShQueryRbInfo
     {
         public uint cbSize;

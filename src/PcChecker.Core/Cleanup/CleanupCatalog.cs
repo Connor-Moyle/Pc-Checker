@@ -45,7 +45,7 @@ public static class CleanupCatalog
         new("windows.error.reports", "Windows error reports", "Reports about crashes queued for Microsoft.",
             RiskLevel.Safe, [@"%PROGRAMDATA%\Microsoft\Windows\WER\ReportQueue", @"%PROGRAMDATA%\Microsoft\Windows\WER\ReportArchive", @"%LOCALAPPDATA%\Microsoft\Windows\WER"], AllFiles, true, true),
         new("windows.logs", "Windows log files", "Old log files from Windows components and installers.",
-            RiskLevel.Moderate, [@"%WINDIR%\Logs", @"%WINDIR%\Panther", @"%WINDIR%\Temp"], ["*.log", "*.etl", "*.cab"], false, true),
+            RiskLevel.Moderate, [@"%WINDIR%\Logs", @"%WINDIR%\Panther"], ["*.log", "*.etl", "*.cab"], false, true),
         new("dx.shader.cache", "DirectX shader cache", "Compiled graphics shaders. Games rebuild them on next launch.",
             RiskLevel.Safe, [@"%LOCALAPPDATA%\D3DSCache"], AllFiles, true, true),
         new("nvidia.shader.cache", "NVIDIA shader cache", "Compiled graphics shaders from the NVIDIA driver. Games rebuild them on next launch.",

@@ -22,8 +22,10 @@ public sealed partial class CleanupViewModel : ViewModelBase
     private readonly IDialogService _dialogs;
     private readonly INotificationService _notifications;
     private readonly ILogger<CleanupViewModel> _logger;
+    private static readonly TimeSpan SaveDebounceDelay = TimeSpan.FromMilliseconds(400);
     private bool _loadingSelection;
     private CleanupScanResult? _lastScan;
+    private CancellationTokenSource? _saveDebounce;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CleanButtonText))]
@@ -352,14 +354,25 @@ public sealed partial class CleanupViewModel : ViewModelBase
     private void PersistSelection()
     {
         Settings.Current.Cleanup.EnabledCategoryIds = Categories.Where(c => c.IsSelected).Select(c => c.Id).ToList();
-        _ = SaveSettingsAsync();
+
+        // Ticking several boxes in a row should produce one disk write and one Changed event, not one per click.
+        _saveDebounce?.Cancel();
+        _saveDebounce?.Dispose();
+        var debounce = new CancellationTokenSource();
+        _saveDebounce = debounce;
+        _ = SaveSettingsAsync(debounce.Token);
     }
 
-    private async Task SaveSettingsAsync()
+    private async Task SaveSettingsAsync(CancellationToken cancellationToken)
     {
         try
         {
+            await Task.Delay(SaveDebounceDelay, cancellationToken);
             await Settings.SaveAsync();
+        }
+        catch (OperationCanceledException)
+        {
+            // Superseded by a newer selection change; that one saves.
         }
         catch (Exception ex)
         {
