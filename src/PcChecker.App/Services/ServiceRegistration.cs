@@ -101,7 +101,7 @@ public static class ServiceRegistration
         // Optimization action providers (IOptimizationService aggregates every registration below).
         // providers: Latency   → services.AddSingleton<IOptimizationActionProvider, LatencyActionsProvider>();
         // providers: Memory    → services.AddSingleton<IOptimizationActionProvider, MemoryActionsProvider>();
-        // providers: Startup   → services.AddSingleton<IOptimizationActionProvider, StartupActionsProvider>();
+        services.AddSingleton<IOptimizationActionProvider, StartupActionsProvider>(); // providers: Startup
         // providers: Input     → services.AddSingleton<IOptimizationActionProvider, InputActionsProvider>();
 
         // UI services
