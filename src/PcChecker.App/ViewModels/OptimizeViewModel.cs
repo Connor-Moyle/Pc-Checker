@@ -16,6 +16,9 @@ public sealed partial class OptimizeViewModel : ViewModelBase
 {
     private const int MaxOutputLines = 400;
 
+    /// <summary>How many state probes run at once; most are registry reads, a few spawn powercfg/fsutil/PowerShell.</summary>
+    private const int ProbeParallelism = 4;
+
     private readonly IOptimizationService _optimization;
     private readonly OptimizationActionRunner _runner;
     private readonly IDialogService _dialogs;
@@ -23,6 +26,8 @@ public sealed partial class OptimizeViewModel : ViewModelBase
     private readonly INavigationService _navigation;
     private readonly ILogger<OptimizeViewModel> _logger;
     private readonly Dictionary<string, OptimizationActionRow> _rows = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> _probed = new(StringComparer.OrdinalIgnoreCase);
+    private readonly SemaphoreSlim _probeGate = new(ProbeParallelism, ProbeParallelism);
 
     [ObservableProperty] private bool _isRebootRequired;
     [ObservableProperty] private string _restorePointNote = string.Empty;
@@ -32,6 +37,7 @@ public sealed partial class OptimizeViewModel : ViewModelBase
     [ObservableProperty] private bool _isBatchRunning;
     [ObservableProperty] private string _batchProgressText = string.Empty;
     [ObservableProperty] private bool _isRefreshing;
+    [ObservableProperty] private bool _isActionRunning;
 
     public OptimizeViewModel(ISettingsService settings, IOptimizationService optimization, OptimizationActionRunner runner,
         IDialogService dialogs, INotificationService notifications, INavigationService navigation, ILogger<OptimizeViewModel> logger)
@@ -45,9 +51,13 @@ public sealed partial class OptimizeViewModel : ViewModelBase
         _logger = logger;
         _isRebootRequired = runner.IsRebootRequired;
         _restorePointNote = runner.RestorePointNote;
+        _isActionRunning = runner.IsRunning;
 
         runner.RebootRequiredChanged += (_, _) => DispatcherHelper.PostToUi(() => IsRebootRequired = _runner.IsRebootRequired);
-        runner.ActionCompleted += (_, e) => DispatcherHelper.PostToUi(() => _ = RefreshRowAsync(e.ActionId));
+        runner.RunningChanged += (_, _) => DispatcherHelper.PostToUi(() => IsActionRunning = _runner.IsRunning);
+        // Re-probe the row that ran plus every row that shares its setting (power plans, fast startup/hibernation,
+        // visual effects presets), so mutually exclusive rows never show a stale "Applied".
+        runner.ActionCompleted += (_, e) => DispatcherHelper.PostToUi(() => _ = RefreshRowsAsync(OptimizationLinks.AffectedBy(e.ActionId)));
         settings.Changed += (_, _) => DispatcherHelper.PostToUi(() => RestorePointNote = _runner.RestorePointNote);
         if (optimization is IOptimizationOutputSource source)
         {
@@ -59,6 +69,11 @@ public sealed partial class OptimizeViewModel : ViewModelBase
             if (e.PropertyName == nameof(IsAdvancedMode))
             {
                 UpdateVisibility();
+                if (IsAdvancedMode)
+                {
+                    // Advanced rows are skipped by the initial refresh; probe them the first time they are shown.
+                    _ = RefreshRowsAsync(_rows.Values.Where(r => r.IsVisible && !_probed.Contains(r.Id)).Select(r => r.Id).ToList());
+                }
             }
         };
     }
@@ -78,6 +93,7 @@ public sealed partial class OptimizeViewModel : ViewModelBase
     {
         Groups.Clear();
         _rows.Clear();
+        _probed.Clear();
         var catalog = OptimizationCatalog.All;
         var providerActions = _optimization.Actions.Where(a => OptimizationCatalog.Find(a.Id) is null).ToList();
 
@@ -165,6 +181,10 @@ public sealed partial class OptimizeViewModel : ViewModelBase
         }
     }
 
+    /// <summary>
+    /// Probes every visible row. Hidden Advanced rows are skipped (they cost a PowerShell call and two WMI queries on
+    /// real Windows) and probed when Advanced mode is switched on. Probes run a few at a time.
+    /// </summary>
     [RelayCommand]
     private async Task RefreshStatesAsync()
     {
@@ -177,10 +197,7 @@ public sealed partial class OptimizeViewModel : ViewModelBase
         ErrorMessage = null;
         try
         {
-            foreach (var row in _rows.Values)
-            {
-                await RefreshRowAsync(row.Id);
-            }
+            await RefreshRowsAsync(_rows.Values.Where(r => r.IsVisible).Select(r => r.Id).ToList());
         }
         catch (Exception ex)
         {
@@ -194,6 +211,18 @@ public sealed partial class OptimizeViewModel : ViewModelBase
         }
     }
 
+    private async Task RefreshRowsAsync(IReadOnlyList<string> actionIds)
+    {
+        var known = actionIds.Where(_rows.ContainsKey).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        if (known.Count == 0)
+        {
+            return;
+        }
+
+        await Task.WhenAll(known.Select(RefreshRowAsync));
+        UpdateCounts();
+    }
+
     private async Task RefreshRowAsync(string actionId)
     {
         if (!_rows.TryGetValue(actionId, out var row))
@@ -201,6 +230,7 @@ public sealed partial class OptimizeViewModel : ViewModelBase
             return;
         }
 
+        await _probeGate.WaitAsync();
         try
         {
             var state = await _optimization.GetStateAsync(actionId, CancellationToken.None);
@@ -212,6 +242,11 @@ public sealed partial class OptimizeViewModel : ViewModelBase
             _logger.LogWarning(ex, "State check failed for {Action}.", actionId);
             row.IsApplied = null;
             row.StateText = "Unknown";
+        }
+        finally
+        {
+            _probed.Add(actionId);
+            _probeGate.Release();
         }
     }
 

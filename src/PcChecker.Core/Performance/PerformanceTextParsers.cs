@@ -100,6 +100,58 @@ public static class PerformanceTextParsers
     }
 
     /// <summary>
+    /// Reads the BootTime value out of a Diagnostics-Performance event 100 rendered as XML by <c>wevtutil /f:xml</c>
+    /// (<c>&lt;Data Name="BootTime"&gt;41235&lt;/Data&gt;</c>). Used when PowerShell is unavailable.
+    /// </summary>
+    public static bool TryParseBootTimeFromEventXml(string? xml, out long bootTimeMs)
+    {
+        bootTimeMs = 0;
+        if (string.IsNullOrWhiteSpace(xml))
+        {
+            return false;
+        }
+
+        foreach (var quote in new[] { "\"", "'" })
+        {
+            int idx = xml.IndexOf($"Name={quote}BootTime{quote}", StringComparison.OrdinalIgnoreCase);
+            if (idx < 0)
+            {
+                continue;
+            }
+
+            int open = xml.IndexOf('>', idx);
+            int close = open < 0 ? -1 : xml.IndexOf('<', open);
+            if (open < 0 || close < 0)
+            {
+                continue;
+            }
+
+            return long.TryParse(xml[(open + 1)..close].Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out bootTimeMs) && bootTimeMs > 0;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Time since boot: the millisecond tick count when it is usable, otherwise <paramref name="now"/> minus the
+    /// WMI LastBootUpTime, otherwise null.
+    /// </summary>
+    public static TimeSpan? UptimeFrom(long millisecondsSinceBoot, DateTime? lastBootUpTime, DateTime now)
+    {
+        if (millisecondsSinceBoot > 0)
+        {
+            return TimeSpan.FromMilliseconds(millisecondsSinceBoot);
+        }
+
+        if (lastBootUpTime is { } boot && boot <= now)
+        {
+            return now - boot;
+        }
+
+        return null;
+    }
+
+    /// <summary>
     /// Days since the Windows Update "LastSuccessTime" registry value (format <c>yyyy-MM-dd HH:mm:ss</c>, UTC).
     /// Returns null when the value is missing or unreadable.
     /// </summary>

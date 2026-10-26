@@ -56,6 +56,9 @@ public sealed class DemoPerformanceAnalyzer : IPerformanceAnalyzer
             FastStartupEnabled = true,
             HibernationEnabled = true,
             VisualEffectsBestAppearance = false,
+            TransparencyEnabled = true,
+            PageFileAutomatic = true,
+            PageFileBytes = 4_831_838_208,
             GameModeEnabled = true,
             GameBarEnabled = true,
             BackgroundAppsEnabled = true,
@@ -84,7 +87,7 @@ public sealed class DemoPerformanceAnalyzer : IPerformanceAnalyzer
         var ordered = findings.OrderByDescending(f => f.Severity).ThenBy(f => f.Category).ToList();
 
         Last = new PerformanceReport(SlowdownRules.Score(ordered), ordered, startup, services, TopProcesses, 18.4, 42, DemoData.TotalMemoryBytes,
-            "Balanced", drives, DateTimeOffset.Now, []);
+            "Balanced", drives, DateTimeOffset.Now, []) { Uptime = TimeSpan.FromDays(9.3) };
         progress?.Report(new ProgressUpdate("Done", 100));
         return Last;
     }

@@ -74,6 +74,9 @@ public class WindowsOptimizationServiceTests
         var protectedSvc = await service.SetServiceStartModeAsync("RpcSs", "Disabled", CancellationToken.None);
         Assert.False(protectedSvc.Success);
         Assert.Contains("core Windows service", protectedSvc.Message);
+        var manual = await service.SetServiceStartModeAsync("Dnscache", "Manual", CancellationToken.None);
+        Assert.False(manual.Success);
+        Assert.Contains("start automatically", manual.Message);
         Assert.Equal(0, guard.Calls);
     }
 
@@ -261,5 +264,58 @@ public class OptimizationHelpersTests
         Assert.Equal("line two", cmd.LastLine);
         Assert.True(cmd.Success);
         Assert.False(new CommandResult(0, "", "", true).Success);
+    }
+}
+
+public class OptimizationLinksTests
+{
+    [Fact]
+    public void Power_plans_refresh_each_other()
+    {
+        var affected = OptimizationLinks.AffectedBy("power.highperformance");
+        Assert.Equal("power.highperformance", affected[0]);
+        Assert.Contains("power.balanced", affected);
+        Assert.Contains("power.ultimate", affected);
+        Assert.Equal(3, affected.Count);
+        Assert.True(OptimizationLinks.AreExclusive("power.balanced", "power.ultimate"));
+        Assert.False(OptimizationLinks.AreExclusive("power.balanced", "power.balanced"));
+    }
+
+    [Fact]
+    public void Hibernation_fast_startup_and_visual_presets_are_linked()
+    {
+        Assert.Contains("faststartup.disable", OptimizationLinks.AffectedBy("hibernation.disable"));
+        Assert.Contains("faststartup.enable", OptimizationLinks.AffectedBy("hibernation.disable"));
+        Assert.Contains("hibernation.disable", OptimizationLinks.AffectedBy("faststartup.enable"));
+        Assert.Contains("transparency.disable", OptimizationLinks.AffectedBy("visuals.performance"));
+        Assert.Contains("animations.disable", OptimizationLinks.AffectedBy("visuals.balanced"));
+        Assert.Contains("visuals.performance", OptimizationLinks.AffectedBy("transparency.disable"));
+        Assert.True(OptimizationLinks.AreExclusive("faststartup.enable", "faststartup.disable"));
+        Assert.True(OptimizationLinks.AreExclusive("visuals.performance", "visuals.balanced"));
+        Assert.False(OptimizationLinks.AreExclusive("transparency.disable", "gamemode.enable"));
+    }
+
+    [Fact]
+    public void Unlinked_actions_only_refresh_themselves()
+    {
+        Assert.Equal(["gamemode.enable"], OptimizationLinks.AffectedBy("gamemode.enable"));
+        Assert.Equal(["sfc.scannow"], OptimizationLinks.AffectedBy("sfc.scannow"));
+        Assert.Equal(["latency.hags.off"], OptimizationLinks.AffectedBy("latency.hags.off"));
+        Assert.Throws<ArgumentException>(() => OptimizationLinks.AffectedBy(" "));
+    }
+
+    [Fact]
+    public async Task Demo_service_mirrors_the_links()
+    {
+        var svc = new DemoOptimizationService([]);
+        Assert.True((await svc.ApplyAsync("hibernation.disable", CancellationToken.None)).Success);
+        Assert.True((await svc.GetStateAsync("faststartup.disable", CancellationToken.None)).IsApplied);
+        Assert.False((await svc.GetStateAsync("faststartup.enable", CancellationToken.None)).IsApplied);
+
+        Assert.True((await svc.ApplyAsync("visuals.performance", CancellationToken.None)).Success);
+        Assert.True((await svc.GetStateAsync("transparency.disable", CancellationToken.None)).IsApplied);
+        Assert.True((await svc.GetStateAsync("animations.disable", CancellationToken.None)).IsApplied);
+        Assert.True((await svc.ApplyAsync("visuals.balanced", CancellationToken.None)).Success);
+        Assert.False((await svc.GetStateAsync("transparency.disable", CancellationToken.None)).IsApplied);
     }
 }

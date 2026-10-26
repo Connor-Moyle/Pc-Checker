@@ -47,6 +47,9 @@ public sealed record PerformanceReport(
     DateTimeOffset Captured,
     IReadOnlyList<string> Warnings)
 {
+    /// <summary>Time since Windows last started (from the tick count, or LastBootUpTime as a fallback); null when unknown.</summary>
+    public TimeSpan? Uptime { get; init; }
+
     public static PerformanceReport Empty(string? warning = null) =>
         new(0, [], [], [], [], null, 0, 0, null, [], DateTimeOffset.Now, warning is null ? [] : [warning]);
 }

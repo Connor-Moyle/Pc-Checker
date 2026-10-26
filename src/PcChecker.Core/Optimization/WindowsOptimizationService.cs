@@ -115,9 +115,11 @@ public sealed partial class WindowsOptimizationService : IOptimizationService, I
             return Task.FromResult(OperationResult.Fail($"\"{startMode}\" is not a start mode that can be set. Use Automatic, Automatic (Delayed), Manual or Disabled."));
         }
 
-        if (ServiceClassifier.IsProtected(serviceName) && scMode == "disabled")
+        if (ServiceClassifier.IsProtected(serviceName) && !ServiceClassifier.IsAutomaticScMode(scMode))
         {
-            return Task.FromResult(OperationResult.Fail($"{serviceName} is a core Windows service and cannot be disabled from here."));
+            return Task.FromResult(OperationResult.Fail(scMode == "disabled"
+                ? $"{serviceName} is a core Windows service and cannot be disabled from here."
+                : $"{serviceName} is a core Windows service; Windows expects it to start automatically, so it cannot be set to {startMode} from here."));
         }
 
         var options = ChangeOptions.For(Module, $"service:{serviceName}", reversible: true, undoHint: $"sc config {serviceName} start= <previous mode>");

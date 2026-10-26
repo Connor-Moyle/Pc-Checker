@@ -16,6 +16,7 @@ public static class SlowdownRules
     public const long HungryProcessBytes = 2L * 1024 * 1024 * 1024;
     public const double HungryProcessCpu = 25;
     public const double UptimeRestartDays = 7;
+    public const long SmallPageFileBytes = 1024L * 1024 * 1024;
 
     private static readonly string[] NonEssentialServiceNames =
     [
@@ -130,6 +131,31 @@ public static class SlowdownRules
                 "Slightly slower UI", ["visuals.performance", "transparency.disable", "animations.disable"], false));
         }
 
+        if (facts.TransparencyEnabled == true && facts.VisualEffectsBestAppearance != true
+            && facts.MemoryTotalBytes > 0 && facts.MemoryTotalBytes < 8L * 1024 * 1024 * 1024)
+        {
+            findings.Add(new("visuals.transparency", FindingCategory.Visuals, Severity.Info, "Transparency effects are on",
+                "The see-through Start menu and taskbar are redrawn by the GPU every frame, which an older or integrated GPU notices.",
+                "Slightly slower UI", ["transparency.disable"], false));
+        }
+
+        // Page file
+        if (facts.PageFileAutomatic == false && facts.PageFileBytes is { } pageFile)
+        {
+            if (pageFile <= 0)
+            {
+                findings.Add(new("pagefile.off", FindingCategory.Memory, Severity.Medium, "The page file is turned off",
+                    "Without a page file Windows cannot move idle data out of RAM, and programs fail outright when memory runs out instead of slowing down.",
+                    "Crashes and \"out of memory\" errors under load", [], false));
+            }
+            else if (pageFile < SmallPageFileBytes && facts.MemoryTotalBytes > 0 && facts.MemoryTotalBytes < 16L * 1024 * 1024 * 1024)
+            {
+                findings.Add(new("pagefile.small", FindingCategory.Memory, Severity.Low, "The page file is set very small",
+                    $"The page file is fixed at {ByteSize.Format(pageFile)}. Letting Windows manage its size avoids out-of-memory errors on a PC with {ByteSize.Format(facts.MemoryTotalBytes)} of RAM.",
+                    "Programs may fail when memory is full", [], false));
+            }
+        }
+
         // Services
         var heavyServices = facts.Services.Where(s => NonEssentialServiceNames.Contains(s.Name, StringComparer.OrdinalIgnoreCase)
             && s.State.Equals("Running", StringComparison.OrdinalIgnoreCase)).ToList();
@@ -206,6 +232,13 @@ public static class SlowdownRules
             findings.Add(new("faststartup.on.desktop", FindingCategory.Power, Severity.Info, "Fast startup is on",
                 "On a desktop with an SSD, fast startup saves only a second or two, but it stops Windows from fully restarting and can hide driver problems after updates.",
                 "Occasional odd behaviour until a full restart", ["faststartup.disable"], false));
+        }
+
+        if (facts.GameBarEnabled == true)
+        {
+            findings.Add(new("gamebar.on", FindingCategory.Configuration, Severity.Info, "Xbox Game Bar background recording is on",
+                "The Game Bar keeps an overlay and its capture features ready while you play. Turning it off frees a little GPU and memory in games.",
+                "Small overhead in games", ["gamebar.disable"], false));
         }
 
         if (facts.GameModeEnabled == false)

@@ -49,6 +49,7 @@ public sealed class WindowsPerformanceAnalyzer : IPerformanceAnalyzer
         progress?.Report(new ProgressUpdate("Memory and drives", 55));
         var os = await Task.Run(() => WindowsSystemProbe.OperatingSystem(warnings), cancellationToken).ConfigureAwait(false);
         var drives = await Task.Run(() => WindowsSystemProbe.Drives(warnings), cancellationToken).ConfigureAwait(false);
+        var (pageFileAutomatic, pageFileBytes) = await Task.Run(() => WindowsSystemProbe.PageFile(warnings), cancellationToken).ConfigureAwait(false);
         var trim = await WindowsSystemProbe.TrimEnabledAsync(cancellationToken).ConfigureAwait(false);
 
         progress?.Report(new ProgressUpdate("Power and Windows settings", 70));
@@ -64,7 +65,8 @@ public sealed class WindowsPerformanceAnalyzer : IPerformanceAnalyzer
         long freeMemory = os?.FreeBytes ?? 0;
         double usedPercent = totalMemory > 0 ? Math.Round(100.0 * (totalMemory - freeMemory) / totalMemory, 1) : 0;
         double? commitPercent = os is { CommitLimitBytes: > 0 } o ? Math.Round(100.0 * (o.CommitLimitBytes - o.CommitFreeBytes) / o.CommitLimitBytes, 1) : null;
-        double uptimeDays = PerformanceTextParsers.UptimeDays(Environment.TickCount64);
+        var uptime = PerformanceTextParsers.UptimeFrom(SafeTickCount(), os?.LastBoot, DateTime.Now);
+        double? uptimeDays = uptime is { } up ? Math.Round(up.TotalDays, 2) : null;
         var systemDrive = drives.FirstOrDefault(d => d.Drive.StartsWith("C", StringComparison.OrdinalIgnoreCase));
         int? visualFx = WindowsSystemProbe.VisualEffectsSetting();
 
@@ -81,6 +83,7 @@ public sealed class WindowsPerformanceAnalyzer : IPerformanceAnalyzer
             FastStartupEnabled = WindowsSystemProbe.FastStartupEnabled(),
             HibernationEnabled = WindowsSystemProbe.HibernationEnabled(),
             VisualEffectsBestAppearance = visualFx is null ? null : visualFx == 1,
+            TransparencyEnabled = WindowsSystemProbe.TransparencyEnabled(),
             GameModeEnabled = WindowsSystemProbe.GameModeEnabled(),
             GameBarEnabled = WindowsSystemProbe.GameBarEnabled(),
             BackgroundAppsEnabled = WindowsSystemProbe.BackgroundAppsEnabled(),
@@ -95,6 +98,8 @@ public sealed class WindowsPerformanceAnalyzer : IPerformanceAnalyzer
             HasBattery = hasBattery,
             UptimeDays = uptimeDays,
             ThirdPartyAntivirusCount = WindowsSystemProbe.ThirdPartyAntivirusCount(),
+            PageFileAutomatic = pageFileAutomatic,
+            PageFileBytes = pageFileBytes,
             LogicalProcessors = Environment.ProcessorCount,
             Drives = drives,
         };
@@ -108,7 +113,7 @@ public sealed class WindowsPerformanceAnalyzer : IPerformanceAnalyzer
         }
 
         Last = new PerformanceReport(score, findings, startupItems, services, topProcesses, bootSeconds, usedPercent, totalMemory,
-            scheme?.Name, drives, now, warnings);
+            scheme?.Name, drives, now, warnings) { Uptime = uptime };
         _logger.LogInformation("Slowdown scan finished: score {Score}, {Findings} findings, {Warnings} warnings.", score, findings.Count, warnings.Count);
         progress?.Report(new ProgressUpdate("Done", 100));
         return Last;
@@ -131,6 +136,18 @@ public sealed class WindowsPerformanceAnalyzer : IPerformanceAnalyzer
         catch
         {
             return (null, null);
+        }
+    }
+
+    private static long SafeTickCount()
+    {
+        try
+        {
+            return Environment.TickCount64;
+        }
+        catch
+        {
+            return 0;
         }
     }
 

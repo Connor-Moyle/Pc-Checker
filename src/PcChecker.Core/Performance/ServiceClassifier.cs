@@ -124,6 +124,23 @@ public static class ServiceClassifier
         };
     }
 
+    /// <summary>True for the <c>sc config start=</c> arguments that keep a service starting with Windows.</summary>
+    public static bool IsAutomaticScMode(string? scMode) => scMode is "auto" or "delayed-auto";
+
+    /// <summary>
+    /// The start modes offered for one service: the four settable modes, plus the service's current mode when it is
+    /// something else (Boot, System, Unknown) so the ComboBox never shows an empty selection.
+    /// </summary>
+    public static IReadOnlyList<string> StartModeOptions(string? currentMode)
+    {
+        if (string.IsNullOrWhiteSpace(currentMode) || StartModes.Contains(currentMode, StringComparer.OrdinalIgnoreCase))
+        {
+            return StartModes;
+        }
+
+        return [currentMode, .. StartModes];
+    }
+
     /// <summary>Maps a friendly start mode to the <c>sc config start=</c> argument, or null when the mode cannot be set.</summary>
     public static string? ToScArgument(string? startMode)
     {

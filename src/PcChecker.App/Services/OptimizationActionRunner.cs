@@ -40,10 +40,13 @@ public sealed class OptimizationActionRunner
     /// <summary>True once any action in this session reported that a restart is needed.</summary>
     public bool IsRebootRequired { get; private set; }
 
-    /// <summary>True while an action is running (pages disable their buttons).</summary>
+    /// <summary>True while an action is running; pages observe <see cref="RunningChanged"/> and disable their Apply/Fix buttons.</summary>
     public bool IsRunning { get; private set; }
 
     public event EventHandler? RebootRequiredChanged;
+
+    /// <summary>Raised when <see cref="IsRunning"/> changes (may be raised on a background thread).</summary>
+    public event EventHandler? RunningChanged;
 
     public event EventHandler<OptimizationRunResult>? ActionCompleted;
 
@@ -80,8 +83,14 @@ public sealed class OptimizationActionRunner
             return false;
         }
 
+        if (IsRunning && confirm)
+        {
+            _notifications.Info("Please wait", "Another optimization is still running. Try again when it has finished.");
+            return false;
+        }
+
         await _gate.WaitAsync(cancellationToken);
-        IsRunning = true;
+        SetRunning(true);
         OperationResult result;
         try
         {
@@ -101,7 +110,7 @@ public sealed class OptimizationActionRunner
         }
         finally
         {
-            IsRunning = false;
+            SetRunning(false);
             _gate.Release();
         }
 
@@ -121,6 +130,24 @@ public sealed class OptimizationActionRunner
 
         ActionCompleted?.Invoke(this, new OptimizationRunResult(action.Id, revert, result));
         return result.Success;
+    }
+
+    private void SetRunning(bool running)
+    {
+        if (IsRunning == running)
+        {
+            return;
+        }
+
+        IsRunning = running;
+        try
+        {
+            RunningChanged?.Invoke(this, EventArgs.Empty);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "A RunningChanged handler threw.");
+        }
     }
 
     /// <summary>The plain-English confirmation text for an action.</summary>

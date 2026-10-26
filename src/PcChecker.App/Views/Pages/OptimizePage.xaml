@@ -15,6 +15,7 @@
     <conv:RiskToBrushConverter x:Key="RiskToBrush" />
     <conv:AppliedToBrushConverter x:Key="AppliedToBrush" />
     <conv:SymbolToIconConverter x:Key="SymbolToIcon" />
+    <conv:InverseBoolConverter x:Key="InverseBool" />
     <Style x:Key="Pill" TargetType="Border">
       <Setter Property="CornerRadius" Value="10" />
       <Setter Property="Padding" Value="8,2" />
@@ -35,6 +36,7 @@
         <StackPanel Orientation="Horizontal">
           <ui:Button Content="Refresh" Icon="{ui:SymbolIcon ArrowSync24}" Command="{Binding RefreshStatesCommand}" Margin="0,0,8,0" ToolTip="Re-check the current state of every tweak." />
           <ui:Button Appearance="Primary" Icon="{ui:SymbolIcon Rocket24}" Command="{Binding ApplyAllSafeCommand}"
+                     IsEnabled="{Binding IsActionRunning, Converter={StaticResource InverseBool}}"
                      Content="{Binding SelectedSafeCount, StringFormat='Apply all safe recommendations ({0})'}"
                      ToolTip="Applies every ticked safe tweak that is not already on, one after another." />
         </StackPanel>
@@ -131,7 +133,8 @@
                                 <ui:TextBlock Style="{StaticResource Caption}" Text="{Binding StateText}" TextWrapping="Wrap" MaxWidth="170" />
                               </StackPanel>
                             </StackPanel>
-                            <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
+                            <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center"
+                                        IsEnabled="{Binding DataContext.IsActionRunning, RelativeSource={RelativeSource AncestorType=Page}, Converter={StaticResource InverseBool}}">
                               <ui:ProgressRing IsIndeterminate="True" Width="18" Height="18" Margin="0,0,8,0" Visibility="{Binding IsBusy, Converter={StaticResource BoolToVisibility}}" />
                               <ui:Button Appearance="Primary" Content="{Binding ApplyText}" Icon="{ui:SymbolIcon Checkmark24}" MinWidth="92" Margin="0,0,6,0"
                                          IsEnabled="{Binding CanApply}"

@@ -192,6 +192,24 @@ public static class WindowsSystemProbe
         return drives;
     }
 
+    /// <summary>
+    /// Page file configuration: whether Windows manages it (Win32_ComputerSystem.AutomaticManagedPagefile) and the
+    /// current total size from Win32_PageFileUsage (AllocatedBaseSize is in MB). Null parts mean unknown.
+    /// </summary>
+    public static (bool? Automatic, long? TotalBytes) PageFile(List<string>? warnings)
+    {
+        if (!PlatformGuard.IsWindows)
+        {
+            return (null, null);
+        }
+
+        var auto = Query(@"root\cimv2", "SELECT AutomaticManagedPagefile FROM Win32_ComputerSystem", row => Bool(row, "AutomaticManagedPagefile"), warnings, "Page file settings");
+        var sizes = Query(@"root\cimv2", "SELECT AllocatedBaseSize FROM Win32_PageFileUsage", row => Long(row, "AllocatedBaseSize") ?? 0, null);
+        bool? automatic = auto.Count > 0 ? auto[0] : null;
+        long? total = auto.Count > 0 ? sizes.Sum() * 1024 * 1024 : null;
+        return (automatic, total);
+    }
+
     /// <summary>(HasBattery, OnBattery) from Win32_Battery.</summary>
     public static (bool HasBattery, bool? OnBattery) Battery()
     {
@@ -217,7 +235,11 @@ public static class WindowsSystemProbe
         return names.Count(n => !n.Contains("Defender", StringComparison.OrdinalIgnoreCase) && !n.Contains("Windows Security", StringComparison.OrdinalIgnoreCase));
     }
 
-    /// <summary>Last boot duration in seconds from the Diagnostics-Performance event 100, or null.</summary>
+    /// <summary>
+    /// Last boot duration in seconds from the Diagnostics-Performance event 100. Tries PowerShell first and falls
+    /// back to <c>wevtutil</c> (which works when script execution is restricted); null when the event is missing
+    /// (the log is cleared on some images, and never written in Safe Mode).
+    /// </summary>
     public static async Task<double?> LastBootSecondsAsync(CancellationToken cancellationToken)
     {
         if (!PlatformGuard.IsWindows)
@@ -230,7 +252,26 @@ public static class WindowsSystemProbe
         try
         {
             var result = await PowerShellRunner.RunAsync(command, TimeSpan.FromSeconds(30), cancellationToken).ConfigureAwait(false);
-            return result.Success && PerformanceTextParsers.TryParseBootTimeMs(result.StdOut, out long ms)
+            if (result.Success && PerformanceTextParsers.TryParseBootTimeMs(result.StdOut, out long ms))
+            {
+                return PerformanceTextParsers.BootTimeToSeconds(ms);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch
+        {
+            // Fall through to wevtutil.
+        }
+
+        try
+        {
+            var fallback = await ExternalCommand.RunAsync("wevtutil.exe",
+                "qe Microsoft-Windows-Diagnostics-Performance/Operational /q:\"*[System[(EventID=100)]]\" /c:1 /rd:true /f:xml",
+                cancellationToken, TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+            return fallback.Success && PerformanceTextParsers.TryParseBootTimeFromEventXml(fallback.Output, out long ms)
                 ? PerformanceTextParsers.BootTimeToSeconds(ms)
                 : null;
         }

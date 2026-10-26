@@ -147,6 +147,7 @@
                     </StackPanel>
                     <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,12,0">
                       <ui:Button Appearance="Primary" Icon="{ui:SymbolIcon WrenchScrewdriver24}" Content="Fix" Margin="0,0,6,0"
+                                 IsEnabled="{Binding DataContext.IsActionRunning, RelativeSource={RelativeSource AncestorType=Page}, Converter={StaticResource InverseBool}}"
                                  Command="{Binding DataContext.FixCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}"
                                  ToolTip="{Binding ActionTitle}" Visibility="{Binding HasFix, Converter={StaticResource BoolToVisibility}}" />
                       <ui:Button Icon="{ui:SymbolIcon Eye24}" Content="{Binding ActionTitle}" Margin="0,0,6,0"
@@ -163,8 +164,9 @@
 
           <!-- System snapshot -->
           <ui:TextBlock Style="{StaticResource CardTitle}" Text="System snapshot" Margin="0,8,0,8" />
-          <UniformGrid Columns="4" Margin="0,0,0,4">
+          <UniformGrid Columns="5" Margin="0,0,0,4">
             <controls:StatCard Title="Last startup" Value="{Binding BootTimeText}" Icon="Power24" Accent="{StaticResource AccentCyanBrush}" Subtitle="From power on to desktop" Margin="0,0,8,8" />
+            <controls:StatCard Title="Uptime" Value="{Binding UptimeText}" Icon="Clock24" Accent="{StaticResource AccentGreenBrush}" Subtitle="Since Windows last started" Margin="0,0,8,8" />
             <controls:StatCard Title="Memory in use" Value="{Binding MemoryText}" Icon="Memory16" Accent="{Binding MemoryPercent, Converter={StaticResource UsageToBrush}}" Subtitle="RAM used right now" Margin="0,0,8,8" />
             <controls:StatCard Title="Power plan" Value="{Binding PowerPlanText}" Icon="Flash24" Accent="{StaticResource AccentPurpleBrush}" Subtitle="Active Windows power plan" Margin="0,0,8,8" />
             <controls:StatCard Title="Startup programs" Value="{Binding StartupText}" Icon="Rocket24" Accent="{StaticResource AccentOrangeBrush}" Subtitle="Launch at sign-in" Margin="0,0,0,8" />
@@ -275,7 +277,7 @@
                   <DataGridTemplateColumn Header="Start mode" Width="190">
                     <DataGridTemplateColumn.CellTemplate>
                       <DataTemplate>
-                        <ComboBox ItemsSource="{Binding DataContext.StartModes, RelativeSource={RelativeSource AncestorType=Page}}"
+                        <ComboBox ItemsSource="{Binding StartModeOptions}"
                                   SelectedItem="{Binding StartMode, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,2" ToolTip="{Binding ToolTipText}" />
                       </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>

@@ -201,9 +201,15 @@ public sealed class DemoOptimizationService : IOptimizationService, IOptimizatio
                 break;
             case "visuals.performance":
             case "visuals.balanced":
-                string fx = (actionId == "visuals.performance") == applied ? "Best performance" : "Let Windows choose";
+                bool performance = (actionId == "visuals.performance") == applied;
+                string fx = performance ? "Best performance" : "Let Windows choose";
                 _current["visuals.performance"] = fx;
                 _current["visuals.balanced"] = fx;
+                // The presets rewrite the transparency and animation values too, like the real registry keys.
+                _current["transparency.disable"] = performance ? "Transparency off" : "Transparency on";
+                _current["animations.disable"] = performance ? "Animations off" : "Animations on";
+                SetApplied("transparency.disable", performance);
+                SetApplied("animations.disable", performance);
                 break;
             case "faststartup.disable":
             case "faststartup.enable":
@@ -213,7 +219,18 @@ public sealed class DemoOptimizationService : IOptimizationService, IOptimizatio
                 break;
             case "transparency.disable": _current[actionId] = applied ? "Transparency off" : "Transparency on"; break;
             case "animations.disable": _current[actionId] = applied ? "Animations off" : "Animations on"; break;
-            case "hibernation.disable": _current[actionId] = applied ? "Hibernation off" : "Hibernation on"; break;
+            case "hibernation.disable":
+                _current[actionId] = applied ? "Hibernation off" : "Hibernation on";
+                if (applied)
+                {
+                    // powercfg /hibernate off also turns fast startup off.
+                    _current["faststartup.disable"] = "Fast startup off";
+                    _current["faststartup.enable"] = "Fast startup off";
+                    SetApplied("faststartup.disable", true);
+                    SetApplied("faststartup.enable", false);
+                }
+
+                break;
             case "gamemode.enable": _current[actionId] = applied ? "Game Mode on" : "Game Mode off"; break;
             case "gamebar.disable": _current[actionId] = applied ? "Game Bar off" : "Game Bar on"; break;
             case "backgroundapps.disable": _current[actionId] = applied ? "Background apps blocked" : "Background apps allowed"; break;
@@ -224,6 +241,18 @@ public sealed class DemoOptimizationService : IOptimizationService, IOptimizatio
             case "telemetry.minimal": _current[actionId] = applied ? "Diagnostic data: required only" : "Diagnostic data: Windows default"; break;
             case "sysmain.disable": _current[actionId] = applied ? "Disabled, stopped" : "Automatic, running"; break;
             case "search.indexing.disable": _current[actionId] = applied ? "Disabled, stopped" : "Automatic (Delayed), running"; break;
+        }
+    }
+
+    private void SetApplied(string actionId, bool applied)
+    {
+        if (applied)
+        {
+            _applied.Add(actionId);
+        }
+        else
+        {
+            _applied.Remove(actionId);
         }
     }
 

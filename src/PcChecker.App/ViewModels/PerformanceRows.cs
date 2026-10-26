@@ -26,32 +26,37 @@ public sealed partial class FindingItem : ObservableObject
     public FindingItem(SlowdownFinding finding, IReadOnlyList<OptimizationAction> knownActions)
     {
         Finding = finding;
-        var action = finding.ActionIds
-            .Select(id => knownActions.FirstOrDefault(a => a.Id.Equals(id, StringComparison.OrdinalIgnoreCase)))
-            .FirstOrDefault(a => a is not null);
-        if (action is not null)
+        // The first action id decides the button: a catalog/provider action gets "Fix", a page link gets its own label.
+        foreach (var id in finding.ActionIds)
         {
-            ActionKind = FindingActionKind.Optimization;
-            ActionId = action.Id;
-            ActionTitle = action.Title;
-            ActionRisk = action.Risk;
-        }
-        else if (finding.ActionIds.Contains("startup.review"))
-        {
-            ActionKind = FindingActionKind.StartupPage;
-            ActionTitle = "Review startup programs";
-        }
-        else if (finding.ActionIds.Contains("processes.review"))
-        {
-            ActionKind = FindingActionKind.ProcessesSection;
-            ActionTitle = "Show busy processes";
-        }
-        else if (finding.ActionIds.Contains("services.review"))
-        {
-            ActionKind = FindingActionKind.ServicesSection;
-            ActionTitle = "Show services";
+            var action = knownActions.FirstOrDefault(a => a.Id.Equals(id, StringComparison.OrdinalIgnoreCase));
+            if (action is not null)
+            {
+                ActionKind = FindingActionKind.Optimization;
+                ActionId = action.Id;
+                ActionTitle = action.Title;
+                ActionRisk = action.Risk;
+                return;
+            }
+
+            var (kind, title) = LinkFor(id);
+            if (kind != FindingActionKind.None)
+            {
+                ActionKind = kind;
+                ActionTitle = title;
+                return;
+            }
         }
     }
+
+    /// <summary>Maps the page-link pseudo ids the rules emit to a section or page.</summary>
+    public static (FindingActionKind Kind, string? Title) LinkFor(string actionId) => actionId.ToLowerInvariant() switch
+    {
+        "startup.review" => (FindingActionKind.StartupPage, "Review startup programs"),
+        "processes.review" => (FindingActionKind.ProcessesSection, "Show busy processes"),
+        "services.review" => (FindingActionKind.ServicesSection, "Show services"),
+        _ => (FindingActionKind.None, null),
+    };
 
     public SlowdownFinding Finding { get; }
     public string Id => Finding.Id;
@@ -190,6 +195,9 @@ public sealed partial class ServiceRow : ObservableObject
     public string? Description => Service.Description;
     public string? Path => Service.Path;
     public string OriginalStartMode { get; private set; }
+
+    /// <summary>The ComboBox items: the settable modes plus this service's own mode when it is Boot, System or Unknown.</summary>
+    public IReadOnlyList<string> StartModeOptions => ServiceClassifier.StartModeOptions(OriginalStartMode);
     public bool IsDirty => !string.Equals(StartMode, OriginalStartMode, StringComparison.OrdinalIgnoreCase);
     public bool IsProtected => ServiceClassifier.IsProtected(Service.Name);
     public string? HogReason => ServiceClassifier.KnownHogReason(Service);
@@ -200,6 +208,7 @@ public sealed partial class ServiceRow : ObservableObject
     {
         OriginalStartMode = StartMode;
         OnPropertyChanged(nameof(IsDirty));
+        OnPropertyChanged(nameof(StartModeOptions));
     }
 
     public void Reset() => StartMode = OriginalStartMode;

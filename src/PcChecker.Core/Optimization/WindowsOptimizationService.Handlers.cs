@@ -15,6 +15,11 @@ public sealed partial class WindowsOptimizationService
     private const string DataCollectionPolicyKey = @"SOFTWARE\Policies\Microsoft\Windows\DataCollection";
     private const string PrivacyKey = @"Software\Microsoft\Windows\CurrentVersion\Privacy";
     private const string GameConfigStoreKey = @"System\GameConfigStore";
+
+    /// <summary>Where the plan that was active before a power.* action is remembered, so Revert survives an app restart.</summary>
+    public const string PreviousPowerSchemeKey = @"Software\PcChecker\Optimization";
+    public const string PreviousPowerSchemeValue = "PreviousPowerScheme";
+    public const string PreviousPowerSchemeNameValue = "PreviousPowerSchemeName";
     private static readonly TimeSpan LongToolTimeout = TimeSpan.FromMinutes(45);
 
     private Dictionary<string, Handler> BuildHandlers() => new(StringComparer.OrdinalIgnoreCase)
@@ -99,7 +104,7 @@ public sealed partial class WindowsOptimizationService
     private async Task<OperationResult> SetPowerPlanAsync(Guid plan, CancellationToken ct)
     {
         var current = await WindowsSystemProbe.ActivePowerSchemeAsync(ct).ConfigureAwait(false);
-        _previousPowerScheme = current?.Id;
+        RememberPreviousScheme(current, plan);
         var result = await ExternalCommand.RunAsync("powercfg.exe", $"/setactive {plan}", ct, TimeSpan.FromSeconds(30)).ConfigureAwait(false);
         if (!result.Success && plan == PowerPlans.HighPerformance)
         {
@@ -139,23 +144,70 @@ public sealed partial class WindowsOptimizationService
         }
 
         var current = await WindowsSystemProbe.ActivePowerSchemeAsync(ct).ConfigureAwait(false);
-        _previousPowerScheme = current?.Id;
+        RememberPreviousScheme(current, target);
         var result = await ExternalCommand.RunAsync("powercfg.exe", $"/setactive {target}", ct, TimeSpan.FromSeconds(30)).ConfigureAwait(false);
         return result.Success
             ? OperationResult.Ok("The Ultimate Performance power plan is now active.")
             : OperationResult.Fail($"powercfg could not switch the plan: {result.LastLine}");
     }
 
+    /// <summary>
+    /// Keeps the plan that was active before the first power.* change, in memory and in HKCU so that Revert still
+    /// finds a custom or OEM plan after the app has been restarted. Switching between the app's own plans does not
+    /// overwrite the remembered original.
+    /// </summary>
+    private void RememberPreviousScheme(PowerScheme? current, Guid target)
+    {
+        if (current is null || current.Id == target)
+        {
+            return;
+        }
+
+        if (_previousPowerScheme is null && ReadPersistedPreviousScheme() is null)
+        {
+            _previousPowerScheme = current.Id;
+            RegistryTweaks.SetString(RegistryHive.CurrentUser, PreviousPowerSchemeKey, PreviousPowerSchemeValue, current.Id.ToString());
+            RegistryTweaks.SetString(RegistryHive.CurrentUser, PreviousPowerSchemeKey, PreviousPowerSchemeNameValue, current.Name);
+        }
+        else if (_previousPowerScheme is null)
+        {
+            _previousPowerScheme = ReadPersistedPreviousScheme();
+        }
+    }
+
+    private static Guid? ReadPersistedPreviousScheme() =>
+        Guid.TryParse(RegistryTweaks.GetString(RegistryHive.CurrentUser, PreviousPowerSchemeKey, PreviousPowerSchemeValue), out var id) ? id : null;
+
+    private void ForgetPreviousScheme()
+    {
+        _previousPowerScheme = null;
+        RegistryTweaks.DeleteValue(RegistryHive.CurrentUser, PreviousPowerSchemeKey, PreviousPowerSchemeValue);
+        RegistryTweaks.DeleteValue(RegistryHive.CurrentUser, PreviousPowerSchemeKey, PreviousPowerSchemeNameValue);
+    }
+
     private async Task<OperationResult> RevertPowerPlanAsync(CancellationToken ct)
     {
-        var target = _previousPowerScheme ?? PowerPlans.Balanced;
+        var remembered = _previousPowerScheme ?? ReadPersistedPreviousScheme();
+        var target = remembered ?? PowerPlans.Balanced;
+        string? name = remembered is null ? null : RegistryTweaks.GetString(RegistryHive.CurrentUser, PreviousPowerSchemeKey, PreviousPowerSchemeNameValue);
         var result = await ExternalCommand.RunAsync("powercfg.exe", $"/setactive {target}", ct, TimeSpan.FromSeconds(30)).ConfigureAwait(false);
         if (!result.Success && target != PowerPlans.Balanced)
         {
+            // The remembered plan no longer exists (deleted or a different OEM image): fall back to Balanced.
             result = await ExternalCommand.RunAsync("powercfg.exe", $"/setactive {PowerPlans.Balanced}", ct, TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+            name = null;
+            remembered = null;
         }
 
-        return result.Success ? OperationResult.Ok("The previous power plan is active again.") : OperationResult.Fail($"powercfg failed: {result.LastLine}");
+        if (!result.Success)
+        {
+            return OperationResult.Fail($"powercfg failed: {result.LastLine}");
+        }
+
+        ForgetPreviousScheme();
+        return OperationResult.Ok(remembered is null
+            ? "The Balanced power plan is active again."
+            : $"The previous power plan ({name ?? PowerPlans.NameFor(remembered.Value)}) is active again.");
     }
 
     // ---- Visual effects, animations, transparency ------------------------------------------------------------------

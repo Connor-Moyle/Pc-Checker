@@ -67,10 +67,6 @@ A slowdown scan that looks at startup items, services, hungry processes,
 memory and disk pressure, the active power plan, fast startup, visual effects,
 boot time, HDD versus SSD and TRIM, pending updates and thermal throttling.
 Findings are prioritised and each one links to the action that fixes it.
-The page also shows a performance score, startup programs with on/off
-switches, the busiest processes (with "End task"), services with editable
-start modes in Advanced mode, a system snapshot, quick links to the Latency,
-Startup, Memory and Cleanup pages, and exports the report as Markdown or JSON.
 
 ## Optimize
 
@@ -83,9 +79,7 @@ One-click, reversible tweaks grouped by risk:
   repair, `sfc /scannow`, network reset.
 
 Every change is confirmed first, creates a restore point (per your settings)
-and is recorded in the Action Journal with how to undo it. The page detects
-the current state of each tweak, offers "Apply all safe recommendations", and
-streams the live output of long-running tools such as DISM and SFC.
+and is recorded in the Action Journal with how to undo it.
 
 ## Cleanup
 

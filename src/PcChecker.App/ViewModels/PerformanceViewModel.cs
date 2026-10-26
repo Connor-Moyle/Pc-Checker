@@ -34,6 +34,8 @@ public sealed partial class PerformanceViewModel : ViewModelBase
     [ObservableProperty] private string _findingsSummary = string.Empty;
     [ObservableProperty] private string? _capturedText;
     [ObservableProperty] private bool _isRebootRequired;
+    [ObservableProperty] private bool _isActionRunning;
+    [ObservableProperty] private string _uptimeText = "—";
     [ObservableProperty] private string _bootTimeText = "—";
     [ObservableProperty] private string _memoryText = "—";
     [ObservableProperty] private double _memoryPercent;
@@ -62,7 +64,9 @@ public sealed partial class PerformanceViewModel : ViewModelBase
         _navigation = navigation;
         _logger = logger;
         _isRebootRequired = runner.IsRebootRequired;
+        _isActionRunning = runner.IsRunning;
         runner.RebootRequiredChanged += (_, _) => DispatcherHelper.PostToUi(() => IsRebootRequired = _runner.IsRebootRequired);
+        runner.RunningChanged += (_, _) => DispatcherHelper.PostToUi(() => IsActionRunning = _runner.IsRunning);
 
         QuickWins =
         [
@@ -157,6 +161,7 @@ public sealed partial class PerformanceViewModel : ViewModelBase
         MemoryPercent = report.MemoryUsedPercent;
         MemoryText = report.MemoryTotalBytes > 0 ? $"{report.MemoryUsedPercent:0}% of {ByteSize.Format(report.MemoryTotalBytes)}" : "Unknown";
         PowerPlanText = report.ActivePowerPlan ?? "Unknown";
+        UptimeText = report.Uptime is { } uptime ? PerformanceTextParsers.FormatUptime(uptime) : "Unknown";
         int enabledStartup = report.StartupItems.Count(s => s.Enabled);
         StartupText = $"{enabledStartup} enabled";
         ProcessText = report.TopProcesses.Count > 0 ? $"{report.TopProcesses[0].Name} ({report.TopProcesses[0].CpuPercent:0.#}% CPU)" : "—";
@@ -304,10 +309,21 @@ public sealed partial class PerformanceViewModel : ViewModelBase
         }
 
         bool disabling = row.StartMode.Equals("Disabled", StringComparison.OrdinalIgnoreCase);
+        bool coreToNonAutomatic = row.IsProtected && !ServiceClassifier.IsAutomatic(row.StartMode);
+        if (coreToNonAutomatic)
+        {
+            row.Reset();
+            _notifications.Warning("Core Windows service", $"{row.DisplayName} is part of Windows and must keep starting automatically. Choose Automatic or Automatic (Delayed).");
+            return;
+        }
+
+        string warning = disabling
+            ? "Disabled services cannot start at all, even when a program needs them. Prefer Manual unless you are sure.\n\n"
+            : row.IsMicrosoft && !ServiceClassifier.IsAutomatic(row.StartMode)
+                ? "This is a Windows service. Features that rely on it may stop working until it is set back.\n\n"
+                : string.Empty;
         if (!await _dialogs.ConfirmAsync($"Change {row.DisplayName}?",
-                $"Start mode: {row.OriginalStartMode} → {row.StartMode}.\n\n" + (disabling
-                    ? "Disabled services cannot start at all, even when a program needs them. Prefer Manual unless you are sure.\n\n"
-                    : string.Empty) + _runner.RestorePointNote, "Change", isDanger: disabling))
+                $"Start mode: {row.OriginalStartMode} → {row.StartMode}.\n\n" + warning + _runner.RestorePointNote, "Change", isDanger: disabling || (row.IsMicrosoft && warning.Length > 0)))
         {
             row.Reset();
             return;

@@ -40,6 +40,15 @@ public sealed record PerformanceFacts
     /// <summary>Commit charge (RAM + page file in use) as a percentage of the commit limit.</summary>
     public double? CommitUsedPercent { get; init; }
 
+    /// <summary>True when Windows manages the page file size itself, false when it is set by hand, null when unknown.</summary>
+    public bool? PageFileAutomatic { get; init; }
+
+    /// <summary>Current page file size across all drives in bytes (0 = no page file), or null when unknown.</summary>
+    public long? PageFileBytes { get; init; }
+
+    /// <summary>Transparency effects (Start menu, taskbar) on/off, or null when unknown.</summary>
+    public bool? TransparencyEnabled { get; init; }
+
     public int LogicalProcessors { get; init; }
     public IReadOnlyList<(string Drive, long Free, long Total, string MediaType)> Drives { get; init; } = [];
 }

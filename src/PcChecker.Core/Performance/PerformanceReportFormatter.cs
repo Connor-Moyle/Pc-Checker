@@ -27,6 +27,7 @@ public static class PerformanceReportFormatter
         sb.AppendLine("|---|---|");
         sb.AppendLine(CultureInfo.InvariantCulture, $"| Last boot | {(report.LastBootSeconds is { } b ? $"{b:0.#} s" : "unknown")} |");
         sb.AppendLine(CultureInfo.InvariantCulture, $"| Memory in use | {report.MemoryUsedPercent:0}% of {ByteSize.Format(report.MemoryTotalBytes)} |");
+        sb.AppendLine(CultureInfo.InvariantCulture, $"| Uptime | {(report.Uptime is { } up ? PerformanceTextParsers.FormatUptime(up) : "unknown")} |");
         sb.AppendLine(CultureInfo.InvariantCulture, $"| Power plan | {report.ActivePowerPlan ?? "unknown"} |");
         foreach (var (drive, free, total, media) in report.Drives)
         {
@@ -126,6 +127,7 @@ public static class PerformanceReportFormatter
             report.MemoryUsedPercent,
             report.MemoryTotalBytes,
             report.ActivePowerPlan,
+            UptimeSeconds = report.Uptime?.TotalSeconds,
             Drives = report.Drives.Select(d => new { d.Drive, d.Free, d.Total, d.MediaType }),
             report.Warnings,
         };

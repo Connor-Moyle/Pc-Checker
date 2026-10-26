@@ -266,3 +266,89 @@ public class PerformanceReportFormatterTests
         Assert.Equal(report.Findings.OrderByDescending(f => f.Severity).Select(f => f.Severity), report.Findings.Select(f => f.Severity));
     }
 }
+
+public class SlowdownRulesFactsTests
+{
+    private static PerformanceFacts Healthy() => new()
+    {
+        MemoryUsedPercent = 40,
+        MemoryTotalBytes = 32L * 1024 * 1024 * 1024,
+        ActivePowerPlan = "High performance",
+        Drives = [("C:", 200L * 1024 * 1024 * 1024, 500L * 1024 * 1024 * 1024, "SSD")],
+        LastBootSeconds = 20,
+        SystemDriveIsSsd = true,
+        TrimEnabled = true,
+        HasBattery = false,
+        GameModeEnabled = true,
+        PageFileAutomatic = true,
+        PageFileBytes = 4L * 1024 * 1024 * 1024,
+    };
+
+    [Fact]
+    public void Page_file_off_or_tiny_is_reported_only_when_managed_by_hand()
+    {
+        var off = Assert.Single(SlowdownRules.Evaluate(Healthy() with { PageFileAutomatic = false, PageFileBytes = 0 }), f => f.Id == "pagefile.off");
+        Assert.Equal(Severity.Medium, off.Severity);
+        Assert.DoesNotContain(SlowdownRules.Evaluate(Healthy() with { PageFileAutomatic = true, PageFileBytes = 0 }), f => f.Id.StartsWith("pagefile."));
+        Assert.DoesNotContain(SlowdownRules.Evaluate(Healthy() with { PageFileAutomatic = null, PageFileBytes = null }), f => f.Id.StartsWith("pagefile."));
+
+        var small = Healthy() with { PageFileAutomatic = false, PageFileBytes = 256L * 1024 * 1024, MemoryTotalBytes = 8L * 1024 * 1024 * 1024 };
+        Assert.Contains(SlowdownRules.Evaluate(small), f => f.Id == "pagefile.small" && f.Severity == Severity.Low);
+        Assert.DoesNotContain(SlowdownRules.Evaluate(small with { MemoryTotalBytes = 64L * 1024 * 1024 * 1024 }), f => f.Id == "pagefile.small");
+    }
+
+    [Fact]
+    public void Transparency_and_game_bar_link_to_their_optimizations()
+    {
+        var smallPc = Healthy() with { MemoryTotalBytes = 4L * 1024 * 1024 * 1024, TransparencyEnabled = true, VisualEffectsBestAppearance = false };
+        Assert.Contains(SlowdownRules.Evaluate(smallPc), f => f.Id == "visuals.transparency" && f.ActionIds.Contains("transparency.disable"));
+        Assert.DoesNotContain(SlowdownRules.Evaluate(smallPc with { VisualEffectsBestAppearance = true }), f => f.Id == "visuals.transparency");
+        Assert.DoesNotContain(SlowdownRules.Evaluate(Healthy() with { TransparencyEnabled = true }), f => f.Id == "visuals.transparency");
+
+        var bar = Assert.Single(SlowdownRules.Evaluate(Healthy() with { GameBarEnabled = true }), f => f.Id == "gamebar.on");
+        Assert.Equal(Severity.Info, bar.Severity);
+        Assert.Contains("gamebar.disable", bar.ActionIds);
+        Assert.DoesNotContain(SlowdownRules.Evaluate(Healthy() with { GameBarEnabled = false }), f => f.Id == "gamebar.on");
+    }
+
+    [Fact]
+    public void Boot_time_is_read_from_wevtutil_xml_and_uptime_falls_back_to_last_boot()
+    {
+        const string xml = "<Event xmlns='http://schemas.microsoft.com/win/2004/08/events/event'><System><EventID>100</EventID></System>"
+                           + "<EventData><Data Name='BootTsVersion'>2</Data><Data Name='BootTime'>41235</Data><Data Name='MainPathBootTime'>22000</Data></EventData></Event>";
+        Assert.True(PerformanceTextParsers.TryParseBootTimeFromEventXml(xml, out long ms));
+        Assert.Equal(41235, ms);
+        Assert.True(PerformanceTextParsers.TryParseBootTimeFromEventXml("<Data Name=\"BootTime\">18412</Data>", out ms));
+        Assert.Equal(18412, ms);
+        Assert.False(PerformanceTextParsers.TryParseBootTimeFromEventXml("<Data Name='BootTime'>0</Data>", out _));
+        Assert.False(PerformanceTextParsers.TryParseBootTimeFromEventXml("No events were found", out _));
+        Assert.False(PerformanceTextParsers.TryParseBootTimeFromEventXml(null, out _));
+
+        var now = new DateTime(2025, 10, 20, 12, 0, 0);
+        Assert.Equal(TimeSpan.FromHours(36), PerformanceTextParsers.UptimeFrom(36 * 60 * 60 * 1000L, null, now));
+        Assert.Equal(TimeSpan.FromDays(2), PerformanceTextParsers.UptimeFrom(0, now.AddDays(-2), now));
+        Assert.Null(PerformanceTextParsers.UptimeFrom(0, null, now));
+        Assert.Null(PerformanceTextParsers.UptimeFrom(-1, now.AddDays(1), now));
+    }
+
+    [Fact]
+    public void Start_mode_options_always_contain_the_current_mode()
+    {
+        Assert.Equal(ServiceClassifier.StartModes, ServiceClassifier.StartModeOptions("Manual"));
+        Assert.Equal(ServiceClassifier.StartModes, ServiceClassifier.StartModeOptions(null));
+        var boot = ServiceClassifier.StartModeOptions("Boot");
+        Assert.Equal("Boot", boot[0]);
+        Assert.Equal(ServiceClassifier.StartModes.Count + 1, boot.Count);
+        Assert.True(ServiceClassifier.IsAutomaticScMode("delayed-auto"));
+        Assert.False(ServiceClassifier.IsAutomaticScMode("demand"));
+    }
+
+    [Fact]
+    public void Demo_report_carries_uptime_and_report_export_shows_it()
+    {
+        var report = new PerformanceReport(90, [], [], [], [], 18.4, 42, 32L * 1024 * 1024 * 1024, "Balanced", [], DateTimeOffset.Now, []) { Uptime = TimeSpan.FromDays(9.3) };
+        Assert.Contains("| Uptime | 9 days 7 h |", PerformanceReportFormatter.BuildMarkdown(report));
+        Assert.Contains("\"UptimeSeconds\"", PerformanceReportFormatter.BuildJson(report));
+        Assert.Contains("| Uptime | unknown |", PerformanceReportFormatter.BuildMarkdown(report with { Uptime = null }));
+    }
+}
