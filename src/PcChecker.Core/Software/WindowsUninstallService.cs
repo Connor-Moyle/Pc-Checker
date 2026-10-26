@@ -8,7 +8,7 @@ namespace PcChecker.Core.Software;
 /// <summary>
 /// Windows implementation of <see cref="IUninstallService"/>: builds the command with
 /// <see cref="UninstallCommandBuilder"/>, runs it through <see cref="IChangeGuard"/> (restore point + journal), maps the
-/// exit code and confirms the registry entry is gone.
+/// exit code and confirms the registry entry is gone (allowing a short grace period for uninstallers that finish in the background).
 /// </summary>
 public sealed class WindowsUninstallService : IUninstallService
 {
@@ -104,17 +104,30 @@ public sealed class WindowsUninstallService : IUninstallService
         }
 
         progress?.Report(new ProgressUpdate("Checking the program is gone", 90, program.Name));
-        if (RegistryUninstallReader.KeyExists(program.RegistryKey))
-        {
-            if (quiet)
-            {
-                return OperationResult.Fail($"The uninstaller finished but {program.Name} is still registered. Try again without quiet mode so you can follow its own prompts.");
-            }
 
-            return mapped with { Message = mapped.Message + " Its registry entry is still present; it may disappear after a restart or the uninstaller may have been cancelled." };
+        // NSIS-style uninstallers exit before their temp copy has finished removing the program, so give the registry
+        // entry a moment to disappear instead of judging it the instant the process returns.
+        var gone = await UninstallCompletionWaiter.WaitUntilGoneAsync(
+            () => RegistryUninstallReader.KeyExists(program.RegistryKey),
+            UninstallCompletionWaiter.GraceFor(program.Installer, quiet),
+            UninstallCompletionWaiter.DefaultInterval,
+            cancellationToken).ConfigureAwait(false);
+        if (gone)
+        {
+            return mapped;
         }
 
-        return mapped;
+        _logger.LogInformation("Uninstaller for {Program} reported success but its registry entry is still present after the grace period.", program.Name);
+        if (quiet)
+        {
+            return mapped with
+            {
+                Message = mapped.Message + $" {program.Name} is still registered, so its uninstaller may still be finishing in the background."
+                    + " Scan again in a minute; if it still appears, run the uninstall without quiet mode so you can follow its own prompts.",
+            };
+        }
+
+        return mapped with { Message = mapped.Message + " Its registry entry is still present; it may disappear after a restart or the uninstaller may have been cancelled." };
     }
 
     private async Task<OperationResult> RemoveStoreAppAsync(InstalledProgram program, IProgress<ProgressUpdate>? progress, CancellationToken cancellationToken)

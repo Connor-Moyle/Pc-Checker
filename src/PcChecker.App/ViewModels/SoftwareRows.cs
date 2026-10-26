@@ -1,6 +1,5 @@
 using System.ComponentModel;
 using System.Globalization;
-using CommunityToolkit.Mvvm.ComponentModel;
 using PcChecker.Core.Common;
 using PcChecker.Core.Software;
 
@@ -42,11 +41,8 @@ public enum SoftwareSortOrder
 }
 
 /// <summary>One program as shown in the list, with display-ready text and the uninstall verdict.</summary>
-public sealed partial class ProgramRow : ObservableObject
+public sealed class ProgramRow
 {
-    [ObservableProperty]
-    private bool _isExpanded;
-
     public ProgramRow(InstalledProgram program, (bool CanUninstall, string Reason) verdict, string? bundledWithName, IReadOnlyList<BundleChildRow> children)
     {
         Program = program;

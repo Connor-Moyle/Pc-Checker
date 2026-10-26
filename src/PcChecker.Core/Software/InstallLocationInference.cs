@@ -53,14 +53,82 @@ public static class InstallLocationInference
             return null;
         }
 
-        var dir = file[..cut];
-        if (IsSystemOrTempFolder(dir))
+        var dir = Normalize(file[..cut]);
+        if (dir is null || IsSystemOrTempFolder(dir) || IsWellKnownRoot(dir))
         {
             return null;
         }
 
-        return Normalize(dir);
+        return dir;
     }
+
+    /// <summary>
+    /// True for folders that hold many programs rather than one: drive roots, Program Files, ProgramData, user profiles
+    /// and the AppData folders. An executable sitting directly in one of these says nothing about an install folder,
+    /// and measuring such a folder would count every program in it.
+    /// </summary>
+    public static bool IsWellKnownRoot(string dir)
+    {
+        if (string.IsNullOrWhiteSpace(dir))
+        {
+            return true;
+        }
+
+        var d = dir.Trim().Trim('"').Replace('/', '\\').TrimEnd('\\');
+        if (d.Length <= 2)
+        {
+            return true; // "C:" – a drive root.
+        }
+
+        var segments = d.Split('\\', StringSplitOptions.RemoveEmptyEntries);
+        if (segments.Length <= 1)
+        {
+            return true;
+        }
+
+        var last = segments[^1];
+        if (segments.Length == 2 && SharedRootFolders.Contains(last, StringComparer.OrdinalIgnoreCase))
+        {
+            return true; // C:\Program Files, C:\ProgramData, C:\Users …
+        }
+
+        if (segments.Length == 3 && last.Equals("Common Files", StringComparison.OrdinalIgnoreCase)
+            && segments[1].StartsWith("Program Files", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        // C:\Users\<name>, C:\Users\<name>\AppData, …\AppData\Local, …\AppData\Roaming, …\AppData\Local\Programs
+        int users = Array.FindIndex(segments, seg => seg.Equals("Users", StringComparison.OrdinalIgnoreCase));
+        if (users == 1 && segments.Length <= 3)
+        {
+            return true;
+        }
+
+        int appData = Array.FindIndex(segments, seg => seg.Equals("AppData", StringComparison.OrdinalIgnoreCase));
+        if (appData > 0)
+        {
+            int depth = segments.Length - appData - 1;
+            if (depth == 0 || (depth == 1 && AppDataFolders.Contains(last, StringComparer.OrdinalIgnoreCase)))
+            {
+                return true;
+            }
+
+            if (depth == 2 && segments[^2].Equals("Local", StringComparison.OrdinalIgnoreCase) && last.Equals("Programs", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static readonly string[] SharedRootFolders =
+    [
+        "Program Files", "Program Files (x86)", "ProgramData", "Users", "Windows",
+    ];
+
+    private static readonly string[] AppDataFolders = ["Local", "LocalLow", "Roaming"];
 
     /// <summary>True for msiexec, rundll32 and other hosts that say nothing about where the program is installed.</summary>
     public static bool IsGenericHost(string fileName)

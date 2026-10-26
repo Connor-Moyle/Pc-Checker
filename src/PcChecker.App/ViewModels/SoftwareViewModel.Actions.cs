@@ -63,7 +63,7 @@ public sealed partial class SoftwareViewModel
             ReportResult(result, "Uninstall");
             if (result.Success)
             {
-                ApplyInventory(await _inventory.ScanAsync(progress, ct));
+                ApplyScan(await _inventory.ScanAsync(progress, ct));
             }
         }, $"Uninstalling {row.Name}…");
     }
@@ -113,30 +113,50 @@ public sealed partial class SoftwareViewModel
             }
 
             _notifications.Show("Bundle clean-up finished", $"{ok} removed, {failed} skipped or failed.", failed == 0 ? NotificationKind.Success : NotificationKind.Warning);
-            ApplyInventory(await _inventory.ScanAsync(null, ct));
+            ApplyScan(await _inventory.ScanAsync(null, ct));
         }, "Uninstalling bundled extras…");
     }
 
+    /// <summary>
+    /// Measures install folders for entries whose installer recorded no size. Entries that already have one are left
+    /// alone: a measured parent folder (say a vendor's whole "NVIDIA Corporation" folder) would double-count nested
+    /// installs and inflate the total. The results live in the view model so export and later visits keep them.
+    /// </summary>
     [RelayCommand]
     private Task CalculateSizesAsync() => RunBusyAsync(async ct =>
     {
-        var current = _inventory.Last;
+        var current = _current;
         if (current is null)
         {
             return;
         }
 
         var progress = new Progress<ProgressUpdate>(p => BusyText = p.Detail is null ? p.Stage + "…" : $"{p.Stage}…\n{p.Detail}");
-        var updated = await DirectorySizeCalculator.CalculateAsync(current.Programs, onlyMissing: false, progress, ct);
-        int measured = updated.Count(p => p.SizeBytes is > 0) - current.Programs.Count(p => p.SizeBytes is > 0);
+        var updated = await DirectorySizeCalculator.CalculateAsync(current.Programs, onlyMissing: true, progress, ct);
+        var before = current.Programs.ToDictionary(p => p.Id, p => p.SizeBytes, StringComparer.OrdinalIgnoreCase);
+        int measured = 0;
+        foreach (var program in updated)
+        {
+            if (program.SizeBytes is { } size and > 0 && before.TryGetValue(program.Id, out var old) && old is null or 0)
+            {
+                _measuredSizes[program.Id] = size;
+                measured++;
+            }
+        }
+
+        int stillUnknown = updated.Count(p => p.SizeBytes is null or 0);
         ApplyInventory(current with { Programs = updated, Bundles = RelinkBundles(current.Bundles, updated) });
-        _notifications.Info("Sizes measured", measured > 0 ? $"{measured} more programs now have a size." : "Folder sizes were refreshed.");
+        _notifications.Info("Sizes measured", measured > 0
+            ? $"{measured} more programs now have a size." + (stillUnknown > 0 ? $" {stillUnknown} have no install folder to measure." : string.Empty)
+            : stillUnknown > 0
+                ? "No new sizes: the remaining entries have no install folder to measure."
+                : "Every entry already has a size.");
     }, "Measuring install folders…");
 
     [RelayCommand]
     private async Task ExportCsvAsync()
     {
-        var current = _inventory.Last;
+        var current = _current;
         if (current is null || current.Programs.Count == 0)
         {
             _notifications.Warning("Nothing to export", "Scan for installed programs first.");

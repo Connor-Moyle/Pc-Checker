@@ -22,6 +22,12 @@ public sealed partial class SoftwareViewModel : ViewModelBase
     private readonly ILogger<SoftwareViewModel> _logger;
     private readonly List<ProgramRow> _allRows = [];
 
+    /// <summary>Sizes measured with "Calculate sizes", keyed by program id. Carried across rescans so the work is not lost.</summary>
+    private readonly Dictionary<string, long> _measuredSizes = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>The inventory the page currently shows (the last scan plus any measured sizes); what export and size measurement read.</summary>
+    private SoftwareInventory? _current;
+
     [ObservableProperty]
     private string _searchText = string.Empty;
 
@@ -106,8 +112,18 @@ public sealed partial class SoftwareViewModel : ViewModelBase
     public bool HasFilteredRows => Programs.Count > 0;
     public bool NoMatches => HasResults && Programs.Count == 0;
 
+    /// <summary>The inventory currently shown, or null before the first scan.</summary>
+    public SoftwareInventory? CurrentInventory => _current;
+
     public override async Task InitializeAsync(CancellationToken cancellationToken)
     {
+        if (_current is not null)
+        {
+            // Coming back to the page: keep what was shown, including sizes measured since the scan.
+            ApplyInventory(_current);
+            return;
+        }
+
         if (_inventory.Last is { } last)
         {
             ApplyInventory(last);
@@ -128,7 +144,7 @@ public sealed partial class SoftwareViewModel : ViewModelBase
             ScanPercent = p.Percent ?? ScanPercent;
         });
         var inventory = await _inventory.ScanAsync(progress, ct);
-        ApplyInventory(inventory);
+        ApplyScan(inventory);
         _logger.LogInformation("Software page loaded {Count} programs.", inventory.Programs.Count);
     }, "Scanning installed programs…");
 
@@ -169,8 +185,26 @@ public sealed partial class SoftwareViewModel : ViewModelBase
         OnPropertyChanged(nameof(SourceFilter));
     }
 
+    /// <summary>Shows a fresh scan, re-applying sizes measured earlier to programs the installer still reports no size for.</summary>
+    private void ApplyScan(SoftwareInventory scan) => ApplyInventory(MergeMeasuredSizes(scan, _measuredSizes));
+
+    /// <summary>Returns <paramref name="scan"/> with <paramref name="measured"/> filled into entries that lack a size; unchanged when nothing applies.</summary>
+    internal static SoftwareInventory MergeMeasuredSizes(SoftwareInventory scan, IReadOnlyDictionary<string, long> measured)
+    {
+        if (measured.Count == 0 || !scan.Programs.Any(p => p.SizeBytes is null or 0 && measured.ContainsKey(p.Id)))
+        {
+            return scan;
+        }
+
+        var programs = scan.Programs
+            .Select(p => p.SizeBytes is null or 0 && measured.TryGetValue(p.Id, out var size) ? p with { SizeBytes = size } : p)
+            .ToList();
+        return scan with { Programs = programs, Bundles = RelinkBundles(scan.Bundles, programs) };
+    }
+
     private void ApplyInventory(SoftwareInventory inventory)
     {
+        _current = inventory;
         DispatcherHelper.RunOnUi(() =>
         {
             var byId = inventory.Programs.ToDictionary(p => p.Id, StringComparer.OrdinalIgnoreCase);
