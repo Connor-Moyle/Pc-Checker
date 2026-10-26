@@ -140,6 +140,14 @@ public static class StorageCodes
 
         return volumes.Any(v => NormalizeDriveLetter(v) == sys);
     }
+
+    /// <summary>True when <paramref name="driveLetter"/> is the volume Windows is installed on (chkdsk cannot dismount it, so repairs are scheduled for the next restart).</summary>
+    public static bool IsSystemVolume(string? driveLetter, string? systemRoot)
+    {
+        var letter = NormalizeDriveLetter(driveLetter);
+        var sys = NormalizeDriveLetter(systemRoot);
+        return letter is not null && sys is not null && letter == sys;
+    }
 }
 
 /// <summary>Parses the text that chkdsk and Repair-Volume print, so the result can be explained in plain words.</summary>
@@ -235,9 +243,35 @@ public static partial class StorageCommandParsers
         _ => "-Scan",
     };
 
-    /// <summary>Optimize-Volume switch for a media type: TRIM for solid state, defragment for spinning disks.</summary>
-    public static string OptimizeSwitch(string? mediaType) =>
-        string.Equals(mediaType, "HDD", StringComparison.OrdinalIgnoreCase) ? "-Defrag" : "-ReTrim";
+    /// <summary>
+    /// Optimize-Volume switch for a media type: TRIM for solid state, defragment for spinning disks. When the media type
+    /// is not known (the Win32_DiskDrive fallback cannot tell an SSD from a hard disk) the switch is left out so
+    /// Optimize-Volume picks the right operation itself instead of failing with -ReTrim on a hard disk.
+    /// </summary>
+    public static string OptimizeSwitch(string? mediaType)
+    {
+        if (string.Equals(mediaType, "HDD", StringComparison.OrdinalIgnoreCase))
+        {
+            return "-Defrag";
+        }
+
+        if (string.Equals(mediaType, "SSD", StringComparison.OrdinalIgnoreCase) || string.Equals(mediaType, "SCM", StringComparison.OrdinalIgnoreCase))
+        {
+            return "-ReTrim";
+        }
+
+        return string.Empty;
+    }
+
+    /// <summary>
+    /// Lines fed to chkdsk's standard input so it never waits on a prompt. chkdsk asks different questions depending on
+    /// the volume: on the Windows volume it can only offer "schedule at next restart?" (answer Y). On any other volume
+    /// that is in use it first asks "force a dismount?" — answering Y there would invalidate every open file and run the
+    /// repair immediately, so the scheduled repair answers N and then Y to the "schedule at next restart?" question that
+    /// follows. A spot fix is meant to take the volume offline for a few seconds, so it answers Y everywhere.
+    /// </summary>
+    public static string ChkdskAnswers(bool scheduleOfflineFix, bool isSystemVolume) =>
+        scheduleOfflineFix && !isSystemVolume ? "N\r\nY\r\n" : "Y\r\n";
 
     /// <summary>Builds the chkdsk arguments for the requested operation.</summary>
     public static string ChkdskArguments(string driveLetter, bool scanOnly, bool scheduleOfflineFix)

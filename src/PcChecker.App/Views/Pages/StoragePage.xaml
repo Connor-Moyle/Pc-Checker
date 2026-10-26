@@ -384,7 +384,7 @@
                     <ui:Button Content="Spot fix" Icon="{ui:SymbolIcon Wrench24}" Command="{Binding SpotFixCommand}" HorizontalAlignment="Stretch" Margin="0,0,0,6"
                                ToolTip="chkdsk X: /spotfix — a few seconds offline, fixes logged problems." />
                     <ui:Button Content="Schedule full repair at restart" Appearance="Danger" Icon="{ui:SymbolIcon ArrowReset24}" Command="{Binding ScheduleFullRepairCommand}" HorizontalAlignment="Stretch"
-                               ToolTip="chkdsk X: /f /r — runs before Windows starts; can take hours." />
+                               ToolTip="chkdsk X: /f /r — on the Windows drive it runs before Windows starts; a data volume is repaired now if nothing is using it, otherwise at the next restart. Can take hours." />
                   </StackPanel>
                 </ui:Card>
 

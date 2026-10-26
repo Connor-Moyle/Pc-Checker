@@ -1,3 +1,5 @@
+using System.Collections;
+
 namespace PcChecker.Core.Storage;
 
 /// <summary>How much of the drive a surface scan reads.</summary>
@@ -45,7 +47,10 @@ public static class ScanPlan
         return (sizeBytes + blockSizeBytes - 1) / blockSizeBytes;
     }
 
-    /// <summary>Returns the ascending, distinct block indices the scan will read.</summary>
+    /// <summary>
+    /// Returns the ascending, distinct block indices the scan will read. A full plan is a lazy range (no array of
+    /// millions of indices for a large drive at a small block size); a quick plan is a small materialised list.
+    /// </summary>
     public static IReadOnlyList<long> Build(long totalBlocks, SurfaceScanOptions options, int seed = 20240)
     {
         ArgumentNullException.ThrowIfNull(options);
@@ -56,13 +61,7 @@ public static class ScanPlan
 
         if (options.Mode == ScanMode.Full)
         {
-            var all = new long[totalBlocks];
-            for (long i = 0; i < totalBlocks; i++)
-            {
-                all[i] = i;
-            }
-
-            return all;
+            return new BlockRange(totalBlocks);
         }
 
         double edgeFraction = Math.Clamp(options.EdgePercent, 0, 50) / 100.0;
@@ -141,4 +140,42 @@ public static class ScanPlan
 
         return usb ? 300 : 480;
     }
+}
+
+/// <summary>The indices 0 … Count-1 without storing them. Count is clamped to int.MaxValue for the list contract.</summary>
+public sealed class BlockRange : IReadOnlyList<long>
+{
+    private readonly long _count;
+
+    public BlockRange(long count)
+    {
+        _count = Math.Max(0, count);
+    }
+
+    public long LongCount => _count;
+
+    public int Count => (int)Math.Min(_count, int.MaxValue);
+
+    public long this[int index]
+    {
+        get
+        {
+            if (index < 0 || index >= _count)
+            {
+                throw new ArgumentOutOfRangeException(nameof(index));
+            }
+
+            return index;
+        }
+    }
+
+    public IEnumerator<long> GetEnumerator()
+    {
+        for (long i = 0; i < _count; i++)
+        {
+            yield return i;
+        }
+    }
+
+    IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 }

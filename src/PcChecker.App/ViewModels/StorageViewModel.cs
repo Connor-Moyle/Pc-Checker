@@ -102,7 +102,10 @@ public sealed partial class StorageViewModel : ViewModelBase
 
     public override Task RefreshAsync(CancellationToken cancellationToken) => RunBusyAsync(LoadAsync, "Looking at your drives…");
 
-    [RelayCommand]
+    /// <summary>Refresh rebuilds the device list, which re-selects a device and clears results, so it waits while a scan, benchmark or tool runs.</summary>
+    private bool CanRefresh() => !IsAnyToolRunning && !IsBusy;
+
+    [RelayCommand(CanExecute = nameof(CanRefresh))]
     private Task Refresh() => RefreshAsync(CancellationToken.None);
 
     private async Task LoadAsync(CancellationToken cancellationToken)
@@ -200,6 +203,7 @@ public sealed partial class StorageViewModel : ViewModelBase
     private void RaiseToolStateChanged()
     {
         OnPropertyChanged(nameof(IsAnyToolRunning));
+        RefreshCommand.NotifyCanExecuteChanged();
         StartScanCommand.NotifyCanExecuteChanged();
         RunBenchmarkCommand.NotifyCanExecuteChanged();
         CheckDiskScanCommand.NotifyCanExecuteChanged();

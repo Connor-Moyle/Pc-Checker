@@ -12,7 +12,8 @@ public sealed partial class WindowsStorageToolsService
 
     /// <summary>
     /// Writes a temporary file with unbuffered, write-through 1 MB blocks, reads it back sequentially, then performs
-    /// 2000 random 4 K reads and 2000 random 4 K writes at queue depth 1. The file is deleted afterwards whatever happens.
+    /// 2000 random 4 K reads and 2000 random 4 K writes at queue depth 1. The file is opened delete-on-close, so it goes
+    /// away when the handle closes even if the process dies; the explicit delete afterwards is a belt-and-braces check.
     /// </summary>
     public async Task<DiskBenchmarkResult> BenchmarkAsync(string driveLetter, int testFileMb, IProgress<ProgressUpdate>? progress, CancellationToken cancellationToken)
     {

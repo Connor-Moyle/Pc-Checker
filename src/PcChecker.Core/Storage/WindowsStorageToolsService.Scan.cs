@@ -8,7 +8,7 @@ public sealed partial class WindowsStorageToolsService
 {
     private const int ProgressIntervalMs = 40;
     private const int ConsecutiveFailuresBeforeAbort = 64;
-    private const long MaxFullMapBlocks = 8_000_000;
+    private const int ResultMapCells = 4000;
 
     public Task<SurfaceScanResult> SurfaceScanAsync(int diskNumber, int blockSizeMb, IProgress<SurfaceScanProgress>? progress, CancellationToken cancellationToken) =>
         SurfaceScanAsync(diskNumber, SurfaceScanOptions.Full(blockSizeMb), progress, cancellationToken);
@@ -74,10 +74,10 @@ public sealed partial class WindowsStorageToolsService
 
             long totalBlocks = ScanPlan.BlockCount(length, blockBytes);
             var plan = ScanPlan.Build(totalBlocks, options, seed: diskNumber + 20240);
-            // Keep every block's state when that is affordable (a 4 TB drive at 1 MB blocks is 16 MB); otherwise rely on the cell map.
-            bool keepFullMap = totalBlocks <= MaxFullMapBlocks;
-            var map = keepFullMap ? new BlockState[(int)totalBlocks] : [];
+            // Two fixed-size cell maps instead of one state per block: 2000 cells for live progress and a finer
+            // 4000-cell map for the result. Nothing here grows with the size of the drive.
             var cells = new BlockMapAccumulator(totalBlocks);
+            var resultCells = new BlockMapAccumulator(totalBlocks, ResultMapCells);
             var median = new RunningMedian();
             var badOffsets = new List<long>();
             long bad = 0, slow = 0, bytesScanned = 0, done = 0;
@@ -95,12 +95,8 @@ public sealed partial class WindowsStorageToolsService
 
             void SetState(long index, BlockState state)
             {
-                if (keepFullMap)
-                {
-                    map[index] = state;
-                }
-
                 cells.Set(index, state);
+                resultCells.Set(index, state);
             }
 
             try
@@ -192,7 +188,7 @@ public sealed partial class WindowsStorageToolsService
                 summary += $" Last read error: {RawDiskIo.DescribeError(lastError)}.";
             }
 
-            IReadOnlyList<BlockState> resultMap = !keepFullMap ? cells.Snapshot() : map.Length <= 4000 ? map : BlockMapBuilder.Downsample(map, 4000);
+            IReadOnlyList<BlockState> resultMap = resultCells.Snapshot();
             _logger.LogInformation("Surface scan of disk {Number} finished: {Bad} bad, {Slow} slow, {Done}/{Planned} blocks, avg {Avg:0} MB/s.", diskNumber, bad, slow, done, plan.Count, avg);
             return new SurfaceScanResult(diskNumber, bytesScanned, bad, slow, Math.Round(avg, 1), Math.Round(min, 1), started.Elapsed, completed, badOffsets, resultMap, summary);
         }

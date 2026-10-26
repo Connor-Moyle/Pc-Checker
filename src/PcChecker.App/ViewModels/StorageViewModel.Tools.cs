@@ -58,9 +58,12 @@ public sealed partial class StorageViewModel
         _ => "Scan: looks for file system problems without changing anything. Run this first.",
     };
 
-    public string OptimizeHelp => SelectedVolume?.MediaType == "HDD"
-        ? "Hard disk: defragments files so the heads move less. Takes a while on a full drive."
-        : "SSD: sends TRIM so the drive knows which blocks are free. Quick, and it keeps the SSD fast.";
+    public string OptimizeHelp => SelectedVolume?.MediaType switch
+    {
+        "HDD" => "Hard disk: defragments files so the heads move less. Takes a while on a full drive.",
+        "SSD" or "SCM" => "SSD: sends TRIM so the drive knows which blocks are free. Quick, and it keeps the SSD fast.",
+        _ => "Drive type unknown: Windows picks TRIM for an SSD or defragmentation for a hard disk.",
+    };
 
     partial void OnSelectedRepairModeChanged(RepairMode value) => OnPropertyChanged(nameof(RepairModeHelp));
 
@@ -104,14 +107,19 @@ public sealed partial class StorageViewModel
             return;
         }
 
-        bool ok = await _dialogs.ConfirmAsync($"Schedule a full repair of {volume.Letter}?",
-            $"chkdsk {volume.Letter} /f /r checks every sector and repairs the file system. The volume cannot be in use, so Windows will run it the next time the PC restarts, before the desktop appears.\n\n" +
-            "On a large hard disk this can take hours and the PC is unusable meanwhile. Only do this when a scan reported problems. " +
-            "If the drive is physically failing, back it up first; a repair can make recovery harder.",
-            "Schedule at next restart", isDanger: true);
+        // chkdsk cannot take the Windows volume offline, so there it is always scheduled. A data volume is scheduled
+        // only when something is using it (chkdsk is told not to force a dismount); otherwise it is repaired right now.
+        string when = volume.IsSystemVolume
+            ? $"chkdsk {volume.Letter} /f /r checks every sector and repairs the file system. {volume.Letter} is the Windows drive and cannot be taken offline, so Windows will run the repair the next time the PC restarts, before the desktop appears.\n\n" +
+              "On a large hard disk this can take hours and the PC is unusable meanwhile."
+            : $"chkdsk {volume.Letter} /f /r checks every sector and repairs the file system. If any program has files open on {volume.Letter}, the repair is scheduled for the next restart (open files are never forced closed). If nothing is using {volume.Letter}, it is taken offline and repaired right now, with the output shown here.\n\n" +
+              "On a large hard disk this can take hours; the drive is unavailable meanwhile.";
+        bool ok = await _dialogs.ConfirmAsync($"Full repair of {volume.Letter}?",
+            when + " Only do this when a scan reported problems. If the drive is physically failing, back it up first; a repair can make recovery harder.",
+            volume.IsSystemVolume ? "Schedule at next restart" : "Repair (now or at next restart)", isDanger: true);
         if (ok)
         {
-            await RunToolAsync($"Full repair of {volume.Letter} (scheduled)", ct => _storage.CheckDiskAsync(volume.Letter, scanOnly: false, scheduleOfflineFix: true, ToolProgress(), ct));
+            await RunToolAsync($"Full repair of {volume.Letter}", ct => _storage.CheckDiskAsync(volume.Letter, scanOnly: false, scheduleOfflineFix: true, ToolProgress(), ct));
         }
     }
 
@@ -129,7 +137,9 @@ public sealed partial class StorageViewModel
         {
             string what = mode == RepairMode.SpotFix
                 ? "takes the volume offline for a few seconds and fixes the problems already found. Save your work first."
-                : "runs the full offline check. On the Windows drive it happens at the next restart and can take a long time.";
+                : volume.IsSystemVolume
+                    ? $"runs the full offline check. {volume.Letter} is the Windows drive, so it happens at the next restart and can take a long time."
+                    : $"takes {volume.Letter} offline and runs the full check right now; programs using it lose access until it finishes, which can take a long time. Save your work first.";
             bool ok = await _dialogs.ConfirmAsync($"Repair-Volume {mode} on {volume.Letter}?", $"Repair-Volume -{mode} {what}", "Run repair", isDanger: mode == RepairMode.OfflineScanAndFix);
             if (!ok)
             {
@@ -149,11 +159,13 @@ public sealed partial class StorageViewModel
             return;
         }
 
-        bool hdd = volume.MediaType == "HDD";
-        bool ok = await _dialogs.ConfirmAsync($"Optimize {volume.Letter}?",
-            hdd ? $"Windows will defragment {volume.Letter}. Files are not changed, only rearranged. It can take a while and slows the PC meanwhile."
-                : $"Windows will send TRIM to the SSD behind {volume.Letter}. Files are not changed. This usually takes under a minute.",
-            "Optimize");
+        string explanation = volume.MediaType switch
+        {
+            "HDD" => $"Windows will defragment {volume.Letter}. Files are not changed, only rearranged. It can take a while and slows the PC meanwhile.",
+            "SSD" or "SCM" => $"Windows will send TRIM to the SSD behind {volume.Letter}. Files are not changed. This usually takes under a minute.",
+            _ => $"Windows will optimize {volume.Letter}, choosing TRIM for an SSD or defragmentation for a hard disk. Files are not changed.",
+        };
+        bool ok = await _dialogs.ConfirmAsync($"Optimize {volume.Letter}?", explanation, "Optimize");
         if (ok)
         {
             await RunToolAsync($"Optimize {volume.Letter}", ct => _storage.OptimizeAsync(volume.Letter, ToolProgress(), ct));

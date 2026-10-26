@@ -10,7 +10,9 @@ public sealed partial class WindowsStorageToolsService
 
     /// <summary>
     /// <c>chkdsk X: /scan</c> for an online read-only check; <c>chkdsk X: /spotfix</c> for a quick fix of logged
-    /// problems; <c>chkdsk X: /f /r</c> (answering "Y" to schedule at the next restart) for the full offline repair.
+    /// problems; <c>chkdsk X: /f /r</c> for the full offline repair. On the Windows volume the full repair is scheduled
+    /// for the next restart. On any other volume chkdsk is told not to force a dismount (which would invalidate every
+    /// open file on it) and to schedule instead; if nothing is using the volume the repair simply runs right away.
     /// Anything that can change the volume runs through the change guard.
     /// </summary>
     public async Task<OperationResult> CheckDiskAsync(string driveLetter, bool scanOnly, bool scheduleOfflineFix, IProgress<ProgressUpdate>? progress, CancellationToken cancellationToken)
@@ -29,29 +31,29 @@ public sealed partial class WindowsStorageToolsService
         string arguments = StorageCommandParsers.ChkdskArguments(letter, scanOnly, scheduleOfflineFix);
         if (scanOnly)
         {
-            return await RunChkdskAsync(letter, arguments, feedYes: false, progress, cancellationToken).ConfigureAwait(false);
+            return await RunChkdskAsync(letter, arguments, answers: null, progress, cancellationToken).ConfigureAwait(false);
         }
 
-        string description = scheduleOfflineFix ? $"Schedule a full check and repair of {letter} at the next restart" : $"Spot-fix file system problems on {letter}";
+        bool systemVolume = StorageCodes.IsSystemVolume(letter, SafeSystemRoot());
+        string answers = StorageCommandParsers.ChkdskAnswers(scheduleOfflineFix, systemVolume);
+        string description = scheduleOfflineFix
+            ? systemVolume
+                ? $"Schedule a full check and repair of {letter} at the next restart"
+                : $"Full check and repair of {letter} (scheduled for the next restart if the volume is in use, otherwise run now)"
+            : $"Spot-fix file system problems on {letter}";
         return await _changeGuard.RunGuardedAsync(description,
-            ChangeOptions.For(Module, letter, reversible: false, undoHint: scheduleOfflineFix ? "Run 'chkntfs /x " + letter + "' before restarting to cancel the scheduled check." : null),
-            ct => RunChkdskAsync(letter, arguments, feedYes: true, progress, ct), progress, cancellationToken).ConfigureAwait(false);
+            ChangeOptions.For(Module, letter, reversible: false, undoHint: scheduleOfflineFix ? "Run 'chkntfs /x " + letter + "' before restarting to cancel a scheduled check." : null),
+            ct => RunChkdskAsync(letter, arguments, answers, progress, ct), progress, cancellationToken).ConfigureAwait(false);
     }
 
-    private async Task<OperationResult> RunChkdskAsync(string letter, string arguments, bool feedYes, IProgress<ProgressUpdate>? progress, CancellationToken cancellationToken)
+    /// <param name="answers">Lines fed to chkdsk's prompts (see <see cref="StorageCommandParsers.ChkdskAnswers"/>); null for a read-only scan that never prompts.</param>
+    private async Task<OperationResult> RunChkdskAsync(string letter, string arguments, string? answers, IProgress<ProgressUpdate>? progress, CancellationToken cancellationToken)
     {
         progress?.Report(new ProgressUpdate($"chkdsk {arguments}", null, "Starting…"));
         _logger.LogInformation("Running chkdsk {Arguments}.", arguments);
-        CommandRunResult run;
-        if (feedYes)
-        {
-            // "echo Y|" answers the "schedule at next restart?" / "force a dismount?" prompt without a console.
-            run = await StorageCommandRunner.RunAsync("cmd.exe", $"/d /c echo Y| chkdsk {arguments}", null, Line, TimeSpan.FromHours(6), cancellationToken).ConfigureAwait(false);
-        }
-        else
-        {
-            run = await StorageCommandRunner.RunAsync("chkdsk.exe", arguments, null, Line, TimeSpan.FromHours(6), cancellationToken).ConfigureAwait(false);
-        }
+        // chkdsk prints in the OEM code page; decode it as such so drive labels and localized text show correctly.
+        var run = await StorageCommandRunner.RunAsync("chkdsk.exe", arguments, answers, Line, TimeSpan.FromHours(6), cancellationToken,
+            StorageCommandRunner.OemEncoding()).ConfigureAwait(false);
 
         if (!run.Started)
         {
@@ -140,7 +142,8 @@ public sealed partial class WindowsStorageToolsService
         }
 
         string summary = StorageCommandParsers.DescribeRepairVolumeStatus(lastWord, mode, letter);
-        bool reboot = mode == RepairMode.OfflineScanAndFix && (FindDeviceByVolume(letter)?.IsSystemDisk ?? true);
+        // Only the Windows volume cannot be taken offline; a data volume (even one on the same physical disk) is checked right away.
+        bool reboot = mode == RepairMode.OfflineScanAndFix && StorageCodes.IsSystemVolume(letter, SafeSystemRoot());
         if (reboot)
         {
             summary += " The offline check runs the next time Windows starts.";
@@ -150,7 +153,10 @@ public sealed partial class WindowsStorageToolsService
         return OperationResult.Ok(summary, reboot);
     }
 
-    /// <summary><c>Optimize-Volume -ReTrim</c> for solid-state drives, <c>-Defrag</c> for hard disks, with verbose output streamed to progress.</summary>
+    /// <summary>
+    /// <c>Optimize-Volume -ReTrim</c> for solid-state drives, <c>-Defrag</c> for hard disks, and no switch when the media
+    /// type is unknown (Optimize-Volume then chooses), with verbose output streamed to progress.
+    /// </summary>
     public async Task<OperationResult> OptimizeAsync(string driveLetter, IProgress<ProgressUpdate>? progress, CancellationToken cancellationToken)
     {
         var letter = StorageCodes.NormalizeDriveLetter(driveLetter);
@@ -166,12 +172,17 @@ public sealed partial class WindowsStorageToolsService
 
         var device = FindDeviceByVolume(letter);
         string sw = StorageCommandParsers.OptimizeSwitch(device?.MediaType);
-        string what = sw == "-Defrag" ? "defragment" : "send TRIM to";
+        string what = sw switch
+        {
+            "-Defrag" => "defragment",
+            "-ReTrim" => "send TRIM to",
+            _ => "let Windows pick TRIM or defragment for",
+        };
         return await _changeGuard.RunGuardedAsync($"Optimize {letter} ({what})", ChangeOptions.For(Module, letter, reversible: false, undoHint: "Optimizing does not change files; nothing to undo."),
             async ct =>
             {
-                string command = $"Optimize-Volume -DriveLetter {letter[0]} {sw} -Verbose 4>&1 | Out-String -Stream";
-                progress?.Report(new ProgressUpdate("Optimize-Volume", null, $"{letter} {sw}"));
+                string command = $"Optimize-Volume -DriveLetter {letter[0]} {sw} -Verbose 4>&1 | Out-String -Stream".Replace("  ", " ");
+                progress?.Report(new ProgressUpdate("Optimize-Volume", null, sw.Length == 0 ? letter : $"{letter} {sw}"));
                 _logger.LogInformation("Running {Command}.", command);
                 var run = await StorageCommandRunner.RunPowerShellAsync(command, text =>
                 {
@@ -198,9 +209,12 @@ public sealed partial class WindowsStorageToolsService
                     return OperationResult.Fail($"Optimize-Volume failed on {letter}: {tail}");
                 }
 
-                return OperationResult.Ok(sw == "-Defrag"
-                    ? $"{letter} was defragmented."
-                    : $"{letter} optimized: TRIM told the SSD which blocks are free, which keeps it fast.");
+                return OperationResult.Ok(sw switch
+                {
+                    "-Defrag" => $"{letter} was defragmented.",
+                    "-ReTrim" => $"{letter} optimized: TRIM told the SSD which blocks are free, which keeps it fast.",
+                    _ => $"{letter} was optimized; Windows chose TRIM or defragmentation to match the drive.",
+                });
             }, progress, cancellationToken).ConfigureAwait(false);
     }
 }

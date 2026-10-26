@@ -131,6 +131,8 @@ public sealed class DemoStorageToolsService : IStorageToolsService, ISurfaceScan
 
         if (scheduleOfflineFix)
         {
+            // The demo's Windows drive is C:; every other volume is "in use", so chkdsk declines the dismount and schedules instead.
+            progress?.Report(new ProgressUpdate("chkdsk", null, "Chkdsk cannot run because the volume is in use by another process."));
             progress?.Report(new ProgressUpdate("Done", 100, "This volume will be checked the next time the system restarts."));
             return OperationResult.Ok($"A full check and repair of {driveLetter} will run the next time Windows starts. Restart when convenient and allow it to finish. (demo)", rebootRequired: true);
         }
@@ -145,7 +147,14 @@ public sealed class DemoStorageToolsService : IStorageToolsService, ISurfaceScan
         await DemoData.DelayAsync(cancellationToken, 400, 900).ConfigureAwait(false);
         progress?.Report(new ProgressUpdate("Done", 100, "NoErrorsFound"));
         string summary = StorageCommandParsers.DescribeRepairVolumeStatus("NoErrorsFound", mode, driveLetter) + " (demo)";
-        return OperationResult.Ok(summary, mode == RepairMode.OfflineScanAndFix);
+        // Only the Windows volume (C: in the demo) is deferred to the next restart; a data volume is checked offline right away.
+        bool reboot = mode == RepairMode.OfflineScanAndFix && StorageCodes.IsSystemVolume(driveLetter, @"C:\");
+        if (reboot)
+        {
+            summary = StorageCommandParsers.DescribeRepairVolumeStatus("NoErrorsFound", mode, driveLetter) + " The offline check runs the next time Windows starts. (demo)";
+        }
+
+        return OperationResult.Ok(summary, reboot);
     }
 
     public async Task<OperationResult> OptimizeAsync(string driveLetter, IProgress<ProgressUpdate>? progress, CancellationToken cancellationToken)

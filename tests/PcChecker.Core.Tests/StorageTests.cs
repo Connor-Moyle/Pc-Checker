@@ -48,6 +48,20 @@ public class StorageTests
     }
 
     [Fact]
+    public void Full_plan_is_lazy_for_huge_drives()
+    {
+        // 16 TB at 1 MB blocks: a materialised long[] would be 128 MB. The range must answer instantly without it.
+        const long total = 16L * 1024 * 1024;
+        var plan = ScanPlan.Build(total, SurfaceScanOptions.Full(1));
+        Assert.IsType<BlockRange>(plan);
+        Assert.Equal(total, plan.Count);
+        Assert.Equal(total - 1, plan[^1]);
+        Assert.Equal(12345, plan[12345]);
+        Assert.Throws<ArgumentOutOfRangeException>(() => plan[(int)total]);
+        Assert.Equal([0, 1, 2], plan.Take(3));
+    }
+
+    [Fact]
     public void Quick_plan_on_tiny_drive_reads_everything_at_most_once()
     {
         var plan = ScanPlan.Build(50, SurfaceScanOptions.Quick());
@@ -168,6 +182,37 @@ public class StorageTests
         Assert.Equal(125, BlockMapBuilder.CreateEmpty(1000L * 1024 * 1024, 8).Length);
     }
 
+    // ---- Benchmark math ------------------------------------------------------------------------------------------
+
+    [Fact]
+    public void Benchmark_math_converts_bytes_and_operations_to_rates()
+    {
+        Assert.Equal(512, BenchmarkMath.MegabytesPerSecond(1024L * 1024 * 1024, TimeSpan.FromSeconds(2)), 6);
+        Assert.Equal(0, BenchmarkMath.MegabytesPerSecond(0, TimeSpan.FromSeconds(1)));
+        Assert.Equal(0, BenchmarkMath.MegabytesPerSecond(1024, TimeSpan.Zero));
+
+        Assert.Equal(4000, BenchmarkMath.Iops(2000, TimeSpan.FromMilliseconds(500)), 6);
+        Assert.Equal(0, BenchmarkMath.Iops(2000, TimeSpan.Zero));
+        Assert.Equal(0, BenchmarkMath.Iops(0, TimeSpan.FromSeconds(1)));
+
+        // 2000 x 4 KB in 0.5 s = 8,192,000 bytes / 1,048,576 / 0.5 = 15.625 MB/s
+        Assert.Equal(15.625, BenchmarkMath.Random4kMegabytesPerSecond(2000, TimeSpan.FromMilliseconds(500)), 6);
+        Assert.True(BenchmarkMath.IsSlowBlock(600, 10));
+        Assert.False(BenchmarkMath.IsSlowBlock(1500, 600));
+    }
+
+    [Theory]
+    [InlineData(7100, "NVMe (PCIe 4.0 class)")]
+    [InlineData(3400, "NVMe (PCIe 3.0 class)")]
+    [InlineData(540, "SATA SSD class")]
+    [InlineData(180, "Hard disk class")]
+    [InlineData(20, "Slow (USB stick or faulty drive?)")]
+    [InlineData(0, "Unknown")]
+    public void Sequential_read_speed_is_classified(double mbps, string expected)
+    {
+        Assert.Equal(expected, BenchmarkMath.ClassifySequentialRead(mbps));
+    }
+
     // ---- Benchmark reference ------------------------------------------------------------------------------------
 
     [Fact]
@@ -275,6 +320,24 @@ public class StorageTests
         Assert.True(StorageCodes.ContainsSystemDrive(["C:", "E:"], @"C:\"));
         Assert.False(StorageCodes.ContainsSystemDrive(["D:"], @"C:\"));
         Assert.False(StorageCodes.ContainsSystemDrive(["C:"], null));
+
+        Assert.True(StorageCodes.IsSystemVolume("c", @"C:\"));
+        Assert.True(StorageCodes.IsSystemVolume(@"C:\", "C:"));
+        Assert.False(StorageCodes.IsSystemVolume("D:", @"C:\"));
+        Assert.False(StorageCodes.IsSystemVolume("C:", null));
+        Assert.False(StorageCodes.IsSystemVolume(null, @"C:\"));
+    }
+
+    [Fact]
+    public void Chkdsk_prompts_are_answered_per_volume_type()
+    {
+        // Windows volume: the only prompt is "schedule at next restart?".
+        Assert.Equal("Y\r\n", StorageCommandParsers.ChkdskAnswers(scheduleOfflineFix: true, isSystemVolume: true));
+        // Data volume: decline "force a dismount?" (would invalidate open files), then accept "schedule at next restart?".
+        Assert.Equal("N\r\nY\r\n", StorageCommandParsers.ChkdskAnswers(scheduleOfflineFix: true, isSystemVolume: false));
+        // Spot fix is meant to dismount briefly, so it says yes everywhere.
+        Assert.Equal("Y\r\n", StorageCommandParsers.ChkdskAnswers(scheduleOfflineFix: false, isSystemVolume: false));
+        Assert.Equal("Y\r\n", StorageCommandParsers.ChkdskAnswers(scheduleOfflineFix: false, isSystemVolume: true));
     }
 
     [Fact]
@@ -307,6 +370,9 @@ public class StorageTests
         Assert.Equal("-OfflineScanAndFix", StorageCommandParsers.RepairVolumeSwitch(RepairMode.OfflineScanAndFix));
         Assert.Equal("-Defrag", StorageCommandParsers.OptimizeSwitch("HDD"));
         Assert.Equal("-ReTrim", StorageCommandParsers.OptimizeSwitch("SSD"));
+        Assert.Equal("-ReTrim", StorageCommandParsers.OptimizeSwitch("SCM"));
+        Assert.Equal(string.Empty, StorageCommandParsers.OptimizeSwitch("Unknown"));
+        Assert.Equal(string.Empty, StorageCommandParsers.OptimizeSwitch(null));
         Assert.Equal("C: /scan", StorageCommandParsers.ChkdskArguments("C:", true, false));
         Assert.Equal("C: /spotfix", StorageCommandParsers.ChkdskArguments("C:", false, false));
         Assert.Equal("C: /f /r", StorageCommandParsers.ChkdskArguments("C:", false, true));
@@ -384,9 +450,13 @@ public class StorageTests
         var scheduled = await demo.CheckDiskAsync("C:", false, true, null, CancellationToken.None);
         Assert.True(scheduled.RebootRequired);
 
-        var repair = await demo.RepairVolumeAsync("D:", RepairMode.OfflineScanAndFix, null, CancellationToken.None);
+        var repair = await demo.RepairVolumeAsync("C:", RepairMode.OfflineScanAndFix, null, CancellationToken.None);
         Assert.True(repair.Success);
         Assert.True(repair.RebootRequired);
+
+        var dataRepair = await demo.RepairVolumeAsync("D:", RepairMode.OfflineScanAndFix, null, CancellationToken.None);
+        Assert.True(dataRepair.Success);
+        Assert.False(dataRepair.RebootRequired);
 
         var optimize = await demo.OptimizeAsync("D:", null, CancellationToken.None);
         Assert.Contains("defragmented", optimize.Message);

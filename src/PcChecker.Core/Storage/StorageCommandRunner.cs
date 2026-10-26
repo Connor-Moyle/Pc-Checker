@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.Text;
 using PcChecker.Core.Common;
 
@@ -18,8 +19,9 @@ public static class StorageCommandRunner
 {
     public static readonly TimeSpan DefaultTimeout = TimeSpan.FromHours(6);
 
+    /// <param name="outputEncoding">How the tool's output is decoded; null keeps the process default. Console tools such as chkdsk write in the OEM code page (<see cref="OemEncoding"/>).</param>
     public static async Task<CommandRunResult> RunAsync(string fileName, string arguments, string? standardInput, Action<string>? onLine,
-        TimeSpan? timeout, CancellationToken cancellationToken)
+        TimeSpan? timeout, CancellationToken cancellationToken, Encoding? outputEncoding = null)
     {
         if (!PlatformGuard.IsWindows)
         {
@@ -36,6 +38,11 @@ public static class StorageCommandRunner
             RedirectStandardInput = standardInput is not null,
             CreateNoWindow = true,
         };
+        if (outputEncoding is not null)
+        {
+            psi.StandardOutputEncoding = outputEncoding;
+            psi.StandardErrorEncoding = outputEncoding;
+        }
 
         using var process = new Process { StartInfo = psi, EnableRaisingEvents = true };
         var output = new StringBuilder();
@@ -128,11 +135,36 @@ public static class StorageCommandRunner
         return new CommandRunResult(exitCode, text, timedOut, null);
     }
 
-    /// <summary>Runs a PowerShell command line with verbose output redirected into the normal stream so it can be shown live.</summary>
+    /// <summary>Runs a PowerShell command line with verbose output redirected into the normal stream so it can be shown live. Output is UTF-8 on both ends.</summary>
     public static Task<CommandRunResult> RunPowerShellAsync(string command, Action<string>? onLine, TimeSpan? timeout, CancellationToken cancellationToken)
     {
-        var encoded = Convert.ToBase64String(Encoding.Unicode.GetBytes(command));
-        return RunAsync("powershell.exe", $"-NoProfile -NonInteractive -ExecutionPolicy Bypass -EncodedCommand {encoded}", null, onLine, timeout, cancellationToken);
+        var encoded = Convert.ToBase64String(Encoding.Unicode.GetBytes("[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; " + command));
+        return RunAsync("powershell.exe", $"-NoProfile -NonInteractive -ExecutionPolicy Bypass -EncodedCommand {encoded}", null, onLine, timeout, cancellationToken, Encoding.UTF8);
+    }
+
+    private static Encoding? _oem;
+
+    /// <summary>
+    /// The OEM code page console tools write in (for example 437 or 850 in the US and Western Europe, 866 for Cyrillic);
+    /// null when it cannot be determined, in which case the process default is used.
+    /// </summary>
+    public static Encoding? OemEncoding()
+    {
+        if (_oem is not null)
+        {
+            return _oem;
+        }
+
+        try
+        {
+            Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+            int codePage = CultureInfo.CurrentCulture.TextInfo.OEMCodePage;
+            return _oem = Encoding.GetEncoding(codePage);
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     private static void TryKill(Process process)

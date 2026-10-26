@@ -22,6 +22,7 @@ internal static class RawDiskIo
     private const uint FileFlagNoBuffering = 0x20000000;
     private const uint FileFlagSequentialScan = 0x08000000;
     private const uint FileFlagWriteThrough = 0x80000000;
+    private const uint FileFlagDeleteOnClose = 0x04000000;
     private const uint FileBegin = 0;
     private const uint IoctlDiskGetLengthInfo = 0x0007405C;
 
@@ -61,11 +62,14 @@ internal static class RawDiskIo
         return handle;
     }
 
-    /// <summary>Creates (or truncates) a file for unbuffered, write-through I/O.</summary>
+    /// <summary>
+    /// Creates (or truncates) a file for unbuffered, write-through I/O. The file is marked delete-on-close, so the
+    /// kernel removes it when the handle closes, including when the process is killed mid-benchmark.
+    /// </summary>
     public static SafeFileHandle CreateUnbufferedFile(string path)
     {
         var handle = CreateFile(path, GenericRead | GenericWrite, FileShareRead, IntPtr.Zero, CreateAlways,
-            FileAttributeNormal | FileFlagNoBuffering | FileFlagWriteThrough, IntPtr.Zero);
+            FileAttributeNormal | FileFlagNoBuffering | FileFlagWriteThrough | FileFlagDeleteOnClose, IntPtr.Zero);
         if (handle.IsInvalid)
         {
             int error = Marshal.GetLastWin32Error();
