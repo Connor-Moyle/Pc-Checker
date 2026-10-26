@@ -4,20 +4,71 @@
       xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
       xmlns:controls="clr-namespace:PcChecker.App.Controls"
       xmlns:vm="clr-namespace:PcChecker.App.ViewModels"
+      xmlns:opt="clr-namespace:PcChecker.Core.Optimization;assembly=PcChecker.Core"
       d:DataContext="{d:DesignInstance vm:CleanupViewModel}"
       xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
       xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
       mc:Ignorable="d"
       Title="Cleanup"
       ScrollViewer.CanContentScroll="False">
+  <Page.Resources>
+    <!-- Risk badge: colour follows the category's risk level. -->
+    <Style x:Key="RiskBadge" TargetType="Border">
+      <Setter Property="CornerRadius" Value="10" />
+      <Setter Property="Padding" Value="8,2" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="Background" Value="{StaticResource AccentGreenBrush}" />
+      <Style.Triggers>
+        <DataTrigger Binding="{Binding Risk}" Value="{x:Static opt:RiskLevel.Moderate}">
+          <Setter Property="Background" Value="{StaticResource AccentYellowBrush}" />
+        </DataTrigger>
+        <DataTrigger Binding="{Binding Risk}" Value="{x:Static opt:RiskLevel.Advanced}">
+          <Setter Property="Background" Value="{StaticResource AccentOrangeBrush}" />
+        </DataTrigger>
+      </Style.Triggers>
+    </Style>
+    <Style x:Key="RiskBadgeText" TargetType="TextBlock">
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Foreground" Value="#111111" />
+    </Style>
+    <Style x:Key="PathText" TargetType="TextBlock">
+      <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="Opacity" Value="0.85" />
+    </Style>
+  </Page.Resources>
+
   <Grid Style="{StaticResource PageRoot}">
     <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" />
       <RowDefinition Height="Auto" />
       <RowDefinition Height="Auto" />
       <RowDefinition Height="*" />
     </Grid.RowDefinitions>
 
-    <controls:SectionHeader Grid.Row="0" Title="Cleanup" Subtitle="Find and remove temporary and junk files safely." />
+    <controls:SectionHeader Grid.Row="0" Title="Cleanup" Subtitle="Find temporary and junk files by category, preview what would go, then remove them safely.">
+      <controls:SectionHeader.Actions>
+        <StackPanel Orientation="Horizontal">
+          <ui:ToggleSwitch Content="Dry run"
+                           IsChecked="{Binding DryRun, Mode=TwoWay}"
+                           ToolTip="{Binding DryRunHint}"
+                           VerticalAlignment="Center"
+                           Margin="0,0,16,0" />
+          <ui:Button Content="Scan"
+                     Appearance="Primary"
+                     Icon="{ui:SymbolIcon Search24}"
+                     Command="{Binding ScanCommand}"
+                     ToolTip="Measures every category again. Nothing is deleted by a scan."
+                     Margin="0,0,8,0" />
+          <ui:Button Content="{Binding CleanButtonText}"
+                     Appearance="Danger"
+                     Icon="{ui:SymbolIcon Delete24}"
+                     Command="{Binding CleanCommand}"
+                     ToolTip="Removes the ticked categories. With Dry run on, only a report is produced." />
+        </StackPanel>
+      </controls:SectionHeader.Actions>
+    </controls:SectionHeader>
 
     <ui:InfoBar Grid.Row="1"
                 Severity="Error"
@@ -27,12 +78,244 @@
                 IsClosable="True"
                 Margin="0,0,0,12" />
 
-    <controls:EmptyState Grid.Row="2"
-                         Icon="Broom24"
-                         Title="This section is being prepared"
-                         Message="Find and remove temporary and junk files safely." />
+    <ui:InfoBar Grid.Row="2"
+                Severity="{Binding RunSeverity}"
+                Title="{Binding RunTitle}"
+                Message="{Binding RunSummary}"
+                IsOpen="{Binding HasRunResult, Mode=OneWay}"
+                IsClosable="True"
+                Margin="0,0,0,12" />
 
-    <controls:BusyOverlay Grid.Row="0" Grid.RowSpan="3"
+    <ScrollViewer Grid.Row="3" Style="{StaticResource PageScroll}">
+      <StackPanel>
+
+        <!-- Summary -->
+        <UniformGrid Columns="4" Margin="0,0,0,12">
+          <controls:StatCard Title="Reclaimable space" Value="{Binding ReclaimableText}" Icon="Broom24" Accent="{StaticResource AccentCyanBrush}" Subtitle="Across every category shown" Margin="0,0,12,0" />
+          <controls:StatCard Title="Files found" Value="{Binding TotalFilesText}" Icon="Document24" Accent="{StaticResource AccentPurpleBrush}" Subtitle="Safe to remove by the rules below" Margin="0,0,12,0" />
+          <controls:StatCard Title="Categories selected" Value="{Binding SelectedText}" Icon="CheckboxChecked24" Accent="{StaticResource AccentGreenBrush}" Subtitle="{Binding SelectedSizeText}" Margin="0,0,12,0" />
+          <controls:StatCard Title="Last scan" Value="{Binding LastScanText, TargetNullValue='Not yet'}" Icon="Clock24" Accent="{StaticResource AccentGreyBrush}" Subtitle="Scan again after closing browsers or games" />
+        </UniformGrid>
+
+        <ui:InfoBar Severity="Informational"
+                    Title="Other accounts included"
+                    Message="{Binding ScanNote}"
+                    IsOpen="{Binding HasScanNote, Mode=OneWay}"
+                    IsClosable="False"
+                    Margin="0,0,0,12" />
+
+        <!-- Details of the last run -->
+        <ui:CardExpander Margin="0,0,0,12"
+                         ContentPadding="16"
+                         Icon="{ui:SymbolIcon ClipboardTextLtr24}"
+                         Visibility="{Binding HasRunDetails, Converter={StaticResource BoolToVisibility}}">
+          <ui:CardExpander.Header>
+            <StackPanel>
+              <ui:TextBlock FontTypography="BodyStrong" Text="Skipped items and errors from the last run" />
+              <ui:TextBlock Style="{StaticResource Muted}" Text="Files a program was still using, protected files, and anything that could not be removed." />
+            </StackPanel>
+          </ui:CardExpander.Header>
+          <StackPanel>
+            <ui:TextBlock FontTypography="BodyStrong" Text="Skipped" Margin="0,0,0,4"
+                          Visibility="{Binding HasSkippedPaths, Converter={StaticResource BoolToVisibility}}" />
+            <ItemsControl ItemsSource="{Binding SkippedPaths}" MaxHeight="240">
+              <ItemsControl.Template>
+                <ControlTemplate TargetType="ItemsControl">
+                  <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <ItemsPresenter />
+                  </ScrollViewer>
+                </ControlTemplate>
+              </ItemsControl.Template>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <TextBlock Style="{StaticResource PathText}" Text="{Binding}" ToolTip="{Binding}" />
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <ui:TextBlock FontTypography="BodyStrong" Text="Errors" Margin="0,12,0,4"
+                          Visibility="{Binding HasErrorPaths, Converter={StaticResource BoolToVisibility}}" />
+            <ItemsControl ItemsSource="{Binding ErrorPaths}" MaxHeight="240">
+              <ItemsControl.Template>
+                <ControlTemplate TargetType="ItemsControl">
+                  <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <ItemsPresenter />
+                  </ScrollViewer>
+                </ControlTemplate>
+              </ItemsControl.Template>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <TextBlock Style="{StaticResource PathText}" Foreground="{StaticResource AccentRedBrush}" Text="{Binding}" ToolTip="{Binding}" />
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </ui:CardExpander>
+
+        <!-- Selection helpers -->
+        <Grid Margin="0,4,0,8">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
+          </Grid.ColumnDefinitions>
+          <StackPanel Grid.Column="0">
+            <ui:TextBlock FontTypography="BodyStrong" Text="Categories" />
+            <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap"
+                          Text="Tick what you want removed. Safe items are recreated automatically; Moderate items have a small side effect; Advanced items only appear in advanced mode. Files changed within the last hour are always kept." />
+          </StackPanel>
+          <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+            <ui:Button Content="Select recommended" Icon="{ui:SymbolIcon CheckboxChecked24}" Command="{Binding SelectRecommendedCommand}" Margin="0,0,8,0" />
+            <ui:Button Content="Clear selection" Icon="{ui:SymbolIcon CheckboxUnchecked24}" Command="{Binding SelectNoneCommand}" />
+          </StackPanel>
+        </Grid>
+
+        <!-- Category cards -->
+        <ItemsControl ItemsSource="{Binding Categories}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate DataType="{x:Type vm:CleanupCategoryItem}">
+              <ui:CardExpander Margin="0,0,0,8"
+                               ContentPadding="16"
+                               Visibility="{Binding IsVisible, Converter={StaticResource BoolToVisibility}}">
+                <ui:CardExpander.Header>
+                  <Grid>
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="Auto" />
+                      <ColumnDefinition Width="*" />
+                      <ColumnDefinition Width="Auto" />
+                      <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <CheckBox Grid.Column="0"
+                              IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                              VerticalAlignment="Center"
+                              Margin="0,0,12,0"
+                              ToolTip="Include this category when cleaning" />
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,12,0">
+                      <ui:TextBlock FontTypography="BodyStrong" Text="{Binding Name}" />
+                      <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding Description}" TextWrapping="Wrap" />
+                    </StackPanel>
+                    <Border Grid.Column="2" Style="{StaticResource RiskBadge}" Margin="0,0,16,0" ToolTip="{Binding RiskHint}">
+                      <TextBlock Style="{StaticResource RiskBadgeText}" Text="{Binding RiskText}" />
+                    </Border>
+                    <ui:TextBlock Grid.Column="3"
+                                  Text="{Binding StatusText}"
+                                  FontTypography="BodyStrong"
+                                  VerticalAlignment="Center"
+                                  MinWidth="130"
+                                  TextAlignment="Right"
+                                  Margin="0,0,8,0" />
+                  </Grid>
+                </ui:CardExpander.Header>
+
+                <StackPanel>
+                  <!-- Notes (informational) -->
+                  <ItemsControl ItemsSource="{Binding Notes}" Visibility="{Binding HasNotes, Converter={StaticResource BoolToVisibility}}" Margin="0,0,0,8">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                          <ui:SymbolIcon Symbol="Info24" Foreground="{StaticResource AccentCyanBrush}" Margin="0,0,8,0" VerticalAlignment="Center" />
+                          <TextBlock Text="{Binding}" TextWrapping="Wrap" VerticalAlignment="Center" />
+                        </StackPanel>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+
+                  <!-- Errors while scanning -->
+                  <ItemsControl ItemsSource="{Binding Errors}" Visibility="{Binding HasErrors, Converter={StaticResource BoolToVisibility}}" Margin="0,0,0,8">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                          <ui:SymbolIcon Symbol="Warning24" Foreground="{StaticResource AccentOrangeBrush}" Margin="0,0,8,0" VerticalAlignment="Center" />
+                          <TextBlock Text="{Binding}" TextWrapping="Wrap" VerticalAlignment="Center" />
+                        </StackPanel>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+
+                  <!-- Largest files -->
+                  <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding TopFilesCaption}" Margin="0,0,0,4"
+                                Visibility="{Binding HasTopFiles, Converter={StaticResource BoolToVisibility}}" />
+                  <ListView ItemsSource="{Binding TopFiles}"
+                            MaxHeight="320"
+                            BorderThickness="0"
+                            Background="Transparent"
+                            SelectionMode="Single"
+                            ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                            Visibility="{Binding HasTopFiles, Converter={StaticResource BoolToVisibility}}">
+                    <ListView.View>
+                      <GridView>
+                        <GridViewColumn Header="File" Width="520">
+                          <GridViewColumn.CellTemplate>
+                            <DataTemplate>
+                              <TextBlock Style="{StaticResource PathText}" Text="{Binding Path}" ToolTip="{Binding Path}" />
+                            </DataTemplate>
+                          </GridViewColumn.CellTemplate>
+                        </GridViewColumn>
+                        <GridViewColumn Header="Size" Width="90" DisplayMemberBinding="{Binding SizeText}" />
+                        <GridViewColumn Header="Modified" Width="140" DisplayMemberBinding="{Binding ModifiedText}" />
+                        <GridViewColumn Header="" Width="120">
+                          <GridViewColumn.CellTemplate>
+                            <DataTemplate>
+                              <ui:Button Content="Open folder"
+                                         Appearance="Secondary"
+                                         Padding="8,2"
+                                         FontSize="12"
+                                         Command="{Binding DataContext.OpenFolderCommand, RelativeSource={RelativeSource AncestorType=Page}}"
+                                         CommandParameter="{Binding Directory}" />
+                            </DataTemplate>
+                          </GridViewColumn.CellTemplate>
+                        </GridViewColumn>
+                      </GridView>
+                    </ListView.View>
+                  </ListView>
+
+                  <!-- Per-category actions -->
+                  <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                    <ui:Button Content="Open folder"
+                               Icon="{ui:SymbolIcon FolderOpen24}"
+                               Command="{Binding DataContext.OpenFolderCommand, RelativeSource={RelativeSource AncestorType=Page}}"
+                               CommandParameter="{Binding Folder}"
+                               Visibility="{Binding HasFolder, Converter={StaticResource BoolToVisibility}}"
+                               Margin="0,0,8,0" />
+                    <ui:Button Content="Empty Recycle Bin now"
+                               Appearance="Danger"
+                               Icon="{ui:SymbolIcon Delete24}"
+                               Command="{Binding DataContext.EmptyRecycleBinCommand, RelativeSource={RelativeSource AncestorType=Page}}"
+                               Visibility="{Binding IsRecycleBin, Converter={StaticResource BoolToVisibility}}"
+                               Margin="0,0,8,0" />
+                    <ui:Button Content="Open Storage settings"
+                               Icon="{ui:SymbolIcon Settings24}"
+                               Command="{Binding DataContext.OpenStorageSettingsCommand, RelativeSource={RelativeSource AncestorType=Page}}"
+                               ToolTip="Windows Storage settings can remove the previous Windows installation safely."
+                               Visibility="{Binding IsReportOnly, Converter={StaticResource BoolToVisibility}}"
+                               Margin="0,0,8,0" />
+                    <ui:Button Content="Run Windows Disk Cleanup"
+                               Icon="{ui:SymbolIcon Broom24}"
+                               Command="{Binding DataContext.OpenDiskCleanupCommand, RelativeSource={RelativeSource AncestorType=Page}}"
+                               ToolTip="Opens the classic Disk Cleanup tool (cleanmgr)."
+                               Visibility="{Binding IsReportOnly, Converter={StaticResource BoolToVisibility}}" />
+                  </StackPanel>
+                </StackPanel>
+              </ui:CardExpander>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <!-- Windows tools -->
+        <ui:Card Style="{StaticResource CardSpacing}" Margin="0,4,0,12">
+          <StackPanel>
+            <ui:TextBlock Style="{StaticResource CardTitle}" Text="Windows' own cleanup tools" />
+            <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,8"
+                          Text="Storage Sense can clean temporary files on a schedule, and Disk Cleanup handles system items such as the previous Windows installation." />
+            <StackPanel Orientation="Horizontal">
+              <ui:Button Content="Open Storage settings" Icon="{ui:SymbolIcon Settings24}" Command="{Binding OpenStorageSettingsCommand}" Margin="0,0,8,0" />
+              <ui:Button Content="Storage Sense &amp; temporary files" Icon="{ui:SymbolIcon Timer24}" Command="{Binding OpenTempFilesSettingsCommand}" Margin="0,0,8,0" />
+              <ui:Button Content="Run Windows Disk Cleanup" Icon="{ui:SymbolIcon Broom24}" Command="{Binding OpenDiskCleanupCommand}" />
+            </StackPanel>
+          </StackPanel>
+        </ui:Card>
+      </StackPanel>
+    </ScrollViewer>
+
+    <controls:BusyOverlay Grid.Row="0" Grid.RowSpan="4"
                           IsBusy="{Binding IsBusy}"
                           Text="{Binding BusyText}"
                           CancelCommand="{Binding CancelCommand}" />
