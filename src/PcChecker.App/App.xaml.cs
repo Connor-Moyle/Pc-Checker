@@ -79,6 +79,7 @@ public partial class App : Application
 
         window.Show();
         StartupTasks.Begin(_services, _logger);
+        FanLifecycleHooks.OnStartup(_services);
 
         if (options.ScreenshotsDirectory is { } directory)
         {
@@ -89,6 +90,11 @@ public partial class App : Application
     protected override void OnExit(ExitEventArgs e)
     {
         _logger?.LogInformation("PC Checker exiting with code {Code}.", e.ApplicationExitCode);
+        if (_services is not null)
+        {
+            FanLifecycleHooks.OnExit(_services);
+        }
+
         try
         {
             _services?.GetService<ISensorService>()?.Stop();
