@@ -78,6 +78,7 @@ public partial class App : Application
         }
 
         window.Show();
+        _ = OverclockStartupGuard.CheckAsync(_services, _logger);
 
         if (options.ScreenshotsDirectory is { } directory)
         {
@@ -88,6 +89,7 @@ public partial class App : Application
     protected override void OnExit(ExitEventArgs e)
     {
         _logger?.LogInformation("PC Checker exiting with code {Code}.", e.ApplicationExitCode);
+        OverclockStartupGuard.MarkClean(_services);
         try
         {
             _services?.GetService<ISensorService>()?.Stop();
