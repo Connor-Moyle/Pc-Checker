@@ -113,6 +113,9 @@ public partial class App : Application
         // Everything else: the one place that picks Windows* or Demo* implementations.
         ServiceRegistration.Register(services, mode);
 
+        // Shared UI helper that confirms, runs and reports optimization actions for several pages.
+        services.AddSingleton<OptimizationActionRunner>();
+
         return services.BuildServiceProvider(new ServiceProviderOptions { ValidateOnBuild = false, ValidateScopes = false });
     }
 

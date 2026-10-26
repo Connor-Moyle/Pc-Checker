@@ -15,6 +15,7 @@ public static class SlowdownRules
     public const double VerySlowBootSeconds = 120;
     public const long HungryProcessBytes = 2L * 1024 * 1024 * 1024;
     public const double HungryProcessCpu = 25;
+    public const double UptimeRestartDays = 7;
 
     private static readonly string[] NonEssentialServiceNames =
     [
@@ -190,6 +191,64 @@ public static class SlowdownRules
         {
             findings.Add(new("storagesense.off", FindingCategory.Configuration, Severity.Info, "Storage Sense is turned off",
                 "Storage Sense automatically clears temporary files and the recycle bin.", "Disk fills up over time", ["storagesense.enable"], false));
+        }
+
+        // Desktop-specific power choices
+        if (facts.HasBattery == false && facts.ActivePowerPlan is { } desktopPlan && desktopPlan.Contains("Balanced", StringComparison.OrdinalIgnoreCase))
+        {
+            findings.Add(new("power.balanced.desktop", FindingCategory.Power, Severity.Low, "Balanced power plan on a desktop PC",
+                "The Balanced plan lowers CPU clocks when idle and takes a moment to ramp back up. A desktop does not need to save battery.",
+                "Small delays in games and heavy apps", ["power.highperformance"], false));
+        }
+
+        if (facts.HasBattery == false && facts.FastStartupEnabled == true && facts.SystemDriveIsSsd == true)
+        {
+            findings.Add(new("faststartup.on.desktop", FindingCategory.Power, Severity.Info, "Fast startup is on",
+                "On a desktop with an SSD, fast startup saves only a second or two, but it stops Windows from fully restarting and can hide driver problems after updates.",
+                "Occasional odd behaviour until a full restart", ["faststartup.disable"], false));
+        }
+
+        if (facts.GameModeEnabled == false)
+        {
+            findings.Add(new("gamemode.off", FindingCategory.Configuration, Severity.Info, "Game Mode is turned off",
+                "Game Mode tells Windows to hold back updates and background work while a game is running.",
+                "Background tasks can interrupt games", ["gamemode.enable"], false));
+        }
+
+        // Uptime
+        if (facts.UptimeDays is >= UptimeRestartDays)
+        {
+            findings.Add(new("system.uptime", FindingCategory.Configuration, Severity.Low, $"Windows has been running for {facts.UptimeDays:0} days",
+                "A restart clears leaked memory, finishes pending updates and resets drivers. Fast startup does not count as a full restart.",
+                "Gradual slowdowns, stuck updates", [], false));
+        }
+
+        // Third-party services known to sit in the background
+        var hogs = facts.Services
+            .Where(s => ServiceClassifier.IsAutomatic(s.StartMode) && ServiceClassifier.KnownHogReason(s) is not null)
+            .ToList();
+        if (hogs.Count > 0)
+        {
+            findings.Add(new("services.thirdparty", FindingCategory.Services, Severity.Info, $"{hogs.Count} third-party helper service{(hogs.Count == 1 ? string.Empty : "s")} start automatically",
+                string.Join(", ", hogs.Take(5).Select(s => s.DisplayName)) + (hogs.Count > 5 ? " and more" : string.Empty)
+                + ". These updaters and helpers are usually safe to set to Manual so they only run when needed.",
+                "Small background load at startup", ["services.review"], false));
+        }
+
+        // Security
+        if (facts.ThirdPartyAntivirusCount is > 1)
+        {
+            findings.Add(new("security.multipleav", FindingCategory.Configuration, Severity.Medium, "More than one antivirus product is installed",
+                $"{facts.ThirdPartyAntivirusCount} antivirus products are registered. They scan the same files twice and can fight each other.",
+                "Slower file access and startup", [], false));
+        }
+
+        // Commit charge (RAM + page file)
+        if (facts.CommitUsedPercent is >= 90 && facts.MemoryUsedPercent < HighMemoryPercent)
+        {
+            findings.Add(new("memory.commit", FindingCategory.Memory, Severity.Medium, "Memory commit is nearly exhausted",
+                $"Programs have reserved {facts.CommitUsedPercent:0}% of the RAM plus page file limit. Windows may refuse to open more programs.",
+                "Out-of-memory errors", ["processes.review"], false));
         }
 
         return findings

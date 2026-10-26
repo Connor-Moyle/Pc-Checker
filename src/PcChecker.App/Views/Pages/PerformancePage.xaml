@@ -3,6 +3,7 @@
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
       xmlns:controls="clr-namespace:PcChecker.App.Controls"
+      xmlns:conv="clr-namespace:PcChecker.App.Converters"
       xmlns:vm="clr-namespace:PcChecker.App.ViewModels"
       d:DataContext="{d:DesignInstance vm:PerformanceViewModel}"
       xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -10,6 +11,21 @@
       mc:Ignorable="d"
       Title="Performance"
       ScrollViewer.CanContentScroll="False">
+  <Page.Resources>
+    <conv:ScoreToBrushConverter x:Key="ScoreToBrush" />
+    <conv:UsageToBrushConverter x:Key="UsageToBrush" />
+    <conv:CountToVisibilityConverter x:Key="CountToVisibility" />
+    <conv:RiskToBrushConverter x:Key="RiskToBrush" />
+    <conv:SymbolToIconConverter x:Key="SymbolToIcon" />
+    <conv:InverseBoolConverter x:Key="InverseBool" />
+    <Style x:Key="Pill" TargetType="Border">
+      <Setter Property="CornerRadius" Value="10" />
+      <Setter Property="Padding" Value="8,2" />
+      <Setter Property="Margin" Value="0,0,6,0" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+  </Page.Resources>
+
   <Grid Style="{StaticResource PageRoot}">
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto" />
@@ -17,24 +33,273 @@
       <RowDefinition Height="*" />
     </Grid.RowDefinitions>
 
-    <controls:SectionHeader Grid.Row="0" Title="Performance" Subtitle="What is slowing this PC down and what to do about it." />
+    <controls:SectionHeader Grid.Row="0" Title="Performance" Subtitle="What is slowing this PC down and what to do about it.">
+      <controls:SectionHeader.Actions>
+        <StackPanel Orientation="Horizontal">
+          <ui:Button Content="Export" Icon="{ui:SymbolIcon DocumentArrowDown24}" Command="{Binding ExportCommand}" Margin="0,0,8,0"
+                     ToolTip="Save the findings and snapshot as a Markdown or JSON file." />
+          <ui:Button Content="Scan for slowdowns" Appearance="Primary" Icon="{ui:SymbolIcon ArrowSync24}" Command="{Binding ScanCommand}" />
+        </StackPanel>
+      </controls:SectionHeader.Actions>
+    </controls:SectionHeader>
 
-    <ui:InfoBar Grid.Row="1"
-                Severity="Error"
-                Title="Something went wrong"
-                Message="{Binding ErrorMessage}"
-                IsOpen="{Binding HasError, Mode=OneWay}"
-                IsClosable="True"
-                Margin="0,0,0,12" />
+    <StackPanel Grid.Row="1">
+      <ui:InfoBar Severity="Error" Title="Something went wrong" Message="{Binding ErrorMessage}" IsOpen="{Binding HasError, Mode=OneWay}" IsClosable="True" Margin="0,0,0,12" />
+      <ui:InfoBar Severity="Warning" Title="Restart needed" IsOpen="{Binding IsRebootRequired, Mode=OneWay}" IsClosable="False" Margin="0,0,0,12"
+                  Message="One of the changes you applied finishes after Windows restarts. Save your work and restart when convenient." />
+    </StackPanel>
 
-    <controls:EmptyState Grid.Row="2"
-                         Icon="TopSpeed24"
-                         Title="This section is being prepared"
-                         Message="What is slowing this PC down and what to do about it." />
+    <ScrollViewer Grid.Row="2" Style="{StaticResource PageScroll}">
+      <StackPanel>
+        <controls:EmptyState Icon="TopSpeed24" Title="Ready to scan" Visibility="{Binding HasReport, Converter={StaticResource InverseBoolToVisibility}}"
+                             Message="The scan looks at startup programs, services, busy processes, memory, drives, power and Windows settings. It takes about ten seconds and changes nothing.">
+          <controls:EmptyState.Action>
+            <ui:Button Content="Scan for slowdowns" Appearance="Primary" Icon="{ui:SymbolIcon ArrowSync24}" Command="{Binding ScanCommand}" />
+          </controls:EmptyState.Action>
+        </controls:EmptyState>
 
-    <controls:BusyOverlay Grid.Row="0" Grid.RowSpan="3"
-                          IsBusy="{Binding IsBusy}"
-                          Text="{Binding BusyText}"
-                          CancelCommand="{Binding CancelCommand}" />
+        <StackPanel Visibility="{Binding HasReport, Converter={StaticResource BoolToVisibility}}">
+          <!-- Hero: score + summary -->
+          <ui:Card Style="{StaticResource CardSpacing}">
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
+              <Border Grid.Column="0" Width="112" Height="112" CornerRadius="56" BorderThickness="6" Margin="0,0,20,0"
+                      BorderBrush="{Binding Score, Converter={StaticResource ScoreToBrush}}">
+                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                  <ui:TextBlock FontSize="34" FontWeight="SemiBold" HorizontalAlignment="Center" Text="{Binding Score}" Foreground="{Binding Score, Converter={StaticResource ScoreToBrush}}" />
+                  <ui:TextBlock Style="{StaticResource Caption}" HorizontalAlignment="Center" Text="out of 100" />
+                </StackPanel>
+              </Border>
+              <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                <ui:TextBlock FontTypography="Subtitle" Text="{Binding ScoreHeadline}" />
+                <ui:TextBlock Appearance="Secondary" Text="{Binding ScoreDetail}" TextWrapping="Wrap" Margin="0,4,0,0" />
+                <ui:TextBlock Style="{StaticResource Caption}" Text="{Binding CapturedText}" Margin="0,8,0,0" />
+                <ui:TextBlock Style="{StaticResource Caption}" Margin="0,2,0,0" TextWrapping="Wrap"
+                              Text="The score starts at 100 and drops for each finding by how much it slows the PC. Fix or ignore findings to see it change." />
+              </StackPanel>
+              <ui:Button Grid.Column="2" VerticalAlignment="Center" Content="Open Optimize" Icon="{ui:SymbolIcon Rocket24}" Command="{Binding OpenOptimizeCommand}"
+                         ToolTip="All one-click tweaks in one place." />
+            </Grid>
+          </ui:Card>
+
+          <!-- Quick wins -->
+          <ui:TextBlock Style="{StaticResource CardTitle}" Text="Quick wins" Margin="0,4,0,8" />
+          <ItemsControl ItemsSource="{Binding QuickWins}" Margin="0,0,0,12">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <UniformGrid Columns="4" />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <ui:CardAction Icon="{Binding Icon, Converter={StaticResource SymbolToIcon}}" Command="{Binding Command}" Margin="0,0,8,0" Padding="12">
+                  <StackPanel>
+                    <ui:TextBlock FontTypography="BodyStrong" Text="{Binding Title}" />
+                    <ui:TextBlock Appearance="Secondary" FontSize="12" Text="{Binding Description}" TextWrapping="Wrap" />
+                  </StackPanel>
+                </ui:CardAction>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+
+          <!-- Findings -->
+          <ui:TextBlock Style="{StaticResource CardTitle}" Text="Findings" Margin="0,4,0,8" />
+          <ui:Card Style="{StaticResource CardSpacing}" Visibility="{Binding HasNoFindings, Converter={StaticResource BoolToVisibility}}">
+            <StackPanel Orientation="Horizontal">
+              <ui:SymbolIcon Symbol="CheckmarkCircle24" Foreground="{StaticResource AccentGreenBrush}" FontSize="24" Margin="0,0,12,0" />
+              <ui:TextBlock VerticalAlignment="Center" Text="No slowdowns found. This PC is set up well." />
+            </StackPanel>
+          </ui:Card>
+          <ItemsControl ItemsSource="{Binding Findings}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <ui:Card Margin="0,0,0,8" Padding="0">
+                  <Grid>
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="6" />
+                      <ColumnDefinition Width="Auto" />
+                      <ColumnDefinition Width="*" />
+                      <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <Border Grid.Column="0" Background="{Binding Severity, Converter={StaticResource SeverityToBrush}}" CornerRadius="4,0,0,4" />
+                    <ui:SymbolIcon Grid.Column="1" Symbol="{Binding Icon}" FontSize="24" Margin="14,16,12,16" VerticalAlignment="Top"
+                                   Foreground="{Binding Severity, Converter={StaticResource SeverityToBrush}}" />
+                    <StackPanel Grid.Column="2" Margin="0,12,12,12">
+                      <StackPanel Orientation="Horizontal">
+                        <ui:TextBlock FontTypography="BodyStrong" Text="{Binding Title}" TextWrapping="Wrap" ToolTip="{Binding LearnMore}" />
+                      </StackPanel>
+                      <StackPanel Orientation="Horizontal" Margin="0,4,0,6">
+                        <Border Style="{StaticResource Pill}" Background="{Binding Severity, Converter={StaticResource SeverityToBrush}}" Opacity="0.9">
+                          <ui:TextBlock FontSize="11" FontWeight="SemiBold" Foreground="White" Text="{Binding SeverityText}" />
+                        </Border>
+                        <Border Style="{StaticResource Pill}" Background="{DynamicResource ControlFillColorSecondaryBrush}">
+                          <ui:TextBlock FontSize="11" Text="{Binding CategoryText}" />
+                        </Border>
+                      </StackPanel>
+                      <ui:TextBlock Appearance="Secondary" Text="{Binding Detail}" TextWrapping="Wrap" />
+                      <ui:TextBlock Style="{StaticResource Caption}" Margin="0,4,0,0" TextWrapping="Wrap">
+                        <Run Text="Impact: " FontWeight="SemiBold" /><Run Text="{Binding Impact, Mode=OneWay}" />
+                      </ui:TextBlock>
+                    </StackPanel>
+                    <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,12,0">
+                      <ui:Button Appearance="Primary" Icon="{ui:SymbolIcon WrenchScrewdriver24}" Content="Fix" Margin="0,0,6,0"
+                                 Command="{Binding DataContext.FixCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}"
+                                 ToolTip="{Binding ActionTitle}" Visibility="{Binding HasFix, Converter={StaticResource BoolToVisibility}}" />
+                      <ui:Button Icon="{ui:SymbolIcon Eye24}" Content="{Binding ActionTitle}" Margin="0,0,6,0"
+                                 Command="{Binding DataContext.FixCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}"
+                                 Visibility="{Binding HasLink, Converter={StaticResource BoolToVisibility}}" />
+                      <ui:Button Icon="{ui:SymbolIcon EyeOff24}" Content="Ignore" ToolTip="Hide this finding until the next scan."
+                                 Command="{Binding DataContext.IgnoreCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}" />
+                    </StackPanel>
+                  </Grid>
+                </ui:Card>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+
+          <!-- System snapshot -->
+          <ui:TextBlock Style="{StaticResource CardTitle}" Text="System snapshot" Margin="0,8,0,8" />
+          <UniformGrid Columns="4" Margin="0,0,0,4">
+            <controls:StatCard Title="Last startup" Value="{Binding BootTimeText}" Icon="Power24" Accent="{StaticResource AccentCyanBrush}" Subtitle="From power on to desktop" Margin="0,0,8,8" />
+            <controls:StatCard Title="Memory in use" Value="{Binding MemoryText}" Icon="Memory16" Accent="{Binding MemoryPercent, Converter={StaticResource UsageToBrush}}" Subtitle="RAM used right now" Margin="0,0,8,8" />
+            <controls:StatCard Title="Power plan" Value="{Binding PowerPlanText}" Icon="Flash24" Accent="{StaticResource AccentPurpleBrush}" Subtitle="Active Windows power plan" Margin="0,0,8,8" />
+            <controls:StatCard Title="Startup programs" Value="{Binding StartupText}" Icon="Rocket24" Accent="{StaticResource AccentOrangeBrush}" Subtitle="Launch at sign-in" Margin="0,0,0,8" />
+          </UniformGrid>
+          <ItemsControl ItemsSource="{Binding Drives}" Margin="0,0,0,8">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <UniformGrid Columns="4" />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <ui:Card Margin="0,0,8,8" Padding="12">
+                  <StackPanel>
+                    <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding Title}" />
+                    <ui:TextBlock FontTypography="BodyStrong" Text="{Binding Summary}" Margin="0,2,0,6" />
+                    <ProgressBar Minimum="0" Maximum="100" Value="{Binding UsedPercent, Mode=OneWay}" Height="6" Foreground="{Binding UsedPercent, Converter={StaticResource UsageToBrush}}" />
+                  </StackPanel>
+                </ui:Card>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+
+          <!-- Startup programs -->
+          <ui:CardExpander Icon="{ui:SymbolIcon Power24}" IsExpanded="{Binding IsStartupExpanded, Mode=TwoWay}" Margin="0,0,0,12" ContentPadding="0">
+            <ui:CardExpander.Header>
+              <StackPanel>
+                <ui:TextBlock FontTypography="BodyStrong" Text="Startup programs" />
+                <ui:TextBlock Style="{StaticResource Muted}" Text="Flip the switch to stop a program launching at sign-in. Nothing is uninstalled; you can turn it back on any time." />
+              </StackPanel>
+            </ui:CardExpander.Header>
+            <Grid>
+              <ui:TextBlock Appearance="Secondary" Margin="16" Text="No startup programs were found. The Startup page lists everything once it has scanned."
+                            Visibility="{Binding StartupItems.Count, Converter={StaticResource CountToVisibility}, ConverterParameter=Invert}" />
+              <ui:DataGrid ItemsSource="{Binding StartupItems}" AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True"
+                           HeadersVisibility="Column" GridLinesVisibility="Horizontal" SelectionMode="Single" MaxHeight="360" BorderThickness="0"
+                           Visibility="{Binding StartupItems.Count, Converter={StaticResource CountToVisibility}}">
+                <ui:DataGrid.Columns>
+                  <DataGridTemplateColumn Header="On" Width="80">
+                    <DataGridTemplateColumn.CellTemplate>
+                      <DataTemplate>
+                        <ui:ToggleSwitch IsChecked="{Binding IsEnabled, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBool}}" Margin="8,0,0,0" />
+                      </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                  </DataGridTemplateColumn>
+                  <DataGridTextColumn Header="Program" Binding="{Binding Name}" Width="2*" />
+                  <DataGridTextColumn Header="Publisher" Binding="{Binding Publisher}" Width="1.5*" />
+                  <DataGridTextColumn Header="Where" Binding="{Binding Kind}" Width="1.2*" />
+                  <DataGridTextColumn Header="Location" Binding="{Binding Location}" Width="2*" />
+                </ui:DataGrid.Columns>
+              </ui:DataGrid>
+            </Grid>
+          </ui:CardExpander>
+
+          <!-- Busy processes -->
+          <ui:CardExpander Icon="{ui:SymbolIcon DesktopPulse24}" IsExpanded="{Binding IsProcessesExpanded, Mode=TwoWay}" Margin="0,0,0,12" ContentPadding="0">
+            <ui:CardExpander.Header>
+              <StackPanel>
+                <ui:TextBlock FontTypography="BodyStrong" Text="Busiest processes" />
+                <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding ProcessText, StringFormat='CPU use was sampled for two seconds. Top right now: {0}'}" />
+              </StackPanel>
+            </ui:CardExpander.Header>
+            <ui:DataGrid ItemsSource="{Binding TopProcesses}" AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True"
+                         HeadersVisibility="Column" GridLinesVisibility="Horizontal" SelectionMode="Single" MaxHeight="360" BorderThickness="0">
+              <ui:DataGrid.Columns>
+                <DataGridTextColumn Header="Process" Binding="{Binding Name}" Width="2*" />
+                <DataGridTextColumn Header="PID" Binding="{Binding Pid}" Width="80" />
+                <DataGridTextColumn Header="CPU" Binding="{Binding CpuText}" Width="90" />
+                <DataGridTextColumn Header="Memory" Binding="{Binding MemoryText}" Width="110" />
+                <DataGridTextColumn Header="Publisher" Binding="{Binding Publisher}" Width="2*" />
+                <DataGridTemplateColumn Header="" Width="120">
+                  <DataGridTemplateColumn.CellTemplate>
+                    <DataTemplate>
+                      <ui:Button Content="End task" Appearance="Danger" Icon="{ui:SymbolIcon Dismiss24}" FontSize="12" Padding="8,4"
+                                 Command="{Binding DataContext.EndTaskCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}"
+                                 Visibility="{Binding CanEnd, Converter={StaticResource BoolToVisibility}}" ToolTip="Closes the program immediately. Unsaved work is lost." />
+                    </DataTemplate>
+                  </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+              </ui:DataGrid.Columns>
+            </ui:DataGrid>
+          </ui:CardExpander>
+
+          <!-- Services (advanced) -->
+          <ui:CardExpander Icon="{ui:SymbolIcon Server24}" IsExpanded="{Binding IsServicesExpanded, Mode=TwoWay}" Margin="0,0,0,12" ContentPadding="0"
+                           Visibility="{Binding IsAdvancedMode, Converter={StaticResource BoolToVisibility}}">
+            <ui:CardExpander.Header>
+              <StackPanel>
+                <ui:TextBlock FontTypography="BodyStrong" Text="Services (advanced)" />
+                <ui:TextBlock Style="{StaticResource Muted}" Text="Third-party services are listed first. Prefer Manual over Disabled so programs can still start a service they need." />
+              </StackPanel>
+            </ui:CardExpander.Header>
+            <StackPanel>
+              <Grid Margin="16,12,16,8">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <ui:TextBox Grid.Column="0" PlaceholderText="Search services" Icon="{ui:SymbolIcon Search24}" Text="{Binding ServiceSearch, UpdateSourceTrigger=PropertyChanged}" MaxWidth="360" HorizontalAlignment="Left" />
+                <ui:ToggleSwitch Grid.Column="1" Content="Show Windows services" IsChecked="{Binding ShowMicrosoftServices, Mode=TwoWay}" />
+              </Grid>
+              <ui:DataGrid ItemsSource="{Binding Services}" AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True"
+                           HeadersVisibility="Column" GridLinesVisibility="Horizontal" SelectionMode="Single" MaxHeight="420" BorderThickness="0">
+                <ui:DataGrid.Columns>
+                  <DataGridTextColumn Header="Service" Binding="{Binding DisplayName}" Width="2*" />
+                  <DataGridTextColumn Header="Owner" Binding="{Binding Owner}" Width="100" />
+                  <DataGridTextColumn Header="State" Binding="{Binding State}" Width="90" />
+                  <DataGridTemplateColumn Header="Start mode" Width="190">
+                    <DataGridTemplateColumn.CellTemplate>
+                      <DataTemplate>
+                        <ComboBox ItemsSource="{Binding DataContext.StartModes, RelativeSource={RelativeSource AncestorType=Page}}"
+                                  SelectedItem="{Binding StartMode, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,2" ToolTip="{Binding ToolTipText}" />
+                      </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                  </DataGridTemplateColumn>
+                  <DataGridTemplateColumn Header="" Width="100">
+                    <DataGridTemplateColumn.CellTemplate>
+                      <DataTemplate>
+                        <ui:Button Content="Apply" Appearance="Primary" FontSize="12" Padding="8,4"
+                                   Command="{Binding DataContext.ApplyServiceModeCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}"
+                                   Visibility="{Binding IsDirty, Converter={StaticResource BoolToVisibility}}" />
+                      </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                  </DataGridTemplateColumn>
+                </ui:DataGrid.Columns>
+              </ui:DataGrid>
+            </StackPanel>
+          </ui:CardExpander>
+
+          <ui:InfoBar Severity="Informational" Title="Notes from the scan" Message="{Binding WarningsText}" IsOpen="{Binding HasWarnings, Mode=OneWay}" IsClosable="True" Margin="0,0,0,12"
+                      Visibility="{Binding WarningsText, Converter={StaticResource NullToVisibility}}" />
+        </StackPanel>
+      </StackPanel>
+    </ScrollViewer>
+
+    <controls:BusyOverlay Grid.Row="0" Grid.RowSpan="3" IsBusy="{Binding IsBusy}" Text="{Binding BusyText}" CancelCommand="{Binding CancelCommand}" />
   </Grid>
 </Page>

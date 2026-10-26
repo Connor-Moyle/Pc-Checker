@@ -1,0 +1,464 @@
+using System.Text;
+using Microsoft.Win32;
+using PcChecker.Core.Common;
+using PcChecker.Core.Performance;
+
+namespace PcChecker.Core.Optimization;
+
+/// <summary>The per-action implementations behind <see cref="WindowsOptimizationService"/>.</summary>
+public sealed partial class WindowsOptimizationService
+{
+    private const string DesktopKey = @"Control Panel\Desktop";
+    private const string WindowMetricsKey = @"Control Panel\Desktop\WindowMetrics";
+    private const string AdvancedExplorerKey = @"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced";
+    private const string ContentDeliveryKey = @"Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager";
+    private const string DataCollectionPolicyKey = @"SOFTWARE\Policies\Microsoft\Windows\DataCollection";
+    private const string PrivacyKey = @"Software\Microsoft\Windows\CurrentVersion\Privacy";
+    private const string GameConfigStoreKey = @"System\GameConfigStore";
+    private static readonly TimeSpan LongToolTimeout = TimeSpan.FromMinutes(45);
+
+    private Dictionary<string, Handler> BuildHandlers() => new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["power.highperformance"] = new(ct => PowerPlanStateAsync(PowerPlans.HighPerformance, ct), ct => SetPowerPlanAsync(PowerPlans.HighPerformance, ct), RevertPowerPlanAsync),
+        ["power.balanced"] = new(ct => PowerPlanStateAsync(PowerPlans.Balanced, ct), ct => SetPowerPlanAsync(PowerPlans.Balanced, ct), RevertPowerPlanAsync),
+        ["power.ultimate"] = new(ct => PowerPlanStateAsync(PowerPlans.Ultimate, ct), SetUltimatePlanAsync, RevertPowerPlanAsync),
+
+        ["visuals.performance"] = new(_ => Task.FromResult(VisualEffectsState("visuals.performance", 2)), ct => ApplyVisualEffectsAsync(bestPerformance: true), ct => ApplyVisualEffectsAsync(bestPerformance: false)),
+        ["visuals.balanced"] = new(_ => Task.FromResult(VisualEffectsState("visuals.balanced", 0)), ct => ApplyVisualEffectsAsync(bestPerformance: false), ct => ApplyVisualEffectsAsync(bestPerformance: true)),
+        ["transparency.disable"] = DwordToggle("transparency.disable", RegistryHive.CurrentUser, WindowsSystemProbe.Personalize, "EnableTransparency", 0, 1, missingIsApplied: false, "Transparency off", "Transparency on"),
+        ["animations.disable"] = new(_ => Task.FromResult(AnimationsState()), _ => Task.FromResult(SetAnimations(enabled: false)), _ => Task.FromResult(SetAnimations(enabled: true))),
+
+        ["faststartup.disable"] = DwordToggle("faststartup.disable", RegistryHive.LocalMachine, WindowsSystemProbe.SessionManagerPower, "HiberbootEnabled", 0, 1, missingIsApplied: false, "Fast startup off", "Fast startup on"),
+        ["faststartup.enable"] = DwordToggle("faststartup.enable", RegistryHive.LocalMachine, WindowsSystemProbe.SessionManagerPower, "HiberbootEnabled", 1, 0, missingIsApplied: true, "Fast startup on", "Fast startup off"),
+        ["hibernation.disable"] = new(_ => Task.FromResult(HibernationState()), ct => SetHibernationAsync(false, ct), ct => SetHibernationAsync(true, ct)),
+
+        ["gamemode.enable"] = DwordToggle("gamemode.enable", RegistryHive.CurrentUser, WindowsSystemProbe.GameBar, "AutoGameModeEnabled", 1, 0, missingIsApplied: true, "Game Mode on", "Game Mode off"),
+        ["gamebar.disable"] = new(_ => Task.FromResult(GameBarState()), _ => Task.FromResult(SetGameBar(enabled: false)), _ => Task.FromResult(SetGameBar(enabled: true))),
+        ["backgroundapps.disable"] = DwordToggle("backgroundapps.disable", RegistryHive.CurrentUser, WindowsSystemProbe.BackgroundApps, "GlobalUserDisabled", 1, 0, missingIsApplied: false, "Background apps blocked", "Background apps allowed"),
+        ["storagesense.enable"] = DwordToggle("storagesense.enable", RegistryHive.CurrentUser, WindowsSystemProbe.StorageSensePolicy, "01", 1, 0, missingIsApplied: false, "Storage Sense on", "Storage Sense off"),
+        ["notifications.focus"] = new(_ => Task.FromResult(NotificationsState()), _ => Task.FromResult(SetNotificationNoise(quiet: true)), _ => Task.FromResult(SetNotificationNoise(quiet: false))),
+
+        ["trim.enable"] = new(TrimStateAsync, ct => SetTrimAsync(true, ct), ct => SetTrimAsync(false, ct)),
+        ["defrag.optimize"] = new(_ => Task.FromResult(new ActionState("defrag.optimize", null, "Runs on demand")), OptimizeDrivesAsync, null),
+        ["tempfiles.clean"] = new(_ => Task.FromResult(new ActionState("tempfiles.clean", null, "Opens the Cleanup page")),
+            _ => Task.FromResult(OperationResult.Fail("Use the Cleanup page to choose what to remove.")), null),
+
+        ["dns.cloudflare"] = new(DnsStateAsync, ct => SetDnsAsync(cloudflare: true, ct), ct => SetDnsAsync(cloudflare: false, ct)),
+        ["telemetry.minimal"] = new(_ => Task.FromResult(TelemetryState()), ct => SetTelemetryAsync(minimal: true, ct), ct => SetTelemetryAsync(minimal: false, ct)),
+        ["sysmain.disable"] = new(ct => ServiceDisabledStateAsync("sysmain.disable", "SysMain", ct), ct => SetServiceAsync("SysMain", "disabled", stop: true, ct), ct => SetServiceAsync("SysMain", "auto", stop: false, ct)),
+        ["search.indexing.disable"] = new(ct => ServiceDisabledStateAsync("search.indexing.disable", "WSearch", ct), ct => SetServiceAsync("WSearch", "disabled", stop: true, ct), ct => SetServiceAsync("WSearch", "delayed-auto", stop: false, ct)),
+
+        ["dism.restorehealth"] = new(_ => Task.FromResult(new ActionState("dism.restorehealth", null, "Runs on demand (5–20 min)")), RunDismAsync, null),
+        ["sfc.scannow"] = new(_ => Task.FromResult(new ActionState("sfc.scannow", null, "Runs on demand (5–15 min)")), RunSfcAsync, null),
+        ["network.reset"] = new(_ => Task.FromResult(new ActionState("network.reset", null, "Runs on demand; restart afterwards")), ResetNetworkAsync, null),
+    };
+
+    // ---- Generic registry toggles -------------------------------------------------------------------------------
+
+    private static Handler DwordToggle(string id, RegistryHive hive, string key, string name, int appliedValue, int revertedValue,
+        bool? missingIsApplied, string appliedText, string revertedText)
+    {
+        return new Handler(
+            _ =>
+            {
+                if (!PlatformGuard.IsWindows)
+                {
+                    return Task.FromResult(new ActionState(id, null, "Unknown"));
+                }
+
+                var value = RegistryTweaks.GetDword(hive, key, name);
+                bool? applied = value is null ? missingIsApplied : value == appliedValue;
+                return Task.FromResult(new ActionState(id, applied, applied switch { true => appliedText, false => revertedText, null => "Unknown" }));
+            },
+            _ => Task.FromResult(Describe(RegistryTweaks.SetDword(hive, key, name, appliedValue), appliedText)),
+            _ => Task.FromResult(Describe(RegistryTweaks.SetDword(hive, key, name, revertedValue), revertedText)));
+    }
+
+    private static OperationResult Describe(OperationResult result, string successText) =>
+        result.Success ? OperationResult.Ok(successText + ".") : result;
+
+    // ---- Power plans ---------------------------------------------------------------------------------------------
+
+    private static async Task<ActionState> PowerPlanStateAsync(Guid target, CancellationToken ct)
+    {
+        var active = await WindowsSystemProbe.ActivePowerSchemeAsync(ct).ConfigureAwait(false);
+        if (active is null)
+        {
+            return new ActionState(ActionIdFor(target), null, "Unknown");
+        }
+
+        bool applied = target == PowerPlans.Ultimate
+            ? active.Name.Contains("Ultimate", StringComparison.OrdinalIgnoreCase)
+            : active.Id == target;
+        return new ActionState(ActionIdFor(target), applied, $"Active: {active.Name}");
+    }
+
+    private static string ActionIdFor(Guid plan) =>
+        plan == PowerPlans.HighPerformance ? "power.highperformance" : plan == PowerPlans.Ultimate ? "power.ultimate" : "power.balanced";
+
+    private async Task<OperationResult> SetPowerPlanAsync(Guid plan, CancellationToken ct)
+    {
+        var current = await WindowsSystemProbe.ActivePowerSchemeAsync(ct).ConfigureAwait(false);
+        _previousPowerScheme = current?.Id;
+        var result = await ExternalCommand.RunAsync("powercfg.exe", $"/setactive {plan}", ct, TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+        if (!result.Success && plan == PowerPlans.HighPerformance)
+        {
+            // Some OEM images hide the High performance plan; recreate it from the template.
+            var dup = await ExternalCommand.RunAsync("powercfg.exe", $"-duplicatescheme {plan}", ct, TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+            var created = PowerPlans.ParseScheme(dup.Output);
+            if (created is not null)
+            {
+                result = await ExternalCommand.RunAsync("powercfg.exe", $"/setactive {created.Id}", ct, TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+            }
+        }
+
+        return result.Success
+            ? OperationResult.Ok($"The {PowerPlans.NameFor(plan)} power plan is now active.")
+            : OperationResult.Fail($"powercfg could not switch the plan: {result.LastLine}");
+    }
+
+    private async Task<OperationResult> SetUltimatePlanAsync(CancellationToken ct)
+    {
+        var list = await ExternalCommand.RunAsync("powercfg.exe", "/list", ct, TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+        var existing = PowerPlans.ParseList(list.Output).FirstOrDefault(s => s.Name.Contains("Ultimate", StringComparison.OrdinalIgnoreCase));
+        Guid target;
+        if (existing is not null)
+        {
+            target = existing.Id;
+        }
+        else
+        {
+            var dup = await ExternalCommand.RunAsync("powercfg.exe", $"-duplicatescheme {PowerPlans.Ultimate}", ct, TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+            var created = PowerPlans.ParseScheme(dup.Output);
+            if (created is null)
+            {
+                return OperationResult.Fail($"The Ultimate Performance plan could not be created: {dup.LastLine}");
+            }
+
+            target = created.Id;
+        }
+
+        var current = await WindowsSystemProbe.ActivePowerSchemeAsync(ct).ConfigureAwait(false);
+        _previousPowerScheme = current?.Id;
+        var result = await ExternalCommand.RunAsync("powercfg.exe", $"/setactive {target}", ct, TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+        return result.Success
+            ? OperationResult.Ok("The Ultimate Performance power plan is now active.")
+            : OperationResult.Fail($"powercfg could not switch the plan: {result.LastLine}");
+    }
+
+    private async Task<OperationResult> RevertPowerPlanAsync(CancellationToken ct)
+    {
+        var target = _previousPowerScheme ?? PowerPlans.Balanced;
+        var result = await ExternalCommand.RunAsync("powercfg.exe", $"/setactive {target}", ct, TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+        if (!result.Success && target != PowerPlans.Balanced)
+        {
+            result = await ExternalCommand.RunAsync("powercfg.exe", $"/setactive {PowerPlans.Balanced}", ct, TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+        }
+
+        return result.Success ? OperationResult.Ok("The previous power plan is active again.") : OperationResult.Fail($"powercfg failed: {result.LastLine}");
+    }
+
+    // ---- Visual effects, animations, transparency ------------------------------------------------------------------
+
+    private static ActionState VisualEffectsState(string id, int appliedValue)
+    {
+        var value = WindowsSystemProbe.VisualEffectsSetting();
+        string text = value switch
+        {
+            0 => "Let Windows choose",
+            1 => "Best appearance",
+            2 => "Best performance",
+            3 => "Custom",
+            _ => "Unknown",
+        };
+        return new ActionState(id, value is null ? null : value == appliedValue, text);
+    }
+
+    private static Task<OperationResult> ApplyVisualEffectsAsync(bool bestPerformance)
+    {
+        var results = new List<OperationResult>
+        {
+            RegistryTweaks.SetDword(RegistryHive.CurrentUser, WindowsSystemProbe.ExplorerVisualEffects, "VisualFXSetting", bestPerformance ? 2 : 0),
+            RegistryTweaks.SetString(RegistryHive.CurrentUser, WindowMetricsKey, "MinAnimate", bestPerformance ? "0" : "1"),
+            RegistryTweaks.SetDword(RegistryHive.CurrentUser, AdvancedExplorerKey, "TaskbarAnimations", bestPerformance ? 0 : 1),
+            RegistryTweaks.SetDword(RegistryHive.CurrentUser, AdvancedExplorerKey, "ListviewAlphaSelect", bestPerformance ? 0 : 1),
+            RegistryTweaks.SetDword(RegistryHive.CurrentUser, AdvancedExplorerKey, "ListviewShadow", bestPerformance ? 0 : 1),
+            RegistryTweaks.SetDword(RegistryHive.CurrentUser, WindowsSystemProbe.Personalize, "EnableTransparency", bestPerformance ? 0 : 1),
+            RegistryTweaks.SetString(RegistryHive.CurrentUser, DesktopKey, "DragFullWindows", bestPerformance ? "0" : "1"),
+        };
+        var failed = results.FirstOrDefault(r => !r.Success);
+        return Task.FromResult(failed ?? OperationResult.Ok(bestPerformance
+            ? "Visual effects set for best performance. Sign out and back in to see every change."
+            : "Visual effects restored to the Windows defaults. Sign out and back in to see every change."));
+    }
+
+    private static ActionState AnimationsState()
+    {
+        if (!PlatformGuard.IsWindows)
+        {
+            return new ActionState("animations.disable", null, "Unknown");
+        }
+
+        var value = RegistryTweaks.GetString(RegistryHive.CurrentUser, WindowMetricsKey, "MinAnimate");
+        bool? applied = value is null ? false : value.Trim() == "0";
+        return new ActionState("animations.disable", applied, applied == true ? "Animations off" : "Animations on");
+    }
+
+    private static OperationResult SetAnimations(bool enabled)
+    {
+        var a = RegistryTweaks.SetString(RegistryHive.CurrentUser, WindowMetricsKey, "MinAnimate", enabled ? "1" : "0");
+        var b = RegistryTweaks.SetDword(RegistryHive.CurrentUser, AdvancedExplorerKey, "TaskbarAnimations", enabled ? 1 : 0);
+        return !a.Success ? a : !b.Success ? b : OperationResult.Ok(enabled ? "Window animations are on again." : "Window animations are off. Takes effect after you sign out and back in.");
+    }
+
+    // ---- Hibernation, Game Bar, notifications --------------------------------------------------------------------
+
+    private static ActionState HibernationState()
+    {
+        var enabled = WindowsSystemProbe.HibernationEnabled();
+        return new ActionState("hibernation.disable", enabled is null ? null : !enabled.Value, enabled switch { true => "Hibernation on", false => "Hibernation off", null => "Unknown" });
+    }
+
+    private static async Task<OperationResult> SetHibernationAsync(bool enabled, CancellationToken ct)
+    {
+        var result = await ExternalCommand.RunAsync("powercfg.exe", enabled ? "/hibernate on" : "/hibernate off", ct, TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+        return result.Success
+            ? OperationResult.Ok(enabled ? "Hibernation is on again (fast startup can be used)." : "Hibernation is off; hiberfil.sys has been removed and fast startup is off too.")
+            : OperationResult.Fail($"powercfg failed: {result.LastLine}");
+    }
+
+    private static ActionState GameBarState()
+    {
+        var enabled = WindowsSystemProbe.GameBarEnabled();
+        return new ActionState("gamebar.disable", enabled is null ? null : !enabled.Value, enabled switch { true => "Game Bar on", false => "Game Bar off", null => "Unknown" });
+    }
+
+    private static OperationResult SetGameBar(bool enabled)
+    {
+        var a = RegistryTweaks.SetDword(RegistryHive.CurrentUser, WindowsSystemProbe.GameDvr, "AppCaptureEnabled", enabled ? 1 : 0);
+        var b = RegistryTweaks.SetDword(RegistryHive.CurrentUser, GameConfigStoreKey, "GameDVR_Enabled", enabled ? 1 : 0);
+        return !a.Success ? a : !b.Success ? b : OperationResult.Ok(enabled ? "Xbox Game Bar is on again." : "Xbox Game Bar and background recording are off.");
+    }
+
+    private static ActionState NotificationsState()
+    {
+        if (!PlatformGuard.IsWindows)
+        {
+            return new ActionState("notifications.focus", null, "Unknown");
+        }
+
+        var tips = RegistryTweaks.GetDword(RegistryHive.CurrentUser, ContentDeliveryKey, "SubscribedContent-338389Enabled");
+        bool applied = tips == 0;
+        return new ActionState("notifications.focus", applied, applied ? "Tips and suggestions off" : "Tips and suggestions on");
+    }
+
+    private static OperationResult SetNotificationNoise(bool quiet)
+    {
+        int v = quiet ? 0 : 1;
+        var results = new[]
+        {
+            RegistryTweaks.SetDword(RegistryHive.CurrentUser, ContentDeliveryKey, "SubscribedContent-338389Enabled", v),
+            RegistryTweaks.SetDword(RegistryHive.CurrentUser, ContentDeliveryKey, "SubscribedContent-310093Enabled", v),
+            RegistryTweaks.SetDword(RegistryHive.CurrentUser, ContentDeliveryKey, "SoftLandingEnabled", v),
+            RegistryTweaks.SetDword(RegistryHive.CurrentUser, ContentDeliveryKey, "SubscribedContent-338388Enabled", v),
+        };
+        return results.FirstOrDefault(r => !r.Success) ?? OperationResult.Ok(quiet ? "Tips, suggestions and welcome notifications are off." : "Windows tips and suggestions are on again.");
+    }
+
+    // ---- Storage -------------------------------------------------------------------------------------------------
+
+    private static async Task<ActionState> TrimStateAsync(CancellationToken ct)
+    {
+        var enabled = await WindowsSystemProbe.TrimEnabledAsync(ct).ConfigureAwait(false);
+        return new ActionState("trim.enable", enabled, enabled switch { true => "TRIM on", false => "TRIM off", null => "Unknown" });
+    }
+
+    private static async Task<OperationResult> SetTrimAsync(bool enabled, CancellationToken ct)
+    {
+        var result = await ExternalCommand.RunAsync("fsutil.exe", $"behavior set DisableDeleteNotify {(enabled ? 0 : 1)}", ct, TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+        return result.Success ? OperationResult.Ok(enabled ? "TRIM is on for SSDs." : "TRIM is off.") : OperationResult.Fail($"fsutil failed: {result.LastLine}");
+    }
+
+    private async Task<OperationResult> OptimizeDrivesAsync(CancellationToken ct)
+    {
+        Emit("Optimizing all fixed drives (TRIM for SSDs, defragment for hard disks)…");
+        var result = await ExternalCommand.RunAsync("defrag.exe", "/C /O /U /V", ct, TimeSpan.FromHours(2), Emit).ConfigureAwait(false);
+        return result.Success ? OperationResult.Ok("All drives have been optimized.") : OperationResult.Fail($"Drive optimization did not complete: {result.LastLine}");
+    }
+
+    // ---- Network -------------------------------------------------------------------------------------------------
+
+    private static async Task<ActionState> DnsStateAsync(CancellationToken ct)
+    {
+        const string command = "(Get-DnsClientServerAddress -AddressFamily IPv4 | Where-Object { $_.ServerAddresses -contains '1.1.1.1' } | Measure-Object).Count";
+        var result = await PowerShellRunner.RunAsync(command, TimeSpan.FromSeconds(30), ct).ConfigureAwait(false);
+        if (!result.Success || !int.TryParse(result.StdOut.Trim(), out int count))
+        {
+            return new ActionState("dns.cloudflare", null, "Unknown");
+        }
+
+        return new ActionState("dns.cloudflare", count > 0, count > 0 ? "Cloudflare DNS in use" : "Automatic (DHCP) DNS");
+    }
+
+    private static async Task<OperationResult> SetDnsAsync(bool cloudflare, CancellationToken ct)
+    {
+        string command = cloudflare
+            ? "Get-NetAdapter -Physical | Where-Object Status -eq 'Up' | ForEach-Object { Set-DnsClientServerAddress -InterfaceIndex $_.ifIndex -ServerAddresses 1.1.1.1,1.0.0.1 }; Clear-DnsClientCache"
+            : "Get-NetAdapter -Physical | ForEach-Object { Set-DnsClientServerAddress -InterfaceIndex $_.ifIndex -ResetServerAddresses }; Clear-DnsClientCache";
+        var result = await PowerShellRunner.RunAsync(command, TimeSpan.FromSeconds(60), ct).ConfigureAwait(false);
+        return result.Success
+            ? OperationResult.Ok(cloudflare ? "Active network adapters now use Cloudflare DNS (1.1.1.1 / 1.0.0.1)." : "DNS is back to automatic (DHCP).")
+            : OperationResult.Fail($"DNS change failed: {Last(result.StdErr, result.StdOut)}");
+    }
+
+    private async Task<OperationResult> ResetNetworkAsync(CancellationToken ct)
+    {
+        var steps = new (string Exe, string Args)[]
+        {
+            ("netsh.exe", "winsock reset"),
+            ("netsh.exe", "int ip reset"),
+            ("ipconfig.exe", "/flushdns"),
+        };
+        foreach (var (exe, args) in steps)
+        {
+            Emit($"> {exe} {args}");
+            var result = await ExternalCommand.RunAsync(exe, args, ct, TimeSpan.FromMinutes(2), Emit).ConfigureAwait(false);
+            if (!result.Success && !result.Combined.Contains("Access is denied", StringComparison.OrdinalIgnoreCase))
+            {
+                return OperationResult.Fail($"{exe} {args} failed: {result.LastLine}");
+            }
+        }
+
+        return OperationResult.Ok("Network stack reset. Restart Windows to finish; you may need to reconnect to Wi-Fi.", rebootRequired: true);
+    }
+
+    // ---- Privacy and services ------------------------------------------------------------------------------------
+
+    private static ActionState TelemetryState()
+    {
+        if (!PlatformGuard.IsWindows)
+        {
+            return new ActionState("telemetry.minimal", null, "Unknown");
+        }
+
+        var level = RegistryTweaks.GetDword(RegistryHive.LocalMachine, DataCollectionPolicyKey, "AllowTelemetry");
+        bool applied = level is 0 or 1;
+        return new ActionState("telemetry.minimal", applied, applied ? "Diagnostic data: required only" : "Diagnostic data: Windows default");
+    }
+
+    private async Task<OperationResult> SetTelemetryAsync(bool minimal, CancellationToken ct)
+    {
+        OperationResult policy = minimal
+            ? RegistryTweaks.SetDword(RegistryHive.LocalMachine, DataCollectionPolicyKey, "AllowTelemetry", 1)
+            : RegistryTweaks.DeleteValue(RegistryHive.LocalMachine, DataCollectionPolicyKey, "AllowTelemetry");
+        if (!policy.Success)
+        {
+            return policy;
+        }
+
+        RegistryTweaks.SetDword(RegistryHive.CurrentUser, PrivacyKey, "TailoredExperiencesWithDiagnosticDataEnabled", minimal ? 0 : 1);
+        var service = await SetServiceAsync("DiagTrack", minimal ? "demand" : "auto", stop: minimal, ct).ConfigureAwait(false);
+        return OperationResult.Ok(minimal
+            ? "Diagnostic data is set to the required minimum and tailored experiences are off." + (service.Success ? string.Empty : " (DiagTrack service unchanged: " + service.Message + ")")
+            : "Diagnostic data settings are back to the Windows default.");
+    }
+
+    private static async Task<ActionState> ServiceDisabledStateAsync(string id, string serviceName, CancellationToken ct)
+    {
+        var rows = await Task.Run(() => WindowsSystemProbe.Query(@"root\cimv2",
+            $"SELECT StartMode, State, DelayedAutoStart FROM Win32_Service WHERE Name = '{serviceName}'",
+            row => (Mode: ServiceClassifier.NormalizeStartMode(WindowsSystemProbe.Str(row, "StartMode"), WindowsSystemProbe.Bool(row, "DelayedAutoStart") ?? false), State: WindowsSystemProbe.Str(row, "State") ?? "Unknown")), ct).ConfigureAwait(false);
+        if (rows.Count == 0)
+        {
+            return new ActionState(id, null, "Service not found");
+        }
+
+        var (mode, state) = rows[0];
+        bool applied = mode.Equals("Disabled", StringComparison.OrdinalIgnoreCase);
+        return new ActionState(id, applied, $"{mode}, {state.ToLowerInvariant()}");
+    }
+
+    private static async Task<OperationResult> SetServiceAsync(string serviceName, string scMode, bool stop, CancellationToken ct)
+    {
+        var config = await ExternalCommand.RunAsync("sc.exe", $"config {serviceName} start= {scMode}", ct, TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+        if (!config.Success)
+        {
+            return OperationResult.Fail($"sc config {serviceName} failed: {config.LastLine}");
+        }
+
+        if (stop)
+        {
+            await ExternalCommand.RunAsync("sc.exe", $"stop {serviceName}", ct, TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+            return OperationResult.Ok($"{serviceName} is set to {ScModeName(scMode)} and has been stopped.");
+        }
+
+        if (scMode is "auto" or "delayed-auto")
+        {
+            await ExternalCommand.RunAsync("sc.exe", $"start {serviceName}", ct, TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+        }
+
+        return OperationResult.Ok($"{serviceName} is set to {ScModeName(scMode)}.");
+    }
+
+    private static string ScModeName(string scMode) => scMode switch
+    {
+        "auto" => "Automatic",
+        "delayed-auto" => "Automatic (Delayed)",
+        "demand" => "Manual",
+        "disabled" => "Disabled",
+        _ => scMode,
+    };
+
+    // ---- Repair tools --------------------------------------------------------------------------------------------
+
+    private async Task<OperationResult> RunDismAsync(CancellationToken ct)
+    {
+        Emit("> DISM /Online /Cleanup-Image /RestoreHealth");
+        var result = await ExternalCommand.RunAsync("dism.exe", "/Online /Cleanup-Image /RestoreHealth", ct, LongToolTimeout, Emit).ConfigureAwait(false);
+        if (result.TimedOut)
+        {
+            return OperationResult.Fail("DISM did not finish within 45 minutes and was stopped.");
+        }
+
+        return result.Success
+            ? OperationResult.Ok("DISM finished: the Windows component store is healthy or has been repaired.")
+            : OperationResult.Fail($"DISM reported a problem (exit code {result.ExitCode}): {result.LastLine}");
+    }
+
+    private async Task<OperationResult> RunSfcAsync(CancellationToken ct)
+    {
+        Emit("> sfc /scannow");
+        var result = await ExternalCommand.RunAsync("sfc.exe", "/scannow", ct, LongToolTimeout, Emit, Encoding.Unicode).ConfigureAwait(false);
+        if (result.TimedOut)
+        {
+            return OperationResult.Fail("System File Checker did not finish within 45 minutes and was stopped.");
+        }
+
+        var text = result.Combined;
+        if (text.Contains("did not find any integrity violations", StringComparison.OrdinalIgnoreCase))
+        {
+            return OperationResult.Ok("System File Checker found no damaged files.");
+        }
+
+        if (text.Contains("successfully repaired", StringComparison.OrdinalIgnoreCase))
+        {
+            return OperationResult.Ok("System File Checker repaired damaged files. Restart to complete the repair.", rebootRequired: true);
+        }
+
+        if (text.Contains("unable to fix", StringComparison.OrdinalIgnoreCase))
+        {
+            return OperationResult.Fail("System File Checker found damaged files it could not repair. Run \"Repair the Windows image (DISM)\" first, then try again.");
+        }
+
+        return result.Success
+            ? OperationResult.Ok("System File Checker finished. See the output above for details.")
+            : OperationResult.Fail($"System File Checker reported a problem (exit code {result.ExitCode}): {result.LastLine}");
+    }
+
+    private static string Last(string first, string second)
+    {
+        var text = string.IsNullOrWhiteSpace(first) ? second : first;
+        var lines = text.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        return lines.Length == 0 ? "unknown error" : lines[^1];
+    }
+}
