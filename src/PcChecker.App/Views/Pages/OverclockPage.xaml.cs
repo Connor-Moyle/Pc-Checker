@@ -9,6 +9,8 @@ public partial class OverclockPage
         ViewModel = viewModel;
         DataContext = viewModel;
         InitializeComponent();
+        Loaded += (_, _) => ViewModel.OnPageLoaded();
+        Unloaded += (_, _) => ViewModel.OnPageUnloaded();
     }
 
     public OverclockViewModel ViewModel { get; }

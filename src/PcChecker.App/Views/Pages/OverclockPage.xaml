@@ -10,6 +10,34 @@
       mc:Ignorable="d"
       Title="Overclock"
       ScrollViewer.CanContentScroll="False">
+  <Page.Resources>
+    <Style x:Key="Badge" TargetType="Border">
+      <Setter Property="CornerRadius" Value="10" />
+      <Setter Property="Padding" Value="9,2" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="Margin" Value="8,0,0,0" />
+    </Style>
+    <Style x:Key="BadgeText" TargetType="TextBlock">
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Foreground" Value="#111111" />
+    </Style>
+    <Style x:Key="RowLabel" TargetType="ui:TextBlock">
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="Margin" Value="0,0,12,0" />
+    </Style>
+    <Style x:Key="TuneSlider" TargetType="Slider">
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="Margin" Value="0,0,12,0" />
+      <Setter Property="IsSnapToTickEnabled" Value="True" />
+      <Setter Property="TickFrequency" Value="1" />
+    </Style>
+    <Style x:Key="Bullet" TargetType="ui:TextBlock">
+      <Setter Property="TextWrapping" Value="Wrap" />
+      <Setter Property="Margin" Value="0,2" />
+    </Style>
+  </Page.Resources>
+
   <Grid Style="{StaticResource PageRoot}">
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto" />
@@ -17,24 +45,525 @@
       <RowDefinition Height="*" />
     </Grid.RowDefinitions>
 
-    <controls:SectionHeader Grid.Row="0" Title="Overclock" Subtitle="Tune your GPU and CPU step by step with safety limits." />
+    <controls:SectionHeader Grid.Row="0" Title="Overclock" Subtitle="Tune your GPU and CPU step by step, with safety limits, a crash watchdog and a built-in stress test.">
+      <controls:SectionHeader.Actions>
+        <StackPanel Orientation="Horizontal">
+          <ui:Button Content="Detect again" Icon="{ui:SymbolIcon ArrowClockwise24}" Command="{Binding DetectAgainCommand}" Margin="0,0,8,0" />
+          <ui:Button Content="Reset to defaults" Icon="{ui:SymbolIcon ArrowReset24}" Appearance="Danger" Command="{Binding ResetToDefaultsCommand}"
+                     Visibility="{Binding ConsentAccepted, Converter={StaticResource BoolToVisibility}}" />
+        </StackPanel>
+      </controls:SectionHeader.Actions>
+    </controls:SectionHeader>
 
-    <ui:InfoBar Grid.Row="1"
-                Severity="Error"
-                Title="Something went wrong"
-                Message="{Binding ErrorMessage}"
-                IsOpen="{Binding HasError, Mode=OneWay}"
-                IsClosable="True"
-                Margin="0,0,0,12" />
+    <StackPanel Grid.Row="1">
+      <ui:InfoBar Severity="Error" Title="Something went wrong" Message="{Binding ErrorMessage}" IsOpen="{Binding HasError, Mode=OneWay}" IsClosable="True" Margin="0,0,0,12" />
+      <ui:InfoBar Severity="Warning" Title="Overclock reverted" Message="{Binding RecoveryMessage}" IsOpen="{Binding HasRecoveryMessage, Mode=OneWay}" IsClosable="True" Margin="0,0,0,12" />
+      <ui:InfoBar Severity="Success" Title="Done" Message="{Binding StatusMessage}" IsOpen="{Binding HasStatusMessage, Mode=OneWay}" IsClosable="True" Margin="0,0,0,12" />
+    </StackPanel>
 
-    <controls:EmptyState Grid.Row="2"
-                         Icon="Gauge24"
-                         Title="This section is being prepared"
-                         Message="Tune your GPU and CPU step by step with safety limits." />
+    <ScrollViewer Grid.Row="2" Style="{StaticResource PageScroll}">
+      <StackPanel MaxWidth="1120" HorizontalAlignment="Left">
 
-    <controls:BusyOverlay Grid.Row="0" Grid.RowSpan="3"
-                          IsBusy="{Binding IsBusy}"
-                          Text="{Binding BusyText}"
-                          CancelCommand="{Binding CancelCommand}" />
+        <!-- 1. Consent gate -->
+        <ui:Card Style="{StaticResource CardSpacing}" Visibility="{Binding ShowConsentGate, Converter={StaticResource BoolToVisibility}}">
+          <StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+              <ui:SymbolIcon Symbol="ShieldCheckmark24" FontSize="28" Foreground="{StaticResource AccentOrangeBrush}" Margin="0,0,12,0" />
+              <ui:TextBlock FontTypography="Subtitle" Text="Before you start: what overclocking means" VerticalAlignment="Center" />
+            </StackPanel>
+            <ui:TextBlock TextWrapping="Wrap" Text="{Binding Disclaimer}" Margin="0,0,0,12" />
+            <ItemsControl ItemsSource="{Binding ConsentPoints}" Margin="0,0,0,12">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <StackPanel Orientation="Horizontal" Margin="0,3">
+                    <ui:SymbolIcon Symbol="ChevronDown24" FontSize="12" Margin="0,2,8,0" VerticalAlignment="Top" Opacity="0.6" />
+                    <ui:TextBlock Text="{Binding}" TextWrapping="Wrap" MaxWidth="980" />
+                  </StackPanel>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <ui:TextBlock Style="{StaticResource CardTitle}" Text="What PC Checker can control on this PC" />
+            <ItemsControl ItemsSource="{Binding SupportRows}" Margin="0,0,0,12">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <Grid Margin="0,3">
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="260" />
+                      <ColumnDefinition Width="110" />
+                      <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <ui:TextBlock Grid.Column="0" Text="{Binding Feature}" VerticalAlignment="Center" TextWrapping="Wrap" />
+                    <Border Grid.Column="1" Style="{StaticResource Badge}" Background="{Binding Brush}" HorizontalAlignment="Left" Margin="0">
+                      <TextBlock Style="{StaticResource BadgeText}" Text="{Binding Level}" />
+                    </Border>
+                    <ui:TextBlock Grid.Column="2" Style="{StaticResource Muted}" Text="{Binding Note}" TextWrapping="Wrap" VerticalAlignment="Center" Margin="12,0,0,0" />
+                  </Grid>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <CheckBox Content="I understand the risks and I take responsibility for changes made from this page." IsChecked="{Binding ConsentChecked}" Margin="0,4,0,12" />
+            <ui:Button Content="Continue to tuning" Appearance="Primary" Icon="{ui:SymbolIcon Gauge24}" Command="{Binding AcceptConsentCommand}" HorizontalAlignment="Left" />
+          </StackPanel>
+        </ui:Card>
+
+        <StackPanel Visibility="{Binding ConsentAccepted, Converter={StaticResource BoolToVisibility}}">
+
+          <!-- 2. Your hardware -->
+          <ui:Card Style="{StaticResource CardSpacing}">
+            <StackPanel>
+              <ui:TextBlock Style="{StaticResource CardTitle}" Text="Your hardware" />
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Margin="0,0,16,0">
+                  <StackPanel Orientation="Horizontal">
+                    <ui:SymbolIcon Symbol="DeveloperBoard24" FontSize="18" Margin="0,0,8,0" />
+                    <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding GpuVendorText, StringFormat='Graphics card · {0}'}" VerticalAlignment="Center" />
+                    <Border Style="{StaticResource Badge}" Background="{Binding GpuSupportBrush}">
+                      <TextBlock Style="{StaticResource BadgeText}" Text="{Binding GpuSupportLevel}" />
+                    </Border>
+                  </StackPanel>
+                  <ui:TextBlock FontTypography="BodyStrong" Text="{Binding GpuName}" TextWrapping="Wrap" Margin="0,4,0,2" />
+                  <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding GpuSupportNote}" TextWrapping="Wrap" />
+                  <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                    <ui:Button Content="{Binding GpuToolName, StringFormat='Open {0}'}" Icon="{ui:SymbolIcon Open24}" Command="{Binding OpenGpuToolCommand}"
+                               Visibility="{Binding GpuToolInstalled, Converter={StaticResource BoolToVisibility}}" />
+                    <ui:Button Content="{Binding GpuToolName, StringFormat='Get {0}'}" Icon="{ui:SymbolIcon ArrowDownload24}" Command="{Binding OpenGpuToolCommand}"
+                               Visibility="{Binding GpuToolInstalled, Converter={StaticResource InverseBoolToVisibility}}" />
+                  </StackPanel>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Margin="0,0,16,0">
+                  <StackPanel Orientation="Horizontal">
+                    <ui:SymbolIcon Symbol="DesktopTower24" FontSize="18" Margin="0,0,8,0" />
+                    <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding CpuVendorText, StringFormat='Processor · {0}'}" VerticalAlignment="Center" />
+                    <Border Style="{StaticResource Badge}" Background="{Binding CpuSupportBrush}">
+                      <TextBlock Style="{StaticResource BadgeText}" Text="{Binding CpuSupportLevel}" />
+                    </Border>
+                  </StackPanel>
+                  <ui:TextBlock FontTypography="BodyStrong" Text="{Binding CpuName}" TextWrapping="Wrap" Margin="0,4,0,2" />
+                  <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding CpuSupportNote}" TextWrapping="Wrap" />
+                  <StackPanel Orientation="Horizontal" Margin="0,8,0,0" Visibility="{Binding CpuToolKnown, Converter={StaticResource BoolToVisibility}}">
+                    <ui:Button Content="{Binding CpuToolName, StringFormat='Open {0}'}" Icon="{ui:SymbolIcon Open24}" Command="{Binding OpenCpuToolCommand}"
+                               Visibility="{Binding CpuToolInstalled, Converter={StaticResource BoolToVisibility}}" />
+                    <ui:Button Content="{Binding CpuToolName, StringFormat='Get {0}'}" Icon="{ui:SymbolIcon ArrowDownload24}" Command="{Binding OpenCpuToolCommand}"
+                               Visibility="{Binding CpuToolInstalled, Converter={StaticResource InverseBoolToVisibility}}" />
+                  </StackPanel>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2">
+                  <StackPanel Orientation="Horizontal">
+                    <ui:SymbolIcon Symbol="Memory16" FontSize="18" Margin="0,0,8,0" />
+                    <ui:TextBlock Style="{StaticResource Muted}" Text="Memory · XMP / EXPO" VerticalAlignment="Center" />
+                    <Border Style="{StaticResource Badge}" Background="{Binding XmpBrush}">
+                      <TextBlock Style="{StaticResource BadgeText}" Text="{Binding XmpState}" />
+                    </Border>
+                  </StackPanel>
+                  <ui:TextBlock FontTypography="BodyStrong" Text="{Binding MemoryText}" TextWrapping="Wrap" Margin="0,4,0,2" />
+                  <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding XmpAdvice}" TextWrapping="Wrap" />
+                  <ui:Button Content="Memory page" Icon="{ui:SymbolIcon ArrowRight24}" Command="{Binding GoToMemoryPageCommand}" Margin="0,8,0,0" />
+                </StackPanel>
+              </Grid>
+
+              <ItemsControl ItemsSource="{Binding Notes}" Margin="0,12,0,0">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <StackPanel Orientation="Horizontal" Margin="0,2">
+                      <ui:SymbolIcon Symbol="Info24" FontSize="14" Margin="0,2,8,0" VerticalAlignment="Top" Opacity="0.7" />
+                      <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding}" TextWrapping="Wrap" MaxWidth="1000" />
+                    </StackPanel>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
+          </ui:Card>
+
+          <!-- 3. Supported hardware matrix -->
+          <ui:CardExpander Margin="0,0,0,12" Icon="{ui:SymbolIcon ShieldCheckmark24}" IsExpanded="True">
+            <ui:CardExpander.Header>
+              <StackPanel>
+                <ui:TextBlock FontTypography="BodyStrong" Text="Supported hardware on this PC" />
+                <ui:TextBlock Style="{StaticResource Muted}" Text="Full = PC Checker applies it · Partial = some limits · Experimental = works, less tested · Monitor only = readouts · Unsupported = use the vendor's software or the BIOS" TextWrapping="Wrap" />
+              </StackPanel>
+            </ui:CardExpander.Header>
+            <ItemsControl ItemsSource="{Binding SupportRows}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <Grid Margin="0,4">
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="280" />
+                      <ColumnDefinition Width="80" />
+                      <ColumnDefinition Width="110" />
+                      <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <ui:TextBlock Grid.Column="0" Text="{Binding Feature}" VerticalAlignment="Center" TextWrapping="Wrap" />
+                    <ui:TextBlock Grid.Column="1" Style="{StaticResource Muted}" Text="{Binding Vendor}" VerticalAlignment="Center" />
+                    <Border Grid.Column="2" Style="{StaticResource Badge}" Background="{Binding Brush}" HorizontalAlignment="Left" Margin="0">
+                      <TextBlock Style="{StaticResource BadgeText}" Text="{Binding Level}" />
+                    </Border>
+                    <ui:TextBlock Grid.Column="3" Style="{StaticResource Muted}" Text="{Binding Note}" TextWrapping="Wrap" VerticalAlignment="Center" Margin="12,0,0,0" />
+                  </Grid>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </ui:CardExpander>
+
+          <!-- 4. Live readouts -->
+          <ui:TextBlock Style="{StaticResource CardTitle}" Text="Live readouts" Margin="0,4,0,8" />
+          <WrapPanel Margin="0,0,0,4">
+            <controls:StatCard Title="GPU core clock" Value="{Binding GpuCoreClockText}" Unit="MHz" Icon="Gauge24" Accent="{StaticResource AccentCyanBrush}" Margin="0,0,12,12" />
+            <controls:StatCard Title="GPU memory clock" Value="{Binding GpuMemoryClockText}" Unit="MHz" Icon="Memory16" Accent="{StaticResource AccentPurpleBrush}" Margin="0,0,12,12" />
+            <controls:StatCard Title="GPU temperature" Value="{Binding GpuTempText}" Unit="°C" Icon="Temperature24" Accent="{Binding GpuTempValue, Converter={StaticResource TemperatureToBrush}, ConverterParameter='83,92'}" Margin="0,0,12,12" />
+            <controls:StatCard Title="GPU power" Value="{Binding GpuPowerText}" Unit="W" Icon="Flash24" Accent="{StaticResource AccentYellowBrush}" Margin="0,0,12,12" />
+            <controls:StatCard Title="GPU fan" Value="{Binding GpuFanText}" Unit="%" Icon="ArrowSyncCircle24" Accent="{StaticResource AccentGreyBrush}" Margin="0,0,12,12" />
+            <controls:StatCard Title="CPU temperature" Value="{Binding CpuTempText}" Unit="°C" Icon="Fire24" Accent="{Binding CpuTempValue, Converter={StaticResource TemperatureToBrush}, ConverterParameter='85,95'}" Margin="0,0,12,12" />
+            <controls:StatCard Title="CPU clock" Value="{Binding CpuClockText}" Unit="MHz" Icon="TopSpeed24" Accent="{StaticResource AccentGreenBrush}" Margin="0,0,12,12" />
+          </WrapPanel>
+
+          <!-- 5. GPU tuning -->
+          <ui:Card Style="{StaticResource CardSpacing}" Visibility="{Binding CanTuneGpu, Converter={StaticResource BoolToVisibility}}">
+            <StackPanel>
+              <Grid Margin="0,0,0,8">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0">
+                  <ui:TextBlock FontTypography="BodyStrong" Text="GPU tuning" />
+                  <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Text="Offsets are added to the card's own boost behaviour. Start with a preset, apply, run the stress test, then raise in small steps." />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top">
+                  <ui:TextBlock Style="{StaticResource Muted}" Text="Presets:" VerticalAlignment="Center" Margin="0,0,8,0" />
+                  <ui:Button Content="Default" Command="{Binding ApplyPresetCommand}" CommandParameter="Default (0 / 0)" Margin="0,0,6,0" ToolTip="Everything back to stock values in the sliders." />
+                  <ui:Button Content="Mild" Command="{Binding ApplyPresetCommand}" CommandParameter="Mild (+50 / +200)" Margin="0,0,6,0" ToolTip="+50 MHz core, +200 MHz memory." />
+                  <ui:Button Content="Moderate" Command="{Binding ApplyPresetCommand}" CommandParameter="Moderate (+100 / +500)" Margin="0,0,6,0" ToolTip="+100 MHz core, +500 MHz memory, 105 % power." />
+                  <ui:Button Content="Quiet" Command="{Binding ApplyPresetCommand}" CommandParameter="Quiet and cool (power 85 %)" ToolTip="85 % power and a 75 °C temperature target." />
+                </StackPanel>
+              </Grid>
+
+              <Grid Margin="0,4">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="180" />
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="140" />
+                </Grid.ColumnDefinitions>
+                <ui:TextBlock Grid.Column="0" Style="{StaticResource RowLabel}" Text="Core clock offset (MHz)" ToolTip="Added to the GPU core clock in every boost state. Too high = crashes or artifacts." />
+                <Slider Grid.Column="1" Style="{StaticResource TuneSlider}" Minimum="{Binding CoreMin}" Maximum="{Binding CoreMax}" Value="{Binding CoreOffset}" TickFrequency="5" />
+                <ui:NumberBox Grid.Column="2" Value="{Binding CoreOffset, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Minimum="{Binding CoreMin}" Maximum="{Binding CoreMax}" SmallChange="5" MaxDecimalPlaces="0" ClearButtonEnabled="False" />
+              </Grid>
+              <Grid Margin="0,4">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="180" />
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="140" />
+                </Grid.ColumnDefinitions>
+                <ui:TextBlock Grid.Column="0" Style="{StaticResource RowLabel}" Text="Memory clock offset (MHz)" ToolTip="Added to the video memory clock. Memory usually takes larger offsets than the core." />
+                <Slider Grid.Column="1" Style="{StaticResource TuneSlider}" Minimum="{Binding MemoryMin}" Maximum="{Binding MemoryMax}" Value="{Binding MemoryOffset}" TickFrequency="25" />
+                <ui:NumberBox Grid.Column="2" Value="{Binding MemoryOffset, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Minimum="{Binding MemoryMin}" Maximum="{Binding MemoryMax}" SmallChange="25" MaxDecimalPlaces="0" ClearButtonEnabled="False" />
+              </Grid>
+              <Grid Margin="0,4" Visibility="{Binding PowerLimitSupported, Converter={StaticResource BoolToVisibility}}">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="180" />
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="140" />
+                </Grid.ColumnDefinitions>
+                <ui:TextBlock Grid.Column="0" Style="{StaticResource RowLabel}" Text="Power limit (%)" ToolTip="How much power the card may draw compared with its default. Lower = cooler and quieter; higher = holds boost clocks longer." />
+                <Slider Grid.Column="1" Style="{StaticResource TuneSlider}" Minimum="{Binding PowerMin}" Maximum="{Binding PowerMax}" Value="{Binding PowerLimit}" />
+                <ui:NumberBox Grid.Column="2" Value="{Binding PowerLimit, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Minimum="{Binding PowerMin}" Maximum="{Binding PowerMax}" SmallChange="1" MaxDecimalPlaces="0" ClearButtonEnabled="False" />
+              </Grid>
+              <Grid Margin="0,4" Visibility="{Binding TempLimitSupported, Converter={StaticResource BoolToVisibility}}">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="180" />
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="140" />
+                </Grid.ColumnDefinitions>
+                <CheckBox Grid.Column="0" Content="Temperature limit (°C)" IsChecked="{Binding TempLimitEnabled}" VerticalAlignment="Center" ToolTip="The card slows itself down to stay under this temperature." />
+                <Slider Grid.Column="1" Style="{StaticResource TuneSlider}" Minimum="{Binding TempMin}" Maximum="{Binding TempMax}" Value="{Binding TempLimit}" IsEnabled="{Binding TempLimitEnabled}" />
+                <ui:NumberBox Grid.Column="2" Value="{Binding TempLimit, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Minimum="{Binding TempMin}" Maximum="{Binding TempMax}" SmallChange="1" MaxDecimalPlaces="0" ClearButtonEnabled="False" IsEnabled="{Binding TempLimitEnabled}" />
+              </Grid>
+              <Grid Margin="0,4" Visibility="{Binding FanSupported, Converter={StaticResource BoolToVisibility}}">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="180" />
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="140" />
+                </Grid.ColumnDefinitions>
+                <CheckBox Grid.Column="0" Content="Fixed fan speed (%)" IsChecked="{Binding FanManual}" VerticalAlignment="Center" ToolTip="{Binding FanButtonHint}" />
+                <Slider Grid.Column="1" Style="{StaticResource TuneSlider}" Minimum="0" Maximum="100" Value="{Binding FanPercent}" IsEnabled="{Binding FanManual}" />
+                <ui:NumberBox Grid.Column="2" Value="{Binding FanPercent, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Minimum="0" Maximum="100" SmallChange="5" MaxDecimalPlaces="0" ClearButtonEnabled="False" IsEnabled="{Binding FanManual}" />
+              </Grid>
+
+              <Grid Margin="0,12,0,0">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="Auto" />
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0" Orientation="Horizontal">
+                  <ui:Button Content="Apply to GPU" Appearance="Primary" Icon="{ui:SymbolIcon Checkmark24}" Command="{Binding ApplyGpuCommand}" Margin="0,0,8,0" />
+                  <ui:Button Content="Fans page" Icon="{ui:SymbolIcon ArrowSyncCircle24}" Command="{Binding GoToFansPageCommand}" ToolTip="{Binding FanButtonHint}" />
+                </StackPanel>
+                <StackPanel Grid.Column="2" Orientation="Horizontal">
+                  <ui:TextBlock Style="{StaticResource Muted}" Text="Profile" VerticalAlignment="Center" Margin="0,0,8,0" />
+                  <ComboBox MinWidth="220" ItemsSource="{Binding Profiles}" SelectedItem="{Binding SelectedProfile}" DisplayMemberPath="Name" Margin="0,0,8,0" />
+                  <ui:TextBox MinWidth="160" Text="{Binding NewProfileName, UpdateSourceTrigger=PropertyChanged}" PlaceholderText="Profile name" Margin="0,0,8,0" />
+                  <ui:Button Content="Save" Icon="{ui:SymbolIcon Save24}" Command="{Binding SaveProfileCommand}" Margin="0,0,6,0" ToolTip="Saves the current slider values under this name." />
+                  <ui:Button Icon="{ui:SymbolIcon Delete24}" Command="{Binding DeleteProfileCommand}" ToolTip="Deletes the selected saved profile." />
+                </StackPanel>
+              </Grid>
+              <ui:TextBlock Style="{StaticResource Caption}" Margin="0,8,0,0" Text="{Binding ActiveProfileName, StringFormat='Applied now: {0}', TargetNullValue='Nothing applied: the card is at stock settings.'}" />
+            </StackPanel>
+          </ui:Card>
+
+          <!-- 5b. GPU guidance when tuning is unavailable -->
+          <ui:Card Style="{StaticResource CardSpacing}" Visibility="{Binding CanTuneGpu, Converter={StaticResource InverseBoolToVisibility}}">
+            <StackPanel>
+              <ui:TextBlock FontTypography="BodyStrong" Text="GPU tuning: use the vendor's software" />
+              <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,4,0,8"
+                            Text="PC Checker could not get a tuning interface for this graphics card, so it stays in monitor-only mode here. The vendor's own program offers the same controls, and the readouts, stress test and advisor on this page still work." />
+              <ui:TextBlock TextWrapping="Wrap" Text="{Binding GpuToolPurpose}" Margin="0,0,0,8" />
+              <StackPanel Orientation="Horizontal">
+                <ui:Button Content="{Binding GpuToolName, StringFormat='Open {0}'}" Appearance="Primary" Icon="{ui:SymbolIcon Open24}" Command="{Binding OpenGpuToolCommand}" Visibility="{Binding GpuToolInstalled, Converter={StaticResource BoolToVisibility}}" />
+                <ui:Button Content="{Binding GpuToolName, StringFormat='Download {0}'}" Appearance="Primary" Icon="{ui:SymbolIcon ArrowDownload24}" Command="{Binding OpenGpuToolCommand}" Visibility="{Binding GpuToolInstalled, Converter={StaticResource InverseBoolToVisibility}}" />
+              </StackPanel>
+            </StackPanel>
+          </ui:Card>
+
+          <!-- 6. CPU -->
+          <ui:Card Style="{StaticResource CardSpacing}">
+            <StackPanel>
+              <ui:TextBlock FontTypography="BodyStrong" Text="CPU tuning" />
+              <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding CpuSupportNote}" TextWrapping="Wrap" Margin="0,4,0,8" />
+
+              <StackPanel Visibility="{Binding CanTuneCpu, Converter={StaticResource BoolToVisibility}}">
+                <Grid Margin="0,4" Visibility="{Binding CpuPowerOnly, Converter={StaticResource InverseBoolToVisibility}}">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="180" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="140" />
+                  </Grid.ColumnDefinitions>
+                  <CheckBox Grid.Column="0" Content="All-core ratio (×100 MHz)" IsChecked="{Binding CpuRatioEnabled}" VerticalAlignment="Center" ToolTip="The multiplier applied to every core, e.g. 53 = 5.3 GHz." />
+                  <Slider Grid.Column="1" Style="{StaticResource TuneSlider}" Minimum="8" Maximum="70" Value="{Binding CpuRatio}" IsEnabled="{Binding CpuRatioEnabled}" />
+                  <ui:NumberBox Grid.Column="2" Value="{Binding CpuRatio, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Minimum="8" Maximum="70" SmallChange="1" MaxDecimalPlaces="0" ClearButtonEnabled="False" IsEnabled="{Binding CpuRatioEnabled}" />
+                </Grid>
+                <Grid Margin="0,4" Visibility="{Binding CpuPowerOnly, Converter={StaticResource InverseBoolToVisibility}}">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="180" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="140" />
+                  </Grid.ColumnDefinitions>
+                  <CheckBox Grid.Column="0" Content="Voltage offset (mV)" IsChecked="{Binding CpuVoltageEnabled}" VerticalAlignment="Center" ToolTip="Negative values (undervolt) lower heat; positive values help stability at higher ratios." />
+                  <Slider Grid.Column="1" Style="{StaticResource TuneSlider}" Minimum="-150" Maximum="100" Value="{Binding CpuVoltageOffset}" TickFrequency="5" IsEnabled="{Binding CpuVoltageEnabled}" />
+                  <ui:NumberBox Grid.Column="2" Value="{Binding CpuVoltageOffset, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Minimum="-150" Maximum="100" SmallChange="5" MaxDecimalPlaces="0" ClearButtonEnabled="False" IsEnabled="{Binding CpuVoltageEnabled}" />
+                </Grid>
+                <Grid Margin="0,4">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="180" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="140" />
+                  </Grid.ColumnDefinitions>
+                  <CheckBox Grid.Column="0" Content="Power limit (W)" IsChecked="{Binding CpuPowerEnabled}" VerticalAlignment="Center" ToolTip="Sustained package power. Lower = cooler and quieter under long loads." />
+                  <Slider Grid.Column="1" Style="{StaticResource TuneSlider}" Minimum="15" Maximum="400" Value="{Binding CpuPowerLimit}" TickFrequency="5" IsEnabled="{Binding CpuPowerEnabled}" />
+                  <ui:NumberBox Grid.Column="2" Value="{Binding CpuPowerLimit, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Minimum="15" Maximum="400" SmallChange="5" MaxDecimalPlaces="0" ClearButtonEnabled="False" IsEnabled="{Binding CpuPowerEnabled}" />
+                </Grid>
+                <ui:Button Content="Apply to CPU" Appearance="Primary" Icon="{ui:SymbolIcon Checkmark24}" Command="{Binding ApplyCpuCommand}" Margin="0,8,0,0" HorizontalAlignment="Left" />
+              </StackPanel>
+
+              <StackPanel Visibility="{Binding CanTuneCpu, Converter={StaticResource InverseBoolToVisibility}}">
+                <ui:TextBlock Text="How to tune the CPU in the BIOS (plain English)" Margin="0,0,0,4" />
+                <ItemsControl ItemsSource="{Binding BiosSteps}" AlternationCount="100">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                      <StackPanel Orientation="Horizontal" Margin="0,2">
+                        <ui:SymbolIcon Symbol="ArrowRight24" FontSize="12" Margin="0,3,8,0" VerticalAlignment="Top" Opacity="0.6" />
+                        <ui:TextBlock Text="{Binding}" TextWrapping="Wrap" MaxWidth="980" />
+                      </StackPanel>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <StackPanel Orientation="Horizontal" Margin="0,10,0,0" Visibility="{Binding CpuToolKnown, Converter={StaticResource BoolToVisibility}}">
+                  <ui:Button Content="{Binding CpuToolName, StringFormat='Open {0}'}" Icon="{ui:SymbolIcon Open24}" Command="{Binding OpenCpuToolCommand}" Visibility="{Binding CpuToolInstalled, Converter={StaticResource BoolToVisibility}}" />
+                  <ui:Button Content="{Binding CpuToolName, StringFormat='Download {0}'}" Icon="{ui:SymbolIcon ArrowDownload24}" Command="{Binding OpenCpuToolCommand}" Visibility="{Binding CpuToolInstalled, Converter={StaticResource InverseBoolToVisibility}}" />
+                  <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding CpuToolPurpose}" VerticalAlignment="Center" Margin="12,0,0,0" TextWrapping="Wrap" MaxWidth="600" />
+                </StackPanel>
+              </StackPanel>
+            </StackPanel>
+          </ui:Card>
+
+          <!-- 7. Stress test -->
+          <ui:Card Style="{StaticResource CardSpacing}">
+            <StackPanel>
+              <ui:TextBlock FontTypography="BodyStrong" Text="Stress test with temperature watchdog" />
+              <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding StressTargetHelp}" TextWrapping="Wrap" Margin="0,4,0,10" />
+              <WrapPanel IsEnabled="{Binding StressIdle}">
+                <StackPanel Margin="0,0,16,8">
+                  <ui:TextBlock Style="{StaticResource Caption}" Text="What to test" />
+                  <ComboBox MinWidth="140" ItemsSource="{Binding StressTargets}" SelectedItem="{Binding SelectedStressTarget}">
+                    <ComboBox.ItemTemplate>
+                      <DataTemplate>
+                        <TextBlock Text="{Binding Converter={StaticResource EnumToString}}" />
+                      </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                  </ComboBox>
+                </StackPanel>
+                <StackPanel Margin="0,0,16,8" Width="260">
+                  <ui:TextBlock Style="{StaticResource Caption}" Text="{Binding StressDurationText, StringFormat='Duration: {0}'}" />
+                  <Slider Minimum="0.5" Maximum="30" Value="{Binding StressMinutes}" TickFrequency="0.5" IsSnapToTickEnabled="True" />
+                </StackPanel>
+                <StackPanel Margin="0,0,16,8">
+                  <ui:TextBlock Style="{StaticResource Caption}" Text="Stop if CPU reaches (°C)" />
+                  <ui:NumberBox Width="130" Value="{Binding AbortCpuTemp, Mode=TwoWay}" Minimum="60" Maximum="105" SmallChange="1" MaxDecimalPlaces="0" ClearButtonEnabled="False" />
+                </StackPanel>
+                <StackPanel Margin="0,0,16,8">
+                  <ui:TextBlock Style="{StaticResource Caption}" Text="Stop if GPU reaches (°C)" />
+                  <ui:NumberBox Width="130" Value="{Binding AbortGpuTemp, Mode=TwoWay}" Minimum="60" Maximum="100" SmallChange="1" MaxDecimalPlaces="0" ClearButtonEnabled="False" />
+                </StackPanel>
+              </WrapPanel>
+              <StackPanel Orientation="Horizontal" Margin="0,4,0,10">
+                <ui:Button Content="Start" Appearance="Primary" Icon="{ui:SymbolIcon Play24}" Command="{Binding StartStressCommand}" Margin="0,0,8,0" />
+                <ui:Button Content="Stop" Appearance="Danger" Icon="{ui:SymbolIcon Stop24}" Command="{Binding StopStressCommand}" />
+              </StackPanel>
+              <ProgressBar Minimum="0" Maximum="100" Value="{Binding StressProgress}" Height="6" Margin="0,0,0,6" />
+              <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding StressDetail}" TextWrapping="Wrap" />
+              <Grid Margin="0,10,0,0">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0" Margin="0,0,8,0">
+                  <ui:TextBlock Style="{StaticResource Caption}" Text="GPU temperature, last 60 s" />
+                  <controls:SparklineControl Height="48" ItemsSource="{Binding GpuTempHistory}" Minimum="20" Maximum="100" Stroke="{StaticResource AccentCyanBrush}" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Margin="8,0,0,0">
+                  <ui:TextBlock Style="{StaticResource Caption}" Text="CPU temperature, last 60 s" />
+                  <controls:SparklineControl Height="48" ItemsSource="{Binding CpuTempHistory}" Minimum="20" Maximum="100" Stroke="{StaticResource AccentOrangeBrush}" Fill="#33F97316" />
+                </StackPanel>
+              </Grid>
+              <ui:InfoBar Severity="{Binding StressSeverity}" Title="{Binding StressTitle}" Message="{Binding StressSummary}" IsOpen="{Binding HasStressResult, Mode=OneWay}" IsClosable="False" Margin="0,10,0,0" />
+            </StackPanel>
+          </ui:Card>
+
+          <!-- 8. Claude advisor -->
+          <ui:Card Style="{StaticResource CardSpacing}">
+            <StackPanel>
+              <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                <ui:SymbolIcon Symbol="Sparkle24" FontSize="20" Foreground="{StaticResource AccentPurpleBrush}" Margin="0,0,8,0" />
+                <ui:TextBlock FontTypography="BodyStrong" Text="Claude overclock advisor" VerticalAlignment="Center" />
+              </StackPanel>
+              <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,10"
+                            Text="Describe what you want and Claude builds a staged plan from your detected hardware and safety limits. Each step loads into the sliders for you to review; nothing is applied without your confirmation." />
+              <Grid Margin="0,0,0,8">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <ComboBox Grid.Column="0" IsEditable="True" Text="{Binding AdvisorGoal, UpdateSourceTrigger=PropertyChanged}" ItemsSource="{Binding GoalSuggestions}" Margin="0,0,8,0" />
+                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                  <ui:Button Content="Get a plan from Claude" Appearance="Primary" Icon="{ui:SymbolIcon BrainCircuit24}" Command="{Binding GetPlanCommand}" IsEnabled="{Binding AdvisorConfigured}" Margin="0,0,8,0"
+                             ToolTip="Needs an Anthropic API key (Ask Claude page)." />
+                  <ui:Button Content="Send results back" Icon="{ui:SymbolIcon Send24}" Command="{Binding SendResultsBackCommand}" IsEnabled="{Binding HasLastStressSummary}" ToolTip="Re-asks for a plan including your last stress test result." />
+                </StackPanel>
+              </Grid>
+              <StackPanel Orientation="Horizontal" Visibility="{Binding AdvisorConfigured, Converter={StaticResource InverseBoolToVisibility}}" Margin="0,0,0,8">
+                <ui:TextBlock Style="{StaticResource Muted}" Text="Claude is not configured yet." VerticalAlignment="Center" Margin="0,0,8,0" />
+                <ui:Button Content="Set up on the Ask Claude page" Icon="{ui:SymbolIcon Chat24}" Command="{Binding GoToAssistantCommand}" />
+              </StackPanel>
+              <StackPanel Orientation="Horizontal" Visibility="{Binding AdvisorBusy, Converter={StaticResource BoolToVisibility}}" Margin="0,0,0,8">
+                <ui:ProgressRing IsIndeterminate="True" Width="20" Height="20" Margin="0,0,8,0" />
+                <ui:TextBlock Style="{StaticResource Muted}" Text="Claude is writing your plan…" VerticalAlignment="Center" />
+              </StackPanel>
+              <ui:InfoBar Severity="Warning" Title="Advisor" Message="{Binding AdvisorError}" IsOpen="{Binding HasAdvisorError, Mode=OneWay}" IsClosable="True" Margin="0,0,0,8" />
+
+              <StackPanel Visibility="{Binding HasPlan, Converter={StaticResource BoolToVisibility}}">
+                <ui:TextBlock TextWrapping="Wrap" Text="{Binding PlanSummary}" Margin="0,0,0,8" />
+                <ItemsControl ItemsSource="{Binding PlanWarnings}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                      <StackPanel Orientation="Horizontal" Margin="0,2">
+                        <ui:SymbolIcon Symbol="Warning24" FontSize="14" Foreground="{StaticResource AccentOrangeBrush}" Margin="0,2,8,0" VerticalAlignment="Top" />
+                        <ui:TextBlock Text="{Binding}" TextWrapping="Wrap" MaxWidth="980" />
+                      </StackPanel>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <ItemsControl ItemsSource="{Binding PlanAssumptions}" Margin="0,0,0,8">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                      <StackPanel Orientation="Horizontal" Margin="0,2">
+                        <ui:SymbolIcon Symbol="Info24" FontSize="14" Margin="0,2,8,0" VerticalAlignment="Top" Opacity="0.7" />
+                        <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding StringFormat='Assumes: {0}'}" TextWrapping="Wrap" MaxWidth="980" />
+                      </StackPanel>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <ItemsControl ItemsSource="{Binding PlanSteps}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                      <Border BorderThickness="1" BorderBrush="#33808080" CornerRadius="8" Padding="12" Margin="0,0,0,8">
+                        <Grid>
+                          <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                          </Grid.ColumnDefinitions>
+                          <StackPanel Grid.Column="0" Margin="0,0,12,0">
+                            <StackPanel Orientation="Horizontal">
+                              <ui:TextBlock FontTypography="BodyStrong" Text="{Binding Title}" />
+                              <ui:SymbolIcon Symbol="CheckmarkCircle24" Foreground="{StaticResource AccentGreenBrush}" Margin="8,0,0,0" Visibility="{Binding IsApplied, Converter={StaticResource BoolToVisibility}}" />
+                            </StackPanel>
+                            <ui:TextBlock Text="{Binding Changes}" TextWrapping="Wrap" Margin="0,2,0,2" />
+                            <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding Rationale}" TextWrapping="Wrap" />
+                            <ui:TextBlock Style="{StaticResource Caption}" Text="{Binding ExpectedGain, StringFormat='Expected gain: {0}'}" Margin="0,4,0,0" />
+                            <ui:TextBlock Style="{StaticResource Caption}" Text="{Binding AbortIf, StringFormat='Stop if: {0}'}" />
+                            <ui:TextBlock Style="{StaticResource Caption}" Text="{Binding ResultText}" Foreground="{StaticResource AccentCyanBrush}" Visibility="{Binding ResultText, Converter={StaticResource NullToVisibility}}" />
+                          </StackPanel>
+                          <StackPanel Grid.Column="1">
+                            <ui:Button Content="Load this step" Icon="{ui:SymbolIcon ArrowRight24}" Command="{Binding DataContext.ApplyStepCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}" Margin="0,0,0,6" HorizontalAlignment="Stretch" />
+                            <ui:Button Content="{Binding StressText, StringFormat='Run {0}'}" Icon="{ui:SymbolIcon Beaker24}" Command="{Binding DataContext.RunStepStressCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}" HorizontalAlignment="Stretch" />
+                          </StackPanel>
+                        </Grid>
+                      </Border>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <ui:TextBlock Style="{StaticResource Caption}" Text="{Binding PlanDisclaimer}" TextWrapping="Wrap" />
+              </StackPanel>
+              <ui:TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,8,0,0"
+                            Text="Advice from Claude is a starting point, not a guarantee. Your hardware, cooling and silicon quality decide what is stable. Stop at the first crash or artifact and go back one step." />
+            </StackPanel>
+          </ui:Card>
+
+          <!-- 9. Advanced -->
+          <ui:CardExpander Margin="0,0,0,12" Icon="{ui:SymbolIcon Wrench24}" IsExpanded="False" Visibility="{Binding IsAdvancedMode, Converter={StaticResource BoolToVisibility}}">
+            <ui:CardExpander.Header>
+              <StackPanel>
+                <ui:TextBlock FontTypography="BodyStrong" Text="Advanced: driver ranges, safety limits and the watchdog file" />
+                <ui:TextBlock Style="{StaticResource Muted}" Text="Raw values for people who know what they are doing." />
+              </StackPanel>
+            </ui:CardExpander.Header>
+            <StackPanel>
+              <ui:TextBlock Style="{StaticResource Caption}" Text="Driver-reported ranges" />
+              <ui:TextBlock Text="{Binding RawLimitsText}" TextWrapping="Wrap" Margin="0,0,0,8" />
+              <ui:TextBlock Style="{StaticResource Caption}" Text="Your safety limits (Settings)" />
+              <ui:TextBlock Text="{Binding UserLimitsText}" TextWrapping="Wrap" Margin="0,0,0,8" />
+              <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                <ui:Button Content="Raise my limits to the driver's ranges" Appearance="Danger" Icon="{ui:SymbolIcon Warning24}" Command="{Binding RaiseLimitsToDriverCommand}" Margin="0,0,8,0" />
+                <ui:Button Content="Open Settings" Icon="{ui:SymbolIcon Settings24}" Command="{Binding GoToSettingsPageCommand}" />
+              </StackPanel>
+              <ui:TextBlock Style="{StaticResource Caption}" Text="{Binding SessionFilePath, StringFormat='Watchdog session file: {0}'}" TextWrapping="Wrap" />
+              <Border Background="#22808080" CornerRadius="6" Padding="10" Margin="0,4,0,0">
+                <TextBlock Text="{Binding SessionFileText}" FontFamily="Consolas" FontSize="12" TextWrapping="Wrap" />
+              </Border>
+            </StackPanel>
+          </ui:CardExpander>
+        </StackPanel>
+      </StackPanel>
+    </ScrollViewer>
+
+    <controls:BusyOverlay Grid.Row="0" Grid.RowSpan="3" IsBusy="{Binding IsBusy}" Text="{Binding BusyText}" CancelCommand="{Binding CancelCommand}" />
   </Grid>
 </Page>

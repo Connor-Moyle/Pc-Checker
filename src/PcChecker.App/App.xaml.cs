@@ -80,6 +80,7 @@ public partial class App : Application
         window.Show();
         StartupTasks.Begin(_services, _logger);
         FanLifecycleHooks.OnStartup(_services);
+        _ = OverclockStartupGuard.CheckAsync(_services, _logger);
 
         if (options.ScreenshotsDirectory is { } directory)
         {
@@ -95,6 +96,7 @@ public partial class App : Application
             FanLifecycleHooks.OnExit(_services);
         }
 
+        OverclockStartupGuard.MarkClean(_services);
         try
         {
             _services?.GetService<ISensorService>()?.Stop();
