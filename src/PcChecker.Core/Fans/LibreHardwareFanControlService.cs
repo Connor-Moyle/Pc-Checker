@@ -436,19 +436,6 @@ public sealed partial class LibreHardwareFanControlService : IFanControlService,
         _ => HardwareKind.Other,
     };
 
-    private static bool IsProcessRunning(int pid)
-    {
-        try
-        {
-            using var p = System.Diagnostics.Process.GetProcessById(pid);
-            return !p.HasExited;
-        }
-        catch
-        {
-            return false;
-        }
-    }
-
     /// <summary>One controllable fan and its current software state.</summary>
     private sealed class FanEntry(string id, string name, HardwareKind kind, string hardwareName, string hardwareId,
         ISensor controlSensor, IControl control, ISensor? rpmSensor)

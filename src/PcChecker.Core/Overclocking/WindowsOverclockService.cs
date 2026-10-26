@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using PcChecker.Core.Common;
+using PcChecker.Core.Fans;
 using PcChecker.Core.Hardware;
 using PcChecker.Core.Restore;
 using PcChecker.Core.Sensors;
@@ -20,6 +21,7 @@ public sealed partial class WindowsOverclockService : IOverclockService, IDispos
     private readonly ISensorService _sensors;
     private readonly IHardwareMonitorHost _host;
     private readonly IHardwareInventoryService _hardware;
+    private readonly IFanControlService _fans;
     private readonly IChangeGuard _guard;
     private readonly ILogger<WindowsOverclockService> _logger;
     private readonly SemaphoreSlim _gate = new(1, 1);
@@ -31,12 +33,13 @@ public sealed partial class WindowsOverclockService : IOverclockService, IDispos
     private bool _fanViaHost;
 
     public WindowsOverclockService(ISettingsService settings, ISensorService sensors, IHardwareMonitorHost host,
-        IHardwareInventoryService hardware, IChangeGuard guard, ILogger<WindowsOverclockService> logger)
+        IHardwareInventoryService hardware, IFanControlService fans, IChangeGuard guard, ILogger<WindowsOverclockService> logger)
     {
         _settings = settings;
         _sensors = sensors;
         _host = host;
         _hardware = hardware;
+        _fans = fans;
         _guard = guard;
         _logger = logger;
     }
@@ -180,7 +183,11 @@ public sealed partial class WindowsOverclockService : IOverclockService, IDispos
             return tooHot;
         }
 
-        var options = new ChangeOptions(null, null, ModuleName, capabilities.GpuName ?? capabilities.CpuName ?? "System", true, "Reset to defaults on the Overclock page");
+        var options = new ChangeOptions(null, null, ModuleName, capabilities.GpuName ?? capabilities.CpuName ?? "System", true, "Reset to defaults on the Overclock page")
+        {
+            // The brief asks deep changes (Drivers, Overclock, Features) to stop when the restore point cannot be made.
+            OnRestorePointFailed = RestorePointFailedBehavior.Abort,
+        };
         return await _guard.RunGuardedAsync($"Apply overclock profile \"{profile.Name}\"", options, ct => ApplyCoreAsync(profile, capabilities, ct), null, cancellationToken).ConfigureAwait(false);
     }
 
@@ -234,6 +241,7 @@ public sealed partial class WindowsOverclockService : IOverclockService, IDispos
             bool gpuRequested = profile.GpuCoreOffsetMhz != 0 || profile.GpuMemoryOffsetMhz != 0 || profile.GpuPowerLimitPercent != 100 || profile.GpuTempLimitC is not null || profile.GpuFanPercent is not null;
             bool gpuUnchanged = SameGpuSettings(profile, _applied);
             bool gpuOk = true;
+            GpuApplyOutcome? gpuOutcome = null;
             if (_tuner is not null && (gpuRequested || !_applied.IsStock))
             {
                 if (gpuUnchanged)
@@ -246,7 +254,8 @@ public sealed partial class WindowsOverclockService : IOverclockService, IDispos
                 }
                 else
                 {
-                    gpuOk = await Task.Run(() => ApplyGpu(profile, messages, failures), cancellationToken).ConfigureAwait(false);
+                    gpuOutcome = await ApplyGpuAsync(profile, messages, failures, cancellationToken).ConfigureAwait(false);
+                    gpuOk = gpuOutcome.AnySucceeded;
                 }
             }
 
@@ -283,15 +292,31 @@ public sealed partial class WindowsOverclockService : IOverclockService, IDispos
                 return OperationResult.Fail(string.Join(" ", failures));
             }
 
-            // Record only what really took: GPU values from the previous state when the GPU half failed, no CPU values when the CPU half failed.
+            // Record only what really took, sub-setting by sub-setting: a failed power or temperature limit keeps its
+            // previous value so the next apply re-sends it instead of believing it is already live. No CPU values when the CPU half failed.
             var applied = profile.Clone();
-            if (!gpuOk)
+            if (gpuOutcome is not null)
             {
-                applied.GpuCoreOffsetMhz = previousApplied.GpuCoreOffsetMhz;
-                applied.GpuMemoryOffsetMhz = previousApplied.GpuMemoryOffsetMhz;
-                applied.GpuPowerLimitPercent = previousApplied.GpuPowerLimitPercent;
-                applied.GpuTempLimitC = previousApplied.GpuTempLimitC;
-                applied.GpuFanPercent = previousApplied.GpuFanPercent;
+                if (gpuOutcome.Offsets == false)
+                {
+                    applied.GpuCoreOffsetMhz = previousApplied.GpuCoreOffsetMhz;
+                    applied.GpuMemoryOffsetMhz = previousApplied.GpuMemoryOffsetMhz;
+                }
+
+                if (gpuOutcome.Power == false)
+                {
+                    applied.GpuPowerLimitPercent = previousApplied.GpuPowerLimitPercent;
+                }
+
+                if (gpuOutcome.Temp == false)
+                {
+                    applied.GpuTempLimitC = previousApplied.GpuTempLimitC;
+                }
+
+                if (gpuOutcome.Fan == false)
+                {
+                    applied.GpuFanPercent = previousApplied.GpuFanPercent;
+                }
             }
 
             if (!cpuOk)
@@ -314,43 +339,124 @@ public sealed partial class WindowsOverclockService : IOverclockService, IDispos
         }
     }
 
-    /// <summary>Sends every GPU setting of the profile to the tuner; returns false when nothing at all succeeded.</summary>
-    private bool ApplyGpu(OverclockProfile profile, List<string> messages, List<string> failures)
+    /// <summary>Which GPU sub-settings an apply got through to the driver; null means the profile did not ask for it.</summary>
+    private sealed class GpuApplyOutcome
     {
-        int before = messages.Count;
-        var offsets = _tuner!.ApplyOffsets(profile.GpuCoreOffsetMhz, profile.GpuMemoryOffsetMhz);
-        (offsets.Success ? messages : failures).Add(offsets.Message);
+        public bool? Offsets { get; set; }
+        public bool? Power { get; set; }
+        public bool? Temp { get; set; }
+        public bool? Fan { get; set; }
+        public bool AnySucceeded => Offsets == true || Power == true || Temp == true || Fan == true;
+    }
 
-        var power = _tuner.SetPowerLimit(profile.GpuPowerLimitPercent);
-        if (!power.Success || profile.GpuPowerLimitPercent != 100)
+    /// <summary>Sends every GPU setting of the profile to the tuner and reports, per sub-setting, what succeeded.</summary>
+    private async Task<GpuApplyOutcome> ApplyGpuAsync(OverclockProfile profile, List<string> messages, List<string> failures, CancellationToken cancellationToken)
+    {
+        var outcome = new GpuApplyOutcome();
+        await Task.Run(() =>
         {
-            (power.Success ? messages : failures).Add(power.Message);
-        }
+            var offsets = _tuner!.ApplyOffsets(profile.GpuCoreOffsetMhz, profile.GpuMemoryOffsetMhz);
+            outcome.Offsets = offsets.Success;
+            (offsets.Success ? messages : failures).Add(offsets.Message);
 
-        if (profile.GpuTempLimitC is { } temp)
-        {
-            var t = _tuner.SetTempLimit(temp);
-            (t.Success ? messages : failures).Add(t.Message);
-        }
-        else if (_applied.GpuTempLimitC is not null)
-        {
-            // The previous profile set a limit and this one does not: return it to the driver default.
-            var t = _tuner.ResetTempLimit();
-            (t.Success ? messages : failures).Add(t.Message);
-        }
+            var power = _tuner.SetPowerLimit(profile.GpuPowerLimitPercent);
+            outcome.Power = power.Success;
+            if (!power.Success || profile.GpuPowerLimitPercent != 100)
+            {
+                (power.Success ? messages : failures).Add(power.Message);
+            }
+
+            if (profile.GpuTempLimitC is { } temp)
+            {
+                var t = _tuner.SetTempLimit(temp);
+                outcome.Temp = t.Success;
+                (t.Success ? messages : failures).Add(t.Message);
+            }
+            else if (_applied.GpuTempLimitC is not null)
+            {
+                // The previous profile set a limit and this one does not: return it to the driver default.
+                var t = _tuner.ResetTempLimit();
+                outcome.Temp = t.Success;
+                (t.Success ? messages : failures).Add(t.Message);
+            }
+        }, cancellationToken).ConfigureAwait(false);
 
         if (profile.GpuFanPercent is { } fan)
         {
-            var f = _fanViaHost ? HostFanControl.Set(_host, fan) : _tuner.SetFan(fan);
+            var f = await SetGpuFanAsync(fan, cancellationToken).ConfigureAwait(false);
+            outcome.Fan = f.Success;
             (f.Success ? messages : failures).Add(f.Message);
         }
         else if (_applied.GpuFanPercent is not null)
         {
-            var f = _fanViaHost ? HostFanControl.Set(_host, null) : _tuner.SetFan(null);
+            var f = await SetGpuFanAsync(null, cancellationToken).ConfigureAwait(false);
+            outcome.Fan = f.Success;
             (f.Success ? messages : failures).Add(f.Message);
         }
 
-        return messages.Count > before;
+        return outcome;
+    }
+
+    /// <summary>
+    /// Fixes the GPU fans at <paramref name="percent"/> (null: automatic). When the fans are driven through the shared
+    /// hardware monitor, the request goes through the Fans module, which is the single owner of fan mode, the crash
+    /// marker and the thermal safety net; the Fans page then shows the fan as Manual and its curve loop never fights
+    /// the overclock profile. The vendor tuner is used only when the host exposes no GPU fan.
+    /// </summary>
+    private async Task<OperationResult> SetGpuFanAsync(int? percent, CancellationToken cancellationToken)
+    {
+        if (!_fanViaHost)
+        {
+            return await Task.Run(() => _tuner!.SetFan(percent), cancellationToken).ConfigureAwait(false);
+        }
+
+        IReadOnlyList<FanDevice> fans;
+        try
+        {
+            fans = await _fans.GetFansAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "The fan service could not list fans; driving the GPU fans through the host directly.");
+            fans = [];
+        }
+
+        var gpuFans = fans.Where(f => f.Hardware == HardwareKind.Gpu && f.Controllable).ToList();
+        if (gpuFans.Count == 0)
+        {
+            return HostFanControl.Set(_host, percent);
+        }
+
+        int changed = 0;
+        var problems = new List<string>();
+        foreach (var fan in gpuFans)
+        {
+            var result = percent is { } p
+                ? await _fans.SetManualAsync(fan.Id, p, cancellationToken).ConfigureAwait(false)
+                : await _fans.SetAutoAsync(fan.Id, cancellationToken).ConfigureAwait(false);
+            if (result.Success)
+            {
+                changed++;
+            }
+            else
+            {
+                problems.Add($"{fan.Name}: {result.Message}");
+            }
+        }
+
+        if (changed == 0)
+        {
+            return OperationResult.Fail("GPU fan control failed: " + string.Join("; ", problems));
+        }
+
+        string text = percent is null
+            ? $"{changed} GPU fan(s) returned to automatic control (tracked on the Fans page)."
+            : $"{changed} GPU fan(s) fixed at {percent} % (shown as Manual on the Fans page).";
+        return OperationResult.Ok(problems.Count == 0 ? text : text + " Not changed: " + string.Join("; ", problems));
     }
 
     private static bool SameGpuSettings(OverclockProfile a, OverclockProfile b) =>
@@ -454,9 +560,10 @@ public sealed partial class WindowsOverclockService : IOverclockService, IDispos
                 (gpu.Success ? messages : failures).Add(gpu.Message);
             }
 
-            if (_fanViaHost)
+            if (_fanViaHost && _applied.GpuFanPercent is not null)
             {
-                var fan = HostFanControl.Set(_host, null);
+                // Only fans this profile fixed go back to automatic; fans the Fans page owns are left to it.
+                var fan = await SetGpuFanAsync(null, cancellationToken).ConfigureAwait(false);
                 if (!fan.Success)
                 {
                     failures.Add(fan.Message);

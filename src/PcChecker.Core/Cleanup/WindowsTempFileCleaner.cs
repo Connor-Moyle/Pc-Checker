@@ -217,7 +217,7 @@ public sealed class WindowsTempFileCleaner : ITempFileCleaner
                     }
                 }
 
-                PruneEmptyDirectories(touchedDirectories, roots);
+                PruneEmptyDirectories(touchedDirectories, roots, id);
             }
         }
         finally
@@ -288,11 +288,11 @@ public sealed class WindowsTempFileCleaner : ITempFileCleaner
         }
     }
 
-    private static void PruneEmptyDirectories(IEnumerable<string> directories, IReadOnlyList<string> roots)
+    private static void PruneEmptyDirectories(IEnumerable<string> directories, IReadOnlyList<string> roots, string categoryId)
     {
         foreach (var dir in CleanupRules.OrderForPruning(directories))
         {
-            if (!CleanupSafety.IsPathAllowed(dir, roots))
+            if (!CleanupSafety.IsPathAllowed(dir, roots) || !CleanupRules.MayPrune(dir, roots, categoryId))
             {
                 continue;
             }
@@ -313,14 +313,25 @@ public sealed class WindowsTempFileCleaner : ITempFileCleaner
         }
     }
 
+    /// <summary>
+    /// Pauses a service for the cleanup. Returns true only when this call stopped a running service, so the caller
+    /// resumes exactly those: a service the user had stopped (or that is Manual and idle) is left alone.
+    /// </summary>
     private bool StopService(string name, List<string> errors)
     {
         try
         {
-            var result = PowerShellRunner.RunAsync($"Stop-Service -Name '{name}' -Force -ErrorAction Stop", TimeSpan.FromSeconds(60)).GetAwaiter().GetResult();
+            string script = $"$s = Get-Service -Name '{name}' -ErrorAction Stop; if ($s.Status -ne 'Running') {{ '{CleanupRules.ServiceNotRunningMarker}' }} else {{ Stop-Service -Name '{name}' -Force -ErrorAction Stop; '{CleanupRules.ServicePausedMarker}' }}";
+            var result = PowerShellRunner.RunAsync(script, TimeSpan.FromSeconds(60)).GetAwaiter().GetResult();
             if (result.Success)
             {
-                return true;
+                bool paused = CleanupRules.ServiceWasPaused(result.StdOut);
+                if (!paused)
+                {
+                    _logger.LogInformation("Service {Service} was not running; it is left as it was.", name);
+                }
+
+                return paused;
             }
 
             _logger.LogWarning("Service {Service} could not be stopped: {Error}", name, result.StdErr.Trim());

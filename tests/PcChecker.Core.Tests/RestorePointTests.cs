@@ -139,6 +139,15 @@ public class RestorePointHelperTests
         Assert.Equal(29, leap.Day);
     }
 
+    [Theory]
+    [InlineData("00000101000000.000000+000")]
+    [InlineData("99991301000000.000000+000")]
+    [InlineData("00000000000000.000000+000")]
+    public void Malformed_dmtf_years_and_months_return_false_instead_of_throwing(string value)
+    {
+        Assert.False(DmtfDateTime.TryParse(value, out _));
+    }
+
     [Fact]
     public void Dmtf_timestamps_without_offset_are_local_and_wildcards_are_tolerated()
     {

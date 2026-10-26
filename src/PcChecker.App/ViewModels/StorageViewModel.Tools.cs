@@ -24,6 +24,11 @@ public sealed partial class StorageViewModel
     [NotifyCanExecuteChangedFor(nameof(CancelToolCommand))]
     private bool _isToolRunning;
 
+    /// <summary>False while a file-system repair runs: stopping chkdsk half-way leaves the volume dirty, so Cancel is locked.</summary>
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(CancelToolCommand))]
+    private bool _toolCanCancel = true;
+
     [ObservableProperty]
     private string? _toolTitle;
 
@@ -90,11 +95,12 @@ public sealed partial class StorageViewModel
 
         bool ok = await _dialogs.ConfirmAsync($"Spot-fix {volume.Letter}?",
             $"chkdsk {volume.Letter} /spotfix takes the volume offline for a few seconds and repairs only the problems an earlier scan logged. " +
-            "Save your work first. On the Windows drive it may instead be scheduled for the next restart.",
+            "Save your work first. On the Windows drive it may instead be scheduled for the next restart. " +
+            "Once started it cannot be cancelled: stopping a repair half-way leaves the file system marked dirty.",
             "Spot fix");
         if (ok)
         {
-            await RunToolAsync($"Spot fix of {volume.Letter}", ct => _storage.CheckDiskAsync(volume.Letter, scanOnly: false, scheduleOfflineFix: false, ToolProgress(), ct));
+            await RunToolAsync($"Spot fix of {volume.Letter}", ct => _storage.CheckDiskAsync(volume.Letter, scanOnly: false, scheduleOfflineFix: false, ToolProgress(), ct), canCancel: false);
         }
     }
 
@@ -115,11 +121,12 @@ public sealed partial class StorageViewModel
             : $"chkdsk {volume.Letter} /f /r checks every sector and repairs the file system. If any program has files open on {volume.Letter}, the repair is scheduled for the next restart (open files are never forced closed). If nothing is using {volume.Letter}, it is taken offline and repaired right now, with the output shown here.\n\n" +
               "On a large hard disk this can take hours; the drive is unavailable meanwhile.";
         bool ok = await _dialogs.ConfirmAsync($"Full repair of {volume.Letter}?",
-            when + " Only do this when a scan reported problems. If the drive is physically failing, back it up first; a repair can make recovery harder.",
+            when + " Only do this when a scan reported problems. If the drive is physically failing, back it up first; a repair can make recovery harder. " +
+            "A repair that runs now cannot be cancelled from PC Checker: stopping chkdsk half-way leaves the file system marked dirty.",
             volume.IsSystemVolume ? "Schedule at next restart" : "Repair (now or at next restart)", isDanger: true);
         if (ok)
         {
-            await RunToolAsync($"Full repair of {volume.Letter}", ct => _storage.CheckDiskAsync(volume.Letter, scanOnly: false, scheduleOfflineFix: true, ToolProgress(), ct));
+            await RunToolAsync($"Full repair of {volume.Letter}", ct => _storage.CheckDiskAsync(volume.Letter, scanOnly: false, scheduleOfflineFix: true, ToolProgress(), ct), canCancel: false);
         }
     }
 
@@ -172,7 +179,9 @@ public sealed partial class StorageViewModel
         }
     }
 
-    [RelayCommand(CanExecute = nameof(IsToolRunning))]
+    private bool CanCancelTool() => IsToolRunning && ToolCanCancel;
+
+    [RelayCommand(CanExecute = nameof(CanCancelTool))]
     private void CancelTool()
     {
         try
@@ -203,7 +212,8 @@ public sealed partial class StorageViewModel
         }
     });
 
-    private async Task RunToolAsync(string title, Func<CancellationToken, Task<OperationResult>> work)
+    /// <param name="canCancel">False for file-system repairs, which must run to completion once started.</param>
+    private async Task RunToolAsync(string title, Func<CancellationToken, Task<OperationResult>> work, bool canCancel = true)
     {
         if (IsToolRunning)
         {
@@ -217,6 +227,7 @@ public sealed partial class StorageViewModel
         ToolOutput.Clear();
         OnPropertyChanged(nameof(HasToolOutput));
         ToolTitle = title;
+        ToolCanCancel = canCancel;
         ToolStage = "Starting…";
         ToolResultMessage = null;
         ToolResultIsError = false;
@@ -258,6 +269,7 @@ public sealed partial class StorageViewModel
         finally
         {
             IsToolRunning = false;
+            ToolCanCancel = true;
             RaiseToolStateChanged();
             _toolCts.Dispose();
             _toolCts = null;

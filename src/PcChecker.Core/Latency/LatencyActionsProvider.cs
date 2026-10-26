@@ -3,6 +3,7 @@ using Microsoft.Win32;
 using PcChecker.Core.Common;
 using PcChecker.Core.Optimization;
 using PcChecker.Core.Restore;
+using PcChecker.Core.Settings;
 
 namespace PcChecker.Core.Latency;
 
@@ -10,9 +11,10 @@ namespace PcChecker.Core.Latency;
 /// Applies and reverts the Latency module's optimization actions on Windows. Every change runs through
 /// <see cref="IChangeGuard"/> (restore point per settings, action journal, log). Reads are shared with
 /// <see cref="LatencyProbes"/> so the Optimize page and the Latency page agree on the current state.
-/// Before a change is applied the values it is about to overwrite are captured; a later revert restores exactly those
-/// values (and the captured values are written into the journal's undo hint). When nothing was captured, for example
-/// after the app was restarted, the revert falls back to the Windows defaults.
+/// Before a change is applied the values it is about to overwrite are captured and saved next to the settings file
+/// (<see cref="LatencyCaptureStore"/>), so a revert, even after the app was restarted, restores exactly those values
+/// (the captured values are also written into the journal's undo hint). When nothing was ever captured the revert
+/// falls back to the true Windows default, or refuses when the default is not known to be safe.
 /// </summary>
 public sealed class LatencyActionsProvider : IOptimizationActionProvider
 {
@@ -22,13 +24,23 @@ public sealed class LatencyActionsProvider : IOptimizationActionProvider
 
     private readonly IChangeGuard _guard;
     private readonly ILogger<LatencyActionsProvider> _logger;
+    private readonly string? _capturePath;
     private readonly object _captureLock = new();
     private readonly Dictionary<string, IReadOnlyDictionary<string, string?>> _captured = new(StringComparer.OrdinalIgnoreCase);
+    private bool _capturesLoaded;
 
-    public LatencyActionsProvider(IChangeGuard guard, ILogger<LatencyActionsProvider> logger)
+    public LatencyActionsProvider(IChangeGuard guard, ISettingsService settings, ILogger<LatencyActionsProvider> logger)
     {
         _guard = guard;
         _logger = logger;
+        try
+        {
+            _capturePath = LatencyCaptureStore.DefaultPath(settings.SettingsDirectory);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Latency captures will not be persisted: the settings directory is unknown.");
+        }
     }
 
     public IReadOnlyList<OptimizationAction> Actions => LatencyActionCatalog.All;
@@ -193,7 +205,17 @@ public sealed class LatencyActionsProvider : IOptimizationActionProvider
             previous = await CaptureAsync(action.Id, cancellationToken).ConfigureAwait(false);
             lock (_captureLock)
             {
-                _captured[action.Id] = previous;
+                EnsureCapturesLoaded();
+                // Keep the first capture when the action is applied twice: that is what the machine looked like before PC Checker touched it.
+                if (!_captured.ContainsKey(action.Id))
+                {
+                    _captured[action.Id] = previous;
+                    SaveCaptures();
+                }
+                else
+                {
+                    previous = _captured[action.Id];
+                }
             }
 
             undoHint = UndoHintFor(action.Id);
@@ -206,7 +228,15 @@ public sealed class LatencyActionsProvider : IOptimizationActionProvider
         {
             lock (_captureLock)
             {
+                EnsureCapturesLoaded();
                 previous = _captured.GetValueOrDefault(action.Id);
+            }
+
+            if (previous is null && action.Id == LatencyActionIds.MsiGpuOn)
+            {
+                // Modern GPU drivers ship with MSI mode on; writing 0 "back" would downgrade the card to line-based interrupts.
+                return OperationResult.Fail("Nothing was recorded before MSI mode was turned on (it was already on, or it was set outside PC Checker), so there is no previous value to put back. "
+                    + "MSI mode is the driver default for current NVIDIA, AMD and Intel GPUs; leave it on unless a device-specific problem points at interrupts.");
             }
         }
 
@@ -217,11 +247,59 @@ public sealed class LatencyActionsProvider : IOptimizationActionProvider
         {
             lock (_captureLock)
             {
-                _captured.Remove(action.Id);
+                if (_captured.Remove(action.Id))
+                {
+                    SaveCaptures();
+                }
             }
         }
 
         return result;
+    }
+
+    /// <summary>Loads the captures saved by earlier runs. Called under <see cref="_captureLock"/>.</summary>
+    private void EnsureCapturesLoaded()
+    {
+        if (_capturesLoaded)
+        {
+            return;
+        }
+
+        _capturesLoaded = true;
+        if (_capturePath is null)
+        {
+            return;
+        }
+
+        try
+        {
+            foreach (var (id, values) in LatencyCaptureStore.TryRead(_capturePath))
+            {
+                _captured.TryAdd(id, values);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not read the saved latency captures from {Path}.", _capturePath);
+        }
+    }
+
+    /// <summary>Writes the captures to disk so Undo still knows the previous values after a restart. Called under <see cref="_captureLock"/>.</summary>
+    private void SaveCaptures()
+    {
+        if (_capturePath is null)
+        {
+            return;
+        }
+
+        try
+        {
+            LatencyCaptureStore.Write(_capturePath, _captured);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not save the latency captures to {Path}; Undo will fall back to defaults after a restart.", _capturePath);
+        }
     }
 
     private async Task<OperationResult> ExecuteAsync(OptimizationAction action, bool apply, IReadOnlyDictionary<string, string?>? previous, CancellationToken ct)
@@ -240,7 +318,8 @@ public sealed class LatencyActionsProvider : IOptimizationActionProvider
             LatencyActionIds.NicPowerSavingOff => await SetNicPowerSavingAsync(apply, previous, ct).ConfigureAwait(false),
             LatencyActionIds.PointerPrecisionOff => LatencyProbes.SetPointerPrecision(!apply && Previous(previous, "EnhancePointerPrecision") != "0"),
             LatencyActionIds.GameModeOn => SetGameMode(apply, previous),
-            LatencyActionIds.HpetOff => await SetBootValueAsync("useplatformclock", apply ? null : Previous(previous, "useplatformclock"), previous is null ? "true" : null, ct).ConfigureAwait(false),
+            // Nothing captured: the Windows default is the value being absent, so the revert deletes it rather than forcing HPET on.
+            LatencyActionIds.HpetOff => await SetBootValueAsync("useplatformclock", apply ? null : Previous(previous, "useplatformclock"), null, ct).ConfigureAwait(false),
             LatencyActionIds.DynamicTickOff => await SetBootValueAsync("disabledynamictick", apply ? "yes" : Previous(previous, "disabledynamictick"), null, ct).ConfigureAwait(false),
             LatencyActionIds.NagleOff => SetNagle(apply, previous),
             LatencyActionIds.MsiGpuOn => SetGpuMsi(apply, previous),
@@ -590,10 +669,10 @@ public sealed class LatencyActionsProvider : IOptimizationActionProvider
         LatencyActionIds.CoreParkingOff => "powercfg /setacvalueindex SCHEME_CURRENT SUB_PROCESSOR CPMINCORES <previous value>",
         LatencyActionIds.PointerPrecisionOff => "Mouse settings → Additional mouse options → Pointer Options → Enhance pointer precision.",
         LatencyActionIds.GameModeOn => "Settings → Gaming → Game Mode.",
-        LatencyActionIds.HpetOff => "bcdedit /set useplatformclock true",
+        LatencyActionIds.HpetOff => "bcdedit /deletevalue useplatformclock (the Windows default); only bcdedit /set useplatformclock true if HPET had been forced on before.",
         LatencyActionIds.DynamicTickOff => "bcdedit /deletevalue disabledynamictick",
         LatencyActionIds.NagleOff => "Delete TcpAckFrequency and TCPNoDelay under Tcpip\\Parameters\\Interfaces\\<guid>.",
-        LatencyActionIds.MsiGpuOn => "Set MSISupported back to 0 under the GPU's Device Parameters\\Interrupt Management key.",
+        LatencyActionIds.MsiGpuOn => "Set MSISupported back to its previous value under the GPU's Device Parameters\\Interrupt Management key (modern drivers default to 1).",
         _ => null,
     };
 }

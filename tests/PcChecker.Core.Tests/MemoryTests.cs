@@ -225,10 +225,15 @@ public class PageFileRulesTests
     public void Profile_sizes_follow_the_catalog_rules()
     {
         Assert.Null(PageFileRules.SizeForProfile(MemoryProfileCatalog.Find(MemoryProfileCatalog.BalancedId)!, 32 * Gb));
-        Assert.Equal((49152, 49152), PageFileRules.SizeForProfile(MemoryProfileCatalog.Find(MemoryProfileCatalog.GamingId)!, 32 * Gb));
+        Assert.Equal((24576, 24576), PageFileRules.SizeForProfile(MemoryProfileCatalog.Find(MemoryProfileCatalog.GamingId)!, 16 * Gb));
+        // 1.5× of 32 GB would be 48 GB: capped, because a big-RAM machine pages very little and the file lives on the system SSD.
+        Assert.Equal((PageFileRules.MaximumRecommendedMb, PageFileRules.MaximumRecommendedMb), PageFileRules.SizeForProfile(MemoryProfileCatalog.Find(MemoryProfileCatalog.GamingId)!, 32 * Gb));
+        Assert.Equal((PageFileRules.MaximumRecommendedMb, PageFileRules.MaximumRecommendedMb), PageFileRules.SizeForProfile(MemoryProfileCatalog.Find(MemoryProfileCatalog.GamingId)!, 64 * Gb));
         Assert.Equal((8192, 8192), PageFileRules.SizeForProfile(MemoryProfileCatalog.Find(MemoryProfileCatalog.GamingId)!, 4 * Gb));
         Assert.Equal((16384, 16384), PageFileRules.SizeForProfile(MemoryProfileCatalog.Find(MemoryProfileCatalog.LowMemoryId)!, 8 * Gb));
-        Assert.Equal((65536, 65536), PageFileRules.SizeForProfile(MemoryProfileCatalog.Find(MemoryProfileCatalog.WorkstationId)!, 64 * Gb));
+        Assert.Equal((16384, 16384), PageFileRules.SizeForProfile(MemoryProfileCatalog.Find(MemoryProfileCatalog.WorkstationId)!, 16 * Gb));
+        Assert.Equal((32768, 32768), PageFileRules.SizeForProfile(MemoryProfileCatalog.Find(MemoryProfileCatalog.WorkstationId)!, 64 * Gb));
+        Assert.Equal((32768, 32768), PageFileRules.SizeForProfile(MemoryProfileCatalog.Find(MemoryProfileCatalog.WorkstationId)!, 128 * Gb));
         var explicitProfile = new MemoryProfile("x", "x", "x", true, true, false, 1024, 2048, false);
         Assert.Equal((1024, 2048), PageFileRules.SizeForProfile(explicitProfile, 32 * Gb));
     }
@@ -280,7 +285,7 @@ public class MemoryProfileCatalogTests
         var auto = MemoryOverview.Empty() with { TotalBytes = 32 * Gb, MemoryCompressionEnabled = true, SysMainEnabled = true, AutomaticPageFile = true };
         Assert.True(MemoryProfileCatalog.Matches(balanced, auto));
         Assert.False(MemoryProfileCatalog.Matches(gaming, auto));
-        var fixedFile = auto with { AutomaticPageFile = false, PageFiles = [new PageFileInfo("C:", 49152, 49152, false)] };
+        var fixedFile = auto with { AutomaticPageFile = false, PageFiles = [new PageFileInfo("C:", PageFileRules.MaximumRecommendedMb, PageFileRules.MaximumRecommendedMb, false)] };
         Assert.True(MemoryProfileCatalog.Matches(gaming, fixedFile));
         Assert.False(MemoryProfileCatalog.Matches(balanced, fixedFile));
         Assert.False(MemoryProfileCatalog.Matches(balanced, auto with { SysMainEnabled = false }));
@@ -372,7 +377,7 @@ public class DemoMemoryServiceTests
         Assert.True(result.RebootRequired);
         var o = await svc.GetOverviewAsync(CancellationToken.None);
         Assert.False(o.AutomaticPageFile);
-        Assert.Equal(49152, o.PageFiles[0].MaximumMb);
+        Assert.Equal(PageFileRules.MaximumRecommendedMb, o.PageFiles[0].MaximumMb); // 1.5× of 32 GB is capped
         Assert.True(MemoryProfileCatalog.Matches(gaming, o));
 
         Assert.False((await svc.SetPageFileAsync("C:", false, 8192, 4096, CancellationToken.None)).Success);

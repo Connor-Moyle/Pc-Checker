@@ -220,6 +220,61 @@ public class FansTests : IDisposable
         Assert.True(FanSessionStore.IsStale(new FanSession { ProcessId = 0 }, _ => true));
     }
 
+    [Fact]
+    public void Session_is_stale_when_the_pid_was_reused_by_another_process()
+    {
+        var started = new DateTimeOffset(2025, 3, 1, 10, 0, 0, TimeSpan.Zero);
+        var session = new FanSession { ProcessId = 4242, ProcessStartedUtc = started, ProcessName = "PcChecker" };
+
+        Assert.True(FanSessionStore.IsStale(session, _ => null));
+        Assert.False(FanSessionStore.IsStale(session, _ => new ProcessIdentity(started, "PcChecker")));
+        Assert.False(FanSessionStore.IsStale(session, _ => new ProcessIdentity(started.AddSeconds(1), "pcchecker")));
+        // Same id, different start time: a new process inherited the number after the crash.
+        Assert.True(FanSessionStore.IsStale(session, _ => new ProcessIdentity(started.AddMinutes(30), "PcChecker")));
+        // Same id, different image.
+        Assert.True(FanSessionStore.IsStale(session, _ => new ProcessIdentity(started, "chrome")));
+        // Unknown start time or name (access denied): only what is known is compared.
+        Assert.False(FanSessionStore.IsStale(session, _ => new ProcessIdentity(null, null)));
+        Assert.True(FanSessionStore.IsStale(session, _ => new ProcessIdentity(null, "svchost")));
+
+        var current = FanSessionStore.NewForCurrentProcess();
+        Assert.Equal(Environment.ProcessId, current.ProcessId);
+        Assert.False(current.CleanExit);
+        Assert.False(FanSessionStore.IsStale(current, FanSessionStore.LookupProcess));
+        Assert.NotNull(FanSessionStore.LookupProcess(Environment.ProcessId));
+        Assert.Null(FanSessionStore.LookupProcess(int.MaxValue - 7));
+    }
+
+    [Fact]
+    public void Clean_exit_is_recorded_only_for_the_current_process_and_round_trips()
+    {
+        var path = FanSessionStore.DefaultPath(_dir);
+        var foreign = new FanSession { ProcessId = 4242, FanIds = ["/gpu/nvidia/0/control/0"] };
+        FanSessionStore.Write(path, foreign);
+        FanSessionStore.MarkCleanExit(path);
+        Assert.False(FanSessionStore.TryRead(path)!.CleanExit);
+
+        var mine = FanSessionStore.NewForCurrentProcess();
+        mine.FanIds = ["/lpc/nct/control/0"];
+        mine.ProfileName = "Quiet night";
+        FanSessionStore.Write(path, mine);
+        FanSessionStore.MarkCleanExit(path);
+        var read = FanSessionStore.TryRead(path);
+        Assert.NotNull(read);
+        Assert.True(read!.CleanExit);
+        Assert.Equal("Quiet night", read.ProfileName);
+        Assert.Equal(mine.ProcessStartedUtc, read.ProcessStartedUtc);
+        Assert.Equal(mine.ProcessName, read.ProcessName);
+
+        // A file without the new fields (older version) still reads as a live session.
+        File.WriteAllText(path, """{ "ProcessId": 4242, "FanIds": ["a"] }""");
+        var legacy = FanSessionStore.TryRead(path);
+        Assert.NotNull(legacy);
+        Assert.False(legacy!.CleanExit);
+        Assert.Null(legacy.ProcessStartedUtc);
+        Assert.False(FanSessionStore.IsStale(legacy, _ => new ProcessIdentity(DateTimeOffset.UtcNow, "x")));
+    }
+
     // ---- FanSafetyRules -----------------------------------------------------------------------------------------
 
     [Fact]

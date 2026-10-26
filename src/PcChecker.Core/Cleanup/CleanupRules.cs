@@ -140,6 +140,57 @@ public static class CleanupRules
         }
     }
 
+    /// <summary>
+    /// Categories whose roots are scratch space (Temp folders, caches): any emptied sub-folder there may go. Every
+    /// other category (Windows logs, Panther, Prefetch, …) keeps its first-level folders such as Logs\CBS or
+    /// Logs\DISM, which Windows components expect to find; only deeper, emptied folders are removed.
+    /// </summary>
+    public static IReadOnlyList<string> PruneAnywhereCategories { get; } =
+    [
+        "user.temp", "windows.temp", "windows.update.cache", "delivery.optimization", "windows.error.reports",
+        "browser.chrome.cache", "browser.edge.cache", "browser.brave.cache", "browser.firefox.cache",
+        "dx.shader.cache", "nvidia.shader.cache", "amd.shader.cache", "intel.shader.cache", "temp.internet.files",
+    ];
+
+    /// <summary>
+    /// Whether an emptied directory may be deleted after a category's files were removed: always inside the category's
+    /// roots; at any depth for scratch categories (<see cref="PruneAnywhereCategories"/>); otherwise only when it sits at
+    /// least two levels below a root, so <c>C:\Windows\Logs\CBS</c> survives a <c>windows.logs</c> clean.
+    /// </summary>
+    public static bool MayPrune(string? directory, IEnumerable<string> roots, string? categoryId)
+    {
+        if (string.IsNullOrWhiteSpace(directory))
+        {
+            return false;
+        }
+
+        var rootList = roots.Select(Normalize).Where(r => r.Length > 0).ToList();
+        var dir = Normalize(directory);
+        var root = rootList.FirstOrDefault(r => dir.StartsWith(r + "\\", StringComparison.OrdinalIgnoreCase));
+        if (root is null)
+        {
+            return false;
+        }
+
+        if (categoryId is not null && PruneAnywhereCategories.Contains(categoryId, StringComparer.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        int depth = dir[(root.Length + 1)..].Split('\\', StringSplitOptions.RemoveEmptyEntries).Length;
+        return depth >= 2;
+    }
+
+    /// <summary>Printed by the pause script when it stopped a running service.</summary>
+    public const string ServicePausedMarker = "PCCHECKER_SERVICE_PAUSED";
+
+    /// <summary>Printed by the pause script when the service was already stopped, so nothing is resumed afterwards.</summary>
+    public const string ServiceNotRunningMarker = "PCCHECKER_SERVICE_NOT_RUNNING";
+
+    /// <summary>True when the pause script's output says the service was running and has now been stopped by us.</summary>
+    public static bool ServiceWasPaused(string? scriptOutput) =>
+        scriptOutput is not null && scriptOutput.Contains(ServicePausedMarker, StringComparison.Ordinal);
+
     /// <summary>Total count and bytes over a set of files.</summary>
     public static (int Count, long Bytes) Aggregate(IEnumerable<CleanupFile> files)
     {

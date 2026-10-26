@@ -66,6 +66,50 @@ public class StartupApprovedCodecTests
         Assert.False(StartupApprovedCodec.IsEnabled(toggled));
         Assert.Equal(0x02, StartupApprovedCodec.Toggle([0x03], enabled: true)[0]);
     }
+
+    [Fact]
+    public void Even_flag_with_a_stale_timestamp_is_enabled_without_a_disabled_time()
+    {
+        var bytes = StartupApprovedCodec.Encode(false, new DateTime(2025, 3, 14, 15, 9, 26, DateTimeKind.Utc));
+        bytes[0] = 0x02; // Windows re-enabled it but left the old FILETIME behind
+        var (enabled, disabledAt) = StartupApprovedCodec.Decode(bytes);
+        Assert.True(enabled);
+        Assert.Null(disabledAt);
+        Assert.Null(StartupApprovedCodec.DisabledAt(bytes));
+    }
+
+    [Fact]
+    public void Garbage_filetimes_do_not_throw()
+    {
+        var negative = new byte[12];
+        negative[0] = 0x03;
+        BitConverter.TryWriteBytes(negative.AsSpan(4, 8), -1L);
+        Assert.Equal((false, (DateTime?)null), StartupApprovedCodec.Decode(negative));
+
+        var huge = new byte[12];
+        huge[0] = 0x03;
+        BitConverter.TryWriteBytes(huge.AsSpan(4, 8), long.MaxValue);
+        Assert.Equal((false, (DateTime?)null), StartupApprovedCodec.Decode(huge));
+    }
+
+    [Fact]
+    public void Re_enabling_a_system_disabled_value_keeps_the_system_flavour()
+    {
+        var toggled = StartupApprovedCodec.Toggle([0x07, 0, 0, 0, 1, 2, 3, 4, 5, 6, 7, 8], enabled: true);
+        Assert.Equal(0x06, toggled[0]);
+        Assert.True(StartupApprovedCodec.IsEnabled(toggled));
+        Assert.All(toggled.Skip(1), b => Assert.Equal(0, b));
+    }
+
+    [Fact]
+    public void Disabling_without_a_timestamp_stamps_now()
+    {
+        var before = DateTimeOffset.UtcNow.AddSeconds(-5);
+        var bytes = StartupApprovedCodec.Encode(false);
+        var when = StartupApprovedCodec.DisabledAt(bytes);
+        Assert.NotNull(when);
+        Assert.InRange(when!.Value, before, DateTimeOffset.UtcNow.AddSeconds(5));
+    }
 }
 
 public class StartupCommandParserTests
@@ -88,6 +132,16 @@ public class StartupCommandParserTests
         string? Env(string name) => name.Equals("LOCALAPPDATA", StringComparison.OrdinalIgnoreCase) ? @"C:\Users\Alex\AppData\Local" : null;
         Assert.Equal(@"C:\Users\Alex\AppData\Local\Spotify\Spotify.exe", StartupCommandParser.ExtractExecutable(@"%LOCALAPPDATA%\Spotify\Spotify.exe --minimized", Env));
         Assert.Equal(@"%NOPE%\x.exe", StartupCommandParser.ExtractExecutable(@"%NOPE%\x.exe", Env));
+    }
+
+    [Fact]
+    public void Expands_program_files_x86_and_keeps_json_arguments_out_of_the_executable()
+    {
+        string? Env(string name) => name.Equals("ProgramFiles(x86)", StringComparison.OrdinalIgnoreCase) ? @"C:\Program Files (x86)" : null;
+        Assert.Equal(@"C:\Program Files (x86)\Vendor\tool.exe", StartupCommandParser.ExtractExecutable(@"%ProgramFiles(x86)%\Vendor\tool.exe /tray", Env));
+        Assert.Equal(@"C:\Tools\app.exe", StartupCommandParser.ExtractExecutable(@"C:\Tools\app.exe C:\data\settings.json"));
+        Assert.Equal(@"C:\data\settings.json", StartupCommandParser.ExtractArguments(@"C:\Tools\app.exe C:\data\settings.json"));
+        Assert.Equal(@"C:\Scripts\start.js", StartupCommandParser.ExtractExecutable(@"C:\Scripts\start.js --config C:\data\settings.json"));
     }
 
     [Fact]
@@ -179,6 +233,51 @@ public class ProtectedServicesTests
         Assert.True(plainAllowed);
         Assert.Null(plainMessage);
         Assert.False(ProtectedServices.CanSetStartMode("CorsairService", "Sometimes").Allowed);
+    }
+
+    [Fact]
+    public void Driver_start_types_cannot_be_set_and_every_allowed_mode_has_an_sc_argument()
+    {
+        Assert.False(ProtectedServices.CanSetStartMode("svc", "Boot").Allowed);
+        Assert.False(ProtectedServices.CanSetStartMode("svc", "System").Allowed);
+        foreach (var mode in ServiceStartModes.Selectable.Concat(["Boot", "System", "Auto (Delayed)", "demand"]))
+        {
+            var (allowed, _) = ProtectedServices.CanSetStartMode("svc", mode);
+            if (allowed)
+            {
+                Assert.NotNull(ServiceStartModes.ToScArgument(mode));
+            }
+        }
+    }
+
+    [Fact]
+    public void The_firewall_services_are_protected_on_both_pages()
+    {
+        foreach (var name in new[] { "BFE", "mpssvc", "EventSystem", "RpcSs" })
+        {
+            Assert.True(ProtectedServices.IsProtected(name));
+            Assert.True(ServiceClassifier.IsProtected(name));
+        }
+
+        Assert.False(ServiceClassifier.IsProtected("Themes"));
+        Assert.Equal(ServiceProtection.Warn, ProtectedServices.Classify("Themes"));
+        foreach (var name in ProtectedServices.CriticalNames)
+        {
+            Assert.True(ServiceClassifier.IsProtected(name));
+        }
+    }
+}
+
+public class RunOnceRulesTests
+{
+    [Fact]
+    public void RunOnce_locations_are_recognised_and_cannot_be_toggled()
+    {
+        Assert.True(StartupEnumerator.IsRunOnceLocation(@"HKLM\Software\Microsoft\Windows\CurrentVersion\RunOnce"));
+        Assert.True(StartupEnumerator.IsRunOnceLocation(@"HKCU\Software\Microsoft\Windows\CurrentVersion\RunOnce"));
+        Assert.False(StartupEnumerator.IsRunOnceLocation(@"HKLM\Software\Microsoft\Windows\CurrentVersion\Run"));
+        Assert.False(StartupEnumerator.IsRunOnceLocation(null));
+        Assert.Contains("Remove", StartupEnumerator.RunOnceCannotBeDisabled);
     }
 }
 

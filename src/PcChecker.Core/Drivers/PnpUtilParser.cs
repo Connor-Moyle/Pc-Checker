@@ -21,9 +21,13 @@ public static partial class PnpUtilParser
     [GeneratedRegex(@"(\d+)\s*$")]
     private static partial Regex TrailingNumber();
 
+    /// <summary>Unambiguous ISO-style formats, tried before anything culture-dependent.</summary>
+    private static readonly string[] IsoDateFormats = ["yyyy-MM-dd", "yyyy/MM/dd", "yyyy.MM.dd"];
+
+    /// <summary>Last-resort formats when the machine's culture did not recognise the text.</summary>
     private static readonly string[] DateFormats =
     [
-        "MM/dd/yyyy", "M/d/yyyy", "dd/MM/yyyy", "d/M/yyyy", "yyyy-MM-dd", "dd.MM.yyyy", "d.M.yyyy", "yyyy/MM/dd",
+        "MM/dd/yyyy", "M/d/yyyy", "dd/MM/yyyy", "d/M/yyyy", "dd.MM.yyyy", "d.M.yyyy", "dd-MM-yyyy", "d-M-yyyy",
     ];
 
     /// <summary>
@@ -105,8 +109,15 @@ public static partial class PnpUtilParser
         return (null, field.Trim());
     }
 
-    /// <summary>Tolerant date parse for the formats pnputil emits in common locales.</summary>
-    public static bool TryParseDate(string? text, out DateTime date)
+    /// <summary>
+    /// Tolerant date parse for the formats pnputil emits. pnputil prints the driver date in the OS locale, so the
+    /// machine's own short date pattern decides first (03/04/2023 is 3 April on an en-GB PC); ISO dates are always
+    /// unambiguous and the invariant US formats are only a last resort.
+    /// </summary>
+    public static bool TryParseDate(string? text, out DateTime date) => TryParseDate(text, CultureInfo.CurrentCulture, out date);
+
+    /// <summary>Same as <see cref="TryParseDate(string?, out DateTime)"/> with an explicit culture (the OS locale pnputil printed in).</summary>
+    public static bool TryParseDate(string? text, CultureInfo culture, out DateTime date)
     {
         date = default;
         if (string.IsNullOrWhiteSpace(text))
@@ -114,13 +125,21 @@ public static partial class PnpUtilParser
             return false;
         }
 
+        ArgumentNullException.ThrowIfNull(culture);
         var t = text.Trim();
-        if (DateTime.TryParseExact(t, DateFormats, CultureInfo.InvariantCulture, DateTimeStyles.None, out date))
+        if (DateTime.TryParseExact(t, IsoDateFormats, CultureInfo.InvariantCulture, DateTimeStyles.None, out date))
         {
             return true;
         }
 
-        return DateTime.TryParse(t, CultureInfo.CurrentCulture, DateTimeStyles.None, out date)
+        var patterns = new[] { culture.DateTimeFormat.ShortDatePattern, "d" };
+        if (DateTime.TryParseExact(t, patterns, culture, DateTimeStyles.AllowWhiteSpaces, out date)
+            || DateTime.TryParse(t, culture, DateTimeStyles.None, out date))
+        {
+            return true;
+        }
+
+        return DateTime.TryParseExact(t, DateFormats, CultureInfo.InvariantCulture, DateTimeStyles.None, out date)
             || DateTime.TryParse(t, CultureInfo.InvariantCulture, DateTimeStyles.None, out date);
     }
 

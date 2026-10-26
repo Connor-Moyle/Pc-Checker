@@ -132,6 +132,11 @@ public sealed partial class WindowsStartupService : IStartupService, IRestartCan
             return OperationResult.Fail($"Unknown registry location: {item.Location}");
         }
 
+        if (source.IsRunOnce)
+        {
+            return OperationResult.Fail($"{item.Name} cannot be {(enabled ? "enabled" : "disabled")}: {StartupEnumerator.RunOnceCannotBeDisabled}");
+        }
+
         try
         {
             using var baseKey = RegistryKey.OpenBaseKey(source.Hive, RegistryView.Registry64);

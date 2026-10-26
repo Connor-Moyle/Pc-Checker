@@ -98,6 +98,7 @@
           <ColumnDefinition Width="Auto" />
           <ColumnDefinition Width="Auto" />
           <ColumnDefinition Width="Auto" />
+          <ColumnDefinition Width="Auto" />
         </Grid.ColumnDefinitions>
         <ui:TextBox Grid.Column="0"
                     Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
@@ -117,7 +118,10 @@
                          ToolTip="Show cards for programs that were installed together, such as a browser that came with an antivirus." />
         <ui:ToggleSwitch Grid.Column="4" Content="Quiet uninstall" IsChecked="{Binding QuietUninstall}" Margin="0,0,12,0"
                          ToolTip="Run uninstallers with their silent switches so no installer windows appear. Turn off to follow each uninstaller's own prompts." />
-        <ui:TextBlock Grid.Column="5" Text="{Binding FilterSummary}" Style="{StaticResource Muted}" VerticalAlignment="Center" />
+        <ui:ToggleSwitch Grid.Column="5" Content="Remove Store apps for all users" IsChecked="{Binding RemoveStoreAppsForAllUsers}" Margin="0,0,12,0"
+                         Visibility="{Binding IsAdvancedMode, Converter={StaticResource BoolToVisibility}}"
+                         ToolTip="Advanced: remove a Store app from every user account on this PC (Remove-AppxPackage -AllUsers) instead of only yours. The confirmation dialog states the scope." />
+        <ui:TextBlock Grid.Column="6" Text="{Binding FilterSummary}" Style="{StaticResource Muted}" VerticalAlignment="Center" />
       </Grid>
     </ui:Card>
 

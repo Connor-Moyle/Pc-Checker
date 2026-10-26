@@ -29,7 +29,7 @@ public static partial class UninstallCommandBuilder
             var parsed = SplitCommand(program.QuietUninstallString);
             if (parsed is not null)
             {
-                return parsed;
+                return (parsed.Value.FileName, EnsureNoRestart(parsed.Value.FileName, parsed.Value.Arguments));
             }
         }
 
@@ -87,12 +87,44 @@ public static partial class UninstallCommandBuilder
             _ => null,
         };
 
-        if (extra is not null && !arguments.Contains(extra.Split(' ')[0], StringComparison.OrdinalIgnoreCase))
+        if (extra is not null)
         {
-            arguments = string.IsNullOrWhiteSpace(arguments) ? extra : arguments + " " + extra;
+            // Add each silent switch the command does not already carry (a Squirrel string always has --uninstall but never -s).
+            var present = arguments.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            foreach (var token in extra.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+            {
+                if (!present.Contains(token, StringComparer.OrdinalIgnoreCase))
+                {
+                    arguments = string.IsNullOrWhiteSpace(arguments) ? token : arguments + " " + token;
+                }
+            }
         }
 
-        return (file, arguments.Trim());
+        return (file, EnsureNoRestart(file, arguments.Trim()));
+    }
+
+    /// <summary>
+    /// A quiet msiexec command without <c>/norestart</c> (or a REBOOT= property) lets Windows Installer restart the PC
+    /// unattended; add the switch so an uninstall never reboots the machine on its own.
+    /// </summary>
+    public static string EnsureNoRestart(string fileName, string arguments)
+    {
+        bool msi = fileName.Contains("msiexec", StringComparison.OrdinalIgnoreCase) || arguments.Contains("msiexec", StringComparison.OrdinalIgnoreCase);
+        bool quiet = arguments.Contains("/q", StringComparison.OrdinalIgnoreCase) || arguments.Contains("/quiet", StringComparison.OrdinalIgnoreCase) || arguments.Contains("/passive", StringComparison.OrdinalIgnoreCase);
+        if (!msi || !quiet)
+        {
+            return arguments;
+        }
+
+        if (arguments.Contains("/norestart", StringComparison.OrdinalIgnoreCase)
+            || arguments.Contains("/forcerestart", StringComparison.OrdinalIgnoreCase)
+            || arguments.Contains("/promptrestart", StringComparison.OrdinalIgnoreCase)
+            || arguments.Contains("REBOOT=", StringComparison.OrdinalIgnoreCase))
+        {
+            return arguments;
+        }
+
+        return string.IsNullOrWhiteSpace(arguments) ? "/norestart" : arguments + " /norestart";
     }
 
     /// <summary>Guesses the installer technology from the uninstall command.</summary>
@@ -147,8 +179,27 @@ public static partial class UninstallCommandBuilder
             return (c[1..end], c[(end + 1)..].Trim());
         }
 
-        // Unquoted: the executable ends at ".exe" (common) or at the first space.
-        int exe = c.IndexOf(".exe", StringComparison.OrdinalIgnoreCase);
+        // Unquoted: the executable ends at the first ".exe" that is followed by a space or the end of the text (so a
+        // directory called "tool.exe.d" does not cut the path short), else at the first ".exe", else at the first space.
+        int exe = -1;
+        int search = 0;
+        while ((search = c.IndexOf(".exe", search, StringComparison.OrdinalIgnoreCase)) >= 0)
+        {
+            int end = search + 4;
+            if (end == c.Length || c[end] == ' ' || c[end] == '"')
+            {
+                exe = search;
+                break;
+            }
+
+            search = end;
+        }
+
+        if (exe < 0)
+        {
+            exe = c.IndexOf(".exe", StringComparison.OrdinalIgnoreCase);
+        }
+
         if (exe > 0)
         {
             int cut = exe + 4;

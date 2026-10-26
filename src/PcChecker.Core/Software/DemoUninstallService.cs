@@ -36,19 +36,26 @@ public sealed class DemoUninstallService : IUninstallService
         return (true, program.Source == SoftwareSource.StoreApp ? "Store app; removed with Remove-AppxPackage (demo)." : "Ready to uninstall (demo).");
     }
 
-    public async Task<OperationResult> UninstallAsync(InstalledProgram program, bool quiet, IProgress<ProgressUpdate>? progress, CancellationToken cancellationToken)
+    public Task<OperationResult> UninstallAsync(InstalledProgram program, bool quiet, IProgress<ProgressUpdate>? progress, CancellationToken cancellationToken) =>
+        UninstallAsync(program, new UninstallOptions(quiet), progress, cancellationToken);
+
+    public async Task<OperationResult> UninstallAsync(InstalledProgram program, UninstallOptions options, IProgress<ProgressUpdate>? progress, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(program);
+        ArgumentNullException.ThrowIfNull(options);
         var (can, why) = CanUninstall(program);
         if (!can)
         {
             return OperationResult.Fail(why);
         }
 
+        bool quiet = options.Quiet;
         progress?.Report(new ProgressUpdate(quiet ? "Uninstalling quietly" : "Running the uninstaller", 40, program.Name));
         await DemoData.DelayAsync(cancellationToken, 600, 1200).ConfigureAwait(false);
         progress?.Report(new ProgressUpdate("Checking the program is gone", 90, program.Name));
         await DemoData.DelayAsync(cancellationToken, 100, 300).ConfigureAwait(false);
-        return OperationResult.Ok($"{program.Name} was uninstalled{(quiet ? " quietly" : string.Empty)} (demo — nothing was changed).");
+        bool storeApp = program.Source == SoftwareSource.StoreApp || program.Installer == InstallerKind.StoreApp;
+        string scope = storeApp ? (options.StoreAppAllUsers ? " for all users" : " from your account") : string.Empty;
+        return OperationResult.Ok($"{program.Name} was uninstalled{(quiet && !storeApp ? " quietly" : string.Empty)}{scope} (demo — nothing was changed).");
     }
 }

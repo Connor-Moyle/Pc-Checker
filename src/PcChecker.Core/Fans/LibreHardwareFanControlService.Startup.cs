@@ -91,48 +91,87 @@ public sealed partial class LibreHardwareFanControlService
     }
 
     /// <summary>
-    /// Called once at app start: reverts fans left under software control by a crashed previous run, then applies the
-    /// saved profile when "apply on startup" is on. Returns plain-English notices for the dashboard.
+    /// Called once at app start. A marker left by a crashed run means its fans were abandoned under software control:
+    /// they are returned to automatic and the user is warned. A marker flagged as a clean exit (the previous session
+    /// ended normally with "revert on exit" off) is handled quietly: the profile it names is re-applied so the curves
+    /// and the safety loop take over again, or the fans go back to automatic with an accurate message. Then the saved
+    /// profile is applied when "apply on startup" is on. Returns plain-English notices for the dashboard.
     /// </summary>
     public async Task<IReadOnlyList<string>> RunStartupAsync(CancellationToken cancellationToken)
     {
         var notices = new List<string>();
+        string? reappliedProfile = null;
         var session = FanSessionStore.TryRead(SessionFilePath);
-        if (session is not null && FanSessionStore.IsStale(session, IsProcessRunning))
+        if (session is not null && (session.CleanExit || FanSessionStore.IsStale(session, FanSessionStore.LookupProcess)))
         {
+            bool crashed = !session.CleanExit;
             try
             {
                 await DiscoverAsync(cancellationToken).ConfigureAwait(false);
-                int reverted = 0;
-                foreach (var id in session.FanIds)
+                var previousProfile = crashed ? null : FindProfile(session.ProfileName);
+                if (previousProfile is not null)
                 {
-                    var entry = Find(id);
-                    if (entry is not null && ApplyDefault(entry).Success)
+                    FanSessionStore.Delete(SessionFilePath);
+                    var reapply = await ApplyProfileAsync(previousProfile, cancellationToken).ConfigureAwait(false);
+                    if (reapply.Success)
                     {
-                        reverted++;
+                        reappliedProfile = previousProfile.Name;
+                        notices.Add($"Fan profile \"{previousProfile.Name}\" was still in charge of {session.FanIds.Count} fan(s) when PC Checker last closed (revert on exit is off), so it was re-applied.");
+                        _logger.LogInformation("Re-applied fan profile {Profile} left active by the previous session.", previousProfile.Name);
+                    }
+                    else
+                    {
+                        _logger.LogWarning("Could not re-apply fan profile {Profile} from the previous session: {Message}", previousProfile.Name, reapply.Message);
                     }
                 }
 
-                FanSessionStore.Delete(SessionFilePath);
-                string text = reverted > 0
-                    ? $"PC Checker did not shut down cleanly last time while {session.FanIds.Count} fan(s) were under its control. {reverted} fan(s) were returned to automatic control."
-                    : "PC Checker did not shut down cleanly last time while it was controlling fans. The fans were already back under automatic control.";
-                notices.Add(text);
-                RaiseAlert(FanAlertKind.RecoveredFromCrash, string.Empty, "All fans", text, Severity.Medium);
-                _logger.LogWarning("Recovered from a previous fan-control session: {Text}", text);
+                if (reappliedProfile is null)
+                {
+                    int reverted = 0;
+                    foreach (var id in session.FanIds)
+                    {
+                        var entry = Find(id);
+                        if (entry is not null && ApplyDefault(entry).Success)
+                        {
+                            reverted++;
+                        }
+                    }
+
+                    FanSessionStore.Delete(SessionFilePath);
+                    string text;
+                    if (crashed)
+                    {
+                        text = reverted > 0
+                            ? $"PC Checker did not shut down cleanly last time while {session.FanIds.Count} fan(s) were under its control. {reverted} fan(s) were returned to automatic control."
+                            : "PC Checker did not shut down cleanly last time while it was controlling fans. The fans were already back under automatic control.";
+                        RaiseAlert(FanAlertKind.RecoveredFromCrash, string.Empty, "All fans", text, Severity.Medium);
+                        _logger.LogWarning("Recovered from a previous fan-control session: {Text}", text);
+                    }
+                    else
+                    {
+                        text = reverted > 0
+                            ? $"{session.FanIds.Count} fan(s) were left under manual control when PC Checker last closed (revert on exit is off). {reverted} fan(s) were returned to automatic control at startup for safety; turn on \"Apply on startup\" to bring a profile back automatically."
+                            : "Fans were left under manual control when PC Checker last closed (revert on exit is off); they were already back under automatic control.";
+                        _logger.LogInformation("Previous session ended cleanly with fans under manual control: {Text}", text);
+                    }
+
+                    notices.Add(text);
+                }
             }
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "Could not revert fans from the previous session.");
-                notices.Add("PC Checker could not confirm the fans were returned to automatic control after the last unclean shutdown. Open the Fans page and click \"Revert all to automatic\".");
+                notices.Add(crashed
+                    ? "PC Checker could not confirm the fans were returned to automatic control after the last unclean shutdown. Open the Fans page and click \"Revert all to automatic\"."
+                    : "PC Checker could not confirm the fans it left under manual control last time were returned to automatic. Open the Fans page and click \"Revert all to automatic\".");
             }
         }
 
         var fanSettings = _settings.Current.Fans;
-        if (fanSettings.ApplyOnStartup && !string.IsNullOrWhiteSpace(fanSettings.ActiveProfileName))
+        if (fanSettings.ApplyOnStartup && !string.IsNullOrWhiteSpace(fanSettings.ActiveProfileName)
+            && !fanSettings.ActiveProfileName.Equals(reappliedProfile, StringComparison.OrdinalIgnoreCase))
         {
-            var profile = fanSettings.Profiles.FirstOrDefault(p => p.Name.Equals(fanSettings.ActiveProfileName, StringComparison.OrdinalIgnoreCase))
-                ?? BuiltInProfiles.FirstOrDefault(p => p.Name.Equals(fanSettings.ActiveProfileName, StringComparison.OrdinalIgnoreCase));
+            var profile = FindProfile(fanSettings.ActiveProfileName);
             if (profile is not null)
             {
                 var result = await ApplyProfileAsync(profile, cancellationToken).ConfigureAwait(false);
@@ -145,7 +184,21 @@ public sealed partial class LibreHardwareFanControlService
         return notices;
     }
 
-    /// <summary>Called at app exit: reverts to automatic (when the setting says so) and stops the loop.</summary>
+    private FanProfile? FindProfile(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return null;
+        }
+
+        return _settings.Current.Fans.Profiles.FirstOrDefault(p => p.Name.Equals(name, StringComparison.OrdinalIgnoreCase))
+            ?? BuiltInProfiles.FirstOrDefault(p => p.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// Called at app exit: reverts to automatic when the setting says so; otherwise flags the session marker as a clean
+    /// exit so the next start does not mistake the fans it deliberately left alone for a crash.
+    /// </summary>
     public async Task ShutdownAsync()
     {
         try
@@ -153,6 +206,10 @@ public sealed partial class LibreHardwareFanControlService
             if (_settings.Current.Fans.RevertToAutoOnExit)
             {
                 await RevertAllToAutoAsync(CancellationToken.None).ConfigureAwait(false);
+            }
+            else
+            {
+                FanSessionStore.MarkCleanExit(SessionFilePath);
             }
         }
         catch (Exception ex)

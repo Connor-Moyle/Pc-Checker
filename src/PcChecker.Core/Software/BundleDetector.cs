@@ -38,6 +38,10 @@ public static class BundleDetector
     public static bool IsKnownBundledExtra(InstalledProgram program) =>
         KnownBundledExtras.Any(k => program.Name.Contains(k, StringComparison.OrdinalIgnoreCase));
 
+    /// <summary>True when the install date carries a time of day, so it can be compared to the minute.</summary>
+    public static bool HasInstallTime(InstalledProgram program) =>
+        program.InstallDate is { } date && date.TimeOfDay != TimeSpan.Zero;
+
     /// <summary>Finds bundle groups. The parent is the program that is not itself a known extra and has the earliest install time or the outer folder.</summary>
     public static IReadOnlyList<BundleGroup> Detect(IReadOnlyList<InstalledProgram> programs)
     {
@@ -96,8 +100,10 @@ public static class BundleDetector
             }
         }
 
-        // 2. Installed within a few minutes of another program by a different publisher.
-        var dated = programs.Where(p => p.InstallDate.HasValue && p.Source != SoftwareSource.StoreApp).OrderBy(p => p.InstallDate).ToList();
+        // 2. Installed within a few minutes of another program by a different publisher. The registry's InstallDate is
+        // usually a bare date (yyyyMMdd), which says nothing about minutes: two programs installed on the same day are
+        // not a bundle, so only timestamps that carry a time of day take part.
+        var dated = programs.Where(p => HasInstallTime(p) && p.Source != SoftwareSource.StoreApp).OrderBy(p => p.InstallDate).ToList();
         for (int i = 0; i < dated.Count; i++)
         {
             for (int j = i + 1; j < dated.Count; j++)

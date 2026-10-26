@@ -430,6 +430,7 @@
                     <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding ToolStage}" VerticalAlignment="Center" Margin="10,0,0,0" />
                   </StackPanel>
                   <ui:Button Grid.Column="1" Content="Cancel" Icon="{ui:SymbolIcon Stop24}" Command="{Binding CancelToolCommand}"
+                             ToolTip="A file-system repair cannot be cancelled once it has started; stopping chkdsk half-way leaves the volume dirty."
                              Visibility="{Binding IsToolRunning, Converter={StaticResource BoolToVisibility}}" />
                 </Grid>
                 <Border Background="{DynamicResource ControlFillColorDefaultBrush}" BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="6"

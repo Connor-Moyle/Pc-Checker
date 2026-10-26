@@ -106,41 +106,19 @@ public sealed partial class WindowsOptimizationService : IOptimizationService, I
     public Task<OperationResult> SetStartupItemEnabledAsync(StartupItem item, bool enabled, CancellationToken cancellationToken) =>
         _startup.SetStartupItemEnabledAsync(item, enabled, cancellationToken);
 
+    /// <summary>
+    /// Service start modes belong to the Startup module too: it owns the single protected-service list
+    /// (<see cref="ProtectedServices"/>), so the Performance and Startup pages refuse exactly the same services.
+    /// </summary>
     public Task<OperationResult> SetServiceStartModeAsync(string serviceName, string startMode, CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(serviceName);
-        var scMode = ServiceClassifier.ToScArgument(startMode);
-        if (scMode is null)
+        if (ServiceClassifier.ToScArgument(startMode) is null)
         {
             return Task.FromResult(OperationResult.Fail($"\"{startMode}\" is not a start mode that can be set. Use Automatic, Automatic (Delayed), Manual or Disabled."));
         }
 
-        if (ServiceClassifier.IsProtected(serviceName) && !ServiceClassifier.IsAutomaticScMode(scMode))
-        {
-            return Task.FromResult(OperationResult.Fail(scMode == "disabled"
-                ? $"{serviceName} is a core Windows service and cannot be disabled from here."
-                : $"{serviceName} is a core Windows service; Windows expects it to start automatically, so it cannot be set to {startMode} from here."));
-        }
-
-        var options = ChangeOptions.For(Module, $"service:{serviceName}", reversible: true, undoHint: $"sc config {serviceName} start= <previous mode>");
-        return _guard.RunGuardedAsync($"Set service {serviceName} to {startMode}", options, async ct =>
-        {
-            var config = await ExternalCommand.RunAsync("sc.exe", $"config \"{serviceName}\" start= {scMode}", ct, TimeSpan.FromSeconds(30)).ConfigureAwait(false);
-            if (!config.Success)
-            {
-                return OperationResult.Fail($"sc config failed: {config.LastLine}");
-            }
-
-            if (scMode == "disabled")
-            {
-                var stop = await ExternalCommand.RunAsync("sc.exe", $"stop \"{serviceName}\"", ct, TimeSpan.FromSeconds(30)).ConfigureAwait(false);
-                return OperationResult.Ok(stop.Success
-                    ? $"{serviceName} is disabled and has been stopped."
-                    : $"{serviceName} is disabled; it will not start next time Windows starts.");
-            }
-
-            return OperationResult.Ok($"{serviceName} start mode set to {startMode}.");
-        }, null, cancellationToken);
+        return _startup.SetServiceStartModeAsync(serviceName, startMode, cancellationToken);
     }
 
     private async Task<OperationResult> RunAsync(string actionId, bool revert, CancellationToken cancellationToken)
@@ -178,6 +156,14 @@ public sealed partial class WindowsOptimizationService : IOptimizationService, I
         if (!PlatformGuard.IsWindows)
         {
             return OperationResult.Fail("Optimization actions can only run on Windows.");
+        }
+
+        if (actionId is "faststartup.enable" or "faststartup.disable")
+        {
+            // Fast startup needs hibernation; the Startup module turns that on first and guards/journals the change itself,
+            // so both pages behave the same instead of this one silently writing HiberbootEnabled.
+            bool enable = actionId == "faststartup.enable" ? !revert : revert;
+            return await _startup.SetFastStartupAsync(enable, cancellationToken).ConfigureAwait(false);
         }
 
         string description = (revert ? "Undo: " : string.Empty) + action.Title;

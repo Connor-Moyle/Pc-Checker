@@ -57,7 +57,36 @@ public static class UpdateDecision
             return false;
         }
 
-        return string.Compare(preB, preA, StringComparison.OrdinalIgnoreCase) > 0;
+        return ComparePrerelease(preB, preA) > 0;
+    }
+
+    /// <summary>
+    /// SemVer 2 §11 ordering of prerelease labels: dot-separated identifiers, numeric ones compared as numbers
+    /// (beta.10 &gt; beta.9), numeric before alphanumeric, a shorter label older when every shared identifier matches.
+    /// </summary>
+    public static int ComparePrerelease(string? a, string? b)
+    {
+        var left = (a ?? string.Empty).Split('.', StringSplitOptions.RemoveEmptyEntries);
+        var right = (b ?? string.Empty).Split('.', StringSplitOptions.RemoveEmptyEntries);
+        int count = Math.Min(left.Length, right.Length);
+        for (int i = 0; i < count; i++)
+        {
+            bool leftNumeric = long.TryParse(left[i], System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out long ln);
+            bool rightNumeric = long.TryParse(right[i], System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out long rn);
+            int cmp = (leftNumeric, rightNumeric) switch
+            {
+                (true, true) => ln.CompareTo(rn),
+                (true, false) => -1,
+                (false, true) => 1,
+                _ => string.Compare(left[i], right[i], StringComparison.OrdinalIgnoreCase),
+            };
+            if (cmp != 0)
+            {
+                return cmp;
+            }
+        }
+
+        return left.Length.CompareTo(right.Length);
     }
 
     /// <summary>Builds the info record shown in the UI from a picked GitHub release.</summary>

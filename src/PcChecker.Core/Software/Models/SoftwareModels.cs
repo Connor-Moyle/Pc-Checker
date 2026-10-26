@@ -54,6 +54,12 @@ public sealed record InstalledProgram(
 
 public sealed record BundleGroup(InstalledProgram Parent, IReadOnlyList<InstalledProgram> Children, string Reason);
 
+/// <summary>
+/// How an uninstall should run. <paramref name="StoreAppAllUsers"/> removes a Store app from every account on the PC
+/// (Remove-AppxPackage -AllUsers) and is only honoured when the user asked for it explicitly for this uninstall.
+/// </summary>
+public sealed record UninstallOptions(bool Quiet, bool StoreAppAllUsers = false);
+
 public sealed record SoftwareInventory(
     IReadOnlyList<InstalledProgram> Programs,
     IReadOnlyList<BundleGroup> Bundles,

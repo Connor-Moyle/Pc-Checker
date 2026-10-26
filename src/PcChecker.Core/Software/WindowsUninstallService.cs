@@ -59,25 +59,32 @@ public sealed class WindowsUninstallService : IUninstallService
         return (true, reason);
     }
 
-    public async Task<OperationResult> UninstallAsync(InstalledProgram program, bool quiet, IProgress<ProgressUpdate>? progress, CancellationToken cancellationToken)
+    public Task<OperationResult> UninstallAsync(InstalledProgram program, bool quiet, IProgress<ProgressUpdate>? progress, CancellationToken cancellationToken) =>
+        UninstallAsync(program, new UninstallOptions(quiet), progress, cancellationToken);
+
+    public async Task<OperationResult> UninstallAsync(InstalledProgram program, UninstallOptions options, IProgress<ProgressUpdate>? progress, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(program);
+        ArgumentNullException.ThrowIfNull(options);
         var (can, why) = CanUninstall(program);
         if (!can)
         {
             return OperationResult.Fail(why);
         }
 
-        var options = new ChangeOptions(null, null, "Software", program.Name, Reversible: false, UndoHint: "Reinstall from the vendor");
-        return await _guard.RunGuardedAsync($"Uninstall {program.Name}", options,
-            ct => RunUninstallAsync(program, quiet, progress, ct), progress, cancellationToken).ConfigureAwait(false);
+        bool storeApp = program.Source == SoftwareSource.StoreApp || program.Installer == InstallerKind.StoreApp;
+        string scope = storeApp && options.StoreAppAllUsers ? " for all users" : string.Empty;
+        var change = new ChangeOptions(null, null, "Software", program.Name, Reversible: false, UndoHint: "Reinstall from the vendor");
+        return await _guard.RunGuardedAsync($"Uninstall {program.Name}{scope}", change,
+            ct => RunUninstallAsync(program, options, progress, ct), progress, cancellationToken).ConfigureAwait(false);
     }
 
-    private async Task<OperationResult> RunUninstallAsync(InstalledProgram program, bool quiet, IProgress<ProgressUpdate>? progress, CancellationToken cancellationToken)
+    private async Task<OperationResult> RunUninstallAsync(InstalledProgram program, UninstallOptions options, IProgress<ProgressUpdate>? progress, CancellationToken cancellationToken)
     {
+        bool quiet = options.Quiet;
         if (program.Source == SoftwareSource.StoreApp || program.Installer == InstallerKind.StoreApp)
         {
-            return await RemoveStoreAppAsync(program, progress, cancellationToken).ConfigureAwait(false);
+            return await RemoveStoreAppAsync(program, options.StoreAppAllUsers, progress, cancellationToken).ConfigureAwait(false);
         }
 
         var command = UninstallCommandBuilder.Build(program, quiet);
@@ -130,12 +137,13 @@ public sealed class WindowsUninstallService : IUninstallService
         return mapped with { Message = mapped.Message + " Its registry entry is still present; it may disappear after a restart or the uninstaller may have been cancelled." };
     }
 
-    private async Task<OperationResult> RemoveStoreAppAsync(InstalledProgram program, IProgress<ProgressUpdate>? progress, CancellationToken cancellationToken)
+    /// <param name="allUsers">Remove the package from every account (an explicit per-uninstall choice, never inferred from a global toggle).</param>
+    private async Task<OperationResult> RemoveStoreAppAsync(InstalledProgram program, bool allUsers, IProgress<ProgressUpdate>? progress, CancellationToken cancellationToken)
     {
         var package = program.PackageFullName!;
-        var scope = AdvancedMode ? " -AllUsers" : string.Empty;
+        var scope = allUsers ? " -AllUsers" : string.Empty;
         var command = $"Remove-AppxPackage -Package {PowerShellRunner.Quote(package)}{scope} -ErrorAction Stop";
-        _logger.LogInformation("Removing Store app {Package} (all users: {AllUsers})", package, AdvancedMode);
+        _logger.LogInformation("Removing Store app {Package} (all users: {AllUsers})", package, allUsers);
         progress?.Report(new ProgressUpdate("Removing Store app", 30, program.Name));
 
         var result = await PowerShellRunner.RunAsync(command, TimeSpan.FromMinutes(5), cancellationToken).ConfigureAwait(false);
@@ -155,6 +163,8 @@ public sealed class WindowsUninstallService : IUninstallService
             return OperationResult.Fail($"Removing {program.Name} failed: {detail}");
         }
 
-        return OperationResult.Ok($"{program.Name} was removed{(AdvancedMode ? " for all users" : string.Empty)}.");
+        return OperationResult.Ok(allUsers
+            ? $"{program.Name} was removed for all users on this PC."
+            : $"{program.Name} was removed from your account; other user accounts on this PC keep it.");
     }
 }

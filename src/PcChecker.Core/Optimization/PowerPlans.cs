@@ -1,11 +1,17 @@
+using System.Text.RegularExpressions;
+
 namespace PcChecker.Core.Optimization;
 
 /// <summary>One Windows power scheme as listed by <c>powercfg /list</c>.</summary>
 public sealed record PowerScheme(Guid Id, string Name, bool IsActive);
 
 /// <summary>Well-known power plan ids plus pure parsers for <c>powercfg</c> output.</summary>
-public static class PowerPlans
+public static partial class PowerPlans
 {
+    /// <summary>A scheme line in any language: the GUID, the name in parentheses and an optional active star.</summary>
+    [GeneratedRegex(@"([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})\s*(?:\(([^)]*)\))?\s*(\*?)", RegexOptions.CultureInvariant)]
+    private static partial Regex SchemeLine();
+
     public static readonly Guid Balanced = new("381b4222-f694-41f0-9685-ff5bb260df2e");
     public static readonly Guid HighPerformance = new("8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c");
     public static readonly Guid PowerSaver = new("a1841308-3541-4fab-bc81-f71556f20b4a");
@@ -36,7 +42,11 @@ public static class PowerPlans
         return "Custom plan";
     }
 
-    /// <summary>Parses a single <c>Power Scheme GUID: &lt;guid&gt;  (Name) *</c> line (from /getactivescheme or /duplicatescheme).</summary>
+    /// <summary>
+    /// Parses a single <c>Power Scheme GUID: &lt;guid&gt;  (Name) *</c> line (from /getactivescheme or /duplicatescheme).
+    /// The label is localized ("GUID du mode de gestion de l'alimentation :", "GUID des Energieschemas:"), so only the
+    /// GUID, the parenthesised name and the trailing star are looked at.
+    /// </summary>
     public static PowerScheme? ParseScheme(string? line)
     {
         if (string.IsNullOrWhiteSpace(line))
@@ -44,31 +54,24 @@ public static class PowerPlans
             return null;
         }
 
-        int guidStart = line.IndexOf("GUID:", StringComparison.OrdinalIgnoreCase);
-        var rest = (guidStart >= 0 ? line[(guidStart + 5)..] : line).Trim();
-        var token = rest.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
-        if (token.Length == 0 || !Guid.TryParse(token[0], out var id))
+        var match = SchemeLine().Match(line);
+        if (!match.Success || !Guid.TryParse(match.Groups[1].Value, out var id))
         {
             return null;
         }
 
         string name = NameFor(id);
-        int open = rest.IndexOf('(');
-        int close = rest.LastIndexOf(')');
-        if (open >= 0 && close > open)
+        var text = match.Groups[2].Value.Trim();
+        if (text.Length > 0)
         {
-            var text = rest[(open + 1)..close].Trim();
-            if (text.Length > 0)
-            {
-                name = text;
-            }
+            name = text;
         }
 
-        bool active = rest.TrimEnd().EndsWith('*');
+        bool active = match.Groups[3].Value == "*" || line.TrimEnd().EndsWith('*');
         return new PowerScheme(id, name, active);
     }
 
-    /// <summary>Parses the whole <c>powercfg /list</c> output.</summary>
+    /// <summary>Parses the whole <c>powercfg /list</c> output: every line that carries a scheme GUID, in any language.</summary>
     public static IReadOnlyList<PowerScheme> ParseList(string? output)
     {
         if (string.IsNullOrWhiteSpace(output))
@@ -79,8 +82,7 @@ public static class PowerPlans
         var list = new List<PowerScheme>();
         foreach (var raw in output.Split('\n'))
         {
-            var line = raw.Trim();
-            if (line.Contains("GUID:", StringComparison.OrdinalIgnoreCase) && ParseScheme(line) is { } scheme)
+            if (ParseScheme(raw.Trim()) is { } scheme)
             {
                 list.Add(scheme);
             }

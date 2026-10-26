@@ -35,8 +35,11 @@ public sealed partial class SoftwareViewModel
         }
 
         bool quiet = QuietUninstall && row.SupportsQuietUninstall;
+        bool allUsers = row.IsStoreApp && IsAdvancedMode && RemoveStoreAppsForAllUsers;
         var mode = row.IsStoreApp
-            ? "The Store app will be removed with Windows' package manager; no installer window appears."
+            ? allUsers
+                ? "The Store app will be removed with Windows' package manager for ALL user accounts on this PC (\"Remove Store apps for all users\" is on); no installer window appears."
+                : "The Store app will be removed with Windows' package manager from your account only; other accounts on this PC keep it. No installer window appears."
             : quiet
                 ? "Quiet uninstall is on: the program's own uninstaller runs with its silent switches, so you will not see its windows. Some uninstallers ignore this and show prompts anyway."
                 : QuietUninstall
@@ -59,7 +62,7 @@ public sealed partial class SoftwareViewModel
         await RunBusyAsync(async ct =>
         {
             var progress = new Progress<ProgressUpdate>(p => BusyText = p.Detail is null ? p.Stage + "…" : $"{p.Stage}…\n{p.Detail}");
-            var result = await _uninstaller.UninstallAsync(row.Program, quiet, progress, ct);
+            var result = await _uninstaller.UninstallAsync(row.Program, new UninstallOptions(quiet, allUsers), progress, ct);
             ReportResult(result, "Uninstall");
             if (result.Success)
             {

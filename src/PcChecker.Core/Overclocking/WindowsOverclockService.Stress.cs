@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using PcChecker.Core.Common;
+using PcChecker.Core.Restore;
 
 namespace PcChecker.Core.Overclocking;
 
@@ -121,7 +122,10 @@ public sealed partial class WindowsOverclockService
             }
 
             _applied = session.Profile;
-            var reset = await ResetCoreAsync(cancellationToken).ConfigureAwait(false);
+            // Guarded like every other overclock change (no restore point: nothing new is applied), so the journal
+            // shows what the watchdog reverted.
+            var options = new ChangeOptions(false, false, ModuleName, Capabilities?.GpuName ?? "System", false, null);
+            var reset = await _guard.RunGuardedAsync($"Revert overclock profile \"{session.Profile.Name}\" after an unclean shutdown", options, ResetCoreAsync, null, cancellationToken).ConfigureAwait(false);
             OverclockSessionStore.Delete(SessionPath);
             return reset.Success
                 ? OperationResult.Ok($"The previous overclock (\"{session.Profile.Name}\") was reverted after an unclean shutdown. {reset.Message}")

@@ -59,9 +59,10 @@ public class WindowsOptimizationServiceTests
         }
 
         Assert.Equal(0, guard.Calls);
+        // Start modes are delegated to the Startup module (the demo one here), which guards and journals them itself.
         var mode = await service.SetServiceStartModeAsync("Bonjour Service", "Manual", CancellationToken.None);
-        Assert.False(mode.Success);
-        Assert.Equal(1, guard.Calls);
+        Assert.True(mode.Success);
+        Assert.Equal(0, guard.Calls);
     }
 
     [Fact]
@@ -76,7 +77,10 @@ public class WindowsOptimizationServiceTests
         Assert.Contains("core Windows service", protectedSvc.Message);
         var manual = await service.SetServiceStartModeAsync("Dnscache", "Manual", CancellationToken.None);
         Assert.False(manual.Success);
-        Assert.Contains("start automatically", manual.Message);
+        Assert.Contains("will not stop it from starting", manual.Message);
+        // The firewall services are on the Startup module's list, so the Performance page refuses them too.
+        Assert.False((await service.SetServiceStartModeAsync("BFE", "Disabled", CancellationToken.None)).Success);
+        Assert.False((await service.SetServiceStartModeAsync("mpssvc", "Manual", CancellationToken.None)).Success);
         Assert.Equal(0, guard.Calls);
     }
 
@@ -156,6 +160,33 @@ public class PowerPlansTests
         Assert.True(scheme.IsActive);
         Assert.Null(PowerPlans.ParseScheme("nothing here"));
         Assert.Null(PowerPlans.ParseScheme(null));
+    }
+
+    [Theory]
+    [InlineData("GUID du mode de gestion de l'alimentation : 381b4222-f694-41f0-9685-ff5bb260df2e  (Utilisation normale) *", "Utilisation normale", true)]
+    [InlineData("GUID des Energieschemas: 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c  (Höchstleistung)", "Höchstleistung", false)]
+    [InlineData("GUID de la combinación de energía: a1841308-3541-4fab-bc81-f71556f20b4a  (Economizador) *", "Economizador", true)]
+    public void Scheme_lines_are_parsed_in_any_language(string line, string name, bool active)
+    {
+        var scheme = PowerPlans.ParseScheme(line);
+        Assert.NotNull(scheme);
+        Assert.Equal(name, scheme!.Name);
+        Assert.Equal(active, scheme.IsActive);
+    }
+
+    [Fact]
+    public void French_list_output_yields_every_scheme()
+    {
+        const string output = """
+            Modes de gestion de l'alimentation existants (* actif)
+            -----------------------------------
+            GUID du mode de gestion de l'alimentation : 381b4222-f694-41f0-9685-ff5bb260df2e  (Utilisation normale)
+            GUID du mode de gestion de l'alimentation : e9a42b02-d5df-448d-aa00-03f14749eb61  (Performances optimales) *
+            """;
+        var list = PowerPlans.ParseList(output);
+        Assert.Equal(2, list.Count);
+        Assert.Single(list, s => s.IsActive && s.Id == PowerPlans.Ultimate);
+        Assert.Equal("Utilisation normale", list[0].Name);
     }
 
     [Fact]

@@ -45,6 +45,13 @@ public sealed partial class SoftwareViewModel : ViewModelBase
     [ObservableProperty]
     private bool _quietUninstall = true;
 
+    /// <summary>
+    /// Advanced mode only: remove Store apps from every account on this PC instead of just the signed-in one.
+    /// Off by default; the confirmation dialog states which scope will be used.
+    /// </summary>
+    [ObservableProperty]
+    private bool _removeStoreAppsForAllUsers;
+
     [ObservableProperty]
     private ProgramRow? _selectedProgram;
 

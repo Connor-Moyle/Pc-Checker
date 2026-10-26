@@ -35,6 +35,21 @@ public class BundleDetectorTests
     }
 
     [Fact]
+    public void Date_only_install_dates_on_the_same_day_are_not_a_bundle()
+    {
+        // The registry's InstallDate is yyyyMMdd: every program installed on the same day would otherwise pair up.
+        var steam = InstalledProgram.Create("a", "Steam", "Valve", new DateTime(2025, 3, 1));
+        var vlc = InstalledProgram.Create("b", "VLC", "VideoLAN", new DateTime(2025, 3, 1));
+        Assert.Empty(BundleDetector.Detect([steam, vlc]));
+        Assert.False(BundleDetector.HasInstallTime(steam));
+        Assert.True(BundleDetector.HasInstallTime(InstalledProgram.Create("c", "X", "Y", T0)));
+
+        // A known bundled extra still needs a real time to be matched by time.
+        var extra = InstalledProgram.Create("x", "McAfee WebAdvisor", "McAfee", new DateTime(2025, 3, 1));
+        Assert.Empty(BundleDetector.Detect([steam, extra]));
+    }
+
+    [Fact]
     public void Known_extra_becomes_child_even_when_installed_first()
     {
         var extra = InstalledProgram.Create("x", "Avast Secure Browser", "Avast", T0);
@@ -107,7 +122,9 @@ public class UninstallCommandBuilderTests
     public void Nsis_and_installshield_flags()
     {
         var nsis = InstalledProgram.Create("n", "Nsis App", uninstallString: "C:\\Apps\\Nsis\\uninstall.exe");
-        Assert.Equal("/S", UninstallCommandBuilder.Build(nsis, quiet: true)!.Value.Arguments);
+        var (nsisFile, nsisArgs) = UninstallCommandBuilder.Build(nsis, quiet: true)!.Value;
+        Assert.Equal(@"C:\Apps\Nsis\uninstall.exe", nsisFile);
+        Assert.Equal("/S", nsisArgs);
 
         var shield = InstalledProgram.Create("s", "Shield App", uninstallString: "\"C:\\Apps\\setup.exe\" -runfromtemp -removeonly", installer: InstallerKind.InstallShield);
         var (_, args) = UninstallCommandBuilder.Build(shield, quiet: true)!.Value;
@@ -119,8 +136,70 @@ public class UninstallCommandBuilderTests
     public void Quiet_uninstall_string_is_preferred_when_present()
     {
         var p = InstalledProgram.Create("q", "Quiet App", uninstallString: "\"C:\\A\\u.exe\"", quietUninstallString: "\"C:\\A\\u.exe\" /silent");
-        var (_, args) = UninstallCommandBuilder.Build(p, quiet: true)!.Value;
+        var (file, args) = UninstallCommandBuilder.Build(p, quiet: true)!.Value;
+        Assert.Equal(@"C:\A\u.exe", file);
         Assert.Equal("/silent", args);
+        // quiet:false must ignore the quiet string.
+        Assert.Equal((@"C:\A\u.exe", string.Empty), UninstallCommandBuilder.Build(p, quiet: false)!.Value);
+    }
+
+    [Fact]
+    public void Quiet_msiexec_strings_get_norestart_so_an_uninstall_never_reboots_unattended()
+    {
+        var p = InstalledProgram.Create("q", "App", uninstallString: "MsiExec.exe /X{12345678-1234-1234-1234-123456789ABC}",
+            quietUninstallString: "MsiExec.exe /X{12345678-1234-1234-1234-123456789ABC} /qn");
+        var (file, args) = UninstallCommandBuilder.Build(p, quiet: true)!.Value;
+        Assert.Equal("MsiExec.exe", file);
+        Assert.Equal("/X{12345678-1234-1234-1234-123456789ABC} /qn /norestart", args);
+
+        var already = InstalledProgram.Create("r", "App", uninstallString: "x", quietUninstallString: "MsiExec.exe /X{12345678-1234-1234-1234-123456789ABC} /quiet /norestart");
+        Assert.Equal("/X{12345678-1234-1234-1234-123456789ABC} /quiet /norestart", UninstallCommandBuilder.Build(already, quiet: true)!.Value.Arguments);
+        var property = InstalledProgram.Create("s", "App", uninstallString: "x", quietUninstallString: "MsiExec.exe /X{12345678-1234-1234-1234-123456789ABC} /qn REBOOT=ReallySuppress");
+        Assert.DoesNotContain("/norestart", UninstallCommandBuilder.Build(property, quiet: true)!.Value.Arguments);
+        // Not msiexec: untouched.
+        Assert.Equal("/S", UninstallCommandBuilder.EnsureNoRestart(@"C:\x\uninstall.exe", "/S"));
+    }
+
+    [Fact]
+    public void Squirrel_quiet_uninstall_adds_the_silent_switch()
+    {
+        var discord = InstalledProgram.Create("d", "Discord", uninstallString: "C:\\Users\\me\\AppData\\Local\\Discord\\Update.exe --uninstall");
+        var (file, args) = UninstallCommandBuilder.Build(discord, quiet: true)!.Value;
+        Assert.Equal(@"C:\Users\me\AppData\Local\Discord\Update.exe", file);
+        Assert.Equal("--uninstall -s", args);
+        Assert.Equal("--uninstall", UninstallCommandBuilder.Build(discord, quiet: false)!.Value.Arguments);
+    }
+
+    [Theory]
+    [InlineData(@"C:\Program Files\App\unins000.exe /SILENT", InstallerKind.Unknown, true, @"C:\Program Files\App\unins000.exe", "/SILENT /VERYSILENT /SUPPRESSMSGBOXES /NORESTART")]
+    [InlineData(@"C:\Apps\Nsis\uninstall.exe", InstallerKind.Unknown, true, @"C:\Apps\Nsis\uninstall.exe", "/S")]
+    [InlineData("\"C:\\Apps\\setup.exe\" -runfromtemp /s", InstallerKind.InstallShield, true, @"C:\Apps\setup.exe", "-runfromtemp /s /v\"/qn\"")]
+    [InlineData(@"C:\Apps\tool.exe.d\run.exe /x", InstallerKind.Unknown, false, @"C:\Apps\tool.exe.d\run.exe", "/x")]
+    [InlineData("\"C:\\Apps\\tool.exe.d\\run.exe\" /x", InstallerKind.Unknown, false, @"C:\Apps\tool.exe.d\run.exe", "/x")]
+    public void Builder_handles_the_shapes_real_registries_produce(string uninstallString, InstallerKind kind, bool quiet, string file, string args)
+    {
+        var p = InstalledProgram.Create("p", "App", uninstallString: uninstallString, installer: kind);
+        var (builtFile, builtArgs) = UninstallCommandBuilder.Build(p, quiet)!.Value;
+        Assert.Equal(file, builtFile);
+        Assert.Equal(args, builtArgs);
+    }
+
+    [Fact]
+    public void Msi_product_without_uninstall_string_uses_the_registry_key_code()
+    {
+        var p = InstalledProgram.Create("{12345678-1234-1234-1234-123456789ABC}", "Msi App") with { RegistryKey = @"HKLM\...\{12345678-1234-1234-1234-123456789ABC}" };
+        var (file, args) = UninstallCommandBuilder.Build(p, quiet: false)!.Value;
+        Assert.Equal("msiexec.exe", file);
+        Assert.Equal("/x {12345678-1234-1234-1234-123456789ABC} /norestart", args);
+    }
+
+    [Fact]
+    public void Store_package_names_with_apostrophes_are_escaped()
+    {
+        var p = InstalledProgram.Create("st", "O'Store", source: SoftwareSource.StoreApp, installer: InstallerKind.StoreApp, packageFullName: "Contoso.O'App_1.0.0.0_x64__abc123");
+        var (file, args) = UninstallCommandBuilder.Build(p, quiet: true)!.Value;
+        Assert.Equal("powershell.exe", file);
+        Assert.Contains("-Package 'Contoso.O''App_1.0.0.0_x64__abc123'", args);
     }
 
     [Fact]
@@ -154,6 +233,7 @@ public class UninstallCommandBuilderTests
     [InlineData("\"C:\\P\\unins000.exe\"", InstallerKind.InnoSetup)]
     [InlineData("C:\\P\\uninstall.exe", InstallerKind.Nsis)]
     [InlineData("C:\\Users\\me\\AppData\\Local\\App\\Update.exe --uninstall", InstallerKind.Squirrel)]
+    [InlineData("C:\\P\\setup.exe -runfromtemp", InstallerKind.InstallShield)]
     [InlineData("C:\\P\\remove.exe", InstallerKind.Unknown)]
     public void GuessInstaller_recognises_common_tools(string command, InstallerKind expected)
     {

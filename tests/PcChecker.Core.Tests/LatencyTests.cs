@@ -257,6 +257,84 @@ public class LatencyParserTests
         Assert.Equal("High performance", name);
         Assert.Equal((null, null), PowerCfgQueryParser.ParseActiveScheme("garbage"));
     }
+
+    [Fact]
+    public void PowerCfg_query_parser_reads_localized_output_by_shape()
+    {
+        const string german = """
+            Energieschema-GUID: 381b4222-f694-41f0-9685-ff5bb260df2e  (Ausbalanciert)
+              Untergruppen-GUID: 2a737441-1930-4402-8d77-b2bebba308a3  (USB-Einstellungen)
+                Energieeinstellungs-GUID: 48e6b7a6-50f5-4782-a5d4-53bb50ff42bd  (Einstellung für selektives USB-Energiesparen)
+                  Mögliche Einstellung Index: 000
+                  Mögliche Einstellung Anzeigename: Deaktiviert
+                  Mögliche Einstellung Index: 001
+                  Mögliche Einstellung Anzeigename: Aktiviert
+                Aktueller Index der Netzstromeinstellung: 0x00000001
+                Aktueller Index der Akkustromeinstellung: 0x00000000
+            """;
+        Assert.Equal((1, 0), PowerCfgQueryParser.ParseIndexes(german));
+
+        const string french = """
+            GUID du mode de gestion de l'alimentation : 381b4222-f694-41f0-9685-ff5bb260df2e  (Utilisation normale)
+              GUID du sous-groupe : 54533251-82be-4824-96c1-47b60b740d00  (Gestion de l'alimentation du processeur)
+                GUID du paramètre d'alimentation : 0cc5b647-c1df-4637-891a-dec35c318583  (Nombre minimal de cœurs)
+                  Index de paramètre possible minimal : 00000000
+                  Index de paramètre possible maximal : 00000064
+                Index du paramètre d'alimentation sur secteur actuel : 0x00000064
+                Index du paramètre d'alimentation sur batterie actuel : 0x0000000a
+            """;
+        Assert.Equal((100, 10), PowerCfgQueryParser.ParseIndexes(french));
+
+        // Only one hex value: not enough to tell AC from DC, so nothing is guessed.
+        Assert.Equal((null, null), PowerCfgQueryParser.ParseIndexes("Irgendwas: 0x00000001"));
+    }
+
+    [Theory]
+    [InlineData("GUID du mode de gestion de l'alimentation : 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c  (Performances élevées)", "Performances élevées")]
+    [InlineData("Energieschema-GUID: 381b4222-f694-41f0-9685-ff5bb260df2e  (Ausbalanciert)", "Ausbalanciert")]
+    public void PowerCfg_active_scheme_parser_is_locale_independent(string output, string name)
+    {
+        var (id, parsedName) = PowerCfgQueryParser.ParseActiveScheme(output);
+        Assert.NotNull(id);
+        Assert.Equal(name, parsedName);
+    }
+}
+
+public class LatencyCaptureStoreTests
+{
+    [Fact]
+    public void Captures_round_trip_through_json_and_tolerate_garbage()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "PcCheckerTests", "latency-" + Guid.NewGuid().ToString("N"));
+        var path = LatencyCaptureStore.DefaultPath(dir);
+        try
+        {
+            Assert.Empty(LatencyCaptureStore.TryRead(path));
+            var captures = new Dictionary<string, IReadOnlyDictionary<string, string?>>(StringComparer.OrdinalIgnoreCase)
+            {
+                [LatencyActionIds.HpetOff] = new Dictionary<string, string?> { ["useplatformclock"] = "true" },
+                [LatencyActionIds.MsiGpuOn] = new Dictionary<string, string?> { [@"PCI\VEN_10DE&DEV_2684\4&abc|MSISupported"] = null },
+            };
+            LatencyCaptureStore.Write(path, captures);
+            var read = LatencyCaptureStore.TryRead(path);
+            Assert.Equal(2, read.Count);
+            Assert.Equal("true", read[LatencyActionIds.HpetOff]["useplatformclock"]);
+            Assert.True(read[LatencyActionIds.MsiGpuOn].ContainsKey(@"PCI\VEN_10DE&DEV_2684\4&abc|MSISupported"));
+            Assert.Null(read[LatencyActionIds.MsiGpuOn][@"PCI\VEN_10DE&DEV_2684\4&abc|MSISupported"]);
+
+            File.WriteAllText(path, "{ not json");
+            Assert.Empty(LatencyCaptureStore.TryRead(path));
+            Assert.Empty(LatencyCaptureStore.Deserialize(string.Empty));
+            Assert.Empty(LatencyCaptureStore.Deserialize("[1,2,3]"));
+        }
+        finally
+        {
+            if (Directory.Exists(dir))
+            {
+                Directory.Delete(dir, true);
+            }
+        }
+    }
 }
 
 public class NicPowerRulesTests

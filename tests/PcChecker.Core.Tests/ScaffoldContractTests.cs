@@ -157,8 +157,14 @@ public class ScaffoldContractTests
     public void PageFile_rules_recommend_sensible_sizes_and_warn()
     {
         var (initial, max) = PageFileRules.Recommend(32L * 1024 * 1024 * 1024);
-        Assert.Equal(49152, initial);
+        Assert.Equal(PageFileRules.MaximumRecommendedMb, initial); // 1.5× would be 48 GB; capped
         Assert.Equal(initial, max);
+        var (mid, midMax) = PageFileRules.Recommend(16L * 1024 * 1024 * 1024);
+        Assert.Equal(24576, mid);
+        Assert.Equal(32768, midMax);
+        var (big, bigMax) = PageFileRules.Recommend(128L * 1024 * 1024 * 1024);
+        Assert.Equal(PageFileRules.MaximumRecommendedMb, big);
+        Assert.Equal(PageFileRules.MaximumRecommendedMb, bigMax);
         var (small, smallMax) = PageFileRules.Recommend(8L * 1024 * 1024 * 1024);
         Assert.Equal(12288, small);
         Assert.Equal(16384, smallMax);

@@ -5,15 +5,21 @@ public static class PageFileRules
 {
     private const long Gb = 1024L * 1024 * 1024;
 
-    /// <summary>Recommended initial/maximum page file size for a fixed-size file: 1.5× RAM (min 8 GB) capped at 2× RAM for small systems.</summary>
+    /// <summary>
+    /// The largest fixed page file the rules ever recommend, in MB. Big-RAM machines page very little, so 1.5× of 64 GB
+    /// would only fill the system SSD; Windows itself defaults to a fraction of RAM.
+    /// </summary>
+    public const int MaximumRecommendedMb = 32 * 1024;
+
+    /// <summary>Recommended initial/maximum page file size for a fixed-size file: 1.5× RAM (min 8 GB) capped at 2× RAM for small systems and at <see cref="MaximumRecommendedMb"/>.</summary>
     public static (int InitialMb, int MaximumMb) Recommend(long totalRamBytes)
     {
         long ramMb = Math.Max(1, totalRamBytes / (1024 * 1024));
-        long initial = Math.Max(8 * 1024, ramMb * 3 / 2);
-        long maximum = Math.Max(initial, ramMb * 2);
+        long initial = Math.Min(Math.Max(8 * 1024, ramMb * 3 / 2), MaximumRecommendedMb);
+        long maximum = Math.Min(Math.Max(initial, ramMb * 2), MaximumRecommendedMb);
         if (ramMb >= 32 * 1024)
         {
-            // Plenty of RAM: a large page file only wastes disk; keep it at the 1.5× floor.
+            // Plenty of RAM: a large page file only wastes disk; keep it at the capped floor.
             maximum = initial;
         }
 
@@ -64,7 +70,8 @@ public static class PageFileRules
 
     /// <summary>
     /// The fixed page file size a profile asks for, in MB: explicit values from the profile, otherwise a multiple of RAM
-    /// (Gaming 1.5× with an 8 GB floor, Low-memory 2×, Workstation 1×). Returns null for system-managed profiles.
+    /// (Gaming 1.5× with an 8 GB floor, Low-memory 2×, Workstation 1×), never above <see cref="MaximumRecommendedMb"/>.
+    /// Returns null for system-managed profiles.
     /// </summary>
     public static (int InitialMb, int MaximumMb)? SizeForProfile(MemoryProfile profile, long totalRamBytes)
     {
@@ -86,7 +93,7 @@ public static class PageFileRules
             "memory.profile.workstation" => ramMb,
             _ => Math.Max(8 * 1024, ramMb * 3 / 2),
         };
-        int clamped = (int)Math.Min(size, int.MaxValue);
+        int clamped = (int)Math.Min(size, MaximumRecommendedMb);
         return (clamped, clamped);
     }
 

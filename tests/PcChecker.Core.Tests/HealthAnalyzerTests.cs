@@ -149,6 +149,16 @@ public class SecurityRulesTests
     }
 
     [Fact]
+    public void Localized_netsh_output_yields_unknown_rather_than_a_wrong_state()
+    {
+        const string german = "\nEinstellungen für Domänenprofil:\n----------------------------------------------------------------------\nStatus                                EIN\n\n"
+                              + "Einstellungen für öffentliches Profil:\n----------------------------------------------------------------------\nStatus                                AUS\n";
+        var profiles = SecurityRules.ParseNetshProfiles(german);
+        Assert.Empty(profiles);
+        Assert.Equal(HealthStatus.Unknown, SecurityRules.FirewallItem(profiles).Status);
+    }
+
+    [Fact]
     public void Firewall_item_grades_by_how_many_profiles_are_off()
     {
         Assert.Equal(HealthStatus.Unknown, SecurityRules.FirewallItem(null).Status);

@@ -13,9 +13,9 @@ public static class MemoryProfileCatalog
     public static IReadOnlyList<MemoryProfile> All { get; } =
     [
         new(BalancedId, "Balanced (Windows defaults)", "Memory compression on, SysMain on, page file managed by Windows. The right choice for most PCs.", true, true, true, null, null, false),
-        new(GamingId, "Gaming", "Keeps compression and SysMain on and sets a fixed page file of 1.5× RAM (at least 8 GB) on the Windows drive, normally the fastest SSD, so games never stutter while the file grows.", true, true, false, null, null, false),
+        new(GamingId, "Gaming", "Keeps compression and SysMain on and sets a fixed page file of 1.5× RAM (at least 8 GB, at most 32 GB) on the Windows drive, normally the fastest SSD, so games never stutter while the file grows.", true, true, false, null, null, false),
         new(LowMemoryId, "Low-memory PC (8 GB or less)", "Compression on and a 2× RAM page file so a small system stays responsive with many tabs open.", true, true, false, null, null, false),
-        new(WorkstationId, "Workstation (advanced)", "Compression off and a 1× RAM page file for machines with lots of RAM that run heavy single applications.", false, true, false, null, null, true),
+        new(WorkstationId, "Workstation (advanced)", "Compression off and a 1× RAM page file (at most 32 GB) for machines with lots of RAM that run heavy single applications.", false, true, false, null, null, true),
     ];
 
     /// <summary>Finds a profile by id (case-insensitive) or null.</summary>

@@ -172,7 +172,7 @@ public sealed class WindowsDriverService : IDriverService, IDriverStoreProvider,
         var target = updates.Count == 1 ? updates[0].Title : $"{updates.Count} driver updates";
         var guarded = await _changeGuard.RunGuardedAsync(
             "Install driver updates",
-            ChangeOptions.For(ModuleName, target, reversible: true, undoHint: "Device Manager → device → Properties → Driver → Roll Back Driver, or restore the restore point."),
+            ChangeOptions.For(ModuleName, target, reversible: true, undoHint: "Device Manager → device → Properties → Driver → Roll Back Driver, or restore the restore point.") with { OnRestorePointFailed = RestorePointFailedBehavior.Abort },
             async ct =>
             {
                 var r = await _agent.InstallAsync(updates, progress, ct).ConfigureAwait(false);
@@ -273,7 +273,7 @@ public sealed class WindowsDriverService : IDriverService, IDriverStoreProvider,
 
         return _changeGuard.RunGuardedAsync(
             "Install driver package " + Path.GetFileName(infPath),
-            ChangeOptions.For(ModuleName, infPath, reversible: true, undoHint: "Remove the package with pnputil /delete-driver or roll back from Device Manager."),
+            ChangeOptions.For(ModuleName, infPath, reversible: true, undoHint: "Remove the package with pnputil /delete-driver or roll back from Device Manager.") with { OnRestorePointFailed = RestorePointFailedBehavior.Abort },
             async ct =>
             {
                 var r = await PnpUtilRunner.RunAsync("/add-driver " + PnpUtilRunner.Quote(infPath) + " /install", null, TimeSpan.FromMinutes(10), ct).ConfigureAwait(false);
@@ -310,7 +310,7 @@ public sealed class WindowsDriverService : IDriverService, IDriverStoreProvider,
         var inf = driver.InfName!;
         return _changeGuard.RunGuardedAsync(
             $"Remove driver package {inf} for {driver.DeviceName}",
-            ChangeOptions.For(ModuleName, deviceId, reversible: false, undoHint: "Reinstall the driver from the manufacturer or from your driver backup."),
+            ChangeOptions.For(ModuleName, deviceId, reversible: false, undoHint: "Reinstall the driver from the manufacturer or from your driver backup.") with { OnRestorePointFailed = RestorePointFailedBehavior.Abort },
             async ct =>
             {
                 var r = await PnpUtilRunner.RunAsync($"/delete-driver {inf} /uninstall /force", null, TimeSpan.FromMinutes(10), ct).ConfigureAwait(false);

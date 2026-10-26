@@ -13,6 +13,7 @@ public sealed partial class StartupItemRow : ObservableObject
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsNotBusy))]
+    [NotifyPropertyChangedFor(nameof(CanToggle))]
     private bool _isBusy;
 
     public StartupItemRow(StartupItem item, StartupInsight insight)
@@ -23,6 +24,15 @@ public sealed partial class StartupItemRow : ObservableObject
     }
 
     public bool IsNotBusy => !IsBusy;
+
+    /// <summary>RunOnce values run once at the next sign-in; Windows ignores a disabled flag for them, so the switch is locked.</summary>
+    public bool IsRunOnce => StartupEnumerator.IsRunOnceLocation(Item.Location);
+
+    public bool CanToggle => !IsBusy && !IsRunOnce && !IsWinlogon;
+
+    public string ToggleToolTip => IsRunOnce
+        ? StartupEnumerator.RunOnceCannotBeDisabled
+        : "On: starts with Windows. Off: stays installed but does not start by itself.";
 
     public StartupItem Item { get; private set; }
 

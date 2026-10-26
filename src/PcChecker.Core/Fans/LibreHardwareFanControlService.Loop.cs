@@ -495,7 +495,8 @@ public sealed partial class LibreHardwareFanControlService
             }
 
             var existing = FanSessionStore.TryRead(SessionFilePath);
-            var session = existing is { ProcessId: var pid } && pid == Environment.ProcessId ? existing : new FanSession { ProcessId = Environment.ProcessId };
+            var session = existing is { ProcessId: var pid } && pid == Environment.ProcessId ? existing : FanSessionStore.NewForCurrentProcess();
+            session.CleanExit = false;
             session.UpdatedUtc = DateTimeOffset.UtcNow;
             session.ProfileName = ActiveProfile?.Name;
             session.FanIds = ids;

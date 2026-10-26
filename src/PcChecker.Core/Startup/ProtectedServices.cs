@@ -107,9 +107,10 @@ public static class ProtectedServices
     public static (bool Allowed, string? Message) CanSetStartMode(string? serviceName, string startMode)
     {
         var canonical = ServiceStartModes.Normalize(startMode);
-        if (canonical is null)
+        if (canonical is null || ServiceStartModes.ToScArgument(canonical) is null)
         {
-            return (false, $"'{startMode}' is not a start mode PC Checker knows (use Automatic, Automatic (Delayed), Manual or Disabled).");
+            // Boot/System are driver start types that sc cannot set from here; everything unknown is refused too.
+            return (false, $"'{startMode}' is not a start mode PC Checker can set (use Automatic, Automatic (Delayed), Manual or Disabled).");
         }
 
         bool stopsAutoStart = canonical is ServiceStartModes.Manual or ServiceStartModes.Disabled;

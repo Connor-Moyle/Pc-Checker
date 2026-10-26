@@ -30,8 +30,7 @@ public static class ThrottleHeuristic
                 continue;
             }
 
-            bool loaded = loadsPercent is null || i >= loadsPercent.Count || loadsPercent[i] is null || loadsPercent[i] >= loadThreshold;
-            if (!loaded)
+            if (!IsLoaded(i))
             {
                 continue;
             }
@@ -39,8 +38,9 @@ public static class ThrottleHeuristic
             peak = Math.Max(peak, clocksMhz[i]);
             if (peak > 0 && clocksMhz[i] < peak * (1 - dropFraction))
             {
-                // Require the drop to persist for at least two consecutive samples to ignore single-sample noise.
-                if (i + 1 < clocksMhz.Count && clocksMhz[i + 1] > 0 && clocksMhz[i + 1] < peak * (1 - dropFraction))
+                // Require the drop to persist for at least two consecutive loaded samples to ignore single-sample noise;
+                // an idle sample (the run winding down) proves nothing about throttling.
+                if (i + 1 < clocksMhz.Count && IsLoaded(i + 1) && clocksMhz[i + 1] > 0 && clocksMhz[i + 1] < peak * (1 - dropFraction))
                 {
                     return true;
                 }
@@ -48,6 +48,9 @@ public static class ThrottleHeuristic
         }
 
         return false;
+
+        bool IsLoaded(int index) =>
+            loadsPercent is null || index >= loadsPercent.Count || loadsPercent[index] is null || loadsPercent[index] >= loadThreshold;
     }
 
     /// <summary>Plain-English verdict for the stress result.</summary>

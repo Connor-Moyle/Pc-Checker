@@ -78,6 +78,11 @@ public class UpdatesTests
     [InlineData("1.0.0-beta.1", "1.0.0", true)]
     [InlineData("1.0.0", "1.0.0-beta.1", false)]
     [InlineData("1.0.0-beta.1", "1.0.0-beta.2", true)]
+    [InlineData("1.2.0-beta.9", "1.2.0-beta.10", true)]
+    [InlineData("1.2.0-beta.10", "1.2.0-beta.9", false)]
+    [InlineData("1.2.0-alpha", "1.2.0-alpha.1", true)]
+    [InlineData("1.2.0-alpha.1", "1.2.0-beta", true)]
+    [InlineData("1.2.0-rc.1", "1.2.0-beta.11", false)]
     [InlineData("", "1.0.0", true)]
     [InlineData("1.0.0", "", false)]
     public void IsNewer_follows_version_semantics(string current, string latest, bool expected) =>

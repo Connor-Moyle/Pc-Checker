@@ -398,6 +398,40 @@ public class PnpUtilParserTests
         }
     }
 
+    [Theory]
+    [InlineData("en-GB", "03/04/2023", 2023, 4, 3)]
+    [InlineData("en-AU", "03/04/2023", 2023, 4, 3)]
+    [InlineData("fr-FR", "03/04/2023", 2023, 4, 3)]
+    [InlineData("en-US", "03/04/2023", 2023, 3, 4)]
+    [InlineData("de-DE", "22.03.2023", 2023, 3, 22)]
+    [InlineData("en-GB", "03/22/2023", 2023, 3, 22)] // not a valid en-GB date, so the invariant fallback applies
+    [InlineData("fr-FR", "2024-11-05", 2024, 11, 5)] // ISO is unambiguous everywhere
+    public void Driver_dates_follow_the_machine_culture_before_the_invariant_formats(string cultureName, string text, int y, int m, int d)
+    {
+        var culture = System.Globalization.CultureInfo.GetCultureInfo(cultureName);
+        Assert.True(PnpUtilParser.TryParseDate(text, culture, out var date));
+        Assert.Equal(new DateTime(y, m, d), date);
+    }
+
+    [Fact]
+    public void Driver_dates_use_the_current_culture_by_default()
+    {
+        var previous = System.Globalization.CultureInfo.CurrentCulture;
+        try
+        {
+            System.Globalization.CultureInfo.CurrentCulture = System.Globalization.CultureInfo.GetCultureInfo("en-GB");
+            Assert.True(PnpUtilParser.TryParseDate("03/04/2023", out var date));
+            Assert.Equal(new DateTime(2023, 4, 3), date);
+            var (split, version) = PnpUtilParser.SplitVersionField("03/04/2023 31.0.15.3598");
+            Assert.Equal(new DateTime(2023, 4, 3), split);
+            Assert.Equal("31.0.15.3598", version);
+        }
+        finally
+        {
+            System.Globalization.CultureInfo.CurrentCulture = previous;
+        }
+    }
+
     [Fact]
     public void Export_progress_lines_and_summary_are_recognised()
     {

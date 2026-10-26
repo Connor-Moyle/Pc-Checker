@@ -46,15 +46,37 @@ public sealed partial class WindowsStorageToolsService
             ct => RunChkdskAsync(letter, arguments, answers, scheduleOfflineFix, progress, ct), progress, cancellationToken).ConfigureAwait(false);
     }
 
+    private static readonly TimeSpan ScanTimeout = TimeSpan.FromHours(6);
+    private static readonly TimeSpan RepairTimeout = TimeSpan.FromHours(72);
+
     /// <param name="answers">Lines fed to chkdsk's prompts (see <see cref="StorageCommandParsers.ChkdskAnswers"/>); null for a read-only scan that never prompts.</param>
     /// <param name="scheduleOfflineFix">True for the full repair, whose result may be "scheduled at the next restart": the system state is then checked as well, because chkdsk's text is localized.</param>
     private async Task<OperationResult> RunChkdskAsync(string letter, string arguments, string? answers, bool scheduleOfflineFix, IProgress<ProgressUpdate>? progress, CancellationToken cancellationToken)
     {
         progress?.Report(new ProgressUpdate($"chkdsk {arguments}", null, "Starting…"));
         _logger.LogInformation("Running chkdsk {Arguments}.", arguments);
-        // chkdsk prints in the OEM code page; decode it as such so drive labels and localized text show correctly.
-        var run = await StorageCommandRunner.RunAsync("chkdsk.exe", arguments, answers, Line, TimeSpan.FromHours(6), cancellationToken,
-            StorageCommandRunner.OemEncoding()).ConfigureAwait(false);
+        // A read-only scan may be stopped at any time. A repair (/f, /r, /spotfix) rewrites the file system: killing it
+        // half-way leaves the volume dirty, so it gets a far longer budget and a cancel is reported for what it is.
+        bool repairing = answers is not null;
+        var timeout = repairing ? RepairTimeout : ScanTimeout;
+        CommandRunResult run;
+        try
+        {
+            // chkdsk prints in the OEM code page; decode it as such so drive labels and localized text show correctly.
+            run = await StorageCommandRunner.RunAsync("chkdsk.exe", arguments, answers, Line, timeout, cancellationToken,
+                StorageCommandRunner.OemEncoding()).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (repairing)
+        {
+            bool? dirty = VolumeCheckState.IsCheckScheduled(letter);
+            _logger.LogWarning("chkdsk repair of {Letter} was stopped before it finished (dirty: {Dirty}).", letter, dirty);
+            return OperationResult.Fail(dirty switch
+            {
+                true => $"chkdsk was stopped while it was repairing {letter}. The volume is marked dirty, so Windows will check and repair it again automatically at the next restart; let that check finish.",
+                false => $"chkdsk was stopped while it was repairing {letter}. Windows does not report the volume as dirty, but run a scan before relying on the drive.",
+                _ => $"chkdsk was stopped while it was repairing {letter}. Run a scan now; if Windows reports the volume as dirty it will be checked again at the next restart.",
+            });
+        }
 
         if (!run.Started)
         {
@@ -63,7 +85,9 @@ public sealed partial class WindowsStorageToolsService
 
         if (run.TimedOut)
         {
-            return OperationResult.Fail("chkdsk did not finish within six hours and was stopped.");
+            return OperationResult.Fail(repairing
+                ? $"chkdsk did not finish within {RepairTimeout.TotalHours:0} hours and was stopped. The volume may be marked dirty; Windows then checks it again at the next restart."
+                : $"chkdsk did not finish within {ScanTimeout.TotalHours:0} hours and was stopped.");
         }
 
         bool? scheduled = scheduleOfflineFix ? VolumeCheckState.IsCheckScheduled(letter) : null;

@@ -159,15 +159,9 @@ public static class ServiceClassifier
         };
     }
 
-    /// <summary>Services that must never be disabled from the app because Windows depends on them.</summary>
-    public static IReadOnlyList<string> ProtectedServices { get; } =
-    [
-        "RpcSs", "RpcEptMapper", "DcomLaunch", "EventLog", "Winmgmt", "Schedule", "PlugPlay", "Power", "ProfSvc", "UserManager",
-        "BrokerInfrastructure", "CoreMessagingRegistrar", "SystemEventsBroker", "LSM", "SamSs", "Dhcp", "Dnscache", "nsi", "Wcmsvc",
-        "WinDefend", "wscsvc", "SecurityHealthService", "Themes", "AudioEndpointBuilder", "Audiosrv", "CryptSvc", "TrustedInstaller",
-        "wuauserv", "BITS", "gpsvc", "StateRepository", "TimeBrokerSvc", "DispBrokerDesktopSvc", "DsSvc", "FontCache", "ShellHWDetection",
-    ];
-
-    public static bool IsProtected(string serviceName) =>
-        ProtectedServices.Contains(serviceName, StringComparer.OrdinalIgnoreCase);
+    /// <summary>
+    /// True for services that must never be stopped from starting. The Performance and Startup pages share one list
+    /// (<see cref="Startup.ProtectedServices"/>) so both refuse the same services.
+    /// </summary>
+    public static bool IsProtected(string serviceName) => Startup.ProtectedServices.IsProtected(serviceName);
 }

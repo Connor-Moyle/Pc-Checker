@@ -201,6 +201,10 @@ public class ThrottleHeuristicTests
         double?[] loads = [100, 100, 5, 4, 3];
         Assert.False(ThrottleHeuristic.Suspect(clocks, loads));
         Assert.True(ThrottleHeuristic.Suspect(clocks, [100, 100, 100, 100, 100]));
+
+        // A loaded drop confirmed only by the idle tail of the run is not throttling either.
+        Assert.False(ThrottleHeuristic.Suspect([5300, 5300, 5300, 4000, 800, 800], [100, 100, 100, 100, 5, 5]));
+        Assert.True(ThrottleHeuristic.Suspect([5300, 5300, 5300, 4000, 4000, 800], [100, 100, 100, 100, 100, 5]));
     }
 
     [Fact]

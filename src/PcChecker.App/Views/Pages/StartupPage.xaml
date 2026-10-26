@@ -68,10 +68,10 @@
     <!-- Columns shared by the apps and tasks grids. -->
     <DataTemplate x:Key="EnabledCell">
       <ui:ToggleSwitch IsChecked="{Binding Enabled, Mode=OneWay}"
-                       IsEnabled="{Binding IsNotBusy}"
+                       IsEnabled="{Binding CanToggle}"
                        Command="{Binding DataContext.ToggleItemCommand, RelativeSource={RelativeSource AncestorType=Page}}"
                        CommandParameter="{Binding}"
-                       ToolTip="On: starts with Windows. Off: stays installed but does not start by itself."
+                       ToolTip="{Binding ToggleToolTip}"
                        Margin="4,0,0,0" />
     </DataTemplate>
     <DataTemplate x:Key="NameCell">

@@ -259,6 +259,37 @@ public class CleanupRulesTests
     }
 
     [Fact]
+    public void Well_known_system_sub_folders_are_never_pruned()
+    {
+        string[] roots = [@"C:\Windows\Logs", @"C:\Windows\Panther"];
+        Assert.False(CleanupRules.MayPrune(@"C:\Windows\Logs\CBS", roots, "windows.logs"));
+        Assert.False(CleanupRules.MayPrune(@"C:\Windows\Logs\DISM", roots, "windows.logs"));
+        Assert.False(CleanupRules.MayPrune(@"C:\Windows\Panther\UnattendGC", roots, "windows.logs"));
+        Assert.True(CleanupRules.MayPrune(@"C:\Windows\Logs\CBS\old", roots, "windows.logs"));
+        Assert.False(CleanupRules.MayPrune(@"C:\Windows\Logs", roots, "windows.logs"));
+        Assert.False(CleanupRules.MayPrune(@"C:\Windows\System32", roots, "windows.logs"));
+        Assert.False(CleanupRules.MayPrune(null, roots, "windows.logs"));
+
+        // Scratch folders may lose any emptied sub-folder.
+        Assert.True(CleanupRules.MayPrune(@"C:\Users\a\AppData\Local\Temp\setup", [@"C:\Users\a\AppData\Local\Temp"], "user.temp"));
+        Assert.True(CleanupRules.MayPrune(@"C:\Windows\Temp\x", [@"C:\Windows\Temp"], "windows.temp"));
+        Assert.True(CleanupRules.MayPrune(@"C:\Users\a\AppData\Local\D3DSCache\abc", [@"C:\Users\a\AppData\Local\D3DSCache"], "dx.shader.cache"));
+        foreach (var id in CleanupRules.PruneAnywhereCategories)
+        {
+            Assert.NotNull(CleanupCatalog.Find(id));
+        }
+    }
+
+    [Fact]
+    public void Service_pause_output_tells_a_paused_service_from_one_that_was_already_stopped()
+    {
+        Assert.True(CleanupRules.ServiceWasPaused(CleanupRules.ServicePausedMarker + "\r\n"));
+        Assert.False(CleanupRules.ServiceWasPaused(CleanupRules.ServiceNotRunningMarker));
+        Assert.False(CleanupRules.ServiceWasPaused(string.Empty));
+        Assert.False(CleanupRules.ServiceWasPaused(null));
+    }
+
+    [Fact]
     public void Parent_directories_stop_at_the_root()
     {
         var parents = CleanupRules.ParentDirectoriesInsideRoots(@"C:\Temp\a\b\file.tmp", [@"C:\Temp"]).ToList();

@@ -81,6 +81,15 @@ public static class StartupEnumerator
     public static RegistryRunSource? FindRegistrySource(string? location) =>
         location is null ? null : RegistrySources.FirstOrDefault(s => s.DisplayPrefix.Equals(location, StringComparison.OrdinalIgnoreCase));
 
+    /// <summary>
+    /// True for a RunOnce location. Windows runs RunOnce values once at the next sign-in and deletes them; it does not
+    /// consult StartupApproved for them, so such an entry cannot be disabled, only removed.
+    /// </summary>
+    public static bool IsRunOnceLocation(string? location) => FindRegistrySource(location)?.IsRunOnce == true;
+
+    /// <summary>Why a RunOnce entry cannot be toggled; shown instead of flipping a flag Windows ignores.</summary>
+    public const string RunOnceCannotBeDisabled = "RunOnce entries run once at the next sign-in and are then deleted by Windows; a disabled flag is ignored for them. Remove the entry instead if it should not run.";
+
     public static string UserStartupFolder => SafeFolder(Environment.SpecialFolder.Startup);
 
     public static string CommonStartupFolder => SafeFolder(Environment.SpecialFolder.CommonStartup);
