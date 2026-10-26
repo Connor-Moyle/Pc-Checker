@@ -279,4 +279,39 @@ public class FansTests : IDisposable
         Assert.Null(demo.ActiveProfile);
         Assert.Empty(demo.SoftwareControlledFanIds);
     }
+
+    [Fact]
+    public async Task Demo_service_honors_the_minimum_fan_speed_setting()
+    {
+        var settings = new FakeSettingsService();
+        settings.Current.Fans.MinimumPercent = 35;
+        using var demo = new DemoFanControlService(null, settings);
+
+        Assert.True((await demo.SetManualAsync("fan.cpu", 10, false, CancellationToken.None)).Success);
+        Assert.Equal(35, (await demo.GetFansAsync(CancellationToken.None)).First(f => f.Id == "fan.cpu").Percent);
+
+        Assert.True((await demo.SetManualAsync("fan.cpu", 10, true, CancellationToken.None)).Success);
+        Assert.Equal(10, (await demo.GetFansAsync(CancellationToken.None)).First(f => f.Id == "fan.cpu").Percent);
+
+        settings.Current.Fans.MinimumPercent = 60;
+        var profile = new FanProfile { Name = "Low" };
+        profile.Fans["fan.case.front"] = new FanAssignment { Mode = FanMode.Manual, ManualPercent = 25 };
+        Assert.True((await demo.ApplyProfileAsync(profile, CancellationToken.None)).Success);
+        Assert.Equal(60, (await demo.GetFansAsync(CancellationToken.None)).First(f => f.Id == "fan.case.front").Percent);
+    }
+
+    private sealed class FakeSettingsService : ISettingsService
+    {
+        public AppSettings Current { get; } = new();
+        public string SettingsDirectory => Path.GetTempPath();
+        public string SettingsFilePath => Path.Combine(Path.GetTempPath(), "fake-settings.json");
+        public event EventHandler<AppSettings>? Changed;
+        public Task LoadAsync() => Task.CompletedTask;
+
+        public Task SaveAsync()
+        {
+            Changed?.Invoke(this, Current);
+            return Task.CompletedTask;
+        }
+    }
 }

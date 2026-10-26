@@ -45,6 +45,7 @@ public sealed partial class FansViewModel
             if (result.Success)
             {
                 ActiveProfileName = item.Name;
+                LastAppliedProfileName = item.Name;
                 Settings.Current.Fans.ActiveProfileName = item.Name;
                 await SaveSettingsAsync();
                 foreach (var fan in Fans)
@@ -124,6 +125,7 @@ public sealed partial class FansViewModel
         if (string.Equals(Settings.Current.Fans.ActiveProfileName, item.Name, StringComparison.OrdinalIgnoreCase))
         {
             Settings.Current.Fans.ActiveProfileName = null;
+            LastAppliedProfileName = null;
         }
 
         await SaveSettingsAsync();
@@ -147,6 +149,7 @@ public sealed partial class FansViewModel
             if (result.Success)
             {
                 ActiveProfileName = null;
+                LastAppliedProfileName = null;
                 Settings.Current.Fans.ActiveProfileName = null;
                 await SaveSettingsAsync();
                 foreach (var fan in Fans)

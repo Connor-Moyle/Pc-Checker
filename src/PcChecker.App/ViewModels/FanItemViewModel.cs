@@ -178,15 +178,21 @@ public sealed partial class FanItemViewModel : ObservableObject
         if (Mode != device.Mode)
         {
             Mode = device.Mode;
-            _syncingMode = true;
-            try
-            {
-                SelectedMode = device.Mode;
-            }
-            finally
-            {
-                _syncingMode = false;
-            }
+            SyncSelectedMode();
+        }
+    }
+
+    /// <summary>Puts the mode selector back on the mode the fan is really in (used when a selector change could not be applied).</summary>
+    public void SyncSelectedMode()
+    {
+        _syncingMode = true;
+        try
+        {
+            SelectedMode = Mode;
+        }
+        finally
+        {
+            _syncingMode = false;
         }
     }
 
@@ -258,7 +264,8 @@ public sealed partial class FanItemViewModel : ObservableObject
         SelectedMode = mode;
         if (!_syncingMode && mode == FanMode.Auto && Mode != FanMode.Auto)
         {
-            _ = _owner.SetAutoAsync(this);
+            // Picking "Automatic" applies right away; the owner resyncs the selector if it cannot run now or fails.
+            _owner.SetAutoFromSelector(this);
         }
     }
 

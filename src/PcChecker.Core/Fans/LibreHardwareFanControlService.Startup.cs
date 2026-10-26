@@ -29,14 +29,30 @@ public sealed partial class LibreHardwareFanControlService
 
         if (list.Count == 0)
         {
+            // Copy under the gate, read through the host outside it: the host lock can be held by a slow hardware
+            // update, and this runs on the UI thread.
+            KeyValuePair<string, ISensor>[] lhm;
             lock (_gate)
             {
-                foreach (var (id, sensor) in _lhmTemperatures)
+                lhm = _lhmTemperatures.ToArray();
+            }
+
+            if (lhm.Length > 0)
+            {
+                var values = new Dictionary<string, double?>(StringComparer.OrdinalIgnoreCase);
+                _host.WithComputer(_ =>
+                {
+                    foreach (var (id, sensor) in lhm)
+                    {
+                        values[id] = sensor.Value;
+                    }
+                });
+
+                foreach (var (id, sensor) in lhm)
                 {
                     if (seen.Add(id))
                     {
-                        double? value = _host.WithComputer(_ => (double?)sensor.Value);
-                        list.Add(new FanTemperatureSource(id, $"{sensor.Hardware?.Name} — {sensor.Name}", MapKind(sensor.Hardware), value));
+                        list.Add(new FanTemperatureSource(id, $"{sensor.Hardware?.Name} — {sensor.Name}", MapKind(sensor.Hardware), values.TryGetValue(id, out var v) ? v : null));
                     }
                 }
             }
@@ -203,8 +219,14 @@ public sealed partial class LibreHardwareFanControlService
         var sources = GetTemperatureSources();
         string cpu = PickSensor(sources, HardwareKind.Cpu, "package", "tctl", "tdie", "core") ?? "cpu.package";
         string gpu = PickSensor(sources, HardwareKind.Gpu, "core", "hot") ?? "gpu.core";
-        var gpuFans = _entries.Where(e => e.Kind == HardwareKind.Gpu).Select(e => e.Id).ToList();
-        var cpuFans = _entries.Where(e => e.Kind != HardwareKind.Gpu).Select(e => e.Id).ToList();
+        List<string> gpuFans;
+        List<string> cpuFans;
+        lock (_gate)
+        {
+            gpuFans = _entries.Where(e => e.Kind == HardwareKind.Gpu).Select(e => e.Id).ToList();
+            cpuFans = _entries.Where(e => e.Kind != HardwareKind.Gpu).Select(e => e.Id).ToList();
+        }
+
         if (cpuFans.Count == 0 && gpuFans.Count == 0)
         {
             return FanCurveMath.BuiltInProfiles(cpu, gpu);

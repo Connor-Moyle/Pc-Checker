@@ -1,5 +1,6 @@
 using PcChecker.Core.Common;
 using PcChecker.Core.Sensors;
+using PcChecker.Core.Settings;
 
 namespace PcChecker.Core.Fans;
 
@@ -15,8 +16,10 @@ public sealed class DemoFanControlService : IFanControlService, IFanControlAdvan
     private static readonly string[] CpuFans = ["fan.cpu", "fan.case.front", "fan.case.rear"];
     private static readonly string[] GpuFans = ["fan.gpu"];
 
+    private const double DefaultMinimumPercent = 20;
     private readonly object _gate = new();
     private readonly ISensorService? _sensors;
+    private readonly ISettingsService? _settings;
     private readonly Random _random = DemoData.CreateRandom(Environment.TickCount / 1000);
     private readonly List<FanControlAlert> _alerts = [];
     private readonly Dictionary<string, FanState> _state = new(StringComparer.OrdinalIgnoreCase)
@@ -31,13 +34,30 @@ public sealed class DemoFanControlService : IFanControlService, IFanControlAdvan
     private bool _disposed;
 
     public DemoFanControlService()
-        : this(null)
+        : this(null, null)
     {
     }
 
-    public DemoFanControlService(ISensorService? sensors)
+    public DemoFanControlService(ISensorService? sensors, ISettingsService? settings)
     {
         _sensors = sensors;
+        _settings = settings;
+    }
+
+    /// <summary>The "Minimum fan speed" from the Fans page (20 % when no settings service is wired up, e.g. in tests).</summary>
+    private double MinimumPercent
+    {
+        get
+        {
+            try
+            {
+                return _settings?.Current.Fans.MinimumPercent ?? DefaultMinimumPercent;
+            }
+            catch
+            {
+                return DefaultMinimumPercent;
+            }
+        }
     }
 
     public bool IsAvailable => true;
@@ -91,7 +111,7 @@ public sealed class DemoFanControlService : IFanControlService, IFanControlAdvan
     public async Task<OperationResult> SetManualAsync(string fanId, double percent, bool allowBelowMinimum, CancellationToken cancellationToken)
     {
         await DemoData.DelayAsync(cancellationToken, 50, 200).ConfigureAwait(false);
-        double clamped = FanSafetyRules.ClampManual(percent, 20, allowBelowMinimum);
+        double clamped = FanSafetyRules.ClampManual(percent, MinimumPercent, allowBelowMinimum);
         lock (_gate)
         {
             if (!_state.TryGetValue(fanId, out var s))
@@ -148,7 +168,7 @@ public sealed class DemoFanControlService : IFanControlService, IFanControlAdvan
             s.Mode = FanMode.Curve;
             s.Curve = FanCurveMath.Clone(curve);
             s.Curve.Points = FanCurveMath.Normalize(s.Curve.Points);
-            s.Percent = FanCurveMath.Evaluate(s.Curve, ReadTemperature(s.Curve.TemperatureSensorId) ?? 58, null);
+            s.Percent = ClampCurve(FanCurveMath.Evaluate(s.Curve, ReadTemperature(s.Curve.TemperatureSensorId) ?? 58, null));
         }
 
         EnsureTimer();
@@ -176,7 +196,7 @@ public sealed class DemoFanControlService : IFanControlService, IFanControlAdvan
                     case FanMode.Manual:
                         s.Mode = FanMode.Manual;
                         s.Curve = null;
-                        s.Percent = FanSafetyRules.ClampManual(assignment.ManualPercent ?? s.Percent, 20, false);
+                        s.Percent = FanSafetyRules.ClampManual(assignment.ManualPercent ?? s.Percent, MinimumPercent, false);
                         break;
                     case FanMode.Curve when assignment.Curve is not null:
                         var problem = FanCurveMath.Validate(assignment.Curve);
@@ -188,7 +208,7 @@ public sealed class DemoFanControlService : IFanControlService, IFanControlAdvan
 
                         s.Mode = FanMode.Curve;
                         s.Curve = FanCurveMath.Clone(assignment.Curve);
-                        s.Percent = FanCurveMath.Evaluate(s.Curve, ReadTemperature(s.Curve.TemperatureSensorId) ?? 58, null);
+                        s.Percent = ClampCurve(FanCurveMath.Evaluate(s.Curve, ReadTemperature(s.Curve.TemperatureSensorId) ?? 58, null));
                         break;
                     default:
                         s.Mode = FanMode.Auto;
@@ -322,7 +342,7 @@ public sealed class DemoFanControlService : IFanControlService, IFanControlAdvan
                 foreach (var s in _state.Values.Where(s => s.Mode == FanMode.Curve && s.Curve is not null))
                 {
                     double temp = ReadTemperature(s.Curve!.TemperatureSensorId) ?? 58;
-                    s.Percent = FanCurveMath.Evaluate(s.Curve, temp, s.Percent);
+                    s.Percent = ClampCurve(FanCurveMath.Evaluate(s.Curve, temp, s.Percent));
                 }
             }
 
@@ -333,6 +353,8 @@ public sealed class DemoFanControlService : IFanControlService, IFanControlAdvan
             // Demo loop must never surface errors.
         }
     }
+
+    private double ClampCurve(double percent) => FanSafetyRules.ClampManual(percent, MinimumPercent, false);
 
     private double? ReadTemperature(string sensorId)
     {
@@ -362,7 +384,7 @@ public sealed class DemoFanControlService : IFanControlService, IFanControlAdvan
             {
                 var s = kv.Value;
                 double rpm = Math.Round(DemoData.Jitter(_random, s.MaxRpm * s.Percent / 100, 25));
-                return new FanDevice(kv.Key, s.Name, s.Kind, s.HardwareName, rpm, Math.Round(s.Percent), true, 20, 100, s.Mode, kv.Key + ".control", kv.Key + ".rpm");
+                return new FanDevice(kv.Key, s.Name, s.Kind, s.HardwareName, rpm, Math.Round(s.Percent), true, 0, 100, s.Mode, kv.Key + ".control", kv.Key + ".rpm");
             }).ToList();
         }
     }

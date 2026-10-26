@@ -20,9 +20,11 @@ public sealed partial class FansViewModel : ViewModelBase
     private readonly IDialogService _dialogs;
     private readonly INotificationService _notifications;
     private readonly ILogger<FansViewModel> _logger;
+    private static readonly TimeSpan SettingsSaveDelay = TimeSpan.FromMilliseconds(750);
     private bool _controlConsentGiven;
     private bool _loadingSettings;
     private DateTimeOffset _lastSourceRefresh = DateTimeOffset.MinValue;
+    private CancellationTokenSource? _pendingSave;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsUnavailable))]
@@ -38,9 +40,15 @@ public sealed partial class FansViewModel : ViewModelBase
     [NotifyPropertyChangedFor(nameof(CanDeleteSelectedProfile))]
     private FanProfileItem? _selectedProfile;
 
+    /// <summary>The profile the fan service is running right now (null when every fan follows its own mode).</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ActiveProfileText))]
     private string? _activeProfileName;
+
+    /// <summary>The profile remembered in settings (what "apply at startup" would use); shown only when it is not the active one.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ActiveProfileText))]
+    private string? _lastAppliedProfileName;
 
     [ObservableProperty]
     private bool _revertToAutoOnExit;
@@ -92,7 +100,20 @@ public sealed partial class FansViewModel : ViewModelBase
     public bool HasFans => Fans.Count > 0;
     public bool CanDeleteSelectedProfile => SelectedProfile is { IsBuiltIn: false };
     public bool IsDemoMode => AppOptions.Mode == AppMode.Demo;
-    public string ActiveProfileText => string.IsNullOrWhiteSpace(ActiveProfileName) ? "No profile active — fans follow their own mode." : $"Active profile: {ActiveProfileName}";
+    public string ActiveProfileText
+    {
+        get
+        {
+            if (!string.IsNullOrWhiteSpace(ActiveProfileName))
+            {
+                return $"Active profile: {ActiveProfileName}";
+            }
+
+            return string.IsNullOrWhiteSpace(LastAppliedProfileName)
+                ? "No profile active — fans follow their own mode."
+                : $"No profile active — fans follow their own mode. Last applied: {LastAppliedProfileName} (not re-applied this session).";
+        }
+    }
     public string SoftwareControlledText => SoftwareControlledCount switch
     {
         0 => "All fans are under automatic (firmware) control.",
@@ -120,7 +141,8 @@ public sealed partial class FansViewModel : ViewModelBase
         RefreshTemperatureSources(force: true);
         RefreshProfiles();
         RefreshRawControls();
-        ActiveProfileName = _fans.ActiveProfile?.Name ?? Settings.Current.Fans.ActiveProfileName;
+        ActiveProfileName = _fans.ActiveProfile?.Name;
+        LastAppliedProfileName = Settings.Current.Fans.ActiveProfileName;
         if (_advanced is not null)
         {
             Alerts.Clear();
@@ -388,16 +410,51 @@ public sealed partial class FansViewModel : ViewModelBase
         }, $"Applying curve to {fan.Name}…");
     }
 
-    internal Task SetAutoAsync(FanItemViewModel fan) => RunBusyAsync(async ct =>
+    internal async Task SetAutoAsync(FanItemViewModel fan)
     {
-        var result = await _fans.SetAutoAsync(fan.Id, ct);
-        Report(result);
-        if (result.Success)
+        if (IsBusy)
         {
-            fan.Mode = FanMode.Auto;
-            SoftwareControlledCount = Fans.Count(f => f.IsSoftwareControlled);
+            // RunBusyAsync would silently skip the work; keep the selector honest instead.
+            fan.SyncSelectedMode();
+            StatusText = "Another fan operation is still running. Wait for it to finish, then try again.";
+            return;
         }
-    }, $"Returning {fan.Name} to automatic…");
+
+        await RunBusyAsync(async ct =>
+        {
+            var result = await _fans.SetAutoAsync(fan.Id, ct);
+            Report(result);
+            if (result.Success)
+            {
+                fan.Mode = FanMode.Auto;
+                SoftwareControlledCount = Fans.Count(f => f.IsSoftwareControlled);
+            }
+        }, $"Returning {fan.Name} to automatic…");
+
+        if (fan.Mode != FanMode.Auto)
+        {
+            fan.SyncSelectedMode();
+        }
+    }
+
+    /// <summary>Called from the card's "Automatic" radio: runs <see cref="SetAutoAsync"/> and never lets the selector drift from reality.</summary>
+    internal void SetAutoFromSelector(FanItemViewModel fan)
+    {
+        _ = RunSelectorAsync(fan);
+
+        async Task RunSelectorAsync(FanItemViewModel item)
+        {
+            try
+            {
+                await SetAutoAsync(item);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Returning {Fan} to automatic from the mode selector failed.", item.Name);
+                item.SyncSelectedMode();
+            }
+        }
+    }
 
     [RelayCommand]
     private void SimulateOverheat()
@@ -431,7 +488,7 @@ public sealed partial class FansViewModel : ViewModelBase
             RevertToAutoOnExit = s.RevertToAutoOnExit;
             ApplyOnStartup = s.ApplyOnStartup;
             MinimumPercent = s.MinimumPercent;
-            ActiveProfileName = s.ActiveProfileName;
+            LastAppliedProfileName = s.ActiveProfileName;
         }
         finally
         {
@@ -443,6 +500,7 @@ public sealed partial class FansViewModel : ViewModelBase
     partial void OnApplyOnStartupChanged(bool value) => Persist(s => s.ApplyOnStartup = value);
     partial void OnMinimumPercentChanged(double value) => Persist(s => s.MinimumPercent = Math.Clamp(Math.Round(value), 0, 100));
 
+    /// <summary>Applies a page-level setting and saves shortly afterwards, so spinning a NumberBox writes the file once, not per step.</summary>
     private void Persist(Action<FanSettings> apply)
     {
         if (_loadingSettings)
@@ -451,7 +509,25 @@ public sealed partial class FansViewModel : ViewModelBase
         }
 
         apply(Settings.Current.Fans);
-        _ = SaveSettingsAsync();
+        _pendingSave?.Cancel();
+        _pendingSave?.Dispose();
+        var cts = new CancellationTokenSource();
+        _pendingSave = cts;
+        _ = SaveSettingsLaterAsync(cts.Token);
+    }
+
+    private async Task SaveSettingsLaterAsync(CancellationToken ct)
+    {
+        try
+        {
+            await Task.Delay(SettingsSaveDelay, ct);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+
+        await SaveSettingsAsync();
     }
 
     private async Task SaveSettingsAsync()

@@ -53,7 +53,17 @@ public sealed partial class LibreHardwareFanControlService : IFanControlService,
         {
             lock (_gate)
             {
-                return _builtInProfiles ??= BuildBuiltInProfiles();
+                if (_builtInProfiles is { } cached)
+                {
+                    return cached;
+                }
+            }
+
+            // Built outside the gate: it reads temperatures through the host, and the host lock must never be taken while _gate is held.
+            var built = BuildBuiltInProfiles();
+            lock (_gate)
+            {
+                return _builtInProfiles ??= built;
             }
         }
     }
@@ -97,9 +107,14 @@ public sealed partial class LibreHardwareFanControlService : IFanControlService,
     /// <summary>Where the crash marker lives for this settings directory.</summary>
     public string SessionFilePath => FanSessionStore.DefaultPath(_settings.SettingsDirectory);
 
+    /// <summary>
+    /// Re-scans the hardware every time (this is what "Detect fans" calls): a host that was still opening at startup,
+    /// a newly plugged controller or a fan that disappeared are all picked up. Software state of fans that are still
+    /// present is kept.
+    /// </summary>
     public async Task<IReadOnlyList<FanDevice>> GetFansAsync(CancellationToken cancellationToken)
     {
-        await DiscoverAsync(cancellationToken).ConfigureAwait(false);
+        await DiscoverAsync(cancellationToken, force: true).ConfigureAwait(false);
         var fans = Snapshot();
         FansUpdated?.Invoke(this, fans);
         return fans;
@@ -264,7 +279,7 @@ public sealed partial class LibreHardwareFanControlService : IFanControlService,
                     _capabilityNotes.Clear();
                 }
 
-                _discovered = true;
+                // Not marked as discovered: the host may simply still be opening, so the next call tries again.
                 return;
             }
 
@@ -304,6 +319,9 @@ public sealed partial class LibreHardwareFanControlService : IFanControlService,
                         entry.ManualPercent = old.ManualPercent;
                         entry.Curve = old.Curve;
                         entry.LastApplied = old.LastApplied;
+                        entry.Forced = old.Forced;
+                        entry.LastRpm = old.LastRpm;
+                        entry.LastPercent = old.LastPercent;
                     }
 
                     _entries.Add(entry);
@@ -347,10 +365,8 @@ public sealed partial class LibreHardwareFanControlService : IFanControlService,
             lock (_gate)
             {
                 IsAvailable = false;
-                UnavailableReason = "Fan detection failed: " + ex.Message;
+                UnavailableReason = "Fan detection failed: " + ex.Message + " Click \"Detect fans\" to try again.";
             }
-
-            _discovered = true;
         }
         finally
         {

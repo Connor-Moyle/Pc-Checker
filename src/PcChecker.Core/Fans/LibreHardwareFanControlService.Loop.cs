@@ -10,6 +10,9 @@ public sealed partial class LibreHardwareFanControlService
 {
     private const int TickMs = 1000;
     private const int MaxAlerts = 50;
+
+    /// <summary>A sensor snapshot older than this is treated as missing, so a stalled sensor loop can never drive a curve from a frozen temperature.</summary>
+    internal static readonly TimeSpan MaxTemperatureAge = TimeSpan.FromSeconds(5);
     private int _ticking;
     private bool _forcedEpisode;
 
@@ -223,13 +226,17 @@ public sealed partial class LibreHardwareFanControlService
         return result;
     }
 
-    /// <summary>Latest temperature by sensor id from the sensor service, then from the hardware monitor as a fallback.</summary>
+    /// <summary>
+    /// Latest temperature by sensor id: from the sensor service when its snapshot is fresh (see <see cref="MaxTemperatureAge"/>),
+    /// otherwise straight from the hardware monitor after refreshing the hardware that owns each sensor. Stale or
+    /// unreadable sensors are left out of the map, which is what makes the "temperature source missing" safety fire.
+    /// </summary>
     private Dictionary<string, double> CollectTemperatures()
     {
         var map = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
         try
         {
-            if (_sensors.Latest is { } latest)
+            if (_sensors.Latest is { } latest && IsFresh(latest.Timestamp))
             {
                 foreach (var r in latest.OfKind(SensorKind.Temperature))
                 {
@@ -248,16 +255,29 @@ public sealed partial class LibreHardwareFanControlService
         KeyValuePair<string, ISensor>[] lhm;
         lock (_gate)
         {
-            lhm = _lhmTemperatures.ToArray();
+            lhm = _lhmTemperatures.Where(kv => !map.ContainsKey(kv.Key)).ToArray();
         }
 
         if (lhm.Length > 0)
         {
             _host.WithComputer(_ =>
             {
+                // Refresh each piece of hardware once so the fallback never returns the value cached at discovery.
+                foreach (var hw in lhm.Select(kv => kv.Value.Hardware).Where(h => h is not null).Distinct())
+                {
+                    try
+                    {
+                        hw!.Update();
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogDebug(ex, "Update failed for {Hardware} while reading temperatures.", hw!.Name);
+                    }
+                }
+
                 foreach (var (id, sensor) in lhm)
                 {
-                    if (!map.ContainsKey(id) && sensor.Value is { } v && !float.IsNaN(v))
+                    if (sensor.Value is { } v && !float.IsNaN(v))
                     {
                         map[id] = v;
                     }
@@ -268,14 +288,19 @@ public sealed partial class LibreHardwareFanControlService
         return map;
     }
 
+    private static bool IsFresh(DateTimeOffset timestamp) => DateTimeOffset.UtcNow - timestamp.ToUniversalTime() <= MaxTemperatureAge;
+
     private IReadOnlyList<SensorReading> CurrentTemperatureReadings()
     {
         try
         {
-            var fromService = _sensors.GetTemperatures();
-            if (fromService.Count > 0)
+            if (_sensors.Latest is not { } latest || IsFresh(latest.Timestamp))
             {
-                return fromService;
+                var fromService = _sensors.GetTemperatures();
+                if (fromService.Count > 0)
+                {
+                    return fromService;
+                }
             }
         }
         catch (Exception ex)
@@ -292,6 +317,18 @@ public sealed partial class LibreHardwareFanControlService
 
         _host.WithComputer(_ =>
         {
+            foreach (var hw in lhm.Select(kv => kv.Value.Hardware).Where(h => h is not null).Distinct())
+            {
+                try
+                {
+                    hw!.Update();
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogDebug(ex, "Update failed for {Hardware} while reading temperatures.", hw!.Name);
+                }
+            }
+
             foreach (var (id, sensor) in lhm)
             {
                 list.Add(new SensorReading(id, sensor.Hardware?.Name ?? string.Empty, MapKind(sensor.Hardware), SensorKind.Temperature, sensor.Name, sensor.Value, null, null, "°C"));
@@ -421,7 +458,7 @@ public sealed partial class LibreHardwareFanControlService
                         if (ApplySoftware(e, 100, "temperature source missing").Success)
                         {
                             RaiseAlert(FanAlertKind.TemperatureSourceMissing, e.Id, e.Name,
-                                $"The temperature \"{curve.TemperatureSensorId}\" that drives {e.Name} has not reported for 10 seconds, so the fan was set to 100 % to stay safe.", Severity.Medium);
+                                $"The temperature \"{curve.TemperatureSensorId}\" that drives {e.Name} has not reported a fresh value for 10 seconds, so the fan was set to 100 % to stay safe.", Severity.Medium);
                         }
                     }
 

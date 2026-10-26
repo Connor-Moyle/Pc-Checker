@@ -144,7 +144,7 @@
       <controls:SectionHeader.Actions>
         <StackPanel Orientation="Horizontal">
           <ui:Button Content="Detect fans" Icon="{ui:SymbolIcon ArrowSync24}" Command="{Binding DetectCommand}" Margin="0,0,8,0" />
-          <ui:Button Content="Revert all to automatic" Icon="{ui:SymbolIcon ArrowReset24}" Command="{Binding RevertAllCommand}"
+          <ui:Button Content="Revert all to automatic" Appearance="Caution" Icon="{ui:SymbolIcon ArrowReset24}" Command="{Binding RevertAllCommand}"
                      ToolTip="Hand every fan back to the motherboard or graphics driver." />
         </StackPanel>
       </controls:SectionHeader.Actions>
