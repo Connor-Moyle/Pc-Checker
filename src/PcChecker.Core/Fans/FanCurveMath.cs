@@ -89,6 +89,104 @@ public static class FanCurveMath
         return new FanCurve { TemperatureSensorId = sensorId ?? string.Empty, Points = points };
     }
 
+    /// <summary>
+    /// Returns a cleaned copy of the points: clamped to 0–100 on both axes, sorted by temperature, duplicate
+    /// temperatures collapsed (last wins) and padded to at least two points so a curve is always drawable.
+    /// </summary>
+    public static List<FanCurvePoint> Normalize(IEnumerable<FanCurvePoint>? points)
+    {
+        var map = new SortedDictionary<double, double>();
+        foreach (var p in points ?? [])
+        {
+            double t = Math.Round(Math.Clamp(p.TemperatureC, 0, 100), 1);
+            map[t] = Math.Round(Math.Clamp(p.Percent, 0, 100), 1);
+        }
+
+        if (map.Count == 0)
+        {
+            return [new(30, 30), new(80, 100)];
+        }
+
+        if (map.Count == 1)
+        {
+            var only = map.First();
+            map[only.Key < 100 ? 100 : 0] = only.Key < 100 ? 100 : only.Value;
+        }
+
+        return map.Select(kv => new FanCurvePoint(kv.Key, kv.Value)).ToList();
+    }
+
+    /// <summary>Plain-English problem with a curve, or null when it is usable.</summary>
+    public static string? Validate(FanCurve? curve)
+    {
+        if (curve is null)
+        {
+            return "No curve was given.";
+        }
+
+        if (string.IsNullOrWhiteSpace(curve.TemperatureSensorId))
+        {
+            return "Choose which temperature the curve should follow.";
+        }
+
+        if (curve.Points is null || curve.Points.Count < 2)
+        {
+            return "A curve needs at least two points.";
+        }
+
+        if (curve.Points.Any(p => p.TemperatureC < 0 || p.TemperatureC > 100 || p.Percent < 0 || p.Percent > 100))
+        {
+            return "Curve points must stay between 0–100 °C and 0–100 %.";
+        }
+
+        if (curve.HysteresisC < 0 || curve.HysteresisC > 20)
+        {
+            return "Hysteresis must be between 0 and 20 °C.";
+        }
+
+        if (curve.RampStepPercent < 1 || curve.RampStepPercent > 100)
+        {
+            return "Ramp step must be between 1 and 100 % per second.";
+        }
+
+        return null;
+    }
+
+    /// <summary>Deep copy so editing a profile never changes a built-in or saved one in place.</summary>
+    public static FanCurve Clone(FanCurve curve)
+    {
+        ArgumentNullException.ThrowIfNull(curve);
+        return new FanCurve
+        {
+            TemperatureSensorId = curve.TemperatureSensorId,
+            Points = curve.Points.Select(p => new FanCurvePoint(p.TemperatureC, p.Percent)).ToList(),
+            HysteresisC = curve.HysteresisC,
+            RampStepPercent = curve.RampStepPercent,
+        };
+    }
+
+    /// <summary>Deep copy of a profile (see <see cref="Clone(FanCurve)"/>).</summary>
+    public static FanProfile Clone(FanProfile profile)
+    {
+        ArgumentNullException.ThrowIfNull(profile);
+        var copy = new FanProfile { Name = profile.Name, IsBuiltIn = profile.IsBuiltIn };
+        foreach (var (id, a) in profile.Fans)
+        {
+            copy.Fans[id] = new FanAssignment { Mode = a.Mode, ManualPercent = a.ManualPercent, Curve = a.Curve is null ? null : Clone(a.Curve) };
+        }
+
+        return copy;
+    }
+
+    /// <summary>One line describing a preset for tooltips ("Silent: 25 % at 30 °C rising to 100 % at 85 °C").</summary>
+    public static string DescribePreset(string preset)
+    {
+        var curve = Default(string.Empty, preset);
+        var first = curve.Points[0];
+        var last = curve.Points[^1];
+        return $"{preset}: {first.Percent:0} % at {first.TemperatureC:0} °C rising to {last.Percent:0} % at {last.TemperatureC:0} °C";
+    }
+
     /// <summary>The three built-in profiles, using the given CPU and GPU temperature sensors.</summary>
     public static IReadOnlyList<FanProfile> BuiltInProfiles(string cpuSensorId, string gpuSensorId,
         IEnumerable<string>? cpuFanIds = null, IEnumerable<string>? gpuFanIds = null)

@@ -10,6 +10,129 @@
       mc:Ignorable="d"
       Title="Fans"
       ScrollViewer.CanContentScroll="False">
+  <Page.Resources>
+    <!-- One fan card -->
+    <DataTemplate x:Key="FanCardTemplate" DataType="{x:Type vm:FanItemViewModel}">
+      <ui:Card Width="470" Margin="0,0,12,12" Padding="16" VerticalAlignment="Top">
+        <StackPanel>
+          <!-- Title row -->
+          <Grid>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="Auto" />
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <Border Grid.Column="0" Width="36" Height="36" CornerRadius="8" Background="{StaticResource AccentCyanBrush}" Opacity="0.9" Margin="0,0,12,0" VerticalAlignment="Top">
+              <ui:SymbolIcon Symbol="{Binding Icon}" FontSize="20" Foreground="White" />
+            </Border>
+            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+              <ui:TextBlock FontTypography="BodyStrong" Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+              <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding HardwareName}" TextTrimming="CharacterEllipsis" />
+            </StackPanel>
+            <Border Grid.Column="2" CornerRadius="10" Padding="10,3" VerticalAlignment="Top" ToolTip="{Binding ModeHint}" Background="{DynamicResource ControlFillColorSecondaryBrush}">
+              <ui:TextBlock FontSize="12" FontWeight="SemiBold" Text="{Binding ModeText}" />
+            </Border>
+          </Grid>
+
+          <!-- Big numbers -->
+          <Grid Margin="0,14,0,10">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0">
+              <StackPanel Orientation="Horizontal">
+                <ui:TextBlock FontSize="34" FontWeight="SemiBold" Text="{Binding RpmText}" />
+                <ui:TextBlock Appearance="Secondary" Text="RPM" VerticalAlignment="Bottom" Margin="6,0,0,7" ToolTip="Revolutions per minute: how fast the fan is spinning right now." />
+              </StackPanel>
+              <ui:TextBlock Style="{StaticResource Caption}" Text="Current speed" />
+            </StackPanel>
+            <StackPanel Grid.Column="1">
+              <ui:TextBlock FontSize="34" FontWeight="SemiBold" Text="{Binding PercentText}" />
+              <ProgressBar Value="{Binding PercentValue, Mode=OneWay}" Minimum="0" Maximum="100" Height="6" Margin="0,4,24,0" />
+              <ui:TextBlock Style="{StaticResource Caption}" Text="Fan power (0–100 %)" />
+            </StackPanel>
+          </Grid>
+
+          <!-- Controls (only for controllable fans) -->
+          <StackPanel Visibility="{Binding Controllable, Converter={StaticResource BoolToVisibility}}">
+            <Separator Margin="0,0,0,10" />
+            <StackPanel Orientation="Horizontal">
+              <RadioButton Content="Automatic" IsChecked="{Binding IsAutoSelected}" Margin="0,0,16,0" ToolTip="Let the motherboard or graphics driver decide (the default)." />
+              <RadioButton Content="Manual" IsChecked="{Binding IsManualSelected}" Margin="0,0,16,0" ToolTip="Hold the fan at one fixed speed." />
+              <RadioButton Content="Curve" IsChecked="{Binding IsCurveSelected}" ToolTip="Change the speed automatically as a temperature rises and falls." />
+            </StackPanel>
+
+            <!-- Manual -->
+            <StackPanel Margin="0,10,0,0" Visibility="{Binding IsManualSelected, Converter={StaticResource BoolToVisibility}}">
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="Auto" />
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="Auto" />
+                  <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <ui:Button Grid.Column="0" Content="−5" Command="{Binding NudgeManualCommand}" CommandParameter="-5" Padding="8,4" Margin="0,0,8,0" />
+                <Slider Grid.Column="1" Minimum="0" Maximum="100" TickFrequency="10" IsSnapToTickEnabled="False" IsMoveToPointEnabled="True"
+                        Value="{Binding ManualPercent, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Center" />
+                <ui:Button Grid.Column="2" Content="+5" Command="{Binding NudgeManualCommand}" CommandParameter="5" Padding="8,4" Margin="8,0,8,0" />
+                <ui:TextBlock Grid.Column="3" FontTypography="BodyStrong" Text="{Binding ManualPercentText}" MinWidth="48" VerticalAlignment="Center" TextAlignment="Right" />
+              </Grid>
+              <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                <ui:Button Content="Apply speed" Appearance="Primary" Icon="{ui:SymbolIcon Checkmark24}" Command="{Binding ApplyManualCommand}" />
+                <ui:TextBlock Style="{StaticResource Muted}" VerticalAlignment="Center" Margin="12,0,0,0" TextWrapping="Wrap"
+                              Text="Speeds below the page minimum ask for confirmation." />
+              </StackPanel>
+            </StackPanel>
+
+            <!-- Curve -->
+            <StackPanel Margin="0,10,0,0" Visibility="{Binding IsCurveSelected, Converter={StaticResource BoolToVisibility}}">
+              <Grid Margin="0,0,0,8">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="Auto" />
+                  <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <ui:TextBlock Grid.Column="0" Text="Follow temperature" VerticalAlignment="Center" Margin="0,0,10,0" ToolTip="The curve reads this temperature every second and sets the fan speed from it." />
+                <ComboBox Grid.Column="1"
+                          ItemsSource="{Binding DataContext.TemperatureSources, RelativeSource={RelativeSource AncestorType=Page}}"
+                          SelectedValuePath="Id" DisplayMemberPath="Label"
+                          SelectedValue="{Binding TemperatureSourceId}" />
+              </Grid>
+              <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                <ui:TextBlock Style="{StaticResource Muted}" Text="Start from:" VerticalAlignment="Center" Margin="0,0,8,0" />
+                <ui:Button Content="Silent" Command="{Binding UsePresetCommand}" CommandParameter="Silent" Padding="10,4" Margin="0,0,6,0" ToolTip="Quiet: 25 % at 30 °C rising to 100 % at 85 °C" />
+                <ui:Button Content="Balanced" Command="{Binding UsePresetCommand}" CommandParameter="Balanced" Padding="10,4" Margin="0,0,6,0" ToolTip="Everyday: 30 % at 30 °C rising to 100 % at 80 °C" />
+                <ui:Button Content="Performance" Command="{Binding UsePresetCommand}" CommandParameter="Performance" Padding="10,4" ToolTip="Cool: 40 % at 30 °C rising to 100 % at 70 °C" />
+              </StackPanel>
+              <controls:FanCurveEditor Height="200" Points="{Binding CurvePoints}" CurrentTemperature="{Binding CurrentTemperature}" />
+              <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding CurvePreviewText}" Margin="0,6,0,0" />
+              <Grid Margin="0,8,0,0">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0" Margin="0,0,8,0">
+                  <ui:TextBlock Style="{StaticResource Muted}" Text="Hysteresis (°C)" ToolTip="How far the temperature must drop before the fan slows down again. Stops the fan from hunting up and down." />
+                  <ui:NumberBox Value="{Binding HysteresisC, Mode=TwoWay}" Minimum="0" Maximum="20" SmallChange="1" ClearButtonEnabled="False" />
+                </StackPanel>
+                <StackPanel Grid.Column="1">
+                  <ui:TextBlock Style="{StaticResource Muted}" Text="Ramp step (% per second)" ToolTip="The most the speed may change each second. Smaller steps sound smoother." />
+                  <ui:NumberBox Value="{Binding RampStepPercent, Mode=TwoWay}" Minimum="1" Maximum="100" SmallChange="1" ClearButtonEnabled="False" />
+                </StackPanel>
+              </Grid>
+              <ui:TextBlock Foreground="{StaticResource AccentOrangeBrush}" Text="{Binding CurveProblem}" TextWrapping="Wrap" Margin="0,6,0,0"
+                            Visibility="{Binding CurveProblem, Converter={StaticResource NullToVisibility}}" />
+              <ui:Button Content="Apply curve" Appearance="Primary" Icon="{ui:SymbolIcon DataLine24}" Command="{Binding ApplyCurveCommand}" Margin="0,10,0,0" />
+            </StackPanel>
+          </StackPanel>
+
+          <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,8,0,0" Text="{Binding ModeHint}"
+                        Visibility="{Binding Controllable, Converter={StaticResource InverseBoolToVisibility}}" />
+        </StackPanel>
+      </ui:Card>
+    </DataTemplate>
+  </Page.Resources>
+
   <Grid Style="{StaticResource PageRoot}">
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto" />
@@ -17,20 +140,186 @@
       <RowDefinition Height="*" />
     </Grid.RowDefinitions>
 
-    <controls:SectionHeader Grid.Row="0" Title="Fans" Subtitle="Fan speeds, custom curves and profiles for quiet or cool operation." />
+    <controls:SectionHeader Grid.Row="0" Title="Fans" Subtitle="Fan speeds, custom curves and profiles for quiet or cool operation.">
+      <controls:SectionHeader.Actions>
+        <StackPanel Orientation="Horizontal">
+          <ui:Button Content="Detect fans" Icon="{ui:SymbolIcon ArrowSync24}" Command="{Binding DetectCommand}" Margin="0,0,8,0" />
+          <ui:Button Content="Revert all to automatic" Icon="{ui:SymbolIcon ArrowReset24}" Command="{Binding RevertAllCommand}"
+                     ToolTip="Hand every fan back to the motherboard or graphics driver." />
+        </StackPanel>
+      </controls:SectionHeader.Actions>
+    </controls:SectionHeader>
 
-    <ui:InfoBar Grid.Row="1"
-                Severity="Error"
-                Title="Something went wrong"
-                Message="{Binding ErrorMessage}"
-                IsOpen="{Binding HasError, Mode=OneWay}"
-                IsClosable="True"
-                Margin="0,0,0,12" />
+    <StackPanel Grid.Row="1">
+      <ui:InfoBar Severity="Error"
+                  Title="Something went wrong"
+                  Message="{Binding ErrorMessage}"
+                  IsOpen="{Binding HasError, Mode=OneWay}"
+                  IsClosable="True"
+                  Margin="0,0,0,12" />
+      <ui:InfoBar Severity="Warning"
+                  Title="Fan control is not available on this PC"
+                  Message="{Binding UnavailableReason}"
+                  IsOpen="{Binding IsUnavailable, Mode=OneWay}"
+                  IsClosable="False"
+                  Margin="0,0,0,12" />
+      <ui:InfoBar Severity="Informational"
+                  Title="What PC Checker can control here"
+                  Message="{Binding CapabilityText}"
+                  IsOpen="{Binding IsAvailable, Mode=OneWay}"
+                  IsClosable="True"
+                  Margin="0,0,0,12" />
+    </StackPanel>
 
-    <controls:EmptyState Grid.Row="2"
-                         Icon="ArrowSyncCircle24"
-                         Title="This section is being prepared"
-                         Message="Fan speeds, custom curves and profiles for quiet or cool operation." />
+    <ScrollViewer Grid.Row="2" Style="{StaticResource PageScroll}">
+      <StackPanel>
+
+        <!-- Alerts strip -->
+        <ui:Card Style="{StaticResource CardSpacing}" BorderBrush="{StaticResource AccentRedBrush}" BorderThickness="1"
+                 Visibility="{Binding HasAlerts, Converter={StaticResource BoolToVisibility}}">
+          <StackPanel>
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
+              <StackPanel Grid.Column="0" Orientation="Horizontal">
+                <ui:SymbolIcon Symbol="Fire24" Foreground="{StaticResource AccentRedBrush}" FontSize="20" Margin="0,0,8,0" />
+                <ui:TextBlock Style="{StaticResource CardTitle}" Text="Safety alerts" Margin="0" VerticalAlignment="Center" />
+              </StackPanel>
+              <ui:Button Grid.Column="1" Content="Clear" Appearance="Secondary" Command="{Binding ClearAlertsCommand}" Padding="10,4" />
+            </Grid>
+            <ItemsControl ItemsSource="{Binding Alerts}" Margin="0,8,0,0">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <Grid Margin="0,2">
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="Auto" />
+                      <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <ui:TextBlock Grid.Column="0" Style="{StaticResource Muted}" Text="{Binding Timestamp, StringFormat=HH:mm:ss}" Margin="0,0,10,0" VerticalAlignment="Top" />
+                    <ui:TextBlock Grid.Column="1" Text="{Binding Message}" TextWrapping="Wrap" />
+                  </Grid>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </ui:Card>
+
+        <!-- Profiles -->
+        <ui:Card Style="{StaticResource CardSpacing}">
+          <StackPanel>
+            <ui:TextBlock Style="{StaticResource CardTitle}" Text="Profiles" />
+            <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,10"
+                          Text="A profile remembers the mode, speed or curve of every fan. Silent, Balanced and Performance are built in; save your own from the current settings." />
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" MaxWidth="360" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+              <ComboBox Grid.Column="0" ItemsSource="{Binding Profiles}" SelectedItem="{Binding SelectedProfile}" VerticalAlignment="Center">
+                <ComboBox.ItemTemplate>
+                  <DataTemplate>
+                    <StackPanel ToolTip="{Binding Tooltip}">
+                      <TextBlock Text="{Binding Name}" />
+                      <TextBlock Text="{Binding Description}" FontSize="11" Opacity="0.7" />
+                    </StackPanel>
+                  </DataTemplate>
+                </ComboBox.ItemTemplate>
+              </ComboBox>
+              <ui:Button Grid.Column="1" Content="Apply profile" Appearance="Primary" Icon="{ui:SymbolIcon Play24}" Command="{Binding ApplyProfileCommand}" Margin="8,0,0,0" />
+              <ui:Button Grid.Column="2" Content="Delete" Appearance="Danger" Icon="{ui:SymbolIcon Delete24}" Command="{Binding DeleteProfileCommand}" Margin="8,0,0,0"
+                         Visibility="{Binding CanDeleteSelectedProfile, Converter={StaticResource BoolToVisibility}}" />
+              <ui:TextBlock Grid.Column="3" Style="{StaticResource Muted}" Text="{Binding ActiveProfileText}" VerticalAlignment="Center" Margin="16,0,0,0" TextWrapping="Wrap" />
+            </Grid>
+            <Grid Margin="0,12,0,0">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" MaxWidth="360" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+              <ui:TextBox Grid.Column="0" PlaceholderText="Name for a new profile, e.g. Quiet night" Text="{Binding NewProfileName, UpdateSourceTrigger=PropertyChanged}" />
+              <ui:Button Grid.Column="1" Content="Save current as…" Icon="{ui:SymbolIcon Save24}" Command="{Binding SaveProfileAsCommand}" Margin="8,0,0,0" />
+              <ui:TextBlock Grid.Column="2" Style="{StaticResource Muted}" Text="{Binding SoftwareControlledText}" VerticalAlignment="Center" Margin="16,0,0,0" />
+            </Grid>
+            <Separator Margin="0,14,0,10" />
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+              <StackPanel Grid.Column="0" Margin="0,0,16,0">
+                <StackPanel Orientation="Horizontal">
+                  <ui:ToggleSwitch IsChecked="{Binding RevertToAutoOnExit}" />
+                  <ui:TextBlock Text="Revert to automatic on exit" VerticalAlignment="Center" Margin="8,0,0,0" />
+                </StackPanel>
+                <ui:TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Text="Hands fans back to the firmware when you close PC Checker (recommended)." />
+              </StackPanel>
+              <StackPanel Grid.Column="1" Margin="0,0,16,0">
+                <StackPanel Orientation="Horizontal">
+                  <ui:ToggleSwitch IsChecked="{Binding ApplyOnStartup}" />
+                  <ui:TextBlock Text="Apply active profile at startup" VerticalAlignment="Center" Margin="8,0,0,0" />
+                </StackPanel>
+                <ui:TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Text="Re-applies the last profile you applied whenever the app starts." />
+              </StackPanel>
+              <StackPanel Grid.Column="2">
+                <StackPanel Orientation="Horizontal">
+                  <ui:NumberBox Value="{Binding MinimumPercent, Mode=TwoWay}" Minimum="0" Maximum="100" SmallChange="5" ClearButtonEnabled="False" Width="110" />
+                  <ui:TextBlock Text="Minimum fan speed (%)" VerticalAlignment="Center" Margin="8,0,0,0" />
+                </StackPanel>
+                <ui:TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Text="Curves and manual speeds never go below this unless you confirm." />
+              </StackPanel>
+            </Grid>
+          </StackPanel>
+        </ui:Card>
+
+        <!-- Fan cards -->
+        <ItemsControl ItemsSource="{Binding Fans}" ItemTemplate="{StaticResource FanCardTemplate}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <WrapPanel Orientation="Horizontal" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+        </ItemsControl>
+
+        <controls:EmptyState Icon="ArrowSyncCircle24"
+                             Title="No fans to show"
+                             Message="Click “Detect fans” after making sure PC Checker runs as administrator. Laptops and many pre-built PCs keep their fans under firmware control."
+                             Visibility="{Binding HasFans, Converter={StaticResource InverseBoolToVisibility}}" />
+
+        <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding StatusText}" Margin="0,4,0,8"
+                      Visibility="{Binding StatusText, Converter={StaticResource NullToVisibility}}" />
+
+        <ui:Button Content="Simulate an overheating CPU (demo)" Appearance="Secondary" Icon="{ui:SymbolIcon Fire24}" Command="{Binding SimulateOverheatCommand}" Margin="0,0,0,12"
+                   Visibility="{Binding IsDemoMode, Converter={StaticResource BoolToVisibility}}" />
+
+        <!-- Advanced: raw controls -->
+        <ui:CardExpander Margin="0,0,0,12" Visibility="{Binding IsAdvancedMode, Converter={StaticResource BoolToVisibility}}">
+          <ui:CardExpander.Header>
+            <StackPanel>
+              <ui:TextBlock FontTypography="BodyStrong" Text="Raw fan controls (advanced)" />
+              <ui:TextBlock Style="{StaticResource Muted}" Text="Every control the hardware monitor exposes, with its identifier, mode and software value." />
+            </StackPanel>
+          </ui:CardExpander.Header>
+          <ui:DataGrid ItemsSource="{Binding RawControls}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" HeadersVisibility="Column" MaxHeight="320">
+            <ui:DataGrid.Columns>
+              <DataGridTextColumn Header="Identifier" Binding="{Binding Identifier}" Width="*" />
+              <DataGridTextColumn Header="Hardware" Binding="{Binding HardwareName}" Width="180" />
+              <DataGridTextColumn Header="Sensor" Binding="{Binding SensorName}" Width="120" />
+              <DataGridTextColumn Header="Mode" Binding="{Binding ControlMode}" Width="90" />
+              <DataGridTextColumn Header="Software %" Binding="{Binding SoftwareValue, StringFormat={}{0:0}}" Width="90" />
+              <DataGridTextColumn Header="Min" Binding="{Binding MinSoftwareValue, StringFormat={}{0:0}}" Width="60" />
+              <DataGridTextColumn Header="Max" Binding="{Binding MaxSoftwareValue, StringFormat={}{0:0}}" Width="60" />
+              <DataGridTextColumn Header="Current %" Binding="{Binding CurrentPercent, StringFormat={}{0:0}}" Width="90" />
+              <DataGridTextColumn Header="RPM sensor" Binding="{Binding PairedRpmIdentifier}" Width="*" />
+            </ui:DataGrid.Columns>
+          </ui:DataGrid>
+        </ui:CardExpander>
+      </StackPanel>
+    </ScrollViewer>
 
     <controls:BusyOverlay Grid.Row="0" Grid.RowSpan="3"
                           IsBusy="{Binding IsBusy}"
