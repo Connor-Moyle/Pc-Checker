@@ -50,7 +50,13 @@ jobs:
           "version=$v" >> $env:GITHUB_OUTPUT
           "prerelease=$($pre.ToString().ToLower())" >> $env:GITHUB_OUTPUT
           "tag=v$v" >> $env:GITHUB_OUTPUT
-          Write-Host "Releasing $v (prerelease: $pre)"
+          # Optional codename: the subject line of an annotated tag (git tag -a v1.2.3 -m "Codename").
+          git fetch --force --tags origin 2>$null
+          $codename = ''
+          if ((git cat-file -t "v$v" 2>$null) -eq 'tag') { $codename = (git tag -l --format='%(contents:subject)' "v$v").Trim() }
+          $title = if ($codename) { "PC Checker $v `"$codename`"" } else { "PC Checker $v" }
+          "title=$title" >> $env:GITHUB_OUTPUT
+          Write-Host "Releasing $title (prerelease: $pre)"
 
       - name: Restore
         run: dotnet restore PcChecker.sln
@@ -110,7 +116,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.tag }}
-          name: PC Checker ${{ steps.version.outputs.version }}
+          name: ${{ steps.version.outputs.title }}
           generate_release_notes: true
           prerelease: ${{ steps.version.outputs.prerelease == 'true' }}
           fail_on_unmatched_files: true
