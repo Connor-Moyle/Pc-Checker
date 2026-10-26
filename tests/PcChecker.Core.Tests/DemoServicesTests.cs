@@ -143,9 +143,12 @@ public class DemoServicesTests
     }
 
     [Fact]
-    public async Task Startup_enumerator_stub_returns_empty_list()
+    public async Task Startup_enumerator_and_null_helpers_behave()
     {
-        Assert.Empty(await StartupEnumerator.EnumerateAsync(CancellationToken.None));
+        // Real data on Windows, an empty list elsewhere; it must never throw and never return null.
+        var items = await StartupEnumerator.EnumerateAsync(CancellationToken.None);
+        Assert.NotNull(items);
+        Assert.All(items, i => Assert.False(string.IsNullOrWhiteSpace(i.Name)));
         Assert.Equal(0, await new NullMousePollingMeter().MeasureAsync(1, null, CancellationToken.None));
         Assert.False(new DemoHardwareMonitorHost().IsOpen);
     }
