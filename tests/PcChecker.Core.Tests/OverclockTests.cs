@@ -564,3 +564,68 @@ public class IgclResultCodeTests
     public void Result_codes_follow_the_public_igcl_header(uint code, string expected) =>
         Assert.Contains(expected, IgclValueRules.DescribeResult(code));
 }
+
+public class OverclockWatchdogOnceTests
+{
+    [Fact]
+    public async Task Concurrent_watchdog_calls_share_one_run()
+    {
+        string dir = Path.Combine(Path.GetTempPath(), "pcchecker-watchdog-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        try
+        {
+            var settings = new CountingSettings(dir);
+            settings.Current.Overclock.LastSessionClean = false;
+            string sessionPath = OverclockSessionStore.PathFor(dir);
+            Assert.True(OverclockSessionStore.Save(sessionPath, new OverclockSession { Clean = true }));
+
+            using var service = new WindowsOverclockService(settings, new DemoSensorService(), new PcChecker.Core.Sensors.DemoHardwareMonitorHost(),
+                new DemoHardwareInventoryService(), new PcChecker.Core.Fans.DemoFanControlService(), new PassThroughGuard(),
+                Microsoft.Extensions.Logging.Abstractions.NullLogger<WindowsOverclockService>.Instance);
+
+            var first = service.CheckUncleanShutdownAndRevertAsync(CancellationToken.None);
+            var second = service.CheckUncleanShutdownAndRevertAsync(CancellationToken.None);
+            var results = await Task.WhenAll(first, second);
+
+            Assert.Same(results[0], results[1]);
+            Assert.True(results[0].Success);
+            Assert.Equal(1, settings.Saves);
+            Assert.False(File.Exists(sessionPath));
+
+            var later = await service.CheckUncleanShutdownAndRevertAsync(CancellationToken.None);
+            Assert.Same(results[0], later);
+            Assert.Equal(1, settings.Saves);
+        }
+        finally
+        {
+            try { Directory.Delete(dir, true); } catch (IOException) { }
+        }
+    }
+
+    private sealed class CountingSettings(string directory) : ISettingsService
+    {
+        private int _saves;
+        public int Saves => Volatile.Read(ref _saves);
+        public AppSettings Current { get; } = new();
+        public string SettingsDirectory => directory;
+        public string SettingsFilePath => Path.Combine(directory, "settings.json");
+        public event EventHandler<AppSettings>? Changed;
+        public Task LoadAsync() => Task.CompletedTask;
+
+        public async Task SaveAsync()
+        {
+            Interlocked.Increment(ref _saves);
+            await Task.Delay(50);
+            Changed?.Invoke(this, Current);
+        }
+    }
+
+    private sealed class PassThroughGuard : PcChecker.Core.Restore.IChangeGuard
+    {
+        public Task<OperationResult<T>> RunGuardedAsync<T>(string description, PcChecker.Core.Restore.ChangeOptions options,
+            Func<CancellationToken, Task<OperationResult<T>>> change, IProgress<ProgressUpdate>? progress, CancellationToken cancellationToken) => change(cancellationToken);
+
+        public Task<OperationResult> RunGuardedAsync(string description, PcChecker.Core.Restore.ChangeOptions options,
+            Func<CancellationToken, Task<OperationResult>> change, IProgress<ProgressUpdate>? progress, CancellationToken cancellationToken) => change(cancellationToken);
+    }
+}

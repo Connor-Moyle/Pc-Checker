@@ -25,6 +25,8 @@ public sealed partial class WindowsOverclockService : IOverclockService, IDispos
     private readonly IChangeGuard _guard;
     private readonly ILogger<WindowsOverclockService> _logger;
     private readonly SemaphoreSlim _gate = new(1, 1);
+    private readonly object _watchdogLock = new();
+    private Task<OperationResult>? _watchdogRun;
 
     private IGpuTuner? _tuner;
     private CpuToolDetection _cpuTool = new(CpuControlMethod.None, null, "Not detected yet.");

@@ -88,8 +88,26 @@ public sealed partial class WindowsOverclockService
         return new StressTestResult(target, elapsed, maxCpu, maxGpu, throttle, stats.Errors, passed, summary, aborted);
     }
 
-    public async Task<OperationResult> CheckUncleanShutdownAndRevertAsync(CancellationToken cancellationToken)
+    /// <summary>
+    /// Runs the crash watchdog at most once per process: concurrent or repeated callers share the first run's result,
+    /// so an unclean session is detected, reset and reported exactly once. A cancelled run may be retried.
+    /// </summary>
+    public Task<OperationResult> CheckUncleanShutdownAndRevertAsync(CancellationToken cancellationToken)
     {
+        lock (_watchdogLock)
+        {
+            if (_watchdogRun is null || _watchdogRun.IsCanceled)
+            {
+                _watchdogRun = CheckUncleanShutdownAndRevertCoreAsync(cancellationToken);
+            }
+
+            return _watchdogRun;
+        }
+    }
+
+    private async Task<OperationResult> CheckUncleanShutdownAndRevertCoreAsync(CancellationToken cancellationToken)
+    {
+        await Task.Yield();
         var session = OverclockSessionStore.Load(SessionPath);
         if (session is null)
         {
