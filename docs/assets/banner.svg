@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="320" viewBox="0 0 1200 320" role="img" aria-labelledby="title desc">
+  <title id="title">PC Checker</title>
+  <desc id="desc">PC Checker: the all-in-one Windows 11 system controller. Diagnose, monitor, tune and fix your PC safely.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0B1020"/>
+      <stop offset="0.55" stop-color="#0F172A"/>
+      <stop offset="1" stop-color="#111827"/>
+    </linearGradient>
+    <linearGradient id="mark" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1E3A8A"/>
+      <stop offset="1" stop-color="#0F1F4D"/>
+    </linearGradient>
+    <linearGradient id="glow" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#67E8F9" stop-opacity="0"/>
+      <stop offset="0.5" stop-color="#67E8F9" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#67E8F9" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#67E8F9"/>
+      <stop offset="1" stop-color="#4CC2FF"/>
+    </linearGradient>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1F2A44" stroke-width="1"/>
+    </pattern>
+    <clipPath id="round">
+      <rect width="1200" height="320" rx="24"/>
+    </clipPath>
+  </defs>
+
+  <g clip-path="url(#round)">
+    <rect width="1200" height="320" fill="url(#bg)"/>
+    <rect width="1200" height="320" fill="url(#grid)" opacity="0.5"/>
+    <ellipse cx="220" cy="160" rx="360" ry="200" fill="#1E3A8A" opacity="0.22"/>
+    <ellipse cx="980" cy="60" rx="300" ry="160" fill="#0E7490" opacity="0.16"/>
+    <rect x="0" y="286" width="1200" height="2" fill="url(#glow)"/>
+
+    <!-- Faint pulse trace across the banner -->
+    <polyline points="600,160 700,160 740,120 780,200 820,140 860,180 900,160 1200,160"
+              fill="none" stroke="#67E8F9" stroke-width="2" stroke-opacity="0.18" stroke-linecap="round" stroke-linejoin="round"/>
+
+    <!-- Logo mark -->
+    <g transform="translate(72 52)">
+      <rect x="0" y="0" width="216" height="216" rx="46" fill="url(#mark)"/>
+      <rect x="0" y="0" width="216" height="216" rx="46" fill="none" stroke="#67E8F9" stroke-opacity="0.25" stroke-width="2"/>
+      <polyline points="26,112 62,112 80,72 102,150 124,92 138,112 180,112"
+                fill="none" stroke="#67E8F9" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="168" cy="166" r="26" fill="#22C55E"/>
+      <polyline points="155,166 164,175 181,157" fill="none" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+
+    <!-- Wordmark -->
+    <g font-family="Segoe UI, Inter, Helvetica, Arial, sans-serif">
+      <text x="336" y="138" font-size="84" font-weight="700" fill="#F8FAFC" letter-spacing="-2">PC Checker</text>
+      <text x="340" y="190" font-size="30" font-weight="400" fill="#A5F3FC">The all-in-one system controller for Windows 11</text>
+      <text x="340" y="236" font-size="20" font-weight="400" fill="#94A3B8">Inventory  ·  Health  ·  Temperatures  ·  Fans  ·  Lighting  ·  Storage  ·  Memory  ·  Latency  ·  Overclocking</text>
+    </g>
+
+    <!-- Accent underline -->
+    <rect x="340" y="152" width="140" height="5" rx="2.5" fill="url(#accent)"/>
+
+    <!-- Badges -->
+    <g font-family="Segoe UI, Inter, Helvetica, Arial, sans-serif" font-size="15" font-weight="600">
+      <rect x="340" y="258" width="118" height="30" rx="15" fill="#0F2A44" stroke="#1D4ED8" stroke-opacity="0.6"/>
+      <text x="399" y="278" text-anchor="middle" fill="#BFDBFE">Open source</text>
+      <rect x="470" y="258" width="130" height="30" rx="15" fill="#0F2A44" stroke="#1D4ED8" stroke-opacity="0.6"/>
+      <text x="535" y="278" text-anchor="middle" fill="#BFDBFE">No telemetry</text>
+      <rect x="612" y="258" width="176" height="30" rx="15" fill="#0F2A44" stroke="#1D4ED8" stroke-opacity="0.6"/>
+      <text x="700" y="278" text-anchor="middle" fill="#BFDBFE">Restore point first</text>
+      <rect x="800" y="258" width="196" height="30" rx="15" fill="#0F2A44" stroke="#1D4ED8" stroke-opacity="0.6"/>
+      <text x="898" y="278" text-anchor="middle" fill="#BFDBFE">NVIDIA · AMD · Intel</text>
+    </g>
+  </g>
+</svg>

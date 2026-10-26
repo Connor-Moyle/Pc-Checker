@@ -23,21 +23,28 @@ body:
     attributes:
       label: Area
       options:
-        - Hardware / sensors / power
-        - Health and diagnostics
+        - Dashboard and reports
+        - Temperatures, power and overlay
+        - Hardware inventory and health
+        - Storage (tests, benchmarks, repairs)
+        - Memory (tests, profiles, page file)
+        - Displays
+        - Audio
+        - Keyboard and mouse
+        - Fans
+        - Lighting (RGB)
         - Drivers
         - Software and cleanup
-        - Performance and optimization
-        - Windows features
+        - Startup and Windows features
+        - Performance, optimization and latency
         - Overclocking
-        - Overlay
-        - Logging and reports
         - Claude assistant
-        - Updates / installation
+        - Logging and settings
+        - Updates and installation
         - Other
   - type: checkboxes
     id: safety
     attributes:
       label: Safety
       options:
-        - label: This feature changes the system (deletes, installs, edits settings) and I understand it will need a confirmation and a restore point.
+        - label: This feature changes the system (deletes, installs, edits settings, controls hardware) and I understand it will need a confirmation dialog, a restore point and a journal entry.

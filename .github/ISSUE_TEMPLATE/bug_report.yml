@@ -4,7 +4,9 @@ labels: ["bug"]
 body:
   - type: markdown
     attributes:
-      value: Thanks for the report. The more detail you give, the faster it gets fixed.
+      value: |
+        Thanks for the report. The more detail you give, the faster it gets fixed.
+        For a sensor, fan, GPU, RGB or monitor that is not detected, please use the **Driver or hardware issue** form instead.
   - type: input
     id: version
     attributes:
@@ -22,27 +24,46 @@ body:
     validations:
       required: true
   - type: dropdown
+    id: install
+    attributes:
+      label: How did you install it?
+      options:
+        - Setup.exe installer
+        - Portable zip
+        - Built from source
+    validations:
+      required: true
+  - type: dropdown
     id: page
     attributes:
       label: Which page?
       options:
         - Dashboard
-        - Hardware
-        - Health
         - Temperatures
         - Power
+        - Overlay
+        - Hardware
+        - Health
+        - Storage
+        - Memory
+        - Displays
+        - Audio
+        - Keyboard & Mouse
+        - Fans
+        - Lighting
         - Drivers
         - Software
+        - Startup
+        - Windows Features
+        - Cleanup
         - Performance
         - Optimize
-        - Cleanup
-        - Windows Features
+        - Latency
         - Overclock
-        - Overlay
-        - Logs
         - Ask Claude
+        - Logs
         - Settings
-        - Startup / installation / updates
+        - App start / installation / updates
         - Other
     validations:
       required: true
@@ -64,10 +85,18 @@ body:
   - type: textarea
     id: logs
     attributes:
-      label: Logs
-      description: Logs page → Export, then drag the zip here. Serial numbers are removed when *Redact serial numbers* is on in Settings → Logging.
+      label: Diagnostics export
+      description: Logs page → **Export diagnostics**, then drag the zip here. Serial numbers are masked when *Redact serial numbers* is on in Settings → Logging.
   - type: textarea
     id: hardware
     attributes:
       label: Hardware (optional)
-      description: CPU, GPU, motherboard, laptop model. Helpful for sensor, driver and overclock issues.
+      description: CPU, GPU, motherboard, laptop model. Helpful for sensor, driver, fan and overclock issues.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I searched the existing issues and this is not a duplicate.
+          required: true
+        - label: I am on the latest release (the app can update itself from Settings → Updates).
