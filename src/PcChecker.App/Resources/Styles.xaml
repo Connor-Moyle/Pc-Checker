@@ -13,7 +13,6 @@
   <conv:EnumToStringConverter x:Key="EnumToString" />
   <conv:DoubleToPercentConverter x:Key="DoubleToPercent" />
   <conv:TemperatureToBrushConverter x:Key="TemperatureToBrush" />
-  <conv:AllTrueToVisibilityConverter x:Key="AllTrueToVisibility" />
 
   <!-- Accent brushes -->
   <SolidColorBrush x:Key="AccentCyanBrush" Color="#4CC2FF" />

@@ -145,7 +145,7 @@ public class SmartRulesTests
         var failed = Disk(attrs: [new SmartAttribute(5, "Reallocated", 10, 10, 36, 0, true)]);
         Assert.Equal(HealthStatus.Critical, SmartRules.Evaluate(failed).Status);
         var belowThreshold = Disk(attrs: [new SmartAttribute(1, "Raw Read Error", 20, 20, 44, 0, false)]);
-        Assert.Equal(HealthStatus.Critical, SmartRules.Evaluate(belowThreshold).Status);
+        Assert.Equal(HealthStatus.Warning, SmartRules.Evaluate(belowThreshold).Status);
     }
 
     [Fact]

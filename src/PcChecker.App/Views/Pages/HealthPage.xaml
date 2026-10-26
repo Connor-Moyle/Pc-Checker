@@ -3,6 +3,7 @@
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
       xmlns:controls="clr-namespace:PcChecker.App.Controls"
+      xmlns:conv="clr-namespace:PcChecker.App.Converters"
       xmlns:vm="clr-namespace:PcChecker.App.ViewModels"
       d:DataContext="{d:DesignInstance vm:HealthViewModel}"
       xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -11,6 +12,8 @@
       Title="Health"
       ScrollViewer.CanContentScroll="False">
   <Page.Resources>
+    <!-- Used only by this page (advanced-mode SMART grid), so it is registered here rather than in Styles.xaml. -->
+    <conv:AllTrueToVisibilityConverter x:Key="AllTrueToVisibility" />
     <!-- Small coloured pill showing a HealthStatus. -->
     <DataTemplate x:Key="StatusBadge">
       <Border CornerRadius="10" Padding="8,2" VerticalAlignment="Center"

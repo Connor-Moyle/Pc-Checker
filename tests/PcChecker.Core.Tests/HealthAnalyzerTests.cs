@@ -309,6 +309,20 @@ public class HealthItemRulesTests
     }
 
     [Fact]
+    public void Old_age_attribute_below_threshold_is_only_a_warning()
+    {
+        // Seagate 190 Airflow Temperature: threshold 45, current = 100 - temperature, so 55 C sits at 45.
+        var warm = new SmartAttribute(190, "Airflow Temperature", 45, 40, 45, 55, false);
+        var disk = new DiskHealth("ST2000DM008", "SN", null, 2_000_000_000_000, "HDD", HealthStatus.Unknown, "OK", null, 9_000, 0, 0, 0, null, null, [warm]);
+        var verdict = SmartRules.Evaluate(disk);
+        Assert.Equal(HealthStatus.Warning, verdict.Status);
+        Assert.Contains(verdict.Reasons, r => r.Contains("190"));
+
+        var failed = disk with { Attributes = [warm with { Failed = true }] };
+        Assert.Equal(HealthStatus.Critical, SmartRules.Evaluate(failed).Status);
+    }
+
+    [Fact]
     public void Disk_item_wording_follows_the_verdict()
     {
         var disk = new DiskHealth("Model X", "SN", null, 1_000_000_000_000, "HDD", HealthStatus.Warning, "OK", 36, 15_000, 8, 0, 0, null, null, []);

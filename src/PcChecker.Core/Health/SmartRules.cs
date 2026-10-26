@@ -17,7 +17,10 @@ public static class SmartRules
 
     public sealed record Verdict(HealthStatus Status, string Summary, IReadOnlyList<string> Reasons);
 
-    /// <summary>Evaluates a disk: any failed attribute or reallocated/pending/uncorrectable sectors degrade the verdict.</summary>
+    /// <summary>
+    /// Evaluates a disk: a failed (pre-fail) attribute or reallocated/pending/uncorrectable sectors degrade the verdict;
+    /// an old-age attribute at or below its threshold only warns.
+    /// </summary>
     public static Verdict Evaluate(DiskHealth disk, double diskWarnC = 55, double diskCritC = 65)
     {
         ArgumentNullException.ThrowIfNull(disk);
@@ -51,7 +54,10 @@ public static class SmartRules
             }
             else if (attr.Threshold is { } t && attr.Current is { } c && t > 0 && c <= t)
             {
-                Raise(HealthStatus.Critical, $"SMART attribute {attr.Id} ({attr.Name}) is at or below its failure threshold.");
+                // Without the pre-fail flag (SmartBlobParser only sets Failed for pre-fail attributes) a threshold
+                // crossing is advisory: old-age attributes such as Seagate's Airflow Temperature (190, threshold 45)
+                // dip below their threshold on a merely warm drive, so this must not read as imminent failure.
+                Raise(HealthStatus.Warning, $"SMART attribute {attr.Id} ({attr.Name}) is at or below its threshold.");
             }
         }
 

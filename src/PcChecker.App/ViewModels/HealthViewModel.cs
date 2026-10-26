@@ -76,6 +76,7 @@ public sealed partial class HealthViewModel : ViewModelBase
         _assistant = assistant;
         _notifications = notifications;
         _logger = logger;
+        settings.Changed += OnAssistantSettingsChanged;
         try
         {
             var windows = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
@@ -325,6 +326,17 @@ public sealed partial class HealthViewModel : ViewModelBase
     [RelayCommand]
     private void FilterBySource(SourceCountView? source) => ErrorFilter = source is null || ErrorFilter == source.Source ? null : source.Source;
 
+    /// <summary>Re-evaluates the Explain buttons when the API key is added or removed on the Ask Claude page.</summary>
+    private void OnAssistantSettingsChanged(object? sender, AppSettings settings) =>
+        DispatcherHelper.PostToUi(RaiseAssistantFlags);
+
+    private void RaiseAssistantFlags()
+    {
+        OnPropertyChanged(nameof(IsAssistantConfigured));
+        OnPropertyChanged(nameof(ExplainButtonText));
+        OnPropertyChanged(nameof(ExplainButtonToolTip));
+    }
+
     private void RaiseSectionFlags()
     {
         foreach (var name in new[]
@@ -333,12 +345,13 @@ public sealed partial class HealthViewModel : ViewModelBase
                      nameof(HasDeviceProblems), nameof(HasSystemErrors), nameof(HasFilteredErrors), nameof(HasReliability),
                      nameof(HasCrashDumps), nameof(HasWarnings), nameof(SystemErrorCount), nameof(ReliabilityFailureCount),
                      nameof(IssuesHeader), nameof(DrivesHeader), nameof(DeviceProblemsHeader), nameof(SystemErrorsHeader),
-                     nameof(ReliabilityHeader), nameof(CrashDumpsHeader), nameof(IsAssistantConfigured),
-                     nameof(ExplainButtonText), nameof(ExplainButtonToolTip),
+                     nameof(ReliabilityHeader), nameof(CrashDumpsHeader),
                  })
         {
             OnPropertyChanged(name);
         }
+
+        RaiseAssistantFlags();
     }
 
     private static string BuildSummary(HealthReport report)

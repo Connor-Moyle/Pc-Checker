@@ -40,10 +40,11 @@ public sealed class DemoHealthService : IHealthService
         // Drives: the NVMe is pristine, the HDD has remapped a few sectors.
         var nvmeAttributes = new List<SmartAttribute>
         {
-            new(5, "Percentage Used", 97, 97, 10, 3, false),
             new(9, "Power-On Hours", 100, 100, 0, 4120, false),
             new(12, "Power Cycle Count", 100, 100, 0, 611, false),
+            new(177, "Wear Leveling Count", 97, 97, 0, 42, false),
             new(194, "Temperature", 59, 52, 0, 41, false),
+            new(199, "UltraDMA CRC Error Count", 100, 100, 0, 0, false),
             new(241, "Total LBAs Written", 100, 100, 0, 38_654_705_664, false),
         };
         var hddAttributes = new List<SmartAttribute>
