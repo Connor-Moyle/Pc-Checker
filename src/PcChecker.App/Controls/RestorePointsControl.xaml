@@ -1,0 +1,119 @@
+<UserControl x:Class="PcChecker.App.Controls.RestorePointsControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+             xmlns:vm="clr-namespace:PcChecker.App.ViewModels"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             d:DataContext="{d:DesignInstance vm:RestorePointsViewModel}"
+             mc:Ignorable="d">
+  <Grid>
+    <StackPanel>
+      <!-- Header row -->
+      <Grid Margin="0,0,0,8">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+        <StackPanel Grid.Column="0" VerticalAlignment="Center">
+          <StackPanel Orientation="Horizontal">
+            <ui:SymbolIcon Symbol="History24" FontSize="18" Margin="0,0,8,0" VerticalAlignment="Center" />
+            <ui:TextBlock FontTypography="BodyStrong" Text="Restore points" VerticalAlignment="Center" />
+          </StackPanel>
+          <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,2,0,0"
+                        Text="A restore point is a snapshot of Windows system files and settings. If a change causes trouble, System Restore can take the PC back to it. Your documents are not affected." />
+        </StackPanel>
+        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top" Margin="12,0,0,0">
+          <ui:Button Content="Refresh" Icon="{ui:SymbolIcon ArrowSync24}" Command="{Binding RefreshPointsCommand}" Margin="0,0,8,0"
+                     ToolTip="Read the list of restore points again." />
+          <ui:Button Content="Open System Restore" Icon="{ui:SymbolIcon ArrowUndo24}" Command="{Binding OpenSystemRestoreCommand}"
+                     ToolTip="Opens the Windows System Restore wizard (rstrui.exe) to go back to a restore point." />
+        </StackPanel>
+      </Grid>
+
+      <ui:InfoBar Severity="Error"
+                  Title="Something went wrong"
+                  Message="{Binding ErrorMessage}"
+                  IsOpen="{Binding HasError, Mode=OneWay}"
+                  IsClosable="True"
+                  Margin="0,0,0,8" />
+
+      <!-- Protection status -->
+      <ui:InfoBar Severity="Warning"
+                  Title="System Protection is off"
+                  Message="{Binding ProtectionText}"
+                  IsOpen="{Binding IsProtectionOff, Mode=OneWay}"
+                  IsClosable="False"
+                  Margin="0,0,0,8">
+        <StackPanel Orientation="Horizontal" Margin="0,4,0,4">
+          <ui:Button Content="Turn on System Protection" Appearance="Primary" Icon="{ui:SymbolIcon ShieldCheckmark24}"
+                     Command="{Binding EnableProtectionCommand}" Margin="0,0,8,0" />
+          <ui:Button Content="Open protection settings" Command="{Binding OpenSystemProtectionSettingsCommand}"
+                     ToolTip="Opens the classic System Protection dialog where you can choose drives and disk space." />
+        </StackPanel>
+      </ui:InfoBar>
+
+      <ui:InfoBar Severity="Success"
+                  Title="System Protection is on"
+                  Message="{Binding ProtectionText}"
+                  IsOpen="{Binding IsProtectionEnabled, Mode=OneWay}"
+                  IsClosable="False"
+                  Margin="0,0,0,8" />
+
+      <ui:InfoBar Severity="Success"
+                  Title="Done"
+                  Message="{Binding StatusMessage}"
+                  IsOpen="{Binding HasStatus, Mode=OneWay}"
+                  IsClosable="True"
+                  Margin="0,0,0,8" />
+
+      <!-- Create -->
+      <Grid Margin="0,0,0,8">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+        <ui:TextBox Grid.Column="0"
+                    Text="{Binding NewDescription, UpdateSourceTrigger=PropertyChanged}"
+                    PlaceholderText="Describe this restore point (e.g. before installing a new driver)"
+                    Icon="{ui:SymbolIcon Edit24}"
+                    ToolTip="The description is shown in System Restore so you can recognise the point later." />
+        <ui:Button Grid.Column="1" Content="Create restore point now" Appearance="Primary" Icon="{ui:SymbolIcon Add24}"
+                   Command="{Binding CreateRestorePointCommand}" Margin="8,0,0,0" />
+      </Grid>
+
+      <!-- List -->
+      <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding LatestText}" Margin="0,0,0,6" />
+      <Border BorderThickness="1" CornerRadius="6" BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
+              Visibility="{Binding HasPoints, Converter={StaticResource BoolToVisibility}}">
+        <ui:ListView ItemsSource="{Binding Points}" MaxHeight="260" SelectionMode="Single" BorderThickness="0"
+                     ScrollViewer.VerticalScrollBarVisibility="Auto">
+          <ui:ListView.ItemTemplate>
+            <DataTemplate>
+              <Grid Margin="4,4">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="150" />
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <ui:TextBlock Grid.Column="0" Text="{Binding CreationTime.LocalDateTime, StringFormat='{}{0:g}'}" VerticalAlignment="Center" />
+                <ui:TextBlock Grid.Column="1" Text="{Binding Description}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" Margin="8,0" />
+                <Border Grid.Column="2" CornerRadius="4" Padding="8,2" Background="{DynamicResource ControlFillColorSecondaryBrush}" VerticalAlignment="Center">
+                  <ui:TextBlock FontSize="11" Text="{Binding Type}" />
+                </Border>
+              </Grid>
+            </DataTemplate>
+          </ui:ListView.ItemTemplate>
+        </ui:ListView>
+      </Border>
+    </StackPanel>
+
+    <Grid Background="{DynamicResource ApplicationBackgroundBrush}" Opacity="0.75"
+          Visibility="{Binding IsBusy, Converter={StaticResource BoolToVisibility}}">
+      <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+        <ui:ProgressRing IsIndeterminate="True" Width="24" Height="24" Margin="0,0,10,0" />
+        <ui:TextBlock Text="{Binding BusyText}" VerticalAlignment="Center" />
+      </StackPanel>
+    </Grid>
+  </Grid>
+</UserControl>

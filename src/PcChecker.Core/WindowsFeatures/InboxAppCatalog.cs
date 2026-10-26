@@ -61,7 +61,51 @@ public static class InboxAppCatalog
         new("Microsoft.HEIFImageExtension", "HEIF Image Extension", RiskLevel.Advanced, "Needed to open HEIC photos from phones.", true),
         new("Microsoft.VP9VideoExtensions", "VP9 Video Extensions", RiskLevel.Advanced, "Needed to play VP9 video.", true),
         new("Microsoft.WebpImageExtension", "WebP Image Extension", RiskLevel.Advanced, "Needed to open WebP images.", true),
+        new("Microsoft.AV1VideoExtension", "AV1 Video Extension", RiskLevel.Advanced, "Needed to play AV1 video (YouTube, Netflix).", true),
+        new("Microsoft.HEVCVideoExtension", "HEVC Video Extensions", RiskLevel.Advanced, "Needed to play HEVC/H.265 video from phones and cameras.", true),
+        new("Microsoft.RawImageExtension", "Raw Image Extension", RiskLevel.Advanced, "Needed to open camera RAW photos in Photos and Explorer.", true),
+        new("Microsoft.Copilot", "Copilot", RiskLevel.Safe, "Safe to remove if you do not use the Copilot assistant.", false),
+        new("Microsoft.Windows.Ai.Copilot.Provider", "Copilot provider", RiskLevel.Safe, "Safe to remove together with Copilot.", false),
+        new("Microsoft.BingSearch", "Bing Search", RiskLevel.Safe, "Safe to remove; Start menu web search becomes local only.", false),
+        new("Microsoft.WindowsCommunicationsApps", "Mail and Calendar (classic)", RiskLevel.Safe, "Safe to remove; the new Outlook replaces it.", false),
+        new("Microsoft.Windows.CrossDevice", "Cross Device Experience Host", RiskLevel.Safe, "Safe to remove unless you use Phone Link features such as mobile hotspot sharing.", false),
+        new("Microsoft.StartExperiencesApp", "Start menu experiences", RiskLevel.Advanced, "Do not remove. Part of the Start menu.", true),
+        new("Microsoft.Windows.ShellExperienceHost", "Shell experience host", RiskLevel.Advanced, "Do not remove. Draws the taskbar and Start menu.", true),
+        new("MicrosoftWindows.Client.WebExperience", "Widgets", RiskLevel.Safe, "Safe to remove; this is the Widgets board on the taskbar.", false),
+        new("Microsoft.QuickAssist", "Quick Assist", RiskLevel.Safe, "Safe to remove if nobody helps you remotely with it.", false),
+        new("Microsoft.WindowsAppRuntime", "Windows App Runtime", RiskLevel.Advanced, "Do not remove. Many modern apps need it.", true),
+        new("Microsoft.UI.Xaml", "UI library (Microsoft.UI.Xaml)", RiskLevel.Advanced, "Do not remove. Shared library used by many apps.", true),
+        new("Microsoft.VCLibs", "Visual C++ runtime (Store)", RiskLevel.Advanced, "Do not remove. Shared library used by many apps.", true),
+        new("Microsoft.NET.Native", ".NET Native runtime", RiskLevel.Advanced, "Do not remove. Shared library used by many apps.", true),
     ];
+
+    /// <summary>Packages that must never be offered for removal, even in advanced mode.</summary>
+    public static IReadOnlySet<string> NeverRemove { get; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    {
+        "Microsoft.WindowsStore",
+        "Microsoft.DesktopAppInstaller",
+        "Microsoft.SecHealthUI",
+        "Microsoft.StartExperiencesApp",
+        "Microsoft.Windows.ShellExperienceHost",
+        "Microsoft.WindowsAppRuntime",
+        "Microsoft.UI.Xaml",
+        "Microsoft.VCLibs",
+        "Microsoft.NET.Native",
+    };
+
+    /// <summary>
+    /// Whether the app can be offered for removal: Windows must not mark it NonRemovable and it must not be on the
+    /// <see cref="NeverRemove"/> list.
+    /// </summary>
+    public static bool IsRemovable(string? packageName, bool nonRemovable)
+    {
+        if (nonRemovable || string.IsNullOrWhiteSpace(packageName))
+        {
+            return false;
+        }
+
+        return !NeverRemove.Any(n => packageName.StartsWith(n, StringComparison.OrdinalIgnoreCase));
+    }
 
     /// <summary>Finds the catalog entry for a package full name or family name.</summary>
     public static Entry? Find(string? packageName)

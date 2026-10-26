@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 using PcChecker.Core.Common;
 using PcChecker.Core.Logging;
@@ -5,9 +6,16 @@ using PcChecker.Core.Settings;
 
 namespace PcChecker.Core.Restore;
 
-/// <summary>Default <see cref="IChangeGuard"/>: restore point (per settings) → change → journal + log. Never throws for a failed change.</summary>
+/// <summary>
+/// Default <see cref="IChangeGuard"/>: restore point (per settings) → change → journal + log. Never throws for a failed
+/// change. When the "before" restore point fails the change still runs (with a note in the result) unless the options
+/// ask for <see cref="RestorePointFailedBehavior.Abort"/>.
+/// </summary>
 public sealed class ChangeGuard : IChangeGuard
 {
+    public const string RestorePointHint =
+        "Turn on System Protection (Settings → Restore points) or switch off \"Create a restore point before making changes\" to continue.";
+
     private readonly IRestorePointService _restorePoints;
     private readonly IActionJournal _journal;
     private readonly ISettingsService _settings;
@@ -24,6 +32,7 @@ public sealed class ChangeGuard : IChangeGuard
     public async Task<OperationResult> RunGuardedAsync(string description, ChangeOptions options,
         Func<CancellationToken, Task<OperationResult>> change, IProgress<ProgressUpdate>? progress, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(change);
         var typed = await RunGuardedAsync<object?>(description, options,
             async ct => (await change(ct).ConfigureAwait(false)).WithValue<object?>(null), progress, cancellationToken).ConfigureAwait(false);
         return typed.AsUntyped();
@@ -40,12 +49,22 @@ public sealed class ChangeGuard : IChangeGuard
         bool before = options.CreateBefore ?? policy.CreateBeforeChanges;
         bool after = options.CreateAfter ?? policy.CreateAfterChanges;
         long? sequence = null;
+        string? restorePointWarning = null;
+        var stopwatch = Stopwatch.StartNew();
 
         _logger.LogInformation("Starting change: {Description} ({Module} → {Target})", description, options.Module, options.Target);
 
         if (before)
         {
-            sequence = await TryCreateRestorePointAsync($"PC Checker: before {description}", progress, cancellationToken).ConfigureAwait(false);
+            (sequence, restorePointWarning) = await TryCreateRestorePointAsync($"PC Checker: before {description}", progress, cancellationToken).ConfigureAwait(false);
+            if (sequence is null && options.OnRestorePointFailed == RestorePointFailedBehavior.Abort)
+            {
+                var reason = restorePointWarning ?? "the restore point could not be created";
+                var message = $"{description} was not started because {reason}. {RestorePointHint}";
+                _logger.LogWarning("Change aborted: {Description} — {Reason}", description, reason);
+                await RecordAsync(options, description, "Aborted: " + reason, null).ConfigureAwait(false);
+                return OperationResult<T>.Fail(message);
+            }
         }
 
         OperationResult<T> result;
@@ -57,35 +76,43 @@ public sealed class ChangeGuard : IChangeGuard
         catch (OperationCanceledException)
         {
             await RecordAsync(options, description, "Cancelled", sequence).ConfigureAwait(false);
-            _logger.LogWarning("Change cancelled: {Description}", description);
+            _logger.LogWarning("Change cancelled after {Elapsed:N1} s: {Description}", stopwatch.Elapsed.TotalSeconds, description);
             throw;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Change failed with an exception: {Description}", description);
+            _logger.LogError(ex, "Change failed with an exception after {Elapsed:N1} s: {Description}", stopwatch.Elapsed.TotalSeconds, description);
             await RecordAsync(options, description, "Failed: " + ex.Message, sequence).ConfigureAwait(false);
             return OperationResult<T>.Fail($"{description} failed: {ex.Message}", ex);
         }
 
         if (result.Success)
         {
-            _logger.LogInformation("Change succeeded: {Description} — {Message}", description, result.Message);
+            _logger.LogInformation("Change succeeded in {Elapsed:N1} s: {Description} — {Message}", stopwatch.Elapsed.TotalSeconds, description, result.Message);
         }
         else
         {
-            _logger.LogWarning("Change did not succeed: {Description} — {Message}", description, result.Message);
+            _logger.LogWarning("Change did not succeed after {Elapsed:N1} s: {Description} — {Message}", stopwatch.Elapsed.TotalSeconds, description, result.Message);
         }
 
         if (after && result.Success)
         {
-            await TryCreateRestorePointAsync($"PC Checker: after {description}", progress, cancellationToken).ConfigureAwait(false);
+            var (_, afterWarning) = await TryCreateRestorePointAsync($"PC Checker: after {description}", progress, cancellationToken).ConfigureAwait(false);
+            restorePointWarning ??= afterWarning;
         }
 
-        await RecordAsync(options, description, result.Success ? "Succeeded: " + result.Message : "Failed: " + result.Message, sequence).ConfigureAwait(false);
+        if (restorePointWarning is not null)
+        {
+            result = result with { Message = $"{result.Message} (Note: no restore point was created — {restorePointWarning}.)" };
+        }
+
+        var outcome = (result.Success ? "Succeeded: " : "Failed: ") + result.Message;
+        await RecordAsync(options, description, outcome, sequence).ConfigureAwait(false);
         return result;
     }
 
-    private async Task<long?> TryCreateRestorePointAsync(string description, IProgress<ProgressUpdate>? progress, CancellationToken cancellationToken)
+    /// <summary>Returns the new sequence number, or null plus a short reason when no point was created.</summary>
+    private async Task<(long? Sequence, string? Warning)> TryCreateRestorePointAsync(string description, IProgress<ProgressUpdate>? progress, CancellationToken cancellationToken)
     {
         try
         {
@@ -94,10 +121,11 @@ public sealed class ChangeGuard : IChangeGuard
             if (rp.Success && rp.Value is not null)
             {
                 _logger.LogInformation("Restore point {Sequence} created: {Description}", rp.Value.SequenceNumber, description);
-                return rp.Value.SequenceNumber;
+                return (rp.Value.SequenceNumber, null);
             }
 
             _logger.LogWarning("Restore point was not created: {Message}", rp.Message);
+            return (null, rp.Message.TrimEnd('.'));
         }
         catch (OperationCanceledException)
         {
@@ -106,9 +134,8 @@ public sealed class ChangeGuard : IChangeGuard
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Restore point creation threw; continuing without one.");
+            return (null, ex.Message.TrimEnd('.'));
         }
-
-        return null;
     }
 
     private async Task RecordAsync(ChangeOptions options, string description, string outcome, long? sequence)
