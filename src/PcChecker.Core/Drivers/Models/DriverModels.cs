@@ -24,10 +24,17 @@ public sealed record DriverInfo(
     int ProblemCode,
     string? Location)
 {
+    /// <summary>
+    /// False when Windows still remembers the device but it is not connected right now (an unplugged USB stick,
+    /// phone or monitor). Device Manager hides these by default; so does the Drivers page.
+    /// </summary>
+    public bool IsPresent { get; init; } = true;
+
     /// <summary>Days since the driver's release date, or null when unknown.</summary>
     public int? AgeDays => Date.HasValue ? Math.Max(0, (int)(DateTime.Today - Date.Value.Date).TotalDays) : null;
 
-    public bool HasProblem => ProblemCode != 0;
+    /// <summary>A Device Manager error code on a connected device. Disconnected devices are never counted as problems.</summary>
+    public bool HasProblem => IsPresent && ProblemCode != 0;
 }
 
 public sealed record DriverUpdateInfo(

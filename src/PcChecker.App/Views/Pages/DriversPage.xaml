@@ -205,6 +205,9 @@
               <CheckBox Content="Problems only" IsChecked="{Binding ProblemsOnly}" Margin="0,0,12,0" ToolTip="Only devices with a Device Manager error code." />
               <CheckBox Content="Older than 3 years" IsChecked="{Binding OldOnly}" Margin="0,0,12,0" />
               <CheckBox Content="Unsigned" IsChecked="{Binding UnsignedOnly}" Margin="0,0,12,0" ToolTip="Drivers without a valid digital signature." />
+              <CheckBox Content="{Binding DisconnectedText}" IsChecked="{Binding ShowDisconnected}" Margin="0,0,12,0"
+                        Visibility="{Binding HasDisconnected, Converter={StaticResource BoolToVisibility}}"
+                        ToolTip="Devices Windows remembers but that are not plugged in right now, such as USB sticks, phones and old monitors. Device Manager hides these too; they are not counted as problems." />
               <ui:Button Content="Clear filters" Appearance="Transparent" Command="{Binding ClearFiltersCommand}" Padding="8,4" />
             </StackPanel>
             <ui:TextBlock Grid.Column="2" Style="{StaticResource Muted}" VerticalAlignment="Center" Text="{Binding LastScanText}" />
@@ -286,17 +289,23 @@
                   <ui:TextBlock FontTypography="BodyStrong" Text="Driver store (third-party packages)" />
                   <ui:TextBlock Style="{StaticResource Muted}" Text="The oemN.inf packages Windows has staged, as listed by pnputil /enum-drivers. These are what 'Back up all drivers' exports." TextWrapping="Wrap" />
                 </StackPanel>
-                <ui:Button Grid.Column="1" Content="Refresh" Icon="{ui:SymbolIcon ArrowSync24}" Command="{Binding LoadDriverStoreCommand}" Margin="12,0,0,0" VerticalAlignment="Center" />
+                <ui:Button Grid.Column="1" Content="Refresh" Icon="{ui:SymbolIcon ArrowSync24}" Command="{Binding LoadDriverStoreCommand}" Margin="12,0,0,0" VerticalAlignment="Center"
+                           ToolTip="Runs pnputil /enum-drivers and lists every third-party package in the driver store." />
               </Grid>
             </ui:CardExpander.Header>
-            <ui:DataGrid ItemsSource="{Binding DriverStore}"
+            <Grid>
+              <controls:EmptyState Icon="Archive24" Title="Driver store not read yet"
+                                   Message="Press Refresh to list the third-party driver packages Windows has staged. This takes a few seconds."
+                                   Visibility="{Binding DriverStoreLoaded, Converter={StaticResource InverseBoolToVisibility}}" />
+              <ui:DataGrid ItemsSource="{Binding DriverStore}"
                          AutoGenerateColumns="False"
                          IsReadOnly="True"
                          CanUserAddRows="False"
                          SelectionMode="Single"
                          GridLinesVisibility="Horizontal"
                          HeadersVisibility="Column"
-                         MaxHeight="260">
+                         MaxHeight="260"
+                         Visibility="{Binding DriverStoreLoaded, Converter={StaticResource BoolToVisibility}}">
               <ui:DataGrid.Columns>
                 <DataGridTextColumn Header="Published" Binding="{Binding PublishedName}" Width="100" />
                 <DataGridTextColumn Header="Original name" Binding="{Binding OriginalName}" Width="180" />
@@ -307,7 +316,8 @@
                 <DataGridTextColumn Header="Age" Binding="{Binding AgeText}" Width="64" />
                 <DataGridTextColumn Header="Signer" Binding="{Binding SignerText}" Width="220" />
               </ui:DataGrid.Columns>
-            </ui:DataGrid>
+              </ui:DataGrid>
+            </Grid>
           </ui:CardExpander>
         </Grid>
       </TabItem>

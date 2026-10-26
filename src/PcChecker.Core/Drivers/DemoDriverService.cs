@@ -7,9 +7,10 @@ namespace PcChecker.Core.Drivers;
 /// Demo drivers for the sample gaming desktop: a realistic mix of inbox and third-party drivers, one device with a
 /// problem, a couple of old drivers, two optional updates from Windows Update and a populated driver store. Pure .NET.
 /// </summary>
-public sealed class DemoDriverService : IDriverService, IDriverStoreProvider
+public sealed class DemoDriverService : IDriverService, IDriverStoreProvider, IDriverUpdateStateProvider
 {
     private static readonly DateTime Today = DateTime.Today;
+    private readonly HashSet<string> _downloaded = new(StringComparer.OrdinalIgnoreCase);
 
     public async Task<DriverScanResult> ScanInstalledAsync(IProgress<ProgressUpdate>? progress, CancellationToken cancellationToken)
     {
@@ -59,8 +60,26 @@ public sealed class DemoDriverService : IDriverService, IDriverStoreProvider
             }
         }
 
+        lock (_downloaded)
+        {
+            foreach (var u in updates)
+            {
+                _downloaded.Add(u.Id);
+            }
+        }
+
         progress?.Report(new ProgressUpdate("Download finished", 100));
         return OperationResult.Ok($"{updates.Count} update(s) downloaded (demo).");
+    }
+
+    public Task<IReadOnlySet<string>> GetDownloadedUpdateIdsAsync(IEnumerable<string> updateIds, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(updateIds);
+        lock (_downloaded)
+        {
+            IReadOnlySet<string> result = updateIds.Where(_downloaded.Contains).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            return Task.FromResult(result);
+        }
     }
 
     public async Task<DriverInstallResult> InstallAsync(IReadOnlyList<DriverUpdateInfo> updates, IProgress<ProgressUpdate>? progress, CancellationToken cancellationToken)
@@ -146,7 +165,8 @@ public sealed class DemoDriverService : IDriverService, IDriverStoreProvider
         Inbox("Trusted Platform Module 2.0", @"ACPI\MSFT0101\1", "SecurityDevices", "10.0.26100.1", new DateTime(2024, 6, 1), "tpm.inf", null),
         Inbox("UEFI Firmware", @"UEFI\RES_{ASUS-2801}\0", "Firmware", "2801", new DateTime(2025, 1, 20), "uefi.inf", null),
         new("ASUS ACPI device", @"ACPI\ASUS2021\2&DABA3FF&1", "Unknown", null, null, null, null, false, null, false, [@"ACPI\ASUS2021"], "Error", 28, null),
-        new("SanDisk Ultra USB 3.0 (not connected)", @"USBSTOR\DISK&VEN_SANDISK&PROD_ULTRA", "DiskDrive", "Microsoft", "10.0.26100.1", new DateTime(2024, 6, 1), "disk.inf", true, "Microsoft Windows", true, [@"USBSTOR\DISK&VEN_SANDISK&PROD_ULTRA"], "Unknown", 45, "Port_#0002.Hub_#0002"),
+        new("SanDisk Ultra USB 3.0", @"USBSTOR\DISK&VEN_SANDISK&PROD_ULTRA", "DiskDrive", "Microsoft", "10.0.26100.1", new DateTime(2024, 6, 1), "disk.inf", true, "Microsoft Windows", true, [@"USBSTOR\DISK&VEN_SANDISK&PROD_ULTRA"], "Unknown", 0, "Port_#0002.Hub_#0002") { IsPresent = false },
+        new("Apple iPhone", @"USB\VID_05AC&PID_12A8", "WPD", "Microsoft", "10.0.26100.1", new DateTime(2024, 6, 1), "wpdmtp.inf", true, "Microsoft Windows", true, [@"USB\VID_05AC&PID_12A8"], "Unknown", 0, "Port_#0001.Hub_#0002") { IsPresent = false },
     ];
 
     /// <summary>The sample driver store contents.</summary>

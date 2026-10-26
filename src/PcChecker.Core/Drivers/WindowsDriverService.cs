@@ -11,7 +11,7 @@ namespace PcChecker.Core.Drivers;
 /// for the installed list, the Windows Update Agent for the driver catalog, and <c>pnputil</c> for backup, install
 /// and rollback. Every system change goes through <see cref="IChangeGuard"/>.
 /// </summary>
-public sealed class WindowsDriverService : IDriverService, IDriverStoreProvider
+public sealed class WindowsDriverService : IDriverService, IDriverStoreProvider, IDriverUpdateStateProvider
 {
     private const string ModuleName = "Drivers";
 
@@ -153,6 +153,12 @@ public sealed class WindowsDriverService : IDriverService, IDriverStoreProvider
     {
         ArgumentNullException.ThrowIfNull(updates);
         return _agent.DownloadAsync(updates, progress, cancellationToken);
+    }
+
+    public Task<IReadOnlySet<string>> GetDownloadedUpdateIdsAsync(IEnumerable<string> updateIds, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(updateIds);
+        return _agent.GetDownloadedIdsAsync(updateIds, cancellationToken);
     }
 
     public async Task<DriverInstallResult> InstallAsync(IReadOnlyList<DriverUpdateInfo> updates, IProgress<ProgressUpdate>? progress, CancellationToken cancellationToken)

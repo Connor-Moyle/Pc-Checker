@@ -23,7 +23,7 @@ public static class DriverRules
         ArgumentNullException.ThrowIfNull(driver);
         var flags = new List<Flag>();
 
-        if (driver.ProblemCode != 0)
+        if (driver.HasProblem)
         {
             var d = DeviceProblemCodes.Describe(driver.ProblemCode);
             flags.Add(new Flag(driver.ProblemCode is 22 or 45 ? Severity.Low : Severity.High,

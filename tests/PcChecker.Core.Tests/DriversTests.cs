@@ -195,11 +195,23 @@ public class DriverInfoBuilderTests
     }
 
     [Fact]
-    public void Disconnected_devices_are_reported_as_code_45()
+    public void Disconnected_devices_are_marked_not_present_and_are_not_problems()
     {
         var bag = Bag(("DeviceName", "USB stick"), ("DeviceID", @"USBSTOR\X"), ("DeviceClass", "DiskDrive"));
-        Assert.Equal(45, DriverInfoBuilder.FromProperties(bag, new DriverInfoBuilder.EntityFacts(0, null, false)).ProblemCode);
-        Assert.Equal(0, DriverInfoBuilder.FromProperties(bag, null).ProblemCode);
+        var phantom = DriverInfoBuilder.FromProperties(bag, new DriverInfoBuilder.EntityFacts(0, null, false));
+        Assert.False(phantom.IsPresent);
+        Assert.Equal(0, phantom.ProblemCode);
+        Assert.False(phantom.HasProblem);
+
+        // A stale problem code on a device that is not connected is not a live problem either.
+        var stale = DriverInfoBuilder.FromProperties(bag, new DriverInfoBuilder.EntityFacts(45, "Unknown", false));
+        Assert.False(stale.HasProblem);
+        Assert.DoesNotContain(DriverRules.Evaluate(stale), f => f.Title.StartsWith("Device problem", StringComparison.Ordinal));
+
+        // Unknown presence (no Win32_PnPEntity row) counts as connected.
+        var unknown = DriverInfoBuilder.FromProperties(bag, null);
+        Assert.True(unknown.IsPresent);
+        Assert.Equal(0, unknown.ProblemCode);
     }
 
     [Fact]
@@ -251,29 +263,39 @@ public class DriverInfoBuilderTests
     }
 
     [Fact]
-    public void Sort_puts_problem_devices_first_then_class_and_name()
+    public void Sort_puts_problem_devices_first_disconnected_last_then_class_and_name()
     {
         var a = new DriverInfo("Zeta", "1", "Net", null, null, null, null, true, null, false, [], null, 0, null);
         var b = new DriverInfo("Alpha", "2", "Net", null, null, null, null, true, null, false, [], null, 0, null);
         var c = new DriverInfo("Broken", "3", "USB", null, null, null, null, true, null, false, [], null, 10, null);
         var d = new DriverInfo("Display", "4", "Display", null, null, null, null, true, null, false, [], null, 0, null);
-        var sorted = DriverInfoBuilder.Sort([a, b, c, d]);
-        Assert.Equal(["Broken", "Display", "Alpha", "Zeta"], sorted.Select(x => x.DeviceName).ToArray());
+        var e = new DriverInfo("Absent", "5", "DiskDrive", null, null, null, null, true, null, false, [], null, 0, null) { IsPresent = false };
+        var sorted = DriverInfoBuilder.Sort([e, a, b, c, d]);
+        Assert.Equal(["Broken", "Display", "Alpha", "Zeta", "Absent"], sorted.Select(x => x.DeviceName).ToArray());
     }
 
     [Fact]
-    public void Summary_counts_match_the_rules()
+    public void Summary_counts_match_the_rules_and_skip_disconnected_devices_by_default()
     {
-        var summary = DriverInfoBuilder.Summarize(DemoDriverService.SampleDrivers());
         var all = DemoDriverService.SampleDrivers();
-        Assert.Equal(all.Count, summary.Total);
-        Assert.Equal(all.Count(d => !d.IsInbox), summary.ThirdParty);
-        Assert.Equal(all.Count(d => d.HasProblem), summary.WithProblems);
-        Assert.Equal(all.Count(DriverRules.IsOld), summary.Old);
-        Assert.Equal(all.Count(d => !d.IsSigned), summary.Unsigned);
-        Assert.True(summary.WithProblems >= 2);
+        var connected = all.Where(d => d.IsPresent).ToList();
+        Assert.True(connected.Count < all.Count);
+
+        var summary = DriverInfoBuilder.Summarize(all);
+        Assert.Equal(connected.Count, summary.Total);
+        Assert.Equal(connected.Count(d => !d.IsInbox), summary.ThirdParty);
+        Assert.Equal(connected.Count(d => d.HasProblem), summary.WithProblems);
+        Assert.Equal(connected.Count(DriverRules.IsOld), summary.Old);
+        Assert.Equal(connected.Count(d => !d.IsSigned), summary.Unsigned);
+        Assert.Equal(all.Count - connected.Count, summary.Disconnected);
+        Assert.True(summary.WithProblems >= 1);
         Assert.True(summary.Old >= 2);
         Assert.True(summary.Unsigned >= 1);
+
+        var everything = DriverInfoBuilder.Summarize(all, includeDisconnected: true);
+        Assert.Equal(all.Count, everything.Total);
+        Assert.Equal(summary.Disconnected, everything.Disconnected);
+        Assert.Equal(summary.WithProblems, everything.WithProblems);
     }
 }
 
@@ -445,6 +467,8 @@ public class WuaResultCodesTests
     {
         var known = WuaResultCodes.DescribeHResult(unchecked((int)0x80240022));
         Assert.StartsWith("0x80240022", known);
+        Assert.Equal(unchecked((int)0x80240032), WuaResultCodes.InvalidCriteria);
+        Assert.Contains("criteria", WuaResultCodes.DescribeHResult(WuaResultCodes.InvalidCriteria));
         Assert.Contains("failed", known, StringComparison.OrdinalIgnoreCase);
         Assert.True(WuaResultCodes.IsKnown(unchecked((int)0x80070005)));
         Assert.Equal("0x8024ABCD", WuaResultCodes.DescribeHResult(unchecked((int)0x8024ABCD)));
@@ -475,6 +499,7 @@ public class DemoDriverServiceTests
         var scan = await svc.ScanInstalledAsync(null, CancellationToken.None);
         Assert.True(scan.Drivers.Count >= 20);
         Assert.True(scan.Drivers[0].HasProblem);
+        Assert.False(scan.Drivers[^1].IsPresent);
         Assert.Contains(scan.Drivers, d => d.IsInbox);
         Assert.Contains(scan.Drivers, d => !d.IsInbox);
         Assert.Contains(scan.Drivers, d => !d.IsSigned);
@@ -502,6 +527,9 @@ public class DemoDriverServiceTests
         var check = await svc.CheckForUpdatesAsync(null, CancellationToken.None);
         var download = await svc.DownloadAsync(check.Updates, null, CancellationToken.None);
         Assert.True(download.Success);
+        var downloaded = await ((IDriverUpdateStateProvider)svc).GetDownloadedUpdateIdsAsync(check.Updates.Select(u => u.Id).Append("not-an-update"), CancellationToken.None);
+        Assert.Equal(check.Updates.Count, downloaded.Count);
+        Assert.DoesNotContain("not-an-update", downloaded);
         var install = await svc.InstallAsync(check.Updates, null, CancellationToken.None);
         Assert.True(install.Success);
         Assert.True(install.RebootRequired);

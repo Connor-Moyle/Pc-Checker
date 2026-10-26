@@ -32,16 +32,15 @@ public static class DriverInfoBuilder
         var hardwareIds = MergeIds(WmiPropertyMapper.GetStringList(signedDriver, "HardWareID"), WmiPropertyMapper.GetStringList(signedDriver, "CompatID"));
         var status = entity?.Status ?? WmiPropertyMapper.GetString(signedDriver, "Status");
         int problem = entity?.ProblemCode ?? 0;
-        if (problem == 0 && entity?.Present == false)
-        {
-            // Device is known to Windows but not currently connected: Device Manager shows this as code 45.
-            problem = 45;
-        }
-
         var location = WmiPropertyMapper.GetString(signedDriver, "Location");
 
+        // Win32_PnPEntity lists every device Windows has ever seen; Present == false marks the ones that are not
+        // connected right now. They keep whatever problem code WMI reports but are never counted as problems.
         return new DriverInfo(name, deviceId, deviceClass, provider, version, date, inf, signed, signer,
-            IsInboxDriver(inf, provider), hardwareIds, status, problem, location);
+            IsInboxDriver(inf, provider), hardwareIds, status, problem, location)
+        {
+            IsPresent = entity?.Present ?? true,
+        };
     }
 
     /// <summary>
@@ -111,24 +110,37 @@ public static class DriverInfoBuilder
         }
     }
 
-    /// <summary>Problem devices first, then by class and device name.</summary>
+    /// <summary>Problem devices first, disconnected devices last, otherwise by class and device name.</summary>
     public static IReadOnlyList<DriverInfo> Sort(IEnumerable<DriverInfo> drivers)
     {
         ArgumentNullException.ThrowIfNull(drivers);
         return drivers
             .OrderByDescending(d => d.HasProblem)
+            .ThenByDescending(d => d.IsPresent)
             .ThenBy(d => d.DeviceClass, StringComparer.OrdinalIgnoreCase)
             .ThenBy(d => d.DeviceName, StringComparer.OrdinalIgnoreCase)
             .ToList();
     }
 
-    /// <summary>Summary counts for the page's stat cards.</summary>
-    public static DriverSummary Summarize(IEnumerable<DriverInfo> drivers)
+    /// <summary>
+    /// Summary counts for the page's stat cards. Disconnected devices are only counted separately unless
+    /// <paramref name="includeDisconnected"/> is set, matching what the page shows by default.
+    /// </summary>
+    public static DriverSummary Summarize(IEnumerable<DriverInfo> drivers, bool includeDisconnected = false)
     {
         ArgumentNullException.ThrowIfNull(drivers);
-        int total = 0, thirdParty = 0, problems = 0, old = 0, unsigned = 0;
+        int total = 0, thirdParty = 0, problems = 0, old = 0, unsigned = 0, disconnected = 0;
         foreach (var d in drivers)
         {
+            if (!d.IsPresent)
+            {
+                disconnected++;
+                if (!includeDisconnected)
+                {
+                    continue;
+                }
+            }
+
             total++;
             if (!d.IsInbox)
             {
@@ -151,7 +163,7 @@ public static class DriverInfoBuilder
             }
         }
 
-        return new DriverSummary(total, thirdParty, problems, old, unsigned);
+        return new DriverSummary(total, thirdParty, problems, old, unsigned, disconnected);
     }
 
     private static IReadOnlyList<string> MergeIds(IReadOnlyList<string> hardwareIds, IReadOnlyList<string> compatibleIds)
@@ -174,5 +186,9 @@ public static class DriverInfoBuilder
     }
 }
 
-/// <summary>Headline counts shown at the top of the Drivers page.</summary>
-public sealed record DriverSummary(int Total, int ThirdParty, int WithProblems, int Old, int Unsigned);
+/// <summary>
+/// Headline counts shown at the top of the Drivers page. <paramref name="Disconnected"/> is the number of devices
+/// Windows remembers but that are not connected right now; it is always counted, whether or not those devices are
+/// included in the other numbers.
+/// </summary>
+public sealed record DriverSummary(int Total, int ThirdParty, int WithProblems, int Old, int Unsigned, int Disconnected);

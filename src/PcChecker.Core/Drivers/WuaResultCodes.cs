@@ -12,6 +12,9 @@ public static class WuaResultCodes
     public const int Failed = 4;
     public const int Aborted = 5;
 
+    /// <summary><c>WU_E_INVALID_CRITERIA</c>: the search string was rejected by the Windows Update Agent.</summary>
+    public const int InvalidCriteria = unchecked((int)0x80240032);
+
     /// <summary>The Windows Update service id used to search the public driver catalog.</summary>
     public const string WindowsUpdateServiceId = "7971f918-a847-4430-9279-4a52d1efe18d";
 
@@ -31,6 +34,7 @@ public static class WuaResultCodes
         [0x80240020] = "No interactive user is logged on; the update cannot be installed right now.",
         [0x80240022] = "All of the selected updates failed to install.",
         [0x80240024] = "There are no updates to process.",
+        [0x80240032] = "Windows Update rejected the search criteria.",
         [0x8024002D] = "A required file from the update is missing or invalid.",
         [0x80240034] = "The update could not be downloaded. Check the Internet connection and try again.",
         [0x80240438] = "Windows Update could not reach the update servers. Check the Internet connection or proxy.",

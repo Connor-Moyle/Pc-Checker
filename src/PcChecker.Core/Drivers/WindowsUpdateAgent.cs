@@ -17,6 +17,7 @@ internal sealed class WindowsUpdateAgent
     private readonly ILogger _logger;
     private readonly Dictionary<string, object> _comUpdates = new(StringComparer.OrdinalIgnoreCase);
     private readonly object _gate = new();
+    private int _searchesInFlight;
 
     public WindowsUpdateAgent(ILogger logger)
     {
@@ -25,7 +26,11 @@ internal sealed class WindowsUpdateAgent
 
     public static bool IsSupported => PlatformGuard.IsWindows;
 
-    /// <summary>Searches for driver updates that are not installed yet.</summary>
+    /// <summary>
+    /// Searches for driver updates that are not installed yet. The blocking <c>Search()</c> call cannot be aborted, so
+    /// cancellation takes effect between steps; while one search is running a second request is refused instead of
+    /// racing it for the cached update objects.
+    /// </summary>
     public Task<(IReadOnlyList<DriverUpdateInfo> Updates, IReadOnlyList<string> Warnings)> SearchAsync(IProgress<ProgressUpdate>? progress, CancellationToken cancellationToken)
     {
         return Task.Run(() =>
@@ -35,6 +40,12 @@ internal sealed class WindowsUpdateAgent
             if (!IsSupported)
             {
                 warnings.Add("Windows Update is only available on Windows.");
+                return ((IReadOnlyList<DriverUpdateInfo>)list, (IReadOnlyList<string>)warnings);
+            }
+
+            if (Interlocked.CompareExchange(ref _searchesInFlight, 1, 0) != 0)
+            {
+                warnings.Add("A Windows Update search is still running from an earlier request. Wait a minute and check again.");
                 return ((IReadOnlyList<DriverUpdateInfo>)list, (IReadOnlyList<string>)warnings);
             }
 
@@ -51,15 +62,16 @@ internal sealed class WindowsUpdateAgent
                 TrySet(() => searcher.IncludePotentiallySupersededUpdates = false);
 
                 cancellationToken.ThrowIfCancellationRequested();
-                progress?.Report(new ProgressUpdate("Searching the Windows Update driver catalog", 30, "This can take a minute."));
+                progress?.Report(new ProgressUpdate("Searching the Windows Update driver catalog", 30, "This can take a minute. Cancel takes effect once Windows Update answers."));
                 dynamic result;
                 try
                 {
                     result = searcher.Search("IsInstalled=0 and Type='Driver' and IsHidden=0");
                 }
-                catch (COMException ex) when (ex.HResult != unchecked((int)0x80240022))
+                catch (COMException ex) when (ex.HResult == WuaResultCodes.InvalidCriteria)
                 {
-                    _logger.LogWarning(ex, "Driver search with IsHidden filter failed; retrying without it.");
+                    // Older agents may not accept the IsHidden clause; any other failure is a real one and is reported.
+                    _logger.LogWarning(ex, "Driver search with IsHidden filter was rejected; retrying without it.");
                     result = searcher.Search("IsInstalled=0 and Type='Driver'");
                 }
 
@@ -107,8 +119,43 @@ internal sealed class WindowsUpdateAgent
                 _logger.LogWarning(ex, "Windows Update search failed.");
                 warnings.Add("Windows Update could not be queried: " + ex.Message);
             }
+            finally
+            {
+                Interlocked.Exchange(ref _searchesInFlight, 0);
+            }
 
             return ((IReadOnlyList<DriverUpdateInfo>)list, (IReadOnlyList<string>)warnings);
+        }, cancellationToken);
+    }
+
+    /// <summary>Asks the cached update objects which of the given updates are downloaded; unknown ids are left out.</summary>
+    public Task<IReadOnlySet<string>> GetDownloadedIdsAsync(IEnumerable<string> updateIds, CancellationToken cancellationToken)
+    {
+        var ids = updateIds.ToList();
+        return Task.Run(() =>
+        {
+            var downloaded = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (!IsSupported)
+            {
+                return (IReadOnlySet<string>)downloaded;
+            }
+
+            foreach (var id in ids)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (!Has(id))
+                {
+                    continue;
+                }
+
+                dynamic update = Get(id);
+                if (TryGet(() => (bool)update.IsDownloaded, false))
+                {
+                    downloaded.Add(id);
+                }
+            }
+
+            return (IReadOnlySet<string>)downloaded;
         }, cancellationToken);
     }
 

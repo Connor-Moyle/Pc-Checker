@@ -12,8 +12,9 @@ using PcChecker.Core.Settings;
 namespace PcChecker.App.ViewModels;
 
 /// <summary>
-/// Drivers page: installed driver inventory with search and filters, Windows Update driver updates with download and
-/// install, driver backup, .inf install, rollback and vendor links. Every change confirms first and runs guarded.
+/// Drivers page: installed driver inventory with search and filters, driver backup, .inf install, rollback and the
+/// advanced driver-store listing. The Windows Update part (check, download, install, restart) lives in
+/// <c>DriversViewModel.Updates.cs</c>. Every change confirms first and runs guarded.
 /// </summary>
 public sealed partial class DriversViewModel : ViewModelBase
 {
@@ -39,6 +40,14 @@ public sealed partial class DriversViewModel : ViewModelBase
     private bool _unsignedOnly;
 
     [ObservableProperty]
+    private bool _showDisconnected;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasDisconnected))]
+    [NotifyPropertyChangedFor(nameof(DisconnectedText))]
+    private int _disconnectedCount;
+
+    [ObservableProperty]
     private DriverRow? _selectedDriver;
 
     [ObservableProperty]
@@ -58,22 +67,11 @@ public sealed partial class DriversViewModel : ViewModelBase
     private int _unsignedCount;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasUpdates))]
-    [NotifyPropertyChangedFor(nameof(UpdatesTabHeader))]
-    private int _updatesAvailable;
-
-    [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasWarnings))]
     private string? _warnings;
 
     [ObservableProperty]
     private string? _lastScanText;
-
-    [ObservableProperty]
-    private string? _lastCheckText;
-
-    [ObservableProperty]
-    private bool _rebootRequired;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowSuccessResult))]
@@ -84,9 +82,6 @@ public sealed partial class DriversViewModel : ViewModelBase
     [NotifyPropertyChangedFor(nameof(ShowSuccessResult))]
     [NotifyPropertyChangedFor(nameof(ShowFailureResult))]
     private bool _lastResultSuccess;
-
-    [ObservableProperty]
-    private bool _updatesChecked;
 
     [ObservableProperty]
     private bool _driverStoreLoaded;
@@ -104,28 +99,38 @@ public sealed partial class DriversViewModel : ViewModelBase
         _logger = logger;
         Updates.CollectionChanged += (_, _) => OnPropertyChanged(nameof(SelectedUpdateCount));
         VendorLinks.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasVendorLinks));
+        PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(IsAdvancedMode))
+            {
+                OnAdvancedModeChanged();
+            }
+        };
     }
 
     public ObservableCollection<DriverRow> FilteredDrivers { get; } = [];
-    public ObservableCollection<DriverUpdateRow> Updates { get; } = [];
-    public ObservableCollection<VendorLink> VendorLinks { get; } = [];
     public ObservableCollection<DriverPackageRow> DriverStore { get; } = [];
 
-    public bool HasUpdates => UpdatesAvailable > 0;
     public bool HasDrivers => TotalDrivers > 0;
-    public bool HasVendorLinks => VendorLinks.Count > 0;
+    public bool HasDisconnected => DisconnectedCount > 0;
+    public string DisconnectedText => DisconnectedCount == 1 ? "Show 1 disconnected device" : $"Show {DisconnectedCount} disconnected devices";
     public bool ShowSuccessResult => LastResultSuccess && !string.IsNullOrWhiteSpace(LastResultMessage);
     public bool ShowFailureResult => !LastResultSuccess && !string.IsNullOrWhiteSpace(LastResultMessage);
     public bool HasWarnings => !string.IsNullOrWhiteSpace(Warnings);
     public bool SupportsDriverStore => _drivers is IDriverStoreProvider;
-    public int SelectedUpdateCount => Updates.Count(u => u.IsSelected);
-    public string UpdatesTabHeader => UpdatesAvailable == 0 ? "Updates" : $"Updates ({UpdatesAvailable})";
     public string InstalledTabHeader => $"Installed drivers ({VisibleDriverCount})";
 
+    /// <summary>
+    /// Runs the installed-driver scan. The Windows Update search is an online call that can take a minute or more,
+    /// so in normal mode it waits for the user; demo mode runs it too so the Updates tab is populated.
+    /// </summary>
     public override async Task InitializeAsync(CancellationToken cancellationToken)
     {
         await ScanAsync();
-        await CheckForUpdatesAsync();
+        if (AppOptions.Current.IsDemo)
+        {
+            await CheckForUpdatesAsync();
+        }
     }
 
     public override Task RefreshAsync(CancellationToken cancellationToken) => ScanAsync();
@@ -135,6 +140,12 @@ public sealed partial class DriversViewModel : ViewModelBase
     partial void OnProblemsOnlyChanged(bool value) => ApplyFilters();
     partial void OnOldOnlyChanged(bool value) => ApplyFilters();
     partial void OnUnsignedOnlyChanged(bool value) => ApplyFilters();
+
+    partial void OnShowDisconnectedChanged(bool value)
+    {
+        UpdateSummary();
+        ApplyFilters();
+    }
 
     protected override void OnBusyError(Exception exception) => _logger.LogError(exception, "Drivers page operation failed.");
 
@@ -148,160 +159,6 @@ public sealed partial class DriversViewModel : ViewModelBase
             await ReadDriverStoreAsync(ct);
         }
     }, "Scanning installed drivers…");
-
-    [RelayCommand]
-    private Task CheckForUpdatesAsync() => RunBusyAsync(async ct =>
-    {
-        var progress = new Progress<ProgressUpdate>(p => BusyText = p.Stage + (p.Detail is null ? string.Empty : " — " + p.Detail));
-        var result = await _drivers.CheckForUpdatesAsync(progress, ct);
-        Updates.Clear();
-        foreach (var u in result.Updates)
-        {
-            var row = new DriverUpdateRow(u);
-            row.PropertyChanged += (_, e) =>
-            {
-                if (e.PropertyName == nameof(DriverUpdateRow.IsSelected))
-                {
-                    OnPropertyChanged(nameof(SelectedUpdateCount));
-                }
-            };
-            Updates.Add(row);
-        }
-
-        VendorLinks.Clear();
-        foreach (var link in result.VendorLinks)
-        {
-            VendorLinks.Add(link);
-        }
-
-        UpdatesAvailable = Updates.Count;
-        UpdatesChecked = true;
-        LastCheckText = "Checked " + result.Captured.ToString("t", CultureInfo.CurrentCulture);
-        MergeWarnings(result.Warnings);
-        OnPropertyChanged(nameof(SelectedUpdateCount));
-    }, "Checking Windows Update for driver updates…");
-
-    [RelayCommand]
-    private void SelectAllUpdates()
-    {
-        foreach (var u in Updates)
-        {
-            u.IsSelected = true;
-        }
-    }
-
-    [RelayCommand]
-    private void ClearUpdateSelection()
-    {
-        foreach (var u in Updates)
-        {
-            u.IsSelected = false;
-        }
-    }
-
-    [RelayCommand]
-    private async Task DownloadSelectedAsync()
-    {
-        var selected = Updates.Where(u => u.IsSelected).ToList();
-        if (selected.Count == 0)
-        {
-            _notifications.Warning("Nothing selected", "Tick the updates you want to download first.");
-            return;
-        }
-
-        await RunBusyAsync(async ct =>
-        {
-            var progress = new Progress<ProgressUpdate>(p => BusyText = FormatProgress(p));
-            var result = await _drivers.DownloadAsync(selected.Select(s => s.Update).ToList(), progress, ct);
-            foreach (var row in selected)
-            {
-                row.Apply(row.Update with { IsDownloaded = result.Success });
-            }
-
-            ShowResult(result.Success, result.Message, "Download");
-        }, "Downloading driver updates…");
-    }
-
-    [RelayCommand]
-    private async Task InstallSelectedAsync()
-    {
-        var selected = Updates.Where(u => u.IsSelected).ToList();
-        if (selected.Count == 0)
-        {
-            _notifications.Warning("Nothing selected", "Tick the updates you want to install first.");
-            return;
-        }
-
-        bool rebootLikely = selected.Any(s => s.RebootRequired);
-        var list = string.Join("\n", selected.Select(s => "• " + s.Title));
-        var message = $"PC Checker will download (if needed) and install {selected.Count} driver update(s) from Windows Update:\n\n{list}\n\n"
-            + "A restore point is created first (per your settings) so you can go back if anything misbehaves. "
-            + "The screen may flicker while a display or audio driver installs."
-            + (rebootLikely ? "\n\nWindows will need a restart to finish at least one of these updates." : "\n\nSome updates may ask for a restart afterwards.");
-        if (!await _dialogs.ConfirmAsync("Install driver updates?", message, "Install"))
-        {
-            return;
-        }
-
-        await RunBusyAsync(async ct =>
-        {
-            var progress = new Progress<ProgressUpdate>(p => BusyText = FormatProgress(p));
-            var toInstall = selected.Select(s => s.Update).ToList();
-            var pending = toInstall.Where(u => !u.IsDownloaded).ToList();
-            if (pending.Count > 0)
-            {
-                var download = await _drivers.DownloadAsync(pending, progress, ct);
-                if (!download.Success)
-                {
-                    ShowResult(false, download.Message, "Download");
-                    return;
-                }
-            }
-
-            var result = await _drivers.InstallAsync(toInstall, progress, ct);
-            int ok = 0;
-            foreach (var (update, outcome) in result.Results)
-            {
-                var row = selected.FirstOrDefault(s => s.Update.Id == update.Id);
-                if (row is null)
-                {
-                    continue;
-                }
-
-                if (outcome.Success)
-                {
-                    ok++;
-                    row.Apply(row.Update with { IsInstalled = true, IsDownloaded = true });
-                    row.IsSelected = false;
-                }
-                else
-                {
-                    row.SetState("Failed: " + outcome.Message);
-                }
-            }
-
-            var installed = result.Results.Where(r => r.Result.Success).Select(r => r.Update.Id).ToHashSet();
-            foreach (var row in Updates.Where(u => installed.Contains(u.Update.Id)).ToList())
-            {
-                Updates.Remove(row);
-            }
-
-            UpdatesAvailable = Updates.Count;
-            RebootRequired |= result.RebootRequired;
-            var text = $"{ok} of {result.Results.Count} update(s) installed." + (result.RebootRequired ? " Restart Windows to finish." : string.Empty);
-            if (ok < result.Results.Count)
-            {
-                var failures = result.Results.Where(r => !r.Result.Success).Select(r => r.Update.Title + ": " + r.Result.Message);
-                text += "\n" + string.Join("\n", failures);
-            }
-
-            ShowResult(result.Success || ok > 0, text, "Install");
-            if (ok > 0)
-            {
-                await ScanAsyncCore(null, ct);
-            }
-        }, "Installing driver updates…");
-    }
 
     [RelayCommand]
     private async Task BackupAsync()
@@ -324,18 +181,12 @@ public sealed partial class DriversViewModel : ViewModelBase
     [RelayCommand]
     private async Task InstallInfAsync()
     {
-        var picker = new Microsoft.Win32.OpenFileDialog
-        {
-            Title = "Choose a driver package (.inf)",
-            Filter = "Driver setup information (*.inf)|*.inf",
-            CheckFileExists = true,
-        };
-        if (picker.ShowDialog() != true)
+        var path = DriverFilePicker.PickInf();
+        if (string.IsNullOrWhiteSpace(path))
         {
             return;
         }
 
-        var path = picker.FileName;
         var message = $"PC Checker will add {Path.GetFileName(path)} to the Windows driver store and install it on any matching device.\n\n"
             + "Only install packages from sources you trust. A restore point is created first (per your settings).";
         if (!await _dialogs.ConfirmAsync("Install this driver package?", message, "Install"))
@@ -365,9 +216,16 @@ public sealed partial class DriversViewModel : ViewModelBase
 
         if (!row.CanRollBack)
         {
-            await _dialogs.ShowMessageAsync("Use Device Manager for this one",
+            // Nothing to remove from here: offer the Device Manager route instead of a dead-end message.
+            var open = await _dialogs.ConfirmAsync("Use Device Manager for this one",
                 $"{row.DeviceName} uses a driver that ships with Windows, so there is no third-party package to remove.\n\n"
-                + "Open Device Manager → right-click the device → Properties → Driver → Roll Back Driver.");
+                + "Device Manager can still roll back to the previous version: right-click the device → Properties → Driver → Roll Back Driver.",
+                "Open Device Manager");
+            if (open)
+            {
+                OpenDeviceManager();
+            }
+
             return;
         }
 
@@ -421,9 +279,6 @@ public sealed partial class DriversViewModel : ViewModelBase
     }
 
     [RelayCommand]
-    private void OpenOptionalUpdates() => Open(DriverRules.OptionalUpdatesUri);
-
-    [RelayCommand]
     private void OpenDeviceManager() => Open(DriverRules.DeviceManagerCommand);
 
     [RelayCommand]
@@ -434,24 +289,6 @@ public sealed partial class DriversViewModel : ViewModelBase
             Open(url);
         }
     }
-
-    [RelayCommand]
-    private async Task RestartNowAsync()
-    {
-        if (!await _dialogs.ConfirmAsync("Restart Windows?", "Windows will restart in 60 seconds so the new drivers can finish installing. Save your work first.\n\nYou can cancel the countdown with 'shutdown /a' from a command prompt.", "Restart", isDanger: true))
-        {
-            return;
-        }
-
-        var result = ShellLauncher.Open("shutdown.exe", "/r /t 60 /c \"PC Checker: restarting to finish driver installation.\"");
-        if (!result.Success)
-        {
-            ErrorMessage = result.Message;
-        }
-    }
-
-    [RelayCommand]
-    private void DismissReboot() => RebootRequired = false;
 
     [RelayCommand]
     private void ClearFilters()
@@ -471,15 +308,21 @@ public sealed partial class DriversViewModel : ViewModelBase
         var result = await _drivers.ScanInstalledAsync(progress, ct);
         _allDrivers.Clear();
         _allDrivers.AddRange(result.Drivers.Select(d => new DriverRow(d)));
-        var summary = DriverInfoBuilder.Summarize(result.Drivers);
+        UpdateSummary();
+        LastScanText = "Scanned " + result.Captured.ToString("t", CultureInfo.CurrentCulture);
+        MergeWarnings(result.Warnings);
+        ApplyFilters();
+    }
+
+    private void UpdateSummary()
+    {
+        var summary = DriverInfoBuilder.Summarize(_allDrivers.Select(r => r.Driver), includeDisconnected: ShowDisconnected);
         TotalDrivers = summary.Total;
         ThirdPartyCount = summary.ThirdParty;
         ProblemCount = summary.WithProblems;
         OldCount = summary.Old;
         UnsignedCount = summary.Unsigned;
-        LastScanText = "Scanned " + result.Captured.ToString("t", CultureInfo.CurrentCulture);
-        MergeWarnings(result.Warnings);
-        ApplyFilters();
+        DisconnectedCount = summary.Disconnected;
     }
 
     private async Task ReadDriverStoreAsync(CancellationToken ct)
@@ -500,11 +343,21 @@ public sealed partial class DriversViewModel : ViewModelBase
         MergeWarnings(store.Warnings);
     }
 
+    /// <summary>Turning advanced mode on after a scan reveals the driver-store section; fill it so it is not empty.</summary>
+    private void OnAdvancedModeChanged()
+    {
+        if (IsAdvancedMode && HasDrivers && SupportsDriverStore && !DriverStoreLoaded && !IsBusy)
+        {
+            _ = LoadDriverStoreAsync();
+        }
+    }
+
     private void ApplyFilters()
     {
         FilteredDrivers.Clear();
         foreach (var row in _allDrivers)
         {
+            if (!ShowDisconnected && !row.IsPresent) { continue; }
             if (ThirdPartyOnly && !row.IsThirdParty) { continue; }
             if (ProblemsOnly && !row.HasProblem) { continue; }
             if (OldOnly && !row.IsOld) { continue; }

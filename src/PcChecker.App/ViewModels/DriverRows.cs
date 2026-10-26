@@ -44,8 +44,9 @@ public sealed class DriverRow
     public string AgeText => DriverRowText.Age(Driver.AgeDays);
     public string SignedText => Driver.IsSigned ? "Yes" : "No";
     public string SourceText => Driver.IsInbox ? "Windows" : "Third-party";
-    public string StatusText => Driver.HasProblem ? $"Problem (code {Driver.ProblemCode})" : (Driver.Status ?? "OK");
+    public string StatusText => !Driver.IsPresent ? "Not connected" : Driver.HasProblem ? $"Problem (code {Driver.ProblemCode})" : (Driver.Status ?? "OK");
     public bool HasProblem => Driver.HasProblem;
+    public bool IsPresent => Driver.IsPresent;
     public bool IsOld => DriverRules.IsOld(Driver);
     public bool IsUnsigned => !Driver.IsSigned;
     public bool IsThirdParty => !Driver.IsInbox;
