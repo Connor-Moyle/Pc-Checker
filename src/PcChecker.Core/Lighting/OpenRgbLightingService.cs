@@ -10,12 +10,18 @@ namespace PcChecker.Core.Lighting;
 /// <summary>
 /// RGB control through an OpenRGB SDK server (OpenRGB.NET). Lighting is cosmetic, so changes are logged and
 /// journaled but do not create restore points. Every server call is guarded: a dropped socket marks the service
-/// disconnected and a reconnect is attempted with backoff.
+/// disconnected and a reconnect is attempted with backoff, without ever sleeping while the service is locked.
 /// </summary>
+/// <remarks>
+/// Brightness: OpenRGB.NET 3.1.1 re-reads a mode from the server inside <c>UpdateMode</c> and offers no way to send the
+/// mode's own brightness value, so PC Checker dims by scaling the colour it sends. Effects that pick their own colours
+/// therefore cannot be dimmed from here; results and the page say so instead of pretending.
+/// </remarks>
 public sealed class OpenRgbLightingService : ILightingService, IDisposable
 {
     private const string Module = "Lighting";
     private static readonly TimeSpan ServerStartTimeout = TimeSpan.FromSeconds(15);
+    private static readonly TimeSpan WatchInterval = TimeSpan.FromSeconds(5);
 
     private readonly ISettingsService _settings;
     private readonly IActionJournal _journal;
@@ -25,10 +31,13 @@ public sealed class OpenRgbLightingService : ILightingService, IDisposable
 
     private OpenRgbClient? _client;
     private Device[] _raw = [];
+    /// <summary>Mode switches made since <see cref="_raw"/> was last read from the server; cleared with every re-read.</summary>
     private readonly Dictionary<int, int> _activeModeOverride = [];
     private List<RgbDevice> _devices = [];
     private string? _lastError;
-    private int _reconnectAttempts;
+    private int _reconnectFailures;
+    private DateTimeOffset _reconnectNotBefore = DateTimeOffset.MinValue;
+    private Timer? _watch;
     private bool _disposed;
 
     public OpenRgbLightingService(ISettingsService settings, IActionJournal journal, ILogger<OpenRgbLightingService> logger)
@@ -71,6 +80,9 @@ public sealed class OpenRgbLightingService : ILightingService, IDisposable
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
+            // A deliberate connect starts the backoff schedule over.
+            _reconnectFailures = 0;
+            _reconnectNotBefore = DateTimeOffset.MinValue;
             return await Task.Run(() => ConnectCore(), cancellationToken).ConfigureAwait(false);
         }
         finally
@@ -79,19 +91,25 @@ public sealed class OpenRgbLightingService : ILightingService, IDisposable
         }
     }
 
+    /// <summary>Called with the gate held.</summary>
     private OperationResult ConnectCore()
     {
         var lighting = _settings.Current.Lighting;
+        bool wasConnected = IsConnected;
         DisposeClient();
         try
         {
             var client = new OpenRgbClient(lighting.OpenRgbHost, lighting.OpenRgbPort, "PC Checker", autoConnect: false, timeoutMs: 3000);
             client.Connect();
             _client = client;
-            _raw = client.GetAllControllerData() ?? [];
-            _devices = _raw.Select(OpenRgbDeviceMapper.Map).ToList();
+            ReplaceRaw(client.GetAllControllerData() ?? []);
             _lastError = null;
-            _reconnectAttempts = 0;
+            _reconnectFailures = 0;
+            _reconnectNotBefore = DateTimeOffset.MinValue;
+            // OpenRGB.NET 3.1.1 wires this event into its connection before anyone can subscribe, so it may never fire;
+            // the watch timer below backs it up by comparing the server's device count every few seconds.
+            client.DeviceListUpdated += OnServerDeviceListUpdated;
+            StartWatch();
             _logger.LogInformation("Connected to OpenRGB at {Host}:{Port}; {Count} devices.", lighting.OpenRgbHost, lighting.OpenRgbPort, _devices.Count);
             RaiseDevicesChanged();
             return OperationResult.Ok(Status);
@@ -101,7 +119,11 @@ public sealed class OpenRgbLightingService : ILightingService, IDisposable
             DisposeClient();
             _lastError = ex is SocketException or IOException or TimeoutException ? null : ex.Message;
             _logger.LogWarning(ex, "Could not connect to OpenRGB at {Host}:{Port}.", lighting.OpenRgbHost, lighting.OpenRgbPort);
-            RaiseDevicesChanged();
+            if (wasConnected)
+            {
+                RaiseDevicesChanged();
+            }
+
             return OperationResult.Fail(Status, ex);
         }
     }
@@ -111,9 +133,9 @@ public sealed class OpenRgbLightingService : ILightingService, IDisposable
         await _gate.WaitAsync().ConfigureAwait(false);
         try
         {
+            StopWatch();
             DisposeClient();
-            _devices = [];
-            _raw = [];
+            ReplaceRaw([]);
             _lastError = null;
             _logger.LogInformation("Disconnected from OpenRGB.");
         }
@@ -139,8 +161,7 @@ public sealed class OpenRgbLightingService : ILightingService, IDisposable
             {
                 try
                 {
-                    _raw = client.GetAllControllerData() ?? [];
-                    _devices = _raw.Select(OpenRgbDeviceMapper.Map).ToList();
+                    ReplaceRaw(client.GetAllControllerData() ?? []);
                 }
                 catch (Exception ex)
                 {
@@ -156,11 +177,16 @@ public sealed class OpenRgbLightingService : ILightingService, IDisposable
         }
     }
 
-    public Task<OperationResult> SetDeviceColorAsync(int deviceIndex, RgbColor color, CancellationToken cancellationToken) =>
-        RunAsync(client => SetDeviceColor(client, deviceIndex, color), cancellationToken);
+    public async Task<OperationResult> SetDeviceColorAsync(int deviceIndex, RgbColor color, CancellationToken cancellationToken)
+    {
+        var result = await RunAsync(client => SetDeviceColor(client, deviceIndex, color), cancellationToken).ConfigureAwait(false);
+        await RecordAsync("Set colour", DeviceName(deviceIndex), result, after: color.ToHex()).ConfigureAwait(false);
+        return result;
+    }
 
-    public Task<OperationResult> SetZoneColorAsync(int deviceIndex, int zoneIndex, RgbColor color, CancellationToken cancellationToken) =>
-        RunAsync(client =>
+    public async Task<OperationResult> SetZoneColorAsync(int deviceIndex, int zoneIndex, RgbColor color, CancellationToken cancellationToken)
+    {
+        var result = await RunAsync(client =>
         {
             var raw = Raw(deviceIndex);
             if (raw is null)
@@ -182,15 +208,23 @@ public sealed class OpenRgbLightingService : ILightingService, IDisposable
             int ledCount = (int)raw.Zones![zoneIndex].LedCount;
             client.UpdateZoneLeds(deviceIndex, zoneIndex, OpenRgbDeviceMapper.ToOpenRgb(LightingApplyPlanner.Fill(ledCount, color)));
             return OperationResult.Ok($"{raw.Zones[zoneIndex].Name} set to {color.ToHex()}.");
-        }, cancellationToken);
+        }, cancellationToken).ConfigureAwait(false);
+        await RecordAsync("Set zone colour", $"{DeviceName(deviceIndex)} zone {zoneIndex}", result, after: color.ToHex()).ConfigureAwait(false);
+        return result;
+    }
 
-    public Task<OperationResult> SetModeAsync(int deviceIndex, int modeIndex, RgbColor? color, int? speed, int? brightness, CancellationToken cancellationToken) =>
-        RunAsync(client => SetMode(client, deviceIndex, modeIndex, color, speed, brightness), cancellationToken);
+    public async Task<OperationResult> SetModeAsync(int deviceIndex, int modeIndex, RgbColor? color, int? speed, int? brightness, CancellationToken cancellationToken)
+    {
+        var result = await RunAsync(client => SetMode(client, deviceIndex, modeIndex, color, speed, brightness), cancellationToken).ConfigureAwait(false);
+        string after = $"mode {modeIndex}" + (color is { } c ? $" {c.ToHex()}" : string.Empty) + (speed is { } s ? $" speed {s}" : string.Empty) + (brightness is { } b ? $" brightness {b}%" : string.Empty);
+        await RecordAsync("Set mode", DeviceName(deviceIndex), result, after).ConfigureAwait(false);
+        return result;
+    }
 
     public async Task<OperationResult> SetAllAsync(RgbColor color, CancellationToken cancellationToken)
     {
         var result = await RunAsync(client => ForEachDevice(client, d => SetDeviceColor(client, d.Index, color)), cancellationToken).ConfigureAwait(false);
-        await JournalAsync("Set all", "All devices", result, after: color.ToHex()).ConfigureAwait(false);
+        await RecordAsync("Set all", "All devices", result, after: color.ToHex()).ConfigureAwait(false);
         return result;
     }
 
@@ -204,7 +238,7 @@ public sealed class OpenRgbLightingService : ILightingService, IDisposable
                 ? SetMode(client, d.Index, idx, null, null, null)
                 : SetDeviceColor(client, d.Index, RgbColor.Black);
         }), cancellationToken).ConfigureAwait(false);
-        await JournalAsync("Turn off", "All devices", result, after: "Off").ConfigureAwait(false);
+        await RecordAsync("Turn off", "All devices", result, after: "Off").ConfigureAwait(false);
         return result;
     }
 
@@ -236,14 +270,15 @@ public sealed class OpenRgbLightingService : ILightingService, IDisposable
                 return SetDeviceColor(client, device.Index, all);
             }
 
-            var modeIndex = LightingApplyPlanner.FindModeIndex(device.Modes, assignment.ModeName);
+            // Exact mode name first; a "Rainbow" request also accepts the device's own "Rainbow Wave" / "Spectrum Cycle".
+            var modeIndex = LightingApplyPlanner.ResolveModeIndex(device.Modes, assignment.ModeName);
             var color = assignment.Color ?? profile.AllColor;
             if (modeIndex is { } m)
             {
                 return SetMode(client, device.Index, m, color, assignment.Speed, assignment.Brightness);
             }
 
-            if (assignment.ModeName?.Equals("Rainbow", StringComparison.OrdinalIgnoreCase) == true)
+            if (LightingApplyPlanner.IsRainbowRequest(assignment.ModeName))
             {
                 // No rainbow effect on this device: paint a static rainbow across its LEDs instead.
                 return SetDeviceColors(client, device.Index, LightingApplyPlanner.RainbowFill(device.LedCount));
@@ -262,7 +297,7 @@ public sealed class OpenRgbLightingService : ILightingService, IDisposable
             _settings.Current.Lighting.ActiveProfileName = profile.Name;
         }
 
-        await JournalAsync("Apply profile", profile.Name, result, after: profile.AllColor?.ToHex()).ConfigureAwait(false);
+        await RecordAsync("Apply profile", profile.Name, result, after: profile.AllColor?.ToHex()).ConfigureAwait(false);
         return result.Success ? OperationResult.Ok($"Profile \"{profile.Name}\" applied.") : result;
     }
 
@@ -278,6 +313,13 @@ public sealed class OpenRgbLightingService : ILightingService, IDisposable
         if (path is null)
         {
             return OperationResult.Fail(LightingStatusText.NotInstalled);
+        }
+
+        // Never start a second OpenRGB: two instances contend for the same SMBus/USB devices.
+        if (await Task.Run(OpenRgbInstallLocator.IsProcessRunning, cancellationToken).ConfigureAwait(false))
+        {
+            _logger.LogInformation("OpenRGB is running without its SDK server; asking the user to start it there.");
+            return OperationResult.Fail(LightingStatusText.RunningWithoutServer);
         }
 
         var start = OpenRgbInstallLocator.StartServer(path, lighting.OpenRgbPort);
@@ -311,8 +353,16 @@ public sealed class OpenRgbLightingService : ILightingService, IDisposable
         }
 
         _disposed = true;
+        StopWatch();
         DisposeClient();
-        _gate.Dispose();
+        try
+        {
+            _gate.Dispose();
+        }
+        catch
+        {
+            // A watch tick may still be releasing the gate; nothing to do.
+        }
     }
 
     // ---- internals -------------------------------------------------------------------------------------------
@@ -324,8 +374,8 @@ public sealed class OpenRgbLightingService : ILightingService, IDisposable
         {
             if (_client is not { Connected: true })
             {
-                var reconnect = await TryReconnectAsync(cancellationToken).ConfigureAwait(false);
-                if (!reconnect)
+                var reconnected = await Task.Run(TryReconnectNow, cancellationToken).ConfigureAwait(false);
+                if (!reconnected)
                 {
                     return OperationResult.Fail(Status);
                 }
@@ -351,23 +401,29 @@ public sealed class OpenRgbLightingService : ILightingService, IDisposable
         }
     }
 
-    /// <summary>Called with the gate held. Reconnects with exponential backoff up to five attempts.</summary>
-    private async Task<bool> TryReconnectAsync(CancellationToken cancellationToken)
+    /// <summary>
+    /// Called with the gate held. Reconnects when the backoff window has passed; never sleeps, so a change made while
+    /// the server is down fails fast with the status text instead of blocking the service for seconds.
+    /// </summary>
+    private bool TryReconnectNow()
     {
-        if (!_settings.Current.Lighting.AutoConnect || _reconnectAttempts >= 5)
+        if (!_settings.Current.Lighting.AutoConnect)
         {
             return false;
         }
 
-        int delayMs = Math.Min(8000, 500 * (1 << _reconnectAttempts));
-        _reconnectAttempts++;
-        _logger.LogInformation("Reconnecting to OpenRGB (attempt {Attempt}) after {Delay} ms.", _reconnectAttempts, delayMs);
-        await Task.Delay(delayMs, cancellationToken).ConfigureAwait(false);
-        var attempts = _reconnectAttempts;
-        var result = await Task.Run(() => ConnectCore(), cancellationToken).ConfigureAwait(false);
+        var now = DateTimeOffset.UtcNow;
+        if (now < _reconnectNotBefore)
+        {
+            return false;
+        }
+
+        _logger.LogInformation("Reconnecting to OpenRGB (attempt {Attempt}).", _reconnectFailures + 1);
+        var result = ConnectCore();
         if (!result.Success)
         {
-            _reconnectAttempts = attempts;
+            _reconnectFailures++;
+            _reconnectNotBefore = now + LightingApplyPlanner.ReconnectBackoff(_reconnectFailures);
         }
 
         return result.Success;
@@ -379,6 +435,7 @@ public sealed class OpenRgbLightingService : ILightingService, IDisposable
         {
             _logger.LogWarning(ex, "OpenRGB connection dropped.");
             DisposeClient();
+            _reconnectNotBefore = DateTimeOffset.UtcNow + LightingApplyPlanner.ReconnectBackoff(1);
             RaiseDevicesChanged();
         }
         else
@@ -387,12 +444,116 @@ public sealed class OpenRgbLightingService : ILightingService, IDisposable
         }
     }
 
+    private void StartWatch()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _watch ??= new Timer(_ => WatchTick(), null, WatchInterval, WatchInterval);
+    }
+
+    private void StopWatch()
+    {
+        var watch = Interlocked.Exchange(ref _watch, null);
+        try
+        {
+            watch?.Dispose();
+        }
+        catch
+        {
+            // Already gone.
+        }
+    }
+
+    /// <summary>
+    /// Every few seconds: while connected, compare the server's device count with ours and reload on a difference
+    /// (OpenRGB detected or lost a device); after a drop, reconnect once the backoff window has passed. Skips the tick
+    /// when the service is busy so it never queues behind user changes.
+    /// </summary>
+    private void WatchTick()
+    {
+        if (_disposed || !_gate.Wait(0))
+        {
+            return;
+        }
+
+        try
+        {
+            if (_client is { Connected: true } client)
+            {
+                int count;
+                try
+                {
+                    count = client.GetControllerCount();
+                }
+                catch (Exception ex)
+                {
+                    HandleDrop(ex);
+                    return;
+                }
+
+                if (count != _raw.Length)
+                {
+                    _logger.LogInformation("OpenRGB now reports {New} devices (was {Old}); reloading.", count, _raw.Length);
+                    RefreshCache(client);
+                }
+            }
+            else
+            {
+                TryReconnectNow();
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "OpenRGB watch tick failed.");
+        }
+        finally
+        {
+            try
+            {
+                _gate.Release();
+            }
+            catch (ObjectDisposedException)
+            {
+            }
+        }
+    }
+
+    private void OnServerDeviceListUpdated(object? sender, EventArgs e)
+    {
+        try
+        {
+            if (_disposed || !_gate.Wait(TimeSpan.FromSeconds(2)))
+            {
+                return;
+            }
+
+            try
+            {
+                if (_client is { Connected: true } client)
+                {
+                    _logger.LogInformation("OpenRGB reported a device list change; reloading.");
+                    RefreshCache(client);
+                }
+            }
+            finally
+            {
+                _gate.Release();
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Could not handle the OpenRGB device list update.");
+        }
+    }
+
     private OperationResult ForEachDevice(OpenRgbClient client, Func<Device, OperationResult> perDevice)
     {
         if (_raw.Length == 0)
         {
-            _raw = client.GetAllControllerData() ?? [];
-            _devices = _raw.Select(OpenRgbDeviceMapper.Map).ToList();
+            ReplaceRaw(client.GetAllControllerData() ?? []);
         }
 
         var failures = new List<string>();
@@ -425,12 +586,13 @@ public sealed class OpenRgbLightingService : ILightingService, IDisposable
             return ensure;
         }
 
-        var active = raw.Modes is { Length: > 0 } modes && ActiveModeOf(raw) >= 0 && ActiveModeOf(raw) < modes.Length ? modes[ActiveModeOf(raw)] : null;
+        int activeIndex = ActiveModeOf(raw);
+        var active = raw.Modes is { Length: > 0 } modes && activeIndex >= 0 && activeIndex < modes.Length ? modes[activeIndex] : null;
         int ledCount = raw.Leds?.Length ?? raw.Colors?.Length ?? 0;
         if (active is not null && !OpenRgbDeviceMapper.IsPerLed(active))
         {
-            // Mode-specific colour: resend the mode with the new colour.
-            client.UpdateMode(deviceIndex, active.Index, null, null, [OpenRgbDeviceMapper.ToOpenRgb(color)]);
+            // Mode-specific colour: resend the mode with every one of its colour slots set (some controllers use 2+).
+            client.UpdateMode(deviceIndex, active.Index, null, null, ModeColors(active, color));
         }
         else
         {
@@ -476,11 +638,10 @@ public sealed class OpenRgbLightingService : ILightingService, IDisposable
         uint? speedValue = speed is { } s && mapped.HasSpeed ? (uint)LightingApplyPlanner.ClampSpeed(mapped, s) : null;
         var effective = color is { } c ? LightingApplyPlanner.EffectiveColor(c, brightness) : (RgbColor?)null;
 
-        Color[] modeColors = mode.Colors ?? [];
-        if (effective is { } ec && mapped.HasColor && !OpenRgbDeviceMapper.IsPerLed(mode))
-        {
-            modeColors = [OpenRgbDeviceMapper.ToOpenRgb(ec)];
-        }
+        // Null leaves the mode's colours as they are; otherwise every colour slot of the mode gets the new colour.
+        Color[]? modeColors = effective is { } ec && mapped.HasColor && !OpenRgbDeviceMapper.IsPerLed(mode)
+            ? ModeColors(mode, ec)
+            : null;
 
         client.UpdateMode(deviceIndex, modeIndex, speedValue, null, modeColors);
         _activeModeOverride[raw.Index] = modeIndex;
@@ -491,8 +652,8 @@ public sealed class OpenRgbLightingService : ILightingService, IDisposable
             client.UpdateLeds(deviceIndex, OpenRgbDeviceMapper.ToOpenRgb(LightingApplyPlanner.Fill(ledCount, led)));
         }
 
-        string note = brightness is { } b && b < 100 && !OpenRgbDeviceMapper.IsPerLed(mode) && !mapped.HasColor
-            ? " Brightness is applied by dimming the colour, which this effect does not use."
+        string note = brightness is { } b && b < 100 && !LightingApplyPlanner.CanDim(mapped)
+            ? " " + LightingApplyPlanner.BrightnessUnsupportedNote
             : string.Empty;
         return OperationResult.Ok($"{raw.Name}: mode \"{mode.Name}\" applied.{note}");
     }
@@ -522,21 +683,26 @@ public sealed class OpenRgbLightingService : ILightingService, IDisposable
 
         if (LightingApplyPlanner.NeedsModeSwitch(modes, ActiveModeOf(raw), target.Value))
         {
-            var mode = raw.Modes![target.Value];
-            client.UpdateMode(raw.Index, target.Value, null, null, mode.Colors ?? []);
+            client.UpdateMode(raw.Index, target.Value, null, null, null);
             _activeModeOverride[raw.Index] = target.Value;
         }
 
         return OperationResult.Ok();
     }
 
+    /// <summary>Every colour slot of a mode-specific-colour mode filled with one colour (null when the mode has no slots).</summary>
+    private static Color[]? ModeColors(Mode mode, RgbColor color)
+    {
+        int slots = mode.Colors?.Length ?? 0;
+        return slots > 0 ? OpenRgbDeviceMapper.ToOpenRgb(LightingApplyPlanner.Fill(slots, color)) : null;
+    }
+
+    /// <summary>Re-reads the server's device data after a change and tells the page. Called with the gate held.</summary>
     private void RefreshCache(OpenRgbClient client)
     {
         try
         {
-            _raw = client.GetAllControllerData() ?? _raw;
-            _activeModeOverride.Clear();
-            _devices = _raw.Select(OpenRgbDeviceMapper.Map).ToList();
+            ReplaceRaw(client.GetAllControllerData() ?? _raw);
             RaiseDevicesChanged();
         }
         catch (Exception ex)
@@ -545,10 +711,24 @@ public sealed class OpenRgbLightingService : ILightingService, IDisposable
         }
     }
 
+    /// <summary>
+    /// The single place the raw server data is replaced. Mode overrides describe switches made on top of the previous
+    /// snapshot, so they are dropped here; otherwise a mode the user changed in OpenRGB's own window would be
+    /// mis-reported and a later colour send could land while the device is still in an effect mode.
+    /// </summary>
+    private void ReplaceRaw(Device[] raw)
+    {
+        _raw = raw;
+        _activeModeOverride.Clear();
+        _devices = raw.Select(OpenRgbDeviceMapper.Map).ToList();
+    }
+
     /// <summary>The mode the device is in, counting switches made since the last refresh of the server data.</summary>
     private int ActiveModeOf(Device raw) => _activeModeOverride.TryGetValue(raw.Index, out var m) ? m : raw.ActiveModeIndex;
 
     private Device? Raw(int deviceIndex) => _raw.FirstOrDefault(d => d.Index == deviceIndex) ?? (deviceIndex >= 0 && deviceIndex < _raw.Length ? _raw[deviceIndex] : null);
+
+    private string DeviceName(int deviceIndex) => _devices.FirstOrDefault(d => d.Index == deviceIndex)?.Name ?? $"Device {deviceIndex}";
 
     private string? SafeInstallPath()
     {
@@ -564,16 +744,22 @@ public sealed class OpenRgbLightingService : ILightingService, IDisposable
 
     private void DisposeClient()
     {
+        var client = _client;
+        _client = null;
+        if (client is null)
+        {
+            return;
+        }
+
         try
         {
-            _client?.Dispose();
+            client.DeviceListUpdated -= OnServerDeviceListUpdated;
+            client.Dispose();
         }
         catch
         {
             // Closing a dead socket must never fail the caller.
         }
-
-        _client = null;
     }
 
     private void RaiseDevicesChanged()
@@ -588,8 +774,18 @@ public sealed class OpenRgbLightingService : ILightingService, IDisposable
         }
     }
 
-    private async Task JournalAsync(string action, string target, OperationResult result, string? after)
+    /// <summary>Lighting is cosmetic: every change is logged and journaled (reversible by picking another colour), never restore-pointed.</summary>
+    private async Task RecordAsync(string action, string target, OperationResult result, string? after)
     {
+        if (result.Success)
+        {
+            _logger.LogInformation("Lighting: {Action} on {Target} → {After}.", action, target, after ?? "(unchanged)");
+        }
+        else
+        {
+            _logger.LogWarning("Lighting: {Action} on {Target} failed: {Message}", action, target, result.Message);
+        }
+
         try
         {
             await _journal.RecordAsync(ActionRecord.Create(Module, action, target, result.Success ? "Success" : "Failed: " + result.Message,

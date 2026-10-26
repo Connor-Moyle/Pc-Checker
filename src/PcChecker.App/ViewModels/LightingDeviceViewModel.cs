@@ -27,6 +27,7 @@ public sealed partial class LightingDeviceViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(SupportsColor))]
     [NotifyPropertyChangedFor(nameof(SupportsSpeed))]
     [NotifyPropertyChangedFor(nameof(SupportsBrightness))]
+    [NotifyPropertyChangedFor(nameof(ShowBrightnessNote))]
     [NotifyPropertyChangedFor(nameof(ModeHint))]
     private RgbMode? _selectedMode;
 
@@ -103,7 +104,16 @@ public sealed partial class LightingDeviceViewModel : ObservableObject
 
     public bool SupportsColor => SelectedMode?.HasColor ?? false;
     public bool SupportsSpeed => SelectedMode?.HasSpeed ?? false;
-    public bool SupportsBrightness => SelectedMode?.HasBrightness ?? SupportsColor;
+
+    /// <summary>
+    /// Brightness is applied by dimming the colour that is sent, so it works for every mode that takes a colour and
+    /// for none that does not (OpenRGB.NET 3.1.1 cannot send a mode's own brightness value).
+    /// </summary>
+    public bool SupportsBrightness => LightingApplyPlanner.CanDim(SelectedMode);
+
+    /// <summary>True for effects that advertise brightness we cannot set: the card states that instead of showing a dead slider.</summary>
+    public bool ShowBrightnessNote => SelectedMode is { HasColor: false, HasBrightness: true };
+    public string BrightnessNote => LightingApplyPlanner.BrightnessUnsupportedNote;
 
     public string ModeHint => SelectedMode switch
     {
@@ -117,18 +127,19 @@ public sealed partial class LightingDeviceViewModel : ObservableObject
     public string ColorHex => new RgbColor(Color.R, Color.G, Color.B).ToHex();
 
     /// <summary>Replaces the underlying device after a refresh without re-sending anything to the server.</summary>
-    public void Sync(RgbDevice device, int? brightness = null, int? speed = null)
+    public void Sync(RgbDevice device)
     {
         _syncing = true;
         try
         {
             Device = device;
             SelectedMode = device.Modes.FirstOrDefault(m => m.Index == device.ActiveModeIndex) ?? SelectedMode;
-            if (device.Color is { } c && SelectedMode?.HasColor == true)
+            if (device.Color is { } c && LightingApplyPlanner.IsSteadyMode(SelectedMode))
             {
                 // The server reports the colour actually on the LEDs, which is our base colour dimmed by the
                 // brightness. Keep the base colour unless something else (OpenRGB's own window, "Sync all") changed it,
-                // otherwise repeated brightness changes would dim an already dimmed colour.
+                // otherwise repeated brightness changes would dim an already dimmed colour. Animated effects report a
+                // mid-animation colour, so only steady modes are trusted here.
                 var expected = LightingApplyPlanner.EffectiveColor(new RgbColor(Color.R, Color.G, Color.B), Brightness);
                 if (c != expected)
                 {
@@ -136,16 +147,7 @@ public sealed partial class LightingDeviceViewModel : ObservableObject
                 }
             }
 
-            if (brightness is { } b)
-            {
-                Brightness = b;
-            }
-
-            if (speed is { } s)
-            {
-                Speed = s;
-            }
-
+            SyncZones(device);
             OnPropertyChanged(nameof(Name));
             OnPropertyChanged(nameof(Summary));
             OnPropertyChanged(nameof(Modes));
@@ -154,6 +156,26 @@ public sealed partial class LightingDeviceViewModel : ObservableObject
         {
             _syncing = false;
         }
+    }
+
+    /// <summary>Rebuilds the zone list when the device's zones changed (OpenRGB resized or re-detected them).</summary>
+    private void SyncZones(RgbDevice device)
+    {
+        bool same = Zones.Count == device.Zones.Count
+            && Zones.Zip(device.Zones).All(pair => pair.First.Zone == pair.Second);
+        if (same)
+        {
+            return;
+        }
+
+        var previous = Zones.ToDictionary(z => z.Index, z => z.Color);
+        Zones.Clear();
+        foreach (var zone in device.Zones)
+        {
+            Zones.Add(new LightingZoneViewModel(this, zone, previous.TryGetValue(zone.Index, out var kept) ? kept : Color));
+        }
+
+        OnPropertyChanged(nameof(HasZones));
     }
 
     /// <summary>Adopts a colour and brightness that were already sent by a page-level action, without re-sending.</summary>
@@ -190,10 +212,20 @@ public sealed partial class LightingDeviceViewModel : ObservableObject
         }
 
         _pending = kind == ApplyKind.Mode || _pending == ApplyKind.Mode ? ApplyKind.Mode : ApplyKind.Color;
-        _debounce?.Cancel();
-        _debounce?.Dispose();
         var cts = new CancellationTokenSource();
-        _debounce = cts;
+        var previous = Interlocked.Exchange(ref _debounce, cts);
+        if (previous is not null)
+        {
+            try
+            {
+                previous.Cancel();
+                previous.Dispose();
+            }
+            catch (ObjectDisposedException)
+            {
+            }
+        }
+
         _ = DebouncedApplyAsync(cts.Token);
     }
 
@@ -350,10 +382,20 @@ public sealed partial class LightingZoneViewModel : ObservableObject
             return;
         }
 
-        _debounce?.Cancel();
-        _debounce?.Dispose();
         var cts = new CancellationTokenSource();
-        _debounce = cts;
+        var previous = Interlocked.Exchange(ref _debounce, cts);
+        if (previous is not null)
+        {
+            try
+            {
+                previous.Cancel();
+                previous.Dispose();
+            }
+            catch (ObjectDisposedException)
+            {
+            }
+        }
+
         _ = RunAsync(cts.Token);
     }
 

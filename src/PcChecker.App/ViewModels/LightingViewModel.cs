@@ -1,4 +1,6 @@
 using System.Collections.ObjectModel;
+using System.Globalization;
+using System.Windows.Data;
 using System.Windows.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -18,6 +20,7 @@ public sealed partial class LightingViewModel : ViewModelBase
     private readonly IDialogService _dialogs;
     private readonly ILogger<LightingViewModel> _logger;
     private CancellationTokenSource? _reloadDebounce;
+    private bool _installProbed;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowEmptyState))]
@@ -75,7 +78,8 @@ public sealed partial class LightingViewModel : ViewModelBase
         _lighting.DevicesChanged += OnDevicesChanged;
         _activeProfileName = settings.Current.Lighting.ActiveProfileName;
         RebuildProfiles();
-        PullStatus();
+        // Status is pulled in InitializeAsync: the first read probes the OpenRGB install (registry, PATH), which must
+        // not run on the UI thread.
     }
 
     public ObservableCollection<LightingDeviceViewModel> Devices { get; } = [];
@@ -111,6 +115,7 @@ public sealed partial class LightingViewModel : ViewModelBase
 
     public override async Task InitializeAsync(CancellationToken cancellationToken)
     {
+        await ProbeInstallAsync();
         PullStatus();
         if (Settings.Current.Lighting.AutoConnect)
         {
@@ -379,8 +384,34 @@ public sealed partial class LightingViewModel : ViewModelBase
 
     // ---- internals -------------------------------------------------------------------------------------------
 
+    /// <summary>Warms the service's install lookup off the UI thread; every later status read is then a cached value.</summary>
+    private async Task ProbeInstallAsync()
+    {
+        if (_installProbed)
+        {
+            return;
+        }
+
+        try
+        {
+            await Task.Run(() => _lighting.IsOpenRgbInstalled);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "OpenRGB install probe failed.");
+        }
+
+        _installProbed = true;
+    }
+
     private void PullStatus()
     {
+        if (!_installProbed)
+        {
+            // Status text depends on the install probe; keep "Connecting…" until InitializeAsync has run it.
+            return;
+        }
+
         IsConnected = _lighting.IsConnected;
         Status = _lighting.Status;
         IsOpenRgbInstalled = _lighting.IsOpenRgbInstalled;
@@ -397,16 +428,14 @@ public sealed partial class LightingViewModel : ViewModelBase
 
     private void ApplyDeviceList(IReadOnlyList<RgbDevice> devices)
     {
-        var demo = _lighting as DemoLightingService;
         var byIndex = Devices.ToDictionary(d => d.Index);
         var kept = new HashSet<int>();
         foreach (var device in devices)
         {
             kept.Add(device.Index);
-            var levels = demo?.GetLevels(device.Index);
             if (byIndex.TryGetValue(device.Index, out var vm) && vm.Name == device.Name)
             {
-                vm.Sync(device, levels?.Brightness, levels?.Speed);
+                vm.Sync(device);
             }
             else
             {
@@ -415,7 +444,7 @@ public sealed partial class LightingViewModel : ViewModelBase
                     Devices.Remove(vm);
                 }
 
-                Devices.Add(new LightingDeviceViewModel(device, _lighting, Report, levels?.Brightness ?? 100, levels?.Speed ?? 50));
+                Devices.Add(new LightingDeviceViewModel(device, _lighting, Report));
             }
         }
 
@@ -452,12 +481,30 @@ public sealed partial class LightingViewModel : ViewModelBase
     private void OnDevicesChanged(object? sender, EventArgs e)
     {
         // The server (or our own change) updated the device list: refresh the cards after a short pause so a burst
-        // of slider changes results in one reload.
-        _reloadDebounce?.Cancel();
-        _reloadDebounce?.Dispose();
-        var cts = new CancellationTokenSource();
-        _reloadDebounce = cts;
-        _ = ReloadLaterAsync(cts.Token);
+        // of slider changes results in one reload. Raised from service worker threads, so the debounce token is
+        // swapped atomically and a token another event already disposed is ignored.
+        try
+        {
+            var cts = new CancellationTokenSource();
+            var previous = Interlocked.Exchange(ref _reloadDebounce, cts);
+            if (previous is not null)
+            {
+                try
+                {
+                    previous.Cancel();
+                    previous.Dispose();
+                }
+                catch (ObjectDisposedException)
+                {
+                }
+            }
+
+            _ = ReloadLaterAsync(cts.Token);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Lighting device change handler failed.");
+        }
     }
 
     private async Task ReloadLaterAsync(CancellationToken token)
@@ -539,4 +586,33 @@ public sealed partial class LightingViewModel : ViewModelBase
 public sealed record VendorSoftwareLink(string Vendor, string Product, string Url)
 {
     public string Label => $"{Vendor} {Product}";
+}
+
+/// <summary>Media.Color, RgbColor or "#RRGGBB" → SolidColorBrush (colour swatches on the Lighting page).</summary>
+public sealed class LightingColorToBrushConverter : IValueConverter
+{
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        Color color = value switch
+        {
+            Color c => c,
+            RgbColor rgb => Color.FromRgb(rgb.R, rgb.G, rgb.B),
+            string s when RgbColorMath.TryParseHex(s, out var parsed) => Color.FromRgb(parsed.R, parsed.G, parsed.B),
+            _ => Color.FromArgb(0x40, 0x80, 0x80, 0x80),
+        };
+        var brush = new SolidColorBrush(color);
+        brush.Freeze();
+        return brush;
+    }
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => throw new NotSupportedException();
+}
+
+/// <summary>Icon name ("PlugConnected24") → <see cref="Wpf.Ui.Controls.SymbolRegular"/> for the Lighting status card.</summary>
+public sealed class LightingSymbolNameConverter : IValueConverter
+{
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture) =>
+        value is string s && Enum.TryParse<Wpf.Ui.Controls.SymbolRegular>(s, out var symbol) ? symbol : Wpf.Ui.Controls.SymbolRegular.Info24;
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => throw new NotSupportedException();
 }

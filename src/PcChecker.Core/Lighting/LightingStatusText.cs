@@ -8,6 +8,8 @@ public static class LightingStatusText
     public const string NotInstalled = "OpenRGB not installed — download from openrgb.org";
     public const string Disconnected = "Disconnected from OpenRGB";
     public const string Connecting = "Connecting to OpenRGB…";
+    public const string RunningWithoutServer =
+        "OpenRGB is already running, but its SDK server is off. In the OpenRGB window open the SDK Server tab and press Start Server (tick \"Start server\" in its settings to keep it on), then press Connect here. PC Checker did not start a second copy, because two instances fight over the same hardware.";
 
     /// <summary>"Connected to OpenRGB x.y (N devices)". <paramref name="version"/> may be a protocol version text.</summary>
     public static string Connected(string? version, int deviceCount)

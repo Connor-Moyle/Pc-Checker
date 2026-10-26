@@ -3,7 +3,6 @@
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
       xmlns:controls="clr-namespace:PcChecker.App.Controls"
-      xmlns:conv="clr-namespace:PcChecker.App.Converters"
       xmlns:vm="clr-namespace:PcChecker.App.ViewModels"
       xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
       xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -12,8 +11,8 @@
       Title="Lighting"
       ScrollViewer.CanContentScroll="False">
   <Page.Resources>
-    <conv:ColorToBrushConverter x:Key="ColorToBrush" />
-    <conv:SymbolNameConverter x:Key="SymbolName" />
+    <vm:LightingColorToBrushConverter x:Key="ColorToBrush" />
+    <vm:LightingSymbolNameConverter x:Key="SymbolName" />
 
     <!-- Colour swatch that opens a picker popup; the popup stays open until "Done" so sliders can be dragged. -->
     <Style x:Key="SwatchToggle" TargetType="ToggleButton">
@@ -109,6 +108,8 @@
             <Slider Grid.Column="1" Minimum="0" Maximum="100" Value="{Binding Brightness}" IsMoveToPointEnabled="True" VerticalAlignment="Center" />
             <ui:TextBlock Grid.Column="2" Text="{Binding Brightness, StringFormat={}{0} %}" Style="{StaticResource Muted}" VerticalAlignment="Center" Margin="10,0,0,0" MinWidth="40" TextAlignment="Right" />
           </Grid>
+          <ui:TextBlock Style="{StaticResource Caption}" Text="{Binding BrightnessNote}" TextWrapping="Wrap" Margin="0,8,0,0"
+                        Visibility="{Binding ShowBrightnessNote, Converter={StaticResource BoolToVisibility}}" />
 
           <Grid Margin="0,6,0,0" Visibility="{Binding SupportsSpeed, Converter={StaticResource BoolToVisibility}}">
             <Grid.ColumnDefinitions>

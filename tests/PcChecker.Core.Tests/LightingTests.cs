@@ -290,6 +290,56 @@ public class LightingTests
     }
 
     [Fact]
+    public void Rainbow_requests_fall_back_to_the_devices_own_rainbow_style_effect()
+    {
+        RgbMode[] keyboard = [new(0, "Direct", true, false, true, null, null), new(1, "Rainbow Wave", false, true, true, 0, 100)];
+        RgbMode[] strip = [new(0, "Static", true, false, false, null, null), new(1, "Spectrum Cycle", false, true, false, 0, 3)];
+        RgbMode[] plain = [new(0, "Static", true, false, false, null, null), new(1, "Breathing", true, true, false, 0, 3)];
+
+        Assert.Equal(3, LightingApplyPlanner.ResolveModeIndex(Modes, "Rainbow"));
+        Assert.Equal(1, LightingApplyPlanner.ResolveModeIndex(keyboard, "Rainbow"));
+        Assert.Equal(1, LightingApplyPlanner.ResolveModeIndex(strip, "rainbow"));
+        Assert.Null(LightingApplyPlanner.ResolveModeIndex(plain, "Rainbow"));
+        Assert.Null(LightingApplyPlanner.ResolveModeIndex(keyboard, "Breathing"));
+        Assert.Null(LightingApplyPlanner.ResolveModeIndex(keyboard, null));
+        Assert.True(LightingApplyPlanner.IsRainbowRequest("Rainbow Wave"));
+        Assert.False(LightingApplyPlanner.IsRainbowRequest("Static"));
+    }
+
+    [Fact]
+    public void Steady_modes_are_recognised_so_only_their_reported_colour_is_trusted()
+    {
+        Assert.True(LightingApplyPlanner.IsSteadyMode(Modes[0]));
+        Assert.True(LightingApplyPlanner.IsSteadyMode(Modes[1]));
+        Assert.True(LightingApplyPlanner.IsSteadyMode(new RgbMode(7, "Solid", true, false, false, null, null)));
+        Assert.False(LightingApplyPlanner.IsSteadyMode(Modes[2]));
+        Assert.False(LightingApplyPlanner.IsSteadyMode(Modes[3]));
+        Assert.False(LightingApplyPlanner.IsSteadyMode(null));
+    }
+
+    [Fact]
+    public void Brightness_can_only_be_dimmed_in_modes_that_take_a_colour()
+    {
+        Assert.True(LightingApplyPlanner.CanDim(Modes[0]));
+        Assert.True(LightingApplyPlanner.CanDim(Modes[2]));
+        Assert.False(LightingApplyPlanner.CanDim(Modes[3]));
+        Assert.False(LightingApplyPlanner.CanDim(null));
+        Assert.Contains("not supported", LightingApplyPlanner.BrightnessUnsupportedNote, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Reconnect_backoff_doubles_then_caps_at_thirty_seconds()
+    {
+        Assert.Equal(TimeSpan.Zero, LightingApplyPlanner.ReconnectBackoff(0));
+        Assert.Equal(TimeSpan.FromMilliseconds(500), LightingApplyPlanner.ReconnectBackoff(1));
+        Assert.Equal(TimeSpan.FromSeconds(1), LightingApplyPlanner.ReconnectBackoff(2));
+        Assert.Equal(TimeSpan.FromSeconds(8), LightingApplyPlanner.ReconnectBackoff(5));
+        Assert.Equal(TimeSpan.FromSeconds(16), LightingApplyPlanner.ReconnectBackoff(6));
+        Assert.Equal(TimeSpan.FromSeconds(30), LightingApplyPlanner.ReconnectBackoff(7));
+        Assert.Equal(TimeSpan.FromSeconds(30), LightingApplyPlanner.ReconnectBackoff(40));
+    }
+
+    [Fact]
     public void Speed_is_clamped_and_mapped_to_and_from_percent()
     {
         var rainbow = Modes[3];
@@ -356,7 +406,10 @@ public class LightingTests
 
         var rainbow = svc.BuiltInProfiles.Single(p => p.Name == "Rainbow");
         Assert.True((await svc.ApplyProfileAsync(rainbow, CancellationToken.None)).Success);
-        Assert.All(await svc.GetDevicesAsync(CancellationToken.None), d => Assert.Contains("Rainbow", d.Modes[d.ActiveModeIndex].Name));
+        var lit = await svc.GetDevicesAsync(CancellationToken.None);
+        Assert.All(lit, d => Assert.Contains("Rainbow", d.Modes[d.ActiveModeIndex].Name));
+        // The keyboard has no mode called exactly "Rainbow"; its own "Rainbow wave" effect is used instead.
+        Assert.Equal("Rainbow wave", lit.Single(d => d.Type == OpenRgbDeviceTypes.Keyboard).Modes[lit.Single(d => d.Type == OpenRgbDeviceTypes.Keyboard).ActiveModeIndex].Name);
 
         await svc.DisconnectAsync();
         Assert.False(svc.IsConnected);

@@ -75,7 +75,7 @@ public sealed class DemoLightingService : ILightingService
         await DemoData.DelayAsync(cancellationToken, 200, 600).ConfigureAwait(false);
         IsConnected = true;
         Remember("Connected");
-        DevicesChanged?.Invoke(this, EventArgs.Empty);
+        RaiseDevicesChanged();
         return OperationResult.Ok(Status);
     }
 
@@ -83,7 +83,7 @@ public sealed class DemoLightingService : ILightingService
     {
         IsConnected = false;
         Remember("Disconnected");
-        DevicesChanged?.Invoke(this, EventArgs.Empty);
+        RaiseDevicesChanged();
         return Task.CompletedTask;
     }
 
@@ -159,7 +159,7 @@ public sealed class DemoLightingService : ILightingService
         }
 
         Remember($"All devices → {color.ToHex()}");
-        DevicesChanged?.Invoke(this, EventArgs.Empty);
+        RaiseDevicesChanged();
         return OperationResult.Ok($"All {_devices.Count} devices set to {color.ToHex()}.");
     }
 
@@ -177,7 +177,7 @@ public sealed class DemoLightingService : ILightingService
         }
 
         Remember("All devices → off");
-        DevicesChanged?.Invoke(this, EventArgs.Empty);
+        RaiseDevicesChanged();
         return OperationResult.Ok("All lighting turned off.");
     }
 
@@ -204,10 +204,7 @@ public sealed class DemoLightingService : ILightingService
                     continue;
                 }
 
-                int? modeIndex = LightingApplyPlanner.FindModeIndex(d.Modes, assignment.ModeName)
-                    ?? (assignment.ModeName?.Contains("rainbow", StringComparison.OrdinalIgnoreCase) == true
-                        ? d.Modes.FirstOrDefault(m => m.Name.Contains("rainbow", StringComparison.OrdinalIgnoreCase))?.Index
-                        : null);
+                int? modeIndex = LightingApplyPlanner.ResolveModeIndex(d.Modes, assignment.ModeName);
                 var color = assignment.Color ?? profile.AllColor;
                 int active = modeIndex ?? (color is null ? d.ActiveModeIndex : LightingApplyPlanner.PickColorModeIndex(d.Modes, d.ActiveModeIndex) ?? d.ActiveModeIndex);
                 var mode = d.Modes[active];
@@ -222,7 +219,7 @@ public sealed class DemoLightingService : ILightingService
         }
 
         Remember($"Profile \"{profile.Name}\" applied");
-        DevicesChanged?.Invoke(this, EventArgs.Empty);
+        RaiseDevicesChanged();
         return OperationResult.Ok($"Profile \"{profile.Name}\" applied.");
     }
 
@@ -268,8 +265,20 @@ public sealed class DemoLightingService : ILightingService
 
         var text = message(updated);
         Remember(text);
-        DevicesChanged?.Invoke(this, EventArgs.Empty);
+        RaiseDevicesChanged();
         return OperationResult.Ok(text);
+    }
+
+    private void RaiseDevicesChanged()
+    {
+        try
+        {
+            DevicesChanged?.Invoke(this, EventArgs.Empty);
+        }
+        catch
+        {
+            // A subscriber's failure must not fail the change that was already applied.
+        }
     }
 
     private void Remember(string action)

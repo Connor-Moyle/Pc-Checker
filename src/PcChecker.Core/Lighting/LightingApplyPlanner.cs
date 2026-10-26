@@ -57,6 +57,81 @@ public static class LightingApplyPlanner
     /// <summary>The "Off" mode when the device has one.</summary>
     public static int? FindOffModeIndex(IReadOnlyList<RgbMode> modes) => FindModeIndex(modes, "Off");
 
+    /// <summary>Words that identify a device's own rainbow-style effect, most specific first.</summary>
+    private static readonly string[] RainbowWords = ["rainbow", "spectrum", "cycle"];
+
+    /// <summary>Mode names that show a steady colour (so the colour the server reports is the colour that was set).</summary>
+    private static readonly string[] SteadyModes = ["Direct", "Static", "Custom"];
+
+    /// <summary>True when a profile asks for a rainbow effect by name.</summary>
+    public static bool IsRainbowRequest(string? modeName) => modeName?.Contains("rainbow", StringComparison.OrdinalIgnoreCase) == true;
+
+    /// <summary>
+    /// The device's own rainbow-style effect ("Rainbow", "Rainbow Wave", "Spectrum Cycle", "Color Cycle"…), or null
+    /// when it has none.
+    /// </summary>
+    public static int? FindRainbowModeIndex(IReadOnlyList<RgbMode> modes)
+    {
+        foreach (var word in RainbowWords)
+        {
+            var hit = modes.FirstOrDefault(m => m.Name.Contains(word, StringComparison.OrdinalIgnoreCase));
+            if (hit is not null)
+            {
+                return hit.Index;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Finds the mode a profile entry names: the exact name first; for a rainbow request, any rainbow-style effect the
+    /// device offers. Null when the device has nothing matching.
+    /// </summary>
+    public static int? ResolveModeIndex(IReadOnlyList<RgbMode> modes, string? modeName)
+    {
+        var exact = FindModeIndex(modes, modeName);
+        if (exact is not null || !IsRainbowRequest(modeName))
+        {
+            return exact;
+        }
+
+        return FindRainbowModeIndex(modes);
+    }
+
+    /// <summary>
+    /// True when the mode shows a steady colour, so the first LED colour the server reports is the colour that was set
+    /// (an animated effect such as Breathing reports whatever colour it is mid-way through).
+    /// </summary>
+    public static bool IsSteadyMode(RgbMode? mode) =>
+        mode is not null
+        && (SteadyModes.Any(n => mode.Name.Equals(n, StringComparison.OrdinalIgnoreCase)) || (mode.HasColor && !mode.HasSpeed));
+
+    /// <summary>
+    /// Whether brightness can be applied to a mode. PC Checker dims by scaling the colour it sends (OpenRGB.NET 3.1.1
+    /// cannot send a mode's own brightness value), so only modes that take a colour can be dimmed.
+    /// </summary>
+    public static bool CanDim(RgbMode? mode) => mode?.HasColor == true;
+
+    /// <summary>Support statement for a mode's brightness, per the honesty rules.</summary>
+    public const string BrightnessUnsupportedNote =
+        "Brightness: not supported for this effect through the OpenRGB SDK. PC Checker dims by scaling the colour it sends, and this effect picks its own colours; set its brightness in OpenRGB's own window.";
+
+    /// <summary>
+    /// How long to wait before the next automatic reconnect after <paramref name="failedAttempts"/> failures in a row:
+    /// 0.5 s, 1 s, 2 s, 4 s, 8 s, 16 s, then every 30 s.
+    /// </summary>
+    public static TimeSpan ReconnectBackoff(int failedAttempts)
+    {
+        if (failedAttempts <= 0)
+        {
+            return TimeSpan.Zero;
+        }
+
+        int exponent = Math.Min(failedAttempts - 1, 6);
+        return TimeSpan.FromMilliseconds(Math.Min(30_000, 500 * (1 << exponent)));
+    }
+
     /// <summary>
     /// Which entry of a profile applies to a device: an exact device name, then the device type (e.g. "Keyboard"),
     /// then the "*" wildcard. Null when the profile says nothing about this device.
