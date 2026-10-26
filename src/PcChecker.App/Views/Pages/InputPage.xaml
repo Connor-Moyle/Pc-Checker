@@ -4,12 +4,51 @@
       xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
       xmlns:controls="clr-namespace:PcChecker.App.Controls"
       xmlns:vm="clr-namespace:PcChecker.App.ViewModels"
-      d:DataContext="{d:DesignInstance vm:InputViewModel}"
       xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
       xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+      d:DataContext="{d:DesignInstance vm:InputViewModel}"
       mc:Ignorable="d"
       Title="Keyboard &amp; Mouse"
       ScrollViewer.CanContentScroll="False">
+  <Page.Resources>
+    <Style x:Key="SettingRow" TargetType="Grid">
+      <Setter Property="Margin" Value="0,6" />
+    </Style>
+    <Style x:Key="SettingLabel" TargetType="ui:TextBlock">
+      <Setter Property="FontTypography" Value="Body" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+    <Style x:Key="SettingHint" TargetType="ui:TextBlock" BasedOn="{StaticResource Muted}">
+      <Setter Property="TextWrapping" Value="Wrap" />
+      <Setter Property="Margin" Value="0,2,0,0" />
+    </Style>
+    <Style x:Key="ValueText" TargetType="ui:TextBlock">
+      <Setter Property="FontTypography" Value="BodyStrong" />
+      <Setter Property="Foreground" Value="{StaticResource AccentCyanBrush}" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="Margin" Value="12,0,0,0" />
+    </Style>
+    <Style x:Key="SettingSlider" TargetType="Slider">
+      <Setter Property="IsSnapToTickEnabled" Value="True" />
+      <Setter Property="TickFrequency" Value="1" />
+      <Setter Property="Margin" Value="0,4,0,0" />
+    </Style>
+    <Style x:Key="CardIcon" TargetType="ui:SymbolIcon">
+      <Setter Property="FontSize" Value="22" />
+      <Setter Property="Margin" Value="0,0,10,0" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="Foreground" Value="{StaticResource AccentCyanBrush}" />
+    </Style>
+    <Style x:Key="ClickResult" TargetType="ui:TextBlock" BasedOn="{StaticResource Muted}">
+      <Setter Property="TextWrapping" Value="Wrap" />
+      <Style.Triggers>
+        <DataTrigger Binding="{Binding ClickTestPassed}" Value="True">
+          <Setter Property="Foreground" Value="{StaticResource AccentGreenBrush}" />
+        </DataTrigger>
+      </Style.Triggers>
+    </Style>
+  </Page.Resources>
+
   <Grid Style="{StaticResource PageRoot}">
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto" />
@@ -17,7 +56,19 @@
       <RowDefinition Height="*" />
     </Grid.RowDefinitions>
 
-    <controls:SectionHeader Grid.Row="0" Title="Keyboard &amp; Mouse" Subtitle="Mouse speed and acceleration, keyboard repeat, polling rate and profiles." />
+    <controls:SectionHeader Grid.Row="0" Title="Keyboard &amp; Mouse"
+                            Subtitle="Pointer speed and acceleration, double-click, keyboard repeat, polling rate, profiles and your detected devices.">
+      <controls:SectionHeader.Actions>
+        <StackPanel Orientation="Horizontal">
+          <ui:Button Content="Refresh" Icon="{ui:SymbolIcon ArrowSync24}" Command="{Binding RefreshNowCommand}" Margin="0,0,8,0"
+                     ToolTip="Re-read the current Windows settings and devices." />
+          <ui:Button Content="Windows mouse settings" Icon="{ui:SymbolIcon Open24}" Command="{Binding OpenMouseSettingsCommand}" Margin="0,0,8,0"
+                     ToolTip="Opens Settings → Bluetooth &amp; devices → Mouse." />
+          <ui:Button Content="Typing settings" Icon="{ui:SymbolIcon Keyboard24}" Command="{Binding OpenKeyboardSettingsCommand}"
+                     ToolTip="Opens Settings → Time &amp; language → Typing." />
+        </StackPanel>
+      </controls:SectionHeader.Actions>
+    </controls:SectionHeader>
 
     <ui:InfoBar Grid.Row="1"
                 Severity="Error"
@@ -27,10 +78,497 @@
                 IsClosable="True"
                 Margin="0,0,0,12" />
 
-    <controls:EmptyState Grid.Row="2"
-                         Icon="Keyboard24"
-                         Title="This section is being prepared"
-                         Message="Mouse speed and acceleration, keyboard repeat, polling rate and profiles." />
+    <ScrollViewer Grid.Row="2" Style="{StaticResource PageScroll}">
+      <StackPanel>
+        <ui:InfoBar Severity="Informational"
+                    Title="Status"
+                    Message="{Binding StatusMessage}"
+                    IsOpen="True"
+                    IsClosable="False"
+                    Margin="0,0,0,12"
+                    Visibility="{Binding StatusMessage, Converter={StaticResource NullToVisibility}}" />
+
+        <Grid>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" MinWidth="420" />
+            <ColumnDefinition Width="*" MinWidth="380" />
+          </Grid.ColumnDefinitions>
+
+          <!-- ===================== Left column: mouse + keyboard ===================== -->
+          <StackPanel Grid.Column="0" Margin="0,0,12,0">
+
+            <!-- Mouse -->
+            <ui:Card Style="{StaticResource CardSpacing}">
+              <StackPanel>
+                <Grid Margin="0,0,0,8">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                  </Grid.ColumnDefinitions>
+                  <StackPanel Orientation="Horizontal">
+                    <ui:SymbolIcon Symbol="CursorClick24" Style="{StaticResource CardIcon}" />
+                    <ui:TextBlock FontTypography="Subtitle" Text="Mouse" VerticalAlignment="Center" />
+                  </StackPanel>
+                  <StackPanel Grid.Column="1" Orientation="Horizontal">
+                    <ui:Button Content="Defaults" Icon="{ui:SymbolIcon ArrowReset24}" Command="{Binding ResetMouseToDefaultsCommand}" Margin="0,0,8,0"
+                               ToolTip="Load the Windows defaults into the sliders. Nothing changes until you press Apply." />
+                    <ui:Button Content="Revert" Icon="{ui:SymbolIcon ArrowUndo24}" Command="{Binding RevertMouseCommand}" Margin="0,0,8,0"
+                               ToolTip="Discard your edits and show what Windows is using right now." />
+                    <ui:Button Content="Apply" Appearance="Primary" Icon="{ui:SymbolIcon Checkmark24}" Command="{Binding ApplyMouseCommand}"
+                               ToolTip="Applies the mouse settings to Windows after a confirmation." />
+                  </StackPanel>
+                </Grid>
+                <ui:TextBlock Style="{StaticResource SettingHint}" Margin="0,0,0,8"
+                              Text="These are the same settings as the Windows Mouse control panel, explained. Apply asks for confirmation; everything can be undone with the Windows default profile." />
+
+                <!-- Pointer speed -->
+                <Grid Style="{StaticResource SettingRow}">
+                  <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                  </Grid.RowDefinitions>
+                  <StackPanel Orientation="Horizontal">
+                    <ui:TextBlock Style="{StaticResource SettingLabel}" Text="Pointer speed" ToolTip="How far the pointer travels for a given hand movement. 6/11 is the Windows default." />
+                    <ui:TextBlock Style="{StaticResource ValueText}" Text="{Binding SpeedText}" />
+                  </StackPanel>
+                  <Slider Grid.Row="1" Style="{StaticResource SettingSlider}" Minimum="1" Maximum="20" Value="{Binding MouseSpeed}" TickPlacement="BottomRight" TickFrequency="2" />
+                  <ui:TextBlock Grid.Row="2" Style="{StaticResource SettingHint}" Text="{Binding SpeedNote}" />
+                </Grid>
+
+                <!-- Enhance pointer precision -->
+                <Grid Style="{StaticResource SettingRow}">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                  </Grid.ColumnDefinitions>
+                  <StackPanel Margin="0,0,16,0">
+                    <ui:TextBlock Style="{StaticResource SettingLabel}" Text="Enhance pointer precision (mouse acceleration)" />
+                    <ui:TextBlock Style="{StaticResource SettingHint}"
+                                  Text="On: fast flicks move the pointer further than slow movements. Gamers usually turn this off so the same hand movement always moves the same distance; it is fine to keep on for desktop work." />
+                  </StackPanel>
+                  <ui:ToggleSwitch Grid.Column="1" IsChecked="{Binding EnhancePointerPrecision}" VerticalAlignment="Center" />
+                </Grid>
+
+                <!-- Double-click speed -->
+                <Grid Style="{StaticResource SettingRow}">
+                  <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                  </Grid.RowDefinitions>
+                  <StackPanel Orientation="Horizontal">
+                    <ui:TextBlock Style="{StaticResource SettingLabel}" Text="Double-click speed" ToolTip="The longest gap between two clicks that still counts as a double-click." />
+                    <ui:TextBlock Style="{StaticResource ValueText}" Text="{Binding DoubleClickText}" />
+                  </StackPanel>
+                  <Slider Grid.Row="1" Style="{StaticResource SettingSlider}" Minimum="100" Maximum="2000" TickFrequency="50" Value="{Binding DoubleClickMs}" />
+                  <Grid Grid.Row="2" Margin="0,8,0,0">
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="Auto" />
+                      <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <ui:Button Content="Double-click here" Icon="{ui:SymbolIcon Target24}" Command="{Binding ClickTestCommand}" MinWidth="170"
+                               ToolTip="Click twice. The result tells you whether the gap fit inside the slider value above." />
+                    <ui:TextBlock Grid.Column="1" Style="{StaticResource ClickResult}" Text="{Binding ClickTestText}" VerticalAlignment="Center" Margin="12,0,0,0" />
+                  </Grid>
+                </Grid>
+
+                <!-- Wheel -->
+                <Grid Style="{StaticResource SettingRow}">
+                  <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                  </Grid.RowDefinitions>
+                  <Grid>
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="*" />
+                      <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Orientation="Horizontal">
+                      <ui:TextBlock Style="{StaticResource SettingLabel}" Text="Wheel scrolling" />
+                      <ui:TextBlock Style="{StaticResource ValueText}" Text="{Binding ScrollText}" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal">
+                      <ui:TextBlock Style="{StaticResource Muted}" Text="One screen per notch" VerticalAlignment="Center" Margin="0,0,8,0" />
+                      <ui:ToggleSwitch IsChecked="{Binding ScrollOneScreen}" />
+                    </StackPanel>
+                  </Grid>
+                  <Slider Grid.Row="1" Style="{StaticResource SettingSlider}" Minimum="1" Maximum="20" Value="{Binding ScrollLines}" IsEnabled="{Binding ScrollLinesEnabled}" />
+                </Grid>
+
+                <!-- Pointer trails -->
+                <Grid Style="{StaticResource SettingRow}">
+                  <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                  </Grid.RowDefinitions>
+                  <StackPanel Orientation="Horizontal">
+                    <ui:TextBlock Style="{StaticResource SettingLabel}" Text="Pointer trails" ToolTip="Draws ghost copies behind the pointer so it is easier to see. Off is best for gaming." />
+                    <ui:TextBlock Style="{StaticResource ValueText}" Text="{Binding TrailsText}" />
+                  </StackPanel>
+                  <Slider Grid.Row="1" Style="{StaticResource SettingSlider}" Minimum="0" Maximum="7" Value="{Binding PointerTrails}" />
+                </Grid>
+
+                <!-- Toggles -->
+                <Grid Style="{StaticResource SettingRow}">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                  </Grid.ColumnDefinitions>
+                  <StackPanel Margin="0,0,16,0">
+                    <ui:TextBlock Style="{StaticResource SettingLabel}" Text="Swap primary and secondary buttons" />
+                    <ui:TextBlock Style="{StaticResource SettingHint}" Text="For left-handed use: the right button becomes the main click." />
+                  </StackPanel>
+                  <ui:ToggleSwitch Grid.Column="1" IsChecked="{Binding SwapButtons}" VerticalAlignment="Center" />
+                </Grid>
+                <Grid Style="{StaticResource SettingRow}">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                  </Grid.ColumnDefinitions>
+                  <StackPanel Margin="0,0,16,0">
+                    <ui:TextBlock Style="{StaticResource SettingLabel}" Text="Hide the pointer while typing" />
+                    <ui:TextBlock Style="{StaticResource SettingHint}" Text="Keeps the pointer out of the way of the text you are writing." />
+                  </StackPanel>
+                  <ui:ToggleSwitch Grid.Column="1" IsChecked="{Binding HidePointerWhileTyping}" VerticalAlignment="Center" />
+                </Grid>
+                <Grid Style="{StaticResource SettingRow}">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                  </Grid.ColumnDefinitions>
+                  <StackPanel Margin="0,0,16,0">
+                    <ui:TextBlock Style="{StaticResource SettingLabel}" Text="Snap the pointer to the default button in dialogs" />
+                    <ui:TextBlock Style="{StaticResource SettingHint}" Text="Jumps the pointer onto OK / Yes when a dialog opens. Most people leave this off." />
+                  </StackPanel>
+                  <ui:ToggleSwitch Grid.Column="1" IsChecked="{Binding SnapToDefaultButton}" VerticalAlignment="Center" />
+                </Grid>
+
+                <ui:Button Content="Open the classic Mouse control panel" Icon="{ui:SymbolIcon Settings24}" Command="{Binding OpenMouseControlPanelCommand}" Margin="0,8,0,0"
+                           ToolTip="For pointer schemes, cursor images and the hardware tab (main.cpl)." />
+              </StackPanel>
+            </ui:Card>
+
+            <!-- Keyboard -->
+            <ui:Card Style="{StaticResource CardSpacing}">
+              <StackPanel>
+                <Grid Margin="0,0,0,8">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                  </Grid.ColumnDefinitions>
+                  <StackPanel Orientation="Horizontal">
+                    <ui:SymbolIcon Symbol="Keyboard24" Style="{StaticResource CardIcon}" />
+                    <ui:TextBlock FontTypography="Subtitle" Text="Keyboard" VerticalAlignment="Center" />
+                  </StackPanel>
+                  <StackPanel Grid.Column="1" Orientation="Horizontal">
+                    <ui:Button Content="Defaults" Icon="{ui:SymbolIcon ArrowReset24}" Command="{Binding ResetKeyboardToDefaultsCommand}" Margin="0,0,8,0" />
+                    <ui:Button Content="Revert" Icon="{ui:SymbolIcon ArrowUndo24}" Command="{Binding RevertKeyboardCommand}" Margin="0,0,8,0" />
+                    <ui:Button Content="Apply" Appearance="Primary" Icon="{ui:SymbolIcon Checkmark24}" Command="{Binding ApplyKeyboardCommand}" />
+                  </StackPanel>
+                </Grid>
+
+                <!-- Repeat delay -->
+                <Grid Style="{StaticResource SettingRow}">
+                  <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                  </Grid.RowDefinitions>
+                  <StackPanel Orientation="Horizontal">
+                    <ui:TextBlock Style="{StaticResource SettingLabel}" Text="Repeat delay" ToolTip="How long a key must be held before it starts repeating." />
+                    <ui:TextBlock Style="{StaticResource ValueText}" Text="{Binding RepeatDelayText}" />
+                  </StackPanel>
+                  <Slider Grid.Row="1" Style="{StaticResource SettingSlider}" Minimum="0" Maximum="3" Value="{Binding RepeatDelay}" TickPlacement="BottomRight" />
+                  <ui:TextBlock Grid.Row="2" Style="{StaticResource SettingHint}" Text="Short is handy for gaming and quick navigation; longer avoids accidental repeats." />
+                </Grid>
+
+                <!-- Repeat rate -->
+                <Grid Style="{StaticResource SettingRow}">
+                  <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                  </Grid.RowDefinitions>
+                  <StackPanel Orientation="Horizontal">
+                    <ui:TextBlock Style="{StaticResource SettingLabel}" Text="Repeat rate" ToolTip="How fast a held key repeats once it starts." />
+                    <ui:TextBlock Style="{StaticResource ValueText}" Text="{Binding RepeatRateText}" />
+                  </StackPanel>
+                  <Slider Grid.Row="1" Style="{StaticResource SettingSlider}" Minimum="0" Maximum="31" Value="{Binding RepeatRate}" />
+                </Grid>
+
+                <!-- Test box -->
+                <Grid Style="{StaticResource SettingRow}">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                  </Grid.ColumnDefinitions>
+                  <ui:TextBox Text="{Binding KeyboardTestText, UpdateSourceTrigger=PropertyChanged}"
+                              PlaceholderText="Click here and hold a key to feel the delay and rate (uses the values Windows has now, not unapplied edits)"
+                              ClearButtonEnabled="True" />
+                  <ui:Button Grid.Column="1" Content="Clear" Icon="{ui:SymbolIcon Dismiss24}" Command="{Binding ClearKeyboardTestCommand}" Margin="8,0,0,0" />
+                </Grid>
+
+                <!-- Cursor blink -->
+                <Grid Style="{StaticResource SettingRow}">
+                  <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                  </Grid.RowDefinitions>
+                  <StackPanel Orientation="Horizontal">
+                    <ui:TextBlock Style="{StaticResource SettingLabel}" Text="Text cursor blink" ToolTip="How quickly the text cursor blinks. Windows default is 530 ms." />
+                    <ui:TextBlock Style="{StaticResource ValueText}" Text="{Binding CursorBlinkText}" />
+                  </StackPanel>
+                  <Slider Grid.Row="1" Style="{StaticResource SettingSlider}" Minimum="200" Maximum="1200" TickFrequency="10" Value="{Binding CursorBlinkMs}" />
+                </Grid>
+
+                <ui:TextBlock FontTypography="BodyStrong" Text="Accessibility" Margin="0,12,0,4" />
+                <Grid Style="{StaticResource SettingRow}">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                  </Grid.ColumnDefinitions>
+                  <StackPanel Margin="0,0,16,0">
+                    <ui:TextBlock Style="{StaticResource SettingLabel}" Text="Sticky Keys" />
+                    <ui:TextBlock Style="{StaticResource SettingHint}" Text="Press Shift, Ctrl, Alt or Win one at a time instead of holding them. Also toggled by pressing Shift five times." />
+                  </StackPanel>
+                  <ui:ToggleSwitch Grid.Column="1" IsChecked="{Binding StickyKeys}" VerticalAlignment="Center" />
+                </Grid>
+                <Grid Style="{StaticResource SettingRow}">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                  </Grid.ColumnDefinitions>
+                  <StackPanel Margin="0,0,16,0">
+                    <ui:TextBlock Style="{StaticResource SettingLabel}" Text="Filter Keys" />
+                    <ui:TextBlock Style="{StaticResource SettingHint}" Text="Ignores brief or repeated key presses. Turn off if keys seem to be missed while gaming or typing fast." />
+                  </StackPanel>
+                  <ui:ToggleSwitch Grid.Column="1" IsChecked="{Binding FilterKeys}" VerticalAlignment="Center" />
+                </Grid>
+                <Grid Style="{StaticResource SettingRow}">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                  </Grid.ColumnDefinitions>
+                  <StackPanel Margin="0,0,16,0">
+                    <ui:TextBlock Style="{StaticResource SettingLabel}" Text="Toggle Keys" />
+                    <ui:TextBlock Style="{StaticResource SettingHint}" Text="Plays a sound when Caps Lock, Num Lock or Scroll Lock is pressed." />
+                  </StackPanel>
+                  <ui:ToggleSwitch Grid.Column="1" IsChecked="{Binding ToggleKeys}" VerticalAlignment="Center" />
+                </Grid>
+              </StackPanel>
+            </ui:Card>
+          </StackPanel>
+
+          <!-- ===================== Right column: polling, profiles, devices ===================== -->
+          <StackPanel Grid.Column="1">
+
+            <!-- Polling rate -->
+            <ui:Card Style="{StaticResource CardSpacing}">
+              <StackPanel>
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                  <ui:SymbolIcon Symbol="TopSpeed24" Style="{StaticResource CardIcon}" />
+                  <ui:TextBlock FontTypography="Subtitle" Text="Mouse polling rate" VerticalAlignment="Center" />
+                </StackPanel>
+                <ui:TextBlock Style="{StaticResource SettingHint}" Margin="0,0,0,10"
+                              Text="How many times per second the mouse reports its position. Higher is smoother and lower-latency; 1000 Hz is the gaming standard. The rate is set in the mouse's own software, not in Windows." />
+                <Grid>
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                  </Grid.ColumnDefinitions>
+                  <Border Background="{DynamicResource ControlFillColorSecondaryBrush}" CornerRadius="8" Padding="18,10" MinWidth="150" Margin="0,0,16,0">
+                    <StackPanel HorizontalAlignment="Center">
+                      <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                        <ui:TextBlock FontTypography="TitleLarge" Text="{Binding LiveHz}" Foreground="{StaticResource AccentCyanBrush}" />
+                        <ui:TextBlock FontTypography="Subtitle" Text=" Hz" VerticalAlignment="Bottom" Margin="4,0,0,6" Appearance="Secondary" />
+                      </StackPanel>
+                      <ui:TextBlock Style="{StaticResource Caption}" Text="live, this second" HorizontalAlignment="Center" />
+                    </StackPanel>
+                  </Border>
+                  <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal">
+                      <ui:Button Content="Measure (5 s)" Appearance="Primary" Icon="{ui:SymbolIcon Play24}" Command="{Binding MeasurePollingRateCommand}" Margin="0,0,8,0" />
+                      <ui:Button Content="Stop" Icon="{ui:SymbolIcon Stop24}" Command="{Binding StopPollingRateCommand}" />
+                      <ui:TextBlock Style="{StaticResource Muted}" VerticalAlignment="Center" Margin="12,0,0,0"
+                                    Visibility="{Binding IsMeasuring, Converter={StaticResource BoolToVisibility}}">
+                        <Run Text="{Binding SecondsLeft, Mode=OneWay}" /><Run Text=" s left" />
+                      </ui:TextBlock>
+                    </StackPanel>
+                    <ui:TextBlock Style="{StaticResource SettingHint}" Text="{Binding PollingStatus}" Margin="0,8,0,0" />
+                  </StackPanel>
+                </Grid>
+
+                <ui:InfoBar Severity="Success"
+                            IsOpen="True"
+                            IsClosable="False"
+                            Margin="0,12,0,0"
+                            Title="{Binding PollingResult.Label}"
+                            Message="{Binding PollingResult.Verdict}"
+                            Visibility="{Binding HasPollingResult, Converter={StaticResource BoolToVisibility}}" />
+
+                <ui:CardExpander Margin="0,12,0,0" IsExpanded="False" Icon="{ui:SymbolIcon BookQuestionMark24}">
+                  <ui:CardExpander.Header>
+                    <ui:TextBlock Text="What the numbers mean" FontTypography="BodyStrong" />
+                  </ui:CardExpander.Header>
+                  <ItemsControl ItemsSource="{Binding PollingTable}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate>
+                        <Grid Margin="0,4">
+                          <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="70" />
+                            <ColumnDefinition Width="64" />
+                            <ColumnDefinition Width="*" />
+                          </Grid.ColumnDefinitions>
+                          <ui:TextBlock FontTypography="BodyStrong" Text="{Binding Label}" />
+                          <ui:TextBlock Grid.Column="1" Style="{StaticResource Muted}" Text="{Binding IntervalText}" VerticalAlignment="Center" />
+                          <ui:TextBlock Grid.Column="2" Style="{StaticResource Muted}" Text="{Binding Note}" TextWrapping="Wrap" />
+                        </Grid>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </ui:CardExpander>
+              </StackPanel>
+            </ui:Card>
+
+            <!-- Profiles -->
+            <ui:Card Style="{StaticResource CardSpacing}">
+              <StackPanel>
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                  <ui:SymbolIcon Symbol="PersonAccounts24" Style="{StaticResource CardIcon}" />
+                  <ui:TextBlock FontTypography="Subtitle" Text="Profiles" VerticalAlignment="Center" />
+                </StackPanel>
+                <ui:TextBlock Style="{StaticResource SettingHint}" Margin="0,0,0,8"
+                              Text="One-click bundles of mouse and keyboard settings. Apply writes them to Windows (after confirming); Edit loads them into the cards on the left so you can tweak them first." />
+                <ItemsControl ItemsSource="{Binding Profiles}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                      <Border BorderThickness="0,0,0,1" BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}" Padding="0,8">
+                        <Grid>
+                          <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                          </Grid.ColumnDefinitions>
+                          <StackPanel Margin="0,0,12,0">
+                            <StackPanel Orientation="Horizontal">
+                              <ui:TextBlock FontTypography="BodyStrong" Text="{Binding Name}" />
+                              <Border Background="{StaticResource AccentGreenBrush}" CornerRadius="4" Padding="6,1" Margin="8,0,0,0" VerticalAlignment="Center"
+                                      Visibility="{Binding IsActive, Converter={StaticResource BoolToVisibility}}">
+                                <TextBlock Text="In use" FontSize="11" Foreground="#101010" />
+                              </Border>
+                              <Border Background="{StaticResource AccentPurpleBrush}" CornerRadius="4" Padding="6,1" Margin="8,0,0,0" VerticalAlignment="Center"
+                                      Visibility="{Binding IsCustom, Converter={StaticResource BoolToVisibility}}">
+                                <TextBlock Text="Custom" FontSize="11" Foreground="#101010" />
+                              </Border>
+                            </StackPanel>
+                            <ui:TextBlock Style="{StaticResource SettingHint}" Text="{Binding Description}" />
+                            <ui:TextBlock Style="{StaticResource Caption}" Text="{Binding Summary}" TextWrapping="Wrap" Margin="0,2,0,0" />
+                          </StackPanel>
+                          <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                            <ui:Button Content="Edit" Icon="{ui:SymbolIcon Edit24}" Margin="0,0,6,0"
+                                       Command="{Binding DataContext.LoadProfileIntoEditorsCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}"
+                                       ToolTip="Load into the editors without applying." />
+                            <ui:Button Icon="{ui:SymbolIcon Delete24}" Appearance="Danger" Margin="0,0,6,0"
+                                       Command="{Binding DataContext.DeleteProfileCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}"
+                                       Visibility="{Binding IsCustom, Converter={StaticResource BoolToVisibility}}" ToolTip="Delete this custom profile." />
+                            <ui:Button Content="Apply" Appearance="Primary" Icon="{ui:SymbolIcon Checkmark24}"
+                                       Command="{Binding DataContext.ApplyProfileCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}" />
+                          </StackPanel>
+                        </Grid>
+                      </Border>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <Grid Margin="0,12,0,0">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                  </Grid.ColumnDefinitions>
+                  <ui:TextBox Text="{Binding NewProfileName, UpdateSourceTrigger=PropertyChanged}" PlaceholderText="Save the current editor values as a profile… (name)" />
+                  <ui:Button Grid.Column="1" Content="Save profile" Icon="{ui:SymbolIcon Save24}" Command="{Binding SaveProfileCommand}" Margin="8,0,0,0" />
+                </Grid>
+              </StackPanel>
+            </ui:Card>
+
+            <!-- Devices -->
+            <ui:Card Style="{StaticResource CardSpacing}">
+              <StackPanel>
+                <Grid Margin="0,0,0,4">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                  </Grid.ColumnDefinitions>
+                  <StackPanel Orientation="Horizontal">
+                    <ui:SymbolIcon Symbol="UsbPlug24" Style="{StaticResource CardIcon}" />
+                    <ui:TextBlock FontTypography="Subtitle" Text="Detected keyboards and mice" VerticalAlignment="Center" />
+                  </StackPanel>
+                  <ui:Button Grid.Column="1" Content="Detect again" Icon="{ui:SymbolIcon ArrowSync24}" Command="{Binding DetectDevicesCommand}" />
+                </Grid>
+                <ui:TextBlock Style="{StaticResource SettingHint}" Margin="0,0,0,8"
+                              Text="DPI, extra buttons, macros and on-board profiles live in the maker's software. The links below match the devices found on this PC." />
+                <ItemsControl ItemsSource="{Binding Devices}" Visibility="{Binding HasDevices, Converter={StaticResource BoolToVisibility}}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                      <Grid Margin="0,6">
+                        <Grid.ColumnDefinitions>
+                          <ColumnDefinition Width="Auto" />
+                          <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Grid Width="32" VerticalAlignment="Top" Margin="0,2,10,0">
+                          <ui:SymbolIcon Symbol="Keyboard24" FontSize="22" Visibility="{Binding IsKeyboard, Converter={StaticResource BoolToVisibility}}" />
+                          <ui:SymbolIcon Symbol="CursorClick24" FontSize="22" Visibility="{Binding IsKeyboard, Converter={StaticResource InverseBoolToVisibility}}" />
+                        </Grid>
+                        <StackPanel Grid.Column="1">
+                          <ui:TextBlock FontTypography="BodyStrong" Text="{Binding Name}" TextWrapping="Wrap" />
+                          <ui:TextBlock Style="{StaticResource Muted}">
+                            <Run Text="{Binding Kind, Mode=OneWay}" /><Run Text=" · " /><Run Text="{Binding Manufacturer, Mode=OneWay}" /><Run Text=" · " /><Run Text="{Binding Interface, Mode=OneWay}" />
+                          </ui:TextBlock>
+                          <ui:TextBlock Style="{StaticResource Caption}" Text="{Binding Detail}" TextWrapping="Wrap" Visibility="{Binding Detail, Converter={StaticResource NullToVisibility}}" />
+                        </StackPanel>
+                      </Grid>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <ui:TextBlock Style="{StaticResource SettingHint}" Text="No keyboards or mice have been listed yet. Press Detect again, or run a scan on the Hardware page."
+                              Visibility="{Binding HasDevices, Converter={StaticResource InverseBoolToVisibility}}" />
+
+                <ui:TextBlock FontTypography="BodyStrong" Text="Maker software" Margin="0,12,0,4" />
+                <ItemsControl ItemsSource="{Binding VendorLinks}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                      <Grid Margin="0,3">
+                        <Grid.ColumnDefinitions>
+                          <ColumnDefinition Width="Auto" />
+                          <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <ui:HyperlinkButton Content="{Binding Vendor}" NavigateUri="{Binding Url}" Padding="4,2" MinWidth="130" HorizontalContentAlignment="Left" />
+                        <ui:TextBlock Grid.Column="1" Style="{StaticResource Muted}" Text="{Binding Note}" TextWrapping="Wrap" VerticalAlignment="Center" Margin="8,0,0,0" />
+                      </Grid>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </StackPanel>
+            </ui:Card>
+
+            <!-- RGB note -->
+            <ui:Card Style="{StaticResource CardSpacing}">
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="Auto" />
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <ui:SymbolIcon Symbol="ColorFill24" Style="{StaticResource CardIcon}" Foreground="{StaticResource AccentPurpleBrush}" />
+                <StackPanel Grid.Column="1" Margin="0,0,12,0">
+                  <ui:TextBlock FontTypography="BodyStrong" Text="Keyboard and mouse lighting (RGB)" />
+                  <ui:TextBlock Style="{StaticResource SettingHint}" Text="Colours, effects and lighting profiles for RGB keyboards and mice are on the Lighting page, which talks to OpenRGB so one place controls every device." />
+                </StackPanel>
+                <ui:Button Grid.Column="2" Content="Go to Lighting" Icon="{ui:SymbolIcon Lightbulb24}" Command="{Binding GoToLightingCommand}" VerticalAlignment="Center" />
+              </Grid>
+            </ui:Card>
+          </StackPanel>
+        </Grid>
+      </StackPanel>
+    </ScrollViewer>
 
     <controls:BusyOverlay Grid.Row="0" Grid.RowSpan="3"
                           IsBusy="{Binding IsBusy}"
