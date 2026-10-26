@@ -4,12 +4,91 @@
       xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
       xmlns:controls="clr-namespace:PcChecker.App.Controls"
       xmlns:vm="clr-namespace:PcChecker.App.ViewModels"
+      xmlns:sensors="clr-namespace:PcChecker.App.ViewModels.Sensors"
       d:DataContext="{d:DesignInstance vm:SensorsViewModel}"
       xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
       xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
       mc:Ignorable="d"
       Title="Temperatures"
       ScrollViewer.CanContentScroll="False">
+  <Page.Resources>
+    <!-- One temperature sensor line inside a hardware expander. -->
+    <DataTemplate x:Key="TemperatureRow" DataType="{x:Type sensors:SensorRowViewModel}">
+      <Grid Margin="0,4">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="Auto" SharedSizeGroup="Now" />
+          <ColumnDefinition Width="Auto" SharedSizeGroup="Min" />
+          <ColumnDefinition Width="Auto" SharedSizeGroup="Max" />
+          <ColumnDefinition Width="Auto" SharedSizeGroup="Avg" />
+          <ColumnDefinition Width="160" />
+        </Grid.ColumnDefinitions>
+        <ui:TextBlock Grid.Column="0" Text="{Binding Name}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+        <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="12,0" VerticalAlignment="Center" MinWidth="80">
+          <ui:TextBlock FontTypography="BodyStrong" FontSize="16" Text="{Binding ValueText}" Foreground="{Binding ValueBrush}" />
+          <ui:TextBlock Appearance="Secondary" Text="°C" Margin="2,0,0,0" VerticalAlignment="Bottom" />
+        </StackPanel>
+        <StackPanel Grid.Column="2" Margin="12,0" VerticalAlignment="Center" MinWidth="56">
+          <ui:TextBlock Style="{StaticResource Caption}" Text="Min" />
+          <ui:TextBlock Text="{Binding MinText}" />
+        </StackPanel>
+        <StackPanel Grid.Column="3" Margin="12,0" VerticalAlignment="Center" MinWidth="56">
+          <ui:TextBlock Style="{StaticResource Caption}" Text="Max" />
+          <ui:TextBlock Text="{Binding MaxText}" />
+        </StackPanel>
+        <StackPanel Grid.Column="4" Margin="12,0" VerticalAlignment="Center" MinWidth="56">
+          <ui:TextBlock Style="{StaticResource Caption}" Text="Average" />
+          <ui:TextBlock Text="{Binding AverageText}" />
+        </StackPanel>
+        <controls:SparklineControl Grid.Column="5" Height="34" Margin="12,0,0,0" ItemsSource="{Binding History}" Stroke="{Binding ValueBrush}"
+                                   ToolTip="Temperature over the history window" />
+      </Grid>
+    </DataTemplate>
+
+    <!-- One hardware item (CPU, GPU, a drive, …). -->
+    <DataTemplate x:Key="HardwareGroup" DataType="{x:Type sensors:SensorGroupViewModel}">
+      <ui:CardExpander Margin="0,0,0,12" IsExpanded="{Binding IsExpanded, Mode=TwoWay}" ContentPadding="16,8,16,12">
+        <ui:CardExpander.Icon>
+          <ui:SymbolIcon Symbol="{Binding Icon}" FontSize="22" />
+        </ui:CardExpander.Icon>
+        <ui:CardExpander.Header>
+          <Grid>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0">
+              <ui:TextBlock FontTypography="BodyStrong" Text="{Binding HardwareName}" TextTrimming="CharacterEllipsis" />
+              <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding KindText}" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0">
+              <ui:TextBlock Style="{StaticResource Muted}" Text="Hottest:" Margin="0,0,6,0" VerticalAlignment="Center" />
+              <ui:TextBlock FontTypography="BodyStrong" Text="{Binding HottestText}" Foreground="{Binding HottestBrush}" VerticalAlignment="Center" />
+            </StackPanel>
+          </Grid>
+        </ui:CardExpander.Header>
+        <ItemsControl ItemsSource="{Binding Rows}" ItemTemplate="{StaticResource TemperatureRow}" Grid.IsSharedSizeScope="True" />
+      </ui:CardExpander>
+    </DataTemplate>
+
+    <DataTemplate x:Key="AlertRow" DataType="{x:Type sensors:AlertRowViewModel}">
+      <Grid Margin="0,4">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="Auto" />
+          <ColumnDefinition Width="Auto" />
+          <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        <Border Grid.Column="0" Width="10" Height="10" CornerRadius="5" Margin="0,0,10,0" VerticalAlignment="Center"
+                Background="{Binding Severity, Converter={StaticResource SeverityToBrush}}" />
+        <ui:TextBlock Grid.Column="1" Style="{StaticResource Muted}" Text="{Binding TimeText}" Margin="0,0,12,0" VerticalAlignment="Center" />
+        <StackPanel Grid.Column="2">
+          <ui:TextBlock FontTypography="BodyStrong" Text="{Binding Title}" />
+          <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding Message}" TextWrapping="Wrap" />
+        </StackPanel>
+      </Grid>
+    </DataTemplate>
+  </Page.Resources>
+
   <Grid Style="{StaticResource PageRoot}">
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto" />
@@ -17,24 +96,166 @@
       <RowDefinition Height="*" />
     </Grid.RowDefinitions>
 
-    <controls:SectionHeader Grid.Row="0" Title="Temperatures" Subtitle="Live temperatures, loads and clocks for every part with a sensor." />
+    <controls:SectionHeader Grid.Row="0" Title="Temperatures" Subtitle="Live temperatures for every part with a sensor, with minimum, maximum and average over the recent history.">
+      <controls:SectionHeader.Actions>
+        <StackPanel Orientation="Horizontal">
+          <ui:Button Content="{Binding PauseText}" Icon="{ui:SymbolIcon Pause24}" Command="{Binding TogglePauseCommand}" Margin="0,0,8,0"
+                     ToolTip="Stop or resume updating this page. Readings keep being recorded in the background." />
+          <ui:Button Content="Reset min/max" Icon="{ui:SymbolIcon ArrowReset24}" Command="{Binding ResetMinMaxCommand}" Margin="0,0,8,0"
+                     ToolTip="Start the minimum, maximum and average again from now." />
+          <ui:Button Content="Thresholds" Icon="{ui:SymbolIcon Options24}" Command="{Binding ToggleThresholdsCommand}"
+                     ToolTip="Choose the temperatures that count as warm or too hot." />
+        </StackPanel>
+      </controls:SectionHeader.Actions>
+    </controls:SectionHeader>
 
-    <ui:InfoBar Grid.Row="1"
-                Severity="Error"
-                Title="Something went wrong"
-                Message="{Binding ErrorMessage}"
-                IsOpen="{Binding HasError, Mode=OneWay}"
-                IsClosable="True"
-                Margin="0,0,0,12" />
+    <StackPanel Grid.Row="1">
+      <ui:InfoBar Severity="Error" Title="Something went wrong" Message="{Binding ErrorMessage}" IsOpen="{Binding HasError, Mode=OneWay}" IsClosable="True" Margin="0,0,0,12" />
+      <ui:InfoBar Severity="Warning" Title="Hardware sensors are not available" Message="{Binding UnavailableReason}"
+                  IsOpen="True" Visibility="{Binding IsAvailable, Converter={StaticResource InverseBoolToVisibility}}" IsClosable="False" Margin="0,0,0,12">
+        <ui:Button Content="Retry" Icon="{ui:SymbolIcon ArrowSync24}" Appearance="Primary" Command="{Binding RetryCommand}" Margin="0,8,0,4" />
+      </ui:InfoBar>
+      <ui:InfoBar Severity="Informational" Title="Some sensors are missing" Message="{Binding WarningText}"
+                  IsOpen="True" Visibility="{Binding WarningText, Converter={StaticResource NullToVisibility}}" IsClosable="True" Margin="0,0,0,12" />
+    </StackPanel>
 
-    <controls:EmptyState Grid.Row="2"
-                         Icon="Temperature24"
-                         Title="This section is being prepared"
-                         Message="Live temperatures, loads and clocks for every part with a sensor." />
+    <ScrollViewer Grid.Row="2" Style="{StaticResource PageScroll}">
+      <StackPanel>
+        <!-- Threshold editor -->
+        <ui:Card Style="{StaticResource CardSpacing}" Visibility="{Binding IsThresholdPanelOpen, Converter={StaticResource BoolToVisibility}}">
+          <StackPanel>
+            <ui:TextBlock Style="{StaticResource CardTitle}" Text="Temperature thresholds" />
+            <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,12"
+                          Text="Readings at or above the warning value turn yellow; at or above the critical value they turn red and raise an alert. Typical safe limits are already filled in." />
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="140" />
+                <ColumnDefinition Width="140" />
+                <ColumnDefinition Width="140" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+              <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+              </Grid.RowDefinitions>
+              <ui:TextBlock Grid.Row="0" Grid.Column="1" Style="{StaticResource Caption}" Text="Warning (°C)" Margin="0,0,0,4" />
+              <ui:TextBlock Grid.Row="0" Grid.Column="2" Style="{StaticResource Caption}" Text="Critical (°C)" Margin="0,0,0,4" />
+              <ui:TextBlock Grid.Row="1" Grid.Column="0" Text="Processor" VerticalAlignment="Center" />
+              <ui:NumberBox Grid.Row="1" Grid.Column="1" Value="{Binding EditCpuWarn, Mode=TwoWay}" Minimum="30" Maximum="120" Margin="0,2,8,2" />
+              <ui:NumberBox Grid.Row="1" Grid.Column="2" Value="{Binding EditCpuCrit, Mode=TwoWay}" Minimum="31" Maximum="125" Margin="0,2,8,2" />
+              <ui:TextBlock Grid.Row="2" Grid.Column="0" Text="Graphics card" VerticalAlignment="Center" />
+              <ui:NumberBox Grid.Row="2" Grid.Column="1" Value="{Binding EditGpuWarn, Mode=TwoWay}" Minimum="30" Maximum="120" Margin="0,2,8,2" />
+              <ui:NumberBox Grid.Row="2" Grid.Column="2" Value="{Binding EditGpuCrit, Mode=TwoWay}" Minimum="31" Maximum="125" Margin="0,2,8,2" />
+              <ui:TextBlock Grid.Row="3" Grid.Column="0" Text="Drives" VerticalAlignment="Center" />
+              <ui:NumberBox Grid.Row="3" Grid.Column="1" Value="{Binding EditDiskWarn, Mode=TwoWay}" Minimum="25" Maximum="90" Margin="0,2,8,2" />
+              <ui:NumberBox Grid.Row="3" Grid.Column="2" Value="{Binding EditDiskCrit, Mode=TwoWay}" Minimum="26" Maximum="95" Margin="0,2,8,2" />
+              <StackPanel Grid.Row="1" Grid.RowSpan="3" Grid.Column="3" Margin="24,0,0,0">
+                <ui:ToggleSwitch Content="Show alerts when a limit is crossed" IsChecked="{Binding EditAlertsEnabled}" Margin="0,0,0,8" />
+                <Grid>
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="120" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="120" />
+                  </Grid.ColumnDefinitions>
+                  <ui:TextBlock Grid.Column="0" Text="Read every (ms)" VerticalAlignment="Center" Margin="0,0,8,0" ToolTip="How often the sensors are read. 1000 ms is a good default." />
+                  <ui:NumberBox Grid.Column="1" Value="{Binding EditPollIntervalMs, Mode=TwoWay}" Minimum="250" Maximum="10000" SmallChange="250" />
+                  <ui:TextBlock Grid.Column="2" Text="Keep history (min)" VerticalAlignment="Center" Margin="16,0,8,0" ToolTip="How much history the graphs and averages cover." />
+                  <ui:NumberBox Grid.Column="3" Value="{Binding EditHistoryMinutes, Mode=TwoWay}" Minimum="1" Maximum="240" />
+                </Grid>
+              </StackPanel>
+            </Grid>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+              <ui:Button Content="Cancel" Command="{Binding ToggleThresholdsCommand}" Margin="0,0,8,0" />
+              <ui:Button Content="Save" Appearance="Primary" Icon="{ui:SymbolIcon Save24}" Command="{Binding SaveThresholdsCommand}" />
+            </StackPanel>
+          </StackPanel>
+        </ui:Card>
 
-    <controls:BusyOverlay Grid.Row="0" Grid.RowSpan="3"
-                          IsBusy="{Binding IsBusy}"
-                          Text="{Binding BusyText}"
-                          CancelCommand="{Binding CancelCommand}" />
+        <!-- Gauges -->
+        <WrapPanel Margin="0,0,0,4">
+          <ui:Card Margin="0,0,12,12" Padding="12">
+            <controls:GaugeControl Value="{Binding CpuTemp}" Minimum="20" Maximum="110" WarnAt="{Binding CpuWarn}" CritAt="{Binding CpuCrit}" Unit="°C" Label="{Binding CpuLabel}" />
+          </ui:Card>
+          <ui:Card Margin="0,0,12,12" Padding="12" Visibility="{Binding HasGpuTemp, Converter={StaticResource BoolToVisibility}}">
+            <controls:GaugeControl Value="{Binding GpuTemp}" Minimum="20" Maximum="110" WarnAt="{Binding GpuWarn}" CritAt="{Binding GpuCrit}" Unit="°C" Label="{Binding GpuLabel}" />
+          </ui:Card>
+          <ui:Card Margin="0,0,12,12" Padding="12" Visibility="{Binding HasDriveTemp, Converter={StaticResource BoolToVisibility}}">
+            <controls:GaugeControl Value="{Binding DriveTemp}" Minimum="20" Maximum="90" WarnAt="{Binding DiskWarn}" CritAt="{Binding DiskCrit}" Unit="°C" Label="{Binding DriveLabel}" />
+          </ui:Card>
+          <ui:Card Margin="0,0,12,12" Padding="12" Visibility="{Binding HasBoardTemp, Converter={StaticResource BoolToVisibility}}">
+            <controls:GaugeControl Value="{Binding BoardTemp}" Minimum="20" Maximum="110" WarnAt="{Binding CpuWarn}" CritAt="{Binding CpuCrit}" Unit="°C" Label="{Binding BoardLabel}" />
+          </ui:Card>
+        </WrapPanel>
+
+        <Grid Margin="0,0,0,12">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
+          </Grid.ColumnDefinitions>
+          <ui:TextBlock Grid.Column="0" Style="{StaticResource Muted}" Text="{Binding StatusText}" />
+          <ui:TextBlock Grid.Column="1" Style="{StaticResource Muted}" Text="{Binding WindowText, StringFormat='Min / max / average and graphs cover the {0}.'}" />
+        </Grid>
+
+        <!-- Per-hardware expanders -->
+        <ItemsControl ItemsSource="{Binding Groups}" ItemTemplate="{StaticResource HardwareGroup}" />
+        <controls:EmptyState Icon="Temperature24" Title="No temperature sensors yet" Margin="0,24"
+                             Message="Readings appear here as soon as the hardware monitor reports them."
+                             Visibility="{Binding HasGroups, Converter={StaticResource InverseBoolToVisibility}}" />
+
+        <!-- Advanced: every sensor -->
+        <ui:CardExpander Margin="0,0,0,12" ContentPadding="16,8,16,12" Icon="{ui:SymbolIcon TableSimple24}"
+                         Visibility="{Binding IsAdvancedMode, Converter={StaticResource BoolToVisibility}}">
+          <ui:CardExpander.Header>
+            <StackPanel>
+              <ui:TextBlock FontTypography="BodyStrong" Text="All sensors" />
+              <ui:TextBlock Style="{StaticResource Muted}" Text="Loads, clocks, fans, voltages, power and data counters. Click a column header to sort." />
+            </StackPanel>
+          </ui:CardExpander.Header>
+          <StackPanel>
+            <ui:TextBox PlaceholderText="Search sensors (name, part or type)…" Icon="{ui:SymbolIcon Search24}" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" MaxWidth="420" HorizontalAlignment="Left" Margin="0,0,0,8" />
+            <ui:DataGrid ItemsSource="{Binding AllSensorsView}" AutoGenerateColumns="False" IsReadOnly="True" CanUserSortColumns="True"
+                         CanUserReorderColumns="False" HeadersVisibility="Column" GridLinesVisibility="Horizontal" MaxHeight="520"
+                         SelectionMode="Single" ScrollViewer.CanContentScroll="True">
+              <ui:DataGrid.Columns>
+                <DataGridTextColumn Header="Part" Binding="{Binding HardwareName}" Width="2*" />
+                <DataGridTextColumn Header="Sensor" Binding="{Binding Name}" Width="2*" />
+                <DataGridTextColumn Header="Type" Binding="{Binding KindText}" Width="*" />
+                <DataGridTextColumn Header="Now" Binding="{Binding ValueText}" Width="90" />
+                <DataGridTextColumn Header="Unit" Binding="{Binding Unit}" Width="70" />
+                <DataGridTextColumn Header="Min" Binding="{Binding MinText}" Width="90" />
+                <DataGridTextColumn Header="Max" Binding="{Binding MaxText}" Width="90" />
+              </ui:DataGrid.Columns>
+            </ui:DataGrid>
+          </StackPanel>
+        </ui:CardExpander>
+
+        <!-- Alerts -->
+        <ui:Card Style="{StaticResource CardSpacing}">
+          <StackPanel>
+            <Grid Margin="0,0,0,8">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
+              <StackPanel Grid.Column="0">
+                <ui:TextBlock FontTypography="BodyStrong" Text="Recent alerts" />
+                <ui:TextBlock Style="{StaticResource Muted}" Text="The last 20 times a part crossed a warning or critical temperature in this session." />
+              </StackPanel>
+              <ui:Button Grid.Column="1" Content="Clear" Command="{Binding ClearAlertsCommand}" Visibility="{Binding HasAlerts, Converter={StaticResource BoolToVisibility}}" />
+            </Grid>
+            <ItemsControl ItemsSource="{Binding Alerts}" ItemTemplate="{StaticResource AlertRow}" />
+            <StackPanel Orientation="Horizontal" Visibility="{Binding HasAlerts, Converter={StaticResource InverseBoolToVisibility}}">
+              <ui:SymbolIcon Symbol="CheckmarkCircle24" Foreground="{StaticResource AccentGreenBrush}" Margin="0,0,8,0" />
+              <ui:TextBlock Text="No alerts — every temperature has stayed within its limits." VerticalAlignment="Center" />
+            </StackPanel>
+          </StackPanel>
+        </ui:Card>
+      </StackPanel>
+    </ScrollViewer>
+
+    <controls:BusyOverlay Grid.Row="0" Grid.RowSpan="3" IsBusy="{Binding IsBusy}" Text="{Binding BusyText}" CancelCommand="{Binding CancelCommand}" />
   </Grid>
 </Page>
