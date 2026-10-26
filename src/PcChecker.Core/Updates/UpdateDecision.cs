@@ -1,0 +1,96 @@
+using PcChecker.Core.Common;
+
+namespace PcChecker.Core.Updates;
+
+/// <summary>Well-known addresses for the project's releases.</summary>
+public static class UpdateLinks
+{
+    public const string Repository = "https://github.com/Connor-Moyle/test-pcchecker";
+    public const string ReleasesPage = Repository + "/releases";
+    public const string LatestReleasePage = Repository + "/releases/latest";
+    public const string ReleasesApi = "https://api.github.com/repos/Connor-Moyle/test-pcchecker/releases";
+}
+
+/// <summary>Pure rules for deciding whether a release is an update and for shaping <see cref="AppUpdateInfo"/>.</summary>
+public static class UpdateDecision
+{
+    /// <summary>
+    /// True when <paramref name="latest"/> is strictly newer than <paramref name="current"/>. Tolerates "v" prefixes,
+    /// build metadata ("1.2.3+abc"), prerelease suffixes ("1.3.0-beta.1") and two- to four-part numbers.
+    /// </summary>
+    public static bool IsNewer(string? current, string? latest)
+    {
+        var a = Clean(current);
+        var b = Clean(latest);
+        if (string.IsNullOrEmpty(b))
+        {
+            return false;
+        }
+
+        if (string.IsNullOrEmpty(a))
+        {
+            return true;
+        }
+
+        int numeric = VersionText.Compare(Numeric(b), Numeric(a));
+        if (numeric != 0)
+        {
+            return numeric > 0;
+        }
+
+        // Same numbers: a stable release is newer than its own prerelease ("1.2.0" > "1.2.0-beta.2"),
+        // and a later prerelease label is newer than an earlier one.
+        var preA = Prerelease(a);
+        var preB = Prerelease(b);
+        if (preA is null && preB is null)
+        {
+            return false;
+        }
+
+        if (preB is null)
+        {
+            return true;
+        }
+
+        if (preA is null)
+        {
+            return false;
+        }
+
+        return string.Compare(preB, preA, StringComparison.OrdinalIgnoreCase) > 0;
+    }
+
+    /// <summary>Builds the info record shown in the UI from a picked GitHub release.</summary>
+    public static AppUpdateInfo FromRelease(string currentVersion, GitHubRelease release)
+    {
+        ArgumentNullException.ThrowIfNull(release);
+        var latest = release.Version;
+        return new AppUpdateInfo(
+            Clean(currentVersion),
+            latest,
+            string.IsNullOrWhiteSpace(release.Body) ? release.Name : release.Body,
+            release.PublishedAt,
+            release.IsPrerelease,
+            IsNewer(currentVersion, latest));
+    }
+
+    /// <summary>Removes a leading "v" and any "+build" metadata.</summary>
+    public static string Clean(string? version)
+    {
+        var text = GitHubReleaseParser.NormalizeTag(version);
+        int plus = text.IndexOf('+');
+        return plus >= 0 ? text[..plus] : text;
+    }
+
+    private static string Numeric(string version)
+    {
+        int dash = version.IndexOf('-');
+        return dash >= 0 ? version[..dash] : version;
+    }
+
+    private static string? Prerelease(string version)
+    {
+        int dash = version.IndexOf('-');
+        return dash >= 0 && dash < version.Length - 1 ? version[(dash + 1)..] : null;
+    }
+}

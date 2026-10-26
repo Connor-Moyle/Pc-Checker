@@ -1,29 +1,27 @@
-// TODO(dashboard): dashboard/reports module — full HTML/Markdown/JSON rendering.
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace PcChecker.Core.Reports;
 
-/// <summary>Default <see cref="IReportService"/>. Currently writes a minimal document per format.</summary>
+/// <summary>Default <see cref="IReportService"/>: HTML and Markdown through the pure builders, JSON through System.Text.Json.</summary>
 public sealed class HtmlReportService : IReportService
 {
-    private static readonly JsonSerializerOptions JsonOptions = new()
+    /// <summary>JSON options for the bundle: enums as names, fields (tuples) included, cycles ignored, nulls dropped.</summary>
+    public static JsonSerializerOptions JsonOptions { get; } = new()
     {
         WriteIndented = true,
+        IncludeFields = true,
+        ReferenceHandler = ReferenceHandler.IgnoreCycles,
         Converters = { new JsonStringEnumConverter() },
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
     };
 
     public async Task<string> ExportAsync(ReportBundle bundle, ReportFormat format, string path, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(bundle);
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
-        var content = format switch
-        {
-            ReportFormat.Json => JsonSerializer.Serialize(bundle, JsonOptions),
-            ReportFormat.Markdown => BuildMarkdown(bundle),
-            _ => BuildHtml(bundle),
-        };
+        var content = Render(bundle, format);
         var dir = Path.GetDirectoryName(path);
         if (!string.IsNullOrEmpty(dir))
         {
@@ -34,11 +32,37 @@ public sealed class HtmlReportService : IReportService
         return path;
     }
 
-    public string BuildHtml(ReportBundle bundle) =>
-        $"<!doctype html><html><head><meta charset=\"utf-8\"><title>PC Checker report</title></head><body>" +
-        $"<h1>PC Checker report</h1><p>Generated {bundle.Generated:yyyy-MM-dd HH:mm} by PC Checker {bundle.AppVersion}.</p>" +
-        "<p>Full report rendering is not implemented yet.</p></body></html>";
+    public string BuildHtml(ReportBundle bundle) => HtmlReportBuilder.Build(bundle);
 
-    public string BuildMarkdown(ReportBundle bundle) =>
-        $"# PC Checker report{Environment.NewLine}{Environment.NewLine}Generated {bundle.Generated:yyyy-MM-dd HH:mm} by PC Checker {bundle.AppVersion}.{Environment.NewLine}{Environment.NewLine}Full report rendering is not implemented yet.{Environment.NewLine}";
+    public string BuildMarkdown(ReportBundle bundle) => MarkdownReportBuilder.Build(bundle);
+
+    /// <summary>Renders the bundle in the requested format without writing a file.</summary>
+    public string Render(ReportBundle bundle, ReportFormat format) => format switch
+    {
+        ReportFormat.Json => BuildJson(bundle),
+        ReportFormat.Markdown => BuildMarkdown(bundle),
+        _ => BuildHtml(bundle),
+    };
+
+    public static string BuildJson(ReportBundle bundle) => JsonSerializer.Serialize(bundle, JsonOptions);
+
+    /// <summary>Picks the format from a file extension (".json", ".md"/".markdown", otherwise HTML).</summary>
+    public static ReportFormat FormatFromPath(string? path)
+    {
+        var ext = Path.GetExtension(path ?? string.Empty).ToLowerInvariant();
+        return ext switch
+        {
+            ".json" => ReportFormat.Json,
+            ".md" or ".markdown" => ReportFormat.Markdown,
+            _ => ReportFormat.Html,
+        };
+    }
+
+    /// <summary>The conventional extension for a format.</summary>
+    public static string ExtensionFor(ReportFormat format) => format switch
+    {
+        ReportFormat.Json => ".json",
+        ReportFormat.Markdown => ".md",
+        _ => ".html",
+    };
 }

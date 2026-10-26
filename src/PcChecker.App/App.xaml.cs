@@ -78,6 +78,7 @@ public partial class App : Application
         }
 
         window.Show();
+        StartupTasks.Begin(_services, _logger);
 
         if (options.ScreenshotsDirectory is { } directory)
         {

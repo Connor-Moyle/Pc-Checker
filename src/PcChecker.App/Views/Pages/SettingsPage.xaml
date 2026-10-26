@@ -3,6 +3,7 @@
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
       xmlns:controls="clr-namespace:PcChecker.App.Controls"
+      xmlns:conv="clr-namespace:PcChecker.App.Converters"
       xmlns:vm="clr-namespace:PcChecker.App.ViewModels"
       xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
       xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -10,6 +11,24 @@
       mc:Ignorable="d"
       Title="Settings"
       ScrollViewer.CanContentScroll="False">
+  <Page.Resources>
+    <conv:NullToBoolConverter x:Key="NullToBool" />
+    <Style x:Key="Row" TargetType="ui:CardControl">
+      <Setter Property="Margin" Value="0,0,0,6" />
+      <Setter Property="Padding" Value="14,10" />
+    </Style>
+    <Style x:Key="Expander" TargetType="ui:CardExpander">
+      <Setter Property="Margin" Value="0,0,0,10" />
+      <Setter Property="ContentPadding" Value="12,8,12,6" />
+    </Style>
+    <Style x:Key="Num" TargetType="ui:NumberBox">
+      <Setter Property="MinWidth" Value="120" />
+      <Setter Property="SpinButtonPlacementMode" Value="Compact" />
+      <Setter Property="ClearButtonEnabled" Value="False" />
+      <Setter Property="MaxDecimalPlaces" Value="2" />
+    </Style>
+  </Page.Resources>
+
   <Grid Style="{StaticResource PageRoot}">
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto" />
@@ -17,130 +36,497 @@
       <RowDefinition Height="*" />
     </Grid.RowDefinitions>
 
-    <controls:SectionHeader Grid.Row="0" Title="Settings" Subtitle="Appearance, updates, restore points and advanced mode." />
+    <controls:SectionHeader Grid.Row="0" Title="Settings" Subtitle="Everything saves by itself a moment after you change it.">
+      <controls:SectionHeader.Actions>
+        <StackPanel Orientation="Horizontal">
+          <ui:TextBlock Style="{StaticResource Muted}" VerticalAlignment="Center" Margin="0,0,12,0" Text="{Binding SaveStatus}" />
+          <ui:Button Content="Reset to defaults" Icon="{ui:SymbolIcon ArrowReset24}" Command="{Binding ResetSettingsCommand}" />
+        </StackPanel>
+      </controls:SectionHeader.Actions>
+    </controls:SectionHeader>
 
-    <ui:InfoBar Grid.Row="1"
-                Severity="Error"
-                Title="Something went wrong"
-                Message="{Binding ErrorMessage}"
-                IsOpen="{Binding HasError, Mode=OneWay}"
-                IsClosable="True"
-                Margin="0,0,0,12" />
+    <StackPanel Grid.Row="1">
+      <ui:InfoBar Severity="Error" Title="Something went wrong" Message="{Binding ErrorMessage}"
+                  IsOpen="{Binding HasError, Mode=OneWay}" IsClosable="True" Margin="0,0,0,12" />
+      <ui:InfoBar Severity="Informational" Title="Demo mode" IsClosable="False" Margin="0,0,0,12"
+                  IsOpen="{Binding IsDemoMode, Mode=OneWay}"
+                  Message="You are looking at sample data. These settings are stored in a separate demo file and never touch your real settings." />
+    </StackPanel>
 
     <ScrollViewer Grid.Row="2" Style="{StaticResource PageScroll}">
-      <StackPanel MaxWidth="900" HorizontalAlignment="Left">
+      <StackPanel MaxWidth="960" HorizontalAlignment="Left">
 
-        <ui:Card Style="{StaticResource CardSpacing}">
-          <StackPanel>
-            <ui:TextBlock Style="{StaticResource CardTitle}" Text="Appearance" />
-            <Grid>
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-              </Grid.ColumnDefinitions>
-              <StackPanel Grid.Column="0">
-                <ui:TextBlock Text="Theme" />
-                <ui:TextBlock Style="{StaticResource Muted}" Text="Follow Windows, or force light or dark." />
-              </StackPanel>
-              <ComboBox Grid.Column="1" MinWidth="160" ItemsSource="{Binding Themes}" SelectedItem="{Binding Theme}" />
-            </Grid>
-          </StackPanel>
-        </ui:Card>
-
-        <ui:Card Style="{StaticResource CardSpacing}">
-          <StackPanel>
-            <ui:TextBlock Style="{StaticResource CardTitle}" Text="Advanced mode" />
-            <Grid>
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-              </Grid.ColumnDefinitions>
-              <StackPanel Grid.Column="0" Margin="0,0,16,0">
-                <ui:TextBlock Text="Show advanced pages and actions" />
-                <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap"
-                              Text="Unlocks overclocking, system repair tools and other actions that change deeper Windows settings. Every action still asks before it changes anything." />
-              </StackPanel>
-              <ui:ToggleSwitch Grid.Column="1" IsChecked="{Binding AdvancedMode}" />
-            </Grid>
-          </StackPanel>
-        </ui:Card>
-
-        <ui:Card Style="{StaticResource CardSpacing}">
-          <StackPanel>
-            <ui:TextBlock Style="{StaticResource CardTitle}" Text="Restore points" />
-            <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,8"
-                          Text="A restore point is a snapshot of Windows system files you can go back to if a change causes trouble." />
-            <Grid Margin="0,4">
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-              </Grid.ColumnDefinitions>
-              <ui:TextBlock Grid.Column="0" Text="Create a restore point before making changes" VerticalAlignment="Center" />
-              <ui:ToggleSwitch Grid.Column="1" IsChecked="{Binding CreateRestorePointBefore}" />
-            </Grid>
-            <Grid Margin="0,4">
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-              </Grid.ColumnDefinitions>
-              <ui:TextBlock Grid.Column="0" Text="Also create one after changes succeed" VerticalAlignment="Center" />
-              <ui:ToggleSwitch Grid.Column="1" IsChecked="{Binding CreateRestorePointAfter}" />
-            </Grid>
-            <Grid Margin="0,4">
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-              </Grid.ColumnDefinitions>
-              <StackPanel Grid.Column="0">
-                <ui:TextBlock Text="Allow more than one restore point per day" />
-                <ui:TextBlock Style="{StaticResource Muted}" Text="Windows normally skips new restore points for 24 hours after the last one." />
-              </StackPanel>
-              <ui:ToggleSwitch Grid.Column="1" IsChecked="{Binding BypassRestorePointFrequencyLimit}" />
-            </Grid>
-          </StackPanel>
-        </ui:Card>
-
-        <ui:Card Style="{StaticResource CardSpacing}">
-          <StackPanel>
-            <ui:TextBlock Style="{StaticResource CardTitle}" Text="Startup" />
-            <Grid Margin="0,4">
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-              </Grid.ColumnDefinitions>
-              <ui:TextBlock Grid.Column="0" Text="Run a quick health check when the app opens" VerticalAlignment="Center" />
-              <ui:ToggleSwitch Grid.Column="1" IsChecked="{Binding CheckHealthOnStartup}" />
-            </Grid>
-          </StackPanel>
-        </ui:Card>
-
-        <ui:Card Style="{StaticResource CardSpacing}">
-          <StackPanel>
-            <ui:TextBlock Style="{StaticResource CardTitle}" Text="Updates" />
-            <Grid Margin="0,4">
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-              </Grid.ColumnDefinitions>
-              <ui:TextBlock Grid.Column="0" Text="Check for updates automatically" VerticalAlignment="Center" />
-              <ui:ToggleSwitch Grid.Column="1" IsChecked="{Binding AutoCheckForUpdates}" />
-            </Grid>
-            <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-              <ui:Button Content="Check for updates" Appearance="Primary" Icon="{ui:SymbolIcon ArrowSync24}" Command="{Binding CheckForUpdatesCommand}" />
-              <ui:TextBlock Text="{Binding AppVersion}" Style="{StaticResource Muted}" VerticalAlignment="Center" Margin="12,0,0,0" />
+        <!-- General -->
+        <ui:CardExpander Style="{StaticResource Expander}" Icon="{ui:SymbolIcon Settings24}" IsExpanded="True">
+          <ui:CardExpander.Header>
+            <StackPanel>
+              <ui:TextBlock FontTypography="BodyStrong" Text="General" />
+              <ui:TextBlock Style="{StaticResource Muted}" Text="Theme, advanced mode and how the app starts." />
             </StackPanel>
-            <ui:TextBlock Text="{Binding UpdateStatus}" TextWrapping="Wrap" Margin="0,8,0,0"
-                          Visibility="{Binding UpdateStatus, Converter={StaticResource NullToVisibility}}" />
-          </StackPanel>
-        </ui:Card>
-
-        <ui:Card Style="{StaticResource CardSpacing}">
+          </ui:CardExpander.Header>
           <StackPanel>
-            <ui:TextBlock Style="{StaticResource CardTitle}" Text="Where settings are stored" />
-            <ui:TextBlock Text="{Binding SettingsFilePath}" Style="{StaticResource Muted}" TextWrapping="Wrap" />
-            <ui:Button Content="Open folder" Icon="{ui:SymbolIcon FolderOpen24}" Command="{Binding OpenSettingsFolderCommand}" Margin="0,8,0,0" />
+            <ui:CardControl Style="{StaticResource Row}" Icon="{ui:SymbolIcon Color24}">
+              <ui:CardControl.Header>
+                <StackPanel>
+                  <ui:TextBlock Text="Theme" />
+                  <ui:TextBlock Style="{StaticResource Muted}" Text="Follow Windows, or force light or dark. Applies straight away." />
+                </StackPanel>
+              </ui:CardControl.Header>
+              <ComboBox MinWidth="170" ItemsSource="{Binding Themes}" SelectedItem="{Binding Theme}">
+                <ComboBox.ItemTemplate>
+                  <DataTemplate>
+                    <TextBlock Text="{Binding Converter={StaticResource EnumToString}}" />
+                  </DataTemplate>
+                </ComboBox.ItemTemplate>
+              </ComboBox>
+            </ui:CardControl>
+            <ui:CardControl Style="{StaticResource Row}" Icon="{ui:SymbolIcon Wrench24}">
+              <ui:CardControl.Header>
+                <StackPanel>
+                  <ui:TextBlock Text="Advanced mode" />
+                  <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" MaxWidth="560"
+                                Text="Shows riskier actions inside pages: system repair, service changes, deeper latency tweaks and overclocking. Every action still explains itself and asks before it changes anything." />
+                </StackPanel>
+              </ui:CardControl.Header>
+              <ui:ToggleSwitch IsChecked="{Binding AdvancedMode}" />
+            </ui:CardControl>
+            <ui:CardControl Style="{StaticResource Row}" Icon="{ui:SymbolIcon Heart24}">
+              <ui:CardControl.Header>
+                <StackPanel>
+                  <ui:TextBlock Text="Run a quick health check when the app opens" />
+                  <ui:TextBlock Style="{StaticResource Muted}" Text="Fills the Dashboard health score at startup (takes a few seconds)." />
+                </StackPanel>
+              </ui:CardControl.Header>
+              <ui:ToggleSwitch IsChecked="{Binding CheckHealthOnStartup}" />
+            </ui:CardControl>
+            <ui:CardControl Style="{StaticResource Row}" Icon="{ui:SymbolIcon ArrowMinimize24}">
+              <ui:CardControl.Header>
+                <StackPanel>
+                  <ui:TextBlock Text="Start minimized" />
+                  <ui:TextBlock Style="{StaticResource Muted}" Text="Open in the taskbar instead of on top of your work." />
+                </StackPanel>
+              </ui:CardControl.Header>
+              <ui:ToggleSwitch IsChecked="{Binding StartMinimized}" />
+            </ui:CardControl>
+            <ui:CardControl Style="{StaticResource Row}" Icon="{ui:SymbolIcon ArrowDownload24}">
+              <ui:CardControl.Header>
+                <StackPanel>
+                  <ui:TextBlock Text="Minimize to the system tray" />
+                  <ui:TextBlock Style="{StaticResource Muted}" Text="Keep monitoring and the overlay running while the window is hidden." />
+                </StackPanel>
+              </ui:CardControl.Header>
+              <ui:ToggleSwitch IsChecked="{Binding MinimizeToTray}" />
+            </ui:CardControl>
           </StackPanel>
-        </ui:Card>
+        </ui:CardExpander>
+
+        <!-- Updates -->
+        <ui:CardExpander Style="{StaticResource Expander}" Icon="{ui:SymbolIcon ArrowSync24}" IsExpanded="True">
+          <ui:CardExpander.Header>
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
+              <StackPanel>
+                <ui:TextBlock FontTypography="BodyStrong" Text="Updates" />
+                <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding AppVersion}" />
+              </StackPanel>
+              <ui:Badge Grid.Column="1" Appearance="Success" Content="Update available" Margin="0,0,12,0" VerticalAlignment="Center"
+                        Visibility="{Binding IsUpdateAvailable, Converter={StaticResource BoolToVisibility}}" />
+            </Grid>
+          </ui:CardExpander.Header>
+          <StackPanel>
+            <ui:InfoBar Severity="{Binding UpdateStatusSeverity}" Title="Update check" Message="{Binding UpdateStatus}"
+                        IsOpen="{Binding UpdateStatus, Converter={StaticResource NullToBool}, Mode=OneWay}" IsClosable="False" Margin="0,0,0,8" />
+            <ui:InfoBar Severity="Informational" Title="Portable build" IsClosable="False" Margin="0,0,0,8"
+                        IsOpen="{Binding IsPortableBuild, Mode=OneWay}"
+                        Message="This copy was not installed by the PC Checker installer, so it cannot update itself. The app still checks for new versions and links you to the download." />
+            <WrapPanel Margin="0,0,0,10">
+              <ui:Button Content="Check for updates" Appearance="Primary" Icon="{ui:SymbolIcon ArrowSync24}" Command="{Binding CheckForUpdatesCommand}" Margin="0,0,8,6" />
+              <ui:Button Content="Download" Icon="{ui:SymbolIcon ArrowDownload24}" Command="{Binding DownloadUpdateCommand}" Margin="0,0,8,6"
+                         Visibility="{Binding CanDownloadUpdate, Converter={StaticResource BoolToVisibility}}" />
+              <ui:Button Content="Install and restart" Appearance="Success" Icon="{ui:SymbolIcon Checkmark24}" Command="{Binding InstallUpdateCommand}" Margin="0,0,8,6"
+                         Visibility="{Binding CanInstallUpdate, Converter={StaticResource BoolToVisibility}}" />
+              <ui:Button Content="Releases page" Icon="{ui:SymbolIcon Open24}" Command="{Binding OpenReleasesPageCommand}" Margin="0,0,8,6" />
+              <ui:TextBlock Style="{StaticResource Muted}" VerticalAlignment="Center" Text="{Binding LastCheckedText}" Margin="4,0,0,6" />
+            </WrapPanel>
+            <ProgressBar Minimum="0" Maximum="100" Value="{Binding DownloadPercent, Mode=OneWay}" Height="6" Margin="0,0,0,10"
+                         Visibility="{Binding IsDownloading, Converter={StaticResource BoolToVisibility}}" />
+            <ui:CardControl Style="{StaticResource Row}" Icon="{ui:SymbolIcon Branch24}">
+              <ui:CardControl.Header>
+                <StackPanel>
+                  <ui:TextBlock Text="Update channel" />
+                  <ui:TextBlock Style="{StaticResource Muted}" Text="Stable gets tested releases. Beta gets new features early and may have rough edges." />
+                </StackPanel>
+              </ui:CardControl.Header>
+              <ComboBox MinWidth="170" ItemsSource="{Binding UpdateChannels}" SelectedItem="{Binding UpdateChannel}" />
+            </ui:CardControl>
+            <ui:CardControl Style="{StaticResource Row}" Icon="{ui:SymbolIcon Clock24}">
+              <ui:CardControl.Header>
+                <StackPanel>
+                  <ui:TextBlock Text="Check for updates automatically" />
+                  <ui:TextBlock Style="{StaticResource Muted}" Text="Once, shortly after the app opens. Nothing is installed without asking you." />
+                </StackPanel>
+              </ui:CardControl.Header>
+              <ui:ToggleSwitch IsChecked="{Binding AutoCheckForUpdates}" />
+            </ui:CardControl>
+            <ui:CardControl Style="{StaticResource Row}" Icon="{ui:SymbolIcon CloudArrowDown24}">
+              <ui:CardControl.Header>
+                <StackPanel>
+                  <ui:TextBlock Text="Download updates in the background" />
+                  <ui:TextBlock Style="{StaticResource Muted}" Text="When a new version is found, fetch it right away and ask before restarting. Installed builds only." />
+                </StackPanel>
+              </ui:CardControl.Header>
+              <ui:ToggleSwitch IsChecked="{Binding AutoDownloadUpdates}" />
+            </ui:CardControl>
+            <Expander Header="Release notes" Margin="0,4,0,0" IsExpanded="False"
+                      Visibility="{Binding ReleaseNotes, Converter={StaticResource NullToVisibility}}">
+              <ui:TextBlock Text="{Binding ReleaseNotes}" TextWrapping="Wrap" Margin="8,8,8,4" FontFamily="Consolas" FontSize="12" />
+            </Expander>
+          </StackPanel>
+        </ui:CardExpander>
+
+        <!-- Restore points -->
+        <ui:CardExpander Style="{StaticResource Expander}" Icon="{ui:SymbolIcon History24}">
+          <ui:CardExpander.Header>
+            <StackPanel>
+              <ui:TextBlock FontTypography="BodyStrong" Text="Restore points" />
+              <ui:TextBlock Style="{StaticResource Muted}" Text="A restore point is a snapshot of Windows system files you can go back to if a change causes trouble." />
+            </StackPanel>
+          </ui:CardExpander.Header>
+          <StackPanel>
+            <ui:CardControl Style="{StaticResource Row}" Icon="{ui:SymbolIcon Shield24}">
+              <ui:CardControl.Header>
+                <StackPanel>
+                  <ui:TextBlock Text="Create a restore point before making changes" />
+                  <ui:TextBlock Style="{StaticResource Muted}" Text="Recommended. Adds a few seconds before the first change of the day." />
+                </StackPanel>
+              </ui:CardControl.Header>
+              <ui:ToggleSwitch IsChecked="{Binding CreateRestorePointBefore}" />
+            </ui:CardControl>
+            <ui:CardControl Style="{StaticResource Row}" Icon="{ui:SymbolIcon ShieldCheckmark24}">
+              <ui:CardControl.Header>
+                <ui:TextBlock Text="Also create one after changes succeed" />
+              </ui:CardControl.Header>
+              <ui:ToggleSwitch IsChecked="{Binding CreateRestorePointAfter}" />
+            </ui:CardControl>
+            <ui:CardControl Style="{StaticResource Row}" Icon="{ui:SymbolIcon CalendarClock24}">
+              <ui:CardControl.Header>
+                <StackPanel>
+                  <ui:TextBlock Text="Allow more than one restore point per day" />
+                  <ui:TextBlock Style="{StaticResource Muted}" Text="Windows normally skips new restore points for 24 hours after the last one." />
+                </StackPanel>
+              </ui:CardControl.Header>
+              <ui:ToggleSwitch IsChecked="{Binding BypassRestorePointFrequencyLimit}" />
+            </ui:CardControl>
+            <ContentControl x:Name="RestorePointsHost" Margin="0,6,0,0" />
+          </StackPanel>
+        </ui:CardExpander>
+
+        <!-- Monitoring -->
+        <ui:CardExpander Style="{StaticResource Expander}" Icon="{ui:SymbolIcon Temperature24}">
+          <ui:CardExpander.Header>
+            <StackPanel>
+              <ui:TextBlock FontTypography="BodyStrong" Text="Monitoring and alerts" />
+              <ui:TextBlock Style="{StaticResource Muted}" Text="How often sensors are read and when a temperature counts as too hot. Also editable on the Temperatures page." />
+            </StackPanel>
+          </ui:CardExpander.Header>
+          <StackPanel>
+            <ui:CardControl Style="{StaticResource Row}" Icon="{ui:SymbolIcon Alert24}">
+              <ui:CardControl.Header>
+                <StackPanel>
+                  <ui:TextBlock Text="Temperature alerts" />
+                  <ui:TextBlock Style="{StaticResource Muted}" Text="Show a notification when a part passes its warning or critical temperature." />
+                </StackPanel>
+              </ui:CardControl.Header>
+              <ui:ToggleSwitch IsChecked="{Binding AlertsEnabled}" />
+            </ui:CardControl>
+            <ui:CardControl Style="{StaticResource Row}" Icon="{ui:SymbolIcon Timer24}">
+              <ui:CardControl.Header>
+                <StackPanel>
+                  <ui:TextBlock Text="Sensor refresh (milliseconds)" />
+                  <ui:TextBlock Style="{StaticResource Muted}" Text="1000 = once a second. Lower is smoother but uses a little more CPU." />
+                </StackPanel>
+              </ui:CardControl.Header>
+              <ui:NumberBox Style="{StaticResource Num}" Minimum="250" Maximum="10000" SmallChange="250" Value="{Binding PollIntervalMs, Mode=TwoWay}" />
+            </ui:CardControl>
+            <ui:CardControl Style="{StaticResource Row}" Icon="{ui:SymbolIcon DataHistogram24}">
+              <ui:CardControl.Header>
+                <StackPanel>
+                  <ui:TextBlock Text="History kept (minutes)" />
+                  <ui:TextBlock Style="{StaticResource Muted}" Text="How far back the temperature graphs go." />
+                </StackPanel>
+              </ui:CardControl.Header>
+              <ui:NumberBox Style="{StaticResource Num}" Minimum="1" Maximum="1440" SmallChange="5" Value="{Binding HistoryMinutes, Mode=TwoWay}" />
+            </ui:CardControl>
+            <Grid Margin="0,4,0,0">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+              <ui:Card Grid.Column="0" Margin="0,0,6,0" Padding="12">
+                <StackPanel>
+                  <ui:TextBlock FontTypography="BodyStrong" Text="CPU" />
+                  <ui:TextBlock Style="{StaticResource Muted}" Text="Warn at (°C)" Margin="0,6,0,2" />
+                  <ui:NumberBox Style="{StaticResource Num}" Minimum="30" Maximum="120" Value="{Binding CpuWarnC, Mode=TwoWay}" />
+                  <ui:TextBlock Style="{StaticResource Muted}" Text="Critical at (°C)" Margin="0,6,0,2" />
+                  <ui:NumberBox Style="{StaticResource Num}" Minimum="30" Maximum="125" Value="{Binding CpuCritC, Mode=TwoWay}" />
+                </StackPanel>
+              </ui:Card>
+              <ui:Card Grid.Column="1" Margin="6,0" Padding="12">
+                <StackPanel>
+                  <ui:TextBlock FontTypography="BodyStrong" Text="GPU" />
+                  <ui:TextBlock Style="{StaticResource Muted}" Text="Warn at (°C)" Margin="0,6,0,2" />
+                  <ui:NumberBox Style="{StaticResource Num}" Minimum="30" Maximum="120" Value="{Binding GpuWarnC, Mode=TwoWay}" />
+                  <ui:TextBlock Style="{StaticResource Muted}" Text="Critical at (°C)" Margin="0,6,0,2" />
+                  <ui:NumberBox Style="{StaticResource Num}" Minimum="30" Maximum="125" Value="{Binding GpuCritC, Mode=TwoWay}" />
+                </StackPanel>
+              </ui:Card>
+              <ui:Card Grid.Column="2" Margin="6,0,0,0" Padding="12">
+                <StackPanel>
+                  <ui:TextBlock FontTypography="BodyStrong" Text="Drives" />
+                  <ui:TextBlock Style="{StaticResource Muted}" Text="Warn at (°C)" Margin="0,6,0,2" />
+                  <ui:NumberBox Style="{StaticResource Num}" Minimum="25" Maximum="90" Value="{Binding DiskWarnC, Mode=TwoWay}" />
+                  <ui:TextBlock Style="{StaticResource Muted}" Text="Critical at (°C)" Margin="0,6,0,2" />
+                  <ui:NumberBox Style="{StaticResource Num}" Minimum="25" Maximum="95" Value="{Binding DiskCritC, Mode=TwoWay}" />
+                </StackPanel>
+              </ui:Card>
+            </Grid>
+            <ui:Button Content="Open the Temperatures page" Icon="{ui:SymbolIcon Temperature24}" Command="{Binding OpenSensorsPageCommand}" Margin="0,10,0,0" />
+          </StackPanel>
+        </ui:CardExpander>
+
+        <!-- Electricity -->
+        <ui:CardExpander Style="{StaticResource Expander}" Icon="{ui:SymbolIcon Flash24}">
+          <ui:CardExpander.Header>
+            <StackPanel>
+              <ui:TextBlock FontTypography="BodyStrong" Text="Electricity price" />
+              <ui:TextBlock Style="{StaticResource Muted}" Text="Used by the Power page to turn watts into money. Find the rate on your energy bill." />
+            </StackPanel>
+          </ui:CardExpander.Header>
+          <StackPanel>
+            <ui:CardControl Style="{StaticResource Row}" Icon="{ui:SymbolIcon Money24}">
+              <ui:CardControl.Header>
+                <StackPanel>
+                  <ui:TextBlock Text="Price per kilowatt-hour" />
+                  <ui:TextBlock Style="{StaticResource Muted}" Text="For example 0.30 means 30 cents for every kWh." />
+                </StackPanel>
+              </ui:CardControl.Header>
+              <ui:NumberBox Style="{StaticResource Num}" Minimum="0" Maximum="100" SmallChange="0.01" MaxDecimalPlaces="4" Value="{Binding PricePerKwh, Mode=TwoWay}" />
+            </ui:CardControl>
+            <ui:CardControl Style="{StaticResource Row}" Icon="{ui:SymbolIcon Tag24}">
+              <ui:CardControl.Header>
+                <ui:TextBlock Text="Currency symbol" />
+              </ui:CardControl.Header>
+              <ui:TextBox MinWidth="120" MaxLength="4" Text="{Binding CurrencySymbol, UpdateSourceTrigger=PropertyChanged}" />
+            </ui:CardControl>
+          </StackPanel>
+        </ui:CardExpander>
+
+        <!-- Fans -->
+        <ui:CardExpander Style="{StaticResource Expander}" Icon="{ui:SymbolIcon ArrowSyncCircle24}">
+          <ui:CardExpander.Header>
+            <StackPanel>
+              <ui:TextBlock FontTypography="BodyStrong" Text="Fans" />
+              <ui:TextBlock Style="{StaticResource Muted}" Text="Safety rules for fan control. Curves and profiles live on the Fans page." />
+            </StackPanel>
+          </ui:CardExpander.Header>
+          <StackPanel>
+            <ui:CardControl Style="{StaticResource Row}" Icon="{ui:SymbolIcon ArrowUndo24}">
+              <ui:CardControl.Header>
+                <StackPanel>
+                  <ui:TextBlock Text="Hand fans back to the motherboard when the app closes" />
+                  <ui:TextBlock Style="{StaticResource Muted}" Text="Recommended. Otherwise a manual speed stays set after PC Checker exits." />
+                </StackPanel>
+              </ui:CardControl.Header>
+              <ui:ToggleSwitch IsChecked="{Binding FansRevertToAutoOnExit}" />
+            </ui:CardControl>
+            <ui:CardControl Style="{StaticResource Row}" Icon="{ui:SymbolIcon ArrowDown24}">
+              <ui:CardControl.Header>
+                <StackPanel>
+                  <ui:TextBlock Text="Never go below (%)" />
+                  <ui:TextBlock Style="{StaticResource Muted}" Text="A floor for every fan the app controls, so nothing can stop spinning by mistake." />
+                </StackPanel>
+              </ui:CardControl.Header>
+              <ui:NumberBox Style="{StaticResource Num}" Minimum="0" Maximum="100" SmallChange="5" Value="{Binding FansMinimumPercent, Mode=TwoWay}" />
+            </ui:CardControl>
+            <ui:CardControl Style="{StaticResource Row}" Icon="{ui:SymbolIcon Play24}">
+              <ui:CardControl.Header>
+                <StackPanel>
+                  <ui:TextBlock Text="Apply the active fan profile at startup" />
+                  <ui:TextBlock Style="{StaticResource Muted}" Text="Off by default so a bad profile cannot follow you into every session." />
+                </StackPanel>
+              </ui:CardControl.Header>
+              <ui:ToggleSwitch IsChecked="{Binding FansApplyOnStartup}" />
+            </ui:CardControl>
+          </StackPanel>
+        </ui:CardExpander>
+
+        <!-- Lighting -->
+        <ui:CardExpander Style="{StaticResource Expander}" Icon="{ui:SymbolIcon LightbulbFilament24}">
+          <ui:CardExpander.Header>
+            <StackPanel>
+              <ui:TextBlock FontTypography="BodyStrong" Text="Lighting (OpenRGB)" />
+              <ui:TextBlock Style="{StaticResource Muted}" Text="RGB control talks to the OpenRGB SDK server. The defaults work when OpenRGB runs on this PC." />
+            </StackPanel>
+          </ui:CardExpander.Header>
+          <StackPanel>
+            <ui:CardControl Style="{StaticResource Row}" Icon="{ui:SymbolIcon Server24}">
+              <ui:CardControl.Header>
+                <StackPanel>
+                  <ui:TextBlock Text="Server address" />
+                  <ui:TextBlock Style="{StaticResource Muted}" Text="127.0.0.1 is this computer." />
+                </StackPanel>
+              </ui:CardControl.Header>
+              <ui:TextBox MinWidth="170" Text="{Binding OpenRgbHost, UpdateSourceTrigger=PropertyChanged}" />
+            </ui:CardControl>
+            <ui:CardControl Style="{StaticResource Row}" Icon="{ui:SymbolIcon PlugConnected24}">
+              <ui:CardControl.Header>
+                <StackPanel>
+                  <ui:TextBlock Text="Server port" />
+                  <ui:TextBlock Style="{StaticResource Muted}" Text="OpenRGB uses 6742 unless you changed it." />
+                </StackPanel>
+              </ui:CardControl.Header>
+              <ui:NumberBox Style="{StaticResource Num}" Minimum="1" Maximum="65535" MaxDecimalPlaces="0" Value="{Binding OpenRgbPort, Mode=TwoWay}" />
+            </ui:CardControl>
+            <ui:CardControl Style="{StaticResource Row}" Icon="{ui:SymbolIcon Link24}">
+              <ui:CardControl.Header>
+                <ui:TextBlock Text="Connect automatically when the Lighting page opens" />
+              </ui:CardControl.Header>
+              <ui:ToggleSwitch IsChecked="{Binding OpenRgbAutoConnect}" />
+            </ui:CardControl>
+          </StackPanel>
+        </ui:CardExpander>
+
+        <!-- Latency -->
+        <ui:CardExpander Style="{StaticResource Expander}" Icon="{ui:SymbolIcon Timer24}">
+          <ui:CardExpander.Header>
+            <StackPanel>
+              <ui:TextBlock FontTypography="BodyStrong" Text="Latency checks" />
+              <ui:TextBlock Style="{StaticResource Muted}" Text="Where the Latency page sends its pings." />
+            </StackPanel>
+          </ui:CardExpander.Header>
+          <StackPanel>
+            <ui:CardControl Style="{StaticResource Row}" Icon="{ui:SymbolIcon Globe24}">
+              <ui:CardControl.Header>
+                <StackPanel>
+                  <ui:TextBlock Text="Ping targets" />
+                  <ui:TextBlock Style="{StaticResource Muted}" Text="Separate with commas. 'gateway' means your router." />
+                </StackPanel>
+              </ui:CardControl.Header>
+              <ui:TextBox MinWidth="260" Text="{Binding PingTargets, UpdateSourceTrigger=LostFocus}" PlaceholderText="gateway, 1.1.1.1, 8.8.8.8" />
+            </ui:CardControl>
+            <ui:CardControl Style="{StaticResource Row}" Icon="{ui:SymbolIcon NumberSymbol24}">
+              <ui:CardControl.Header>
+                <ui:TextBlock Text="Pings per target" />
+              </ui:CardControl.Header>
+              <ui:NumberBox Style="{StaticResource Num}" Minimum="1" Maximum="100" MaxDecimalPlaces="0" Value="{Binding PingCount, Mode=TwoWay}" />
+            </ui:CardControl>
+          </StackPanel>
+        </ui:CardExpander>
+
+        <!-- Memory and startup warnings -->
+        <ui:CardExpander Style="{StaticResource Expander}" Icon="{ui:SymbolIcon Warning24}">
+          <ui:CardExpander.Header>
+            <StackPanel>
+              <ui:TextBlock FontTypography="BodyStrong" Text="Warnings" />
+              <ui:TextBlock Style="{StaticResource Muted}" Text="When the Memory and Startup pages should flag a problem." />
+            </StackPanel>
+          </ui:CardExpander.Header>
+          <StackPanel>
+            <ui:CardControl Style="{StaticResource Row}" Icon="{ui:SymbolIcon Memory16}">
+              <ui:CardControl.Header>
+                <ui:TextBlock Text="Warn when free memory is low" />
+              </ui:CardControl.Header>
+              <ui:ToggleSwitch IsChecked="{Binding WarnOnLowMemory}" />
+            </ui:CardControl>
+            <ui:CardControl Style="{StaticResource Row}" Icon="{ui:SymbolIcon Memory16}">
+              <ui:CardControl.Header>
+                <ui:TextBlock Text="Low memory means less than this % free" />
+              </ui:CardControl.Header>
+              <ui:NumberBox Style="{StaticResource Num}" Minimum="1" Maximum="50" MaxDecimalPlaces="0" Value="{Binding LowMemoryPercent, Mode=TwoWay}" />
+            </ui:CardControl>
+            <ui:CardControl Style="{StaticResource Row}" Icon="{ui:SymbolIcon Power24}">
+              <ui:CardControl.Header>
+                <ui:TextBlock Text="Warn when many programs start with Windows" />
+              </ui:CardControl.Header>
+              <ui:ToggleSwitch IsChecked="{Binding WarnOnManyStartupItems}" />
+            </ui:CardControl>
+            <ui:CardControl Style="{StaticResource Row}" Icon="{ui:SymbolIcon Power24}">
+              <ui:CardControl.Header>
+                <ui:TextBlock Text="'Many' means more than this number of startup items" />
+              </ui:CardControl.Header>
+              <ui:NumberBox Style="{StaticResource Num}" Minimum="1" Maximum="100" MaxDecimalPlaces="0" Value="{Binding ManyStartupItems, Mode=TwoWay}" />
+            </ui:CardControl>
+          </StackPanel>
+        </ui:CardExpander>
+
+        <!-- Claude -->
+        <ui:CardExpander Style="{StaticResource Expander}" Icon="{ui:SymbolIcon Chat24}">
+          <ui:CardExpander.Header>
+            <StackPanel>
+              <ui:TextBlock FontTypography="BodyStrong" Text="Ask Claude" />
+              <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding ClaudeSummary}" />
+            </StackPanel>
+          </ui:CardExpander.Header>
+          <StackPanel>
+            <ui:CardControl Style="{StaticResource Row}" Icon="{ui:SymbolIcon Share24}">
+              <ui:CardControl.Header>
+                <StackPanel>
+                  <ui:TextBlock Text="Share scan results with the assistant" />
+                  <ui:TextBlock Style="{StaticResource Muted}" Text="Sends a short summary of your hardware and findings with each question so answers fit your PC." />
+                </StackPanel>
+              </ui:CardControl.Header>
+              <ui:ToggleSwitch IsChecked="{Binding ClaudeShareScanContext}" />
+            </ui:CardControl>
+            <ui:Button Content="API key, model and effort are set on the Ask Claude page" Icon="{ui:SymbolIcon Chat24}" Command="{Binding OpenAssistantPageCommand}" Margin="0,4,0,0" />
+          </StackPanel>
+        </ui:CardExpander>
+
+        <!-- Data & privacy -->
+        <ui:CardExpander Style="{StaticResource Expander}" Icon="{ui:SymbolIcon LockClosed24}">
+          <ui:CardExpander.Header>
+            <StackPanel>
+              <ui:TextBlock FontTypography="BodyStrong" Text="Data and privacy" />
+              <ui:TextBlock Style="{StaticResource Muted}" Text="Everything stays on this PC unless you export it or ask the assistant." />
+            </StackPanel>
+          </ui:CardExpander.Header>
+          <StackPanel>
+            <ui:TextBlock Style="{StaticResource Muted}" Text="Settings file" />
+            <ui:TextBlock Text="{Binding SettingsFilePath}" TextWrapping="Wrap" Margin="0,0,0,6" />
+            <ui:TextBlock Style="{StaticResource Muted}" Text="Log folder" />
+            <ui:TextBlock Text="{Binding LogDirectory}" TextWrapping="Wrap" Margin="0,0,0,10" />
+            <WrapPanel>
+              <ui:Button Content="Open settings folder" Icon="{ui:SymbolIcon FolderOpen24}" Command="{Binding OpenSettingsFolderCommand}" Margin="0,0,8,6" />
+              <ui:Button Content="Open log folder" Icon="{ui:SymbolIcon DocumentText24}" Command="{Binding OpenLogsFolderCommand}" Margin="0,0,8,6" />
+              <ui:Button Content="Export diagnostics (zip)" Icon="{ui:SymbolIcon FolderZip24}" Command="{Binding ExportDiagnosticsCommand}" Margin="0,0,8,6" />
+              <ui:Button Content="Reset all settings" Appearance="Danger" Icon="{ui:SymbolIcon ArrowReset24}" Command="{Binding ResetSettingsCommand}" Margin="0,0,8,6" />
+            </WrapPanel>
+          </StackPanel>
+        </ui:CardExpander>
+
+        <!-- About -->
+        <ui:CardExpander Style="{StaticResource Expander}" Icon="{ui:SymbolIcon Info24}">
+          <ui:CardExpander.Header>
+            <StackPanel>
+              <ui:TextBlock FontTypography="BodyStrong" Text="About" />
+              <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding AppVersion}" />
+            </StackPanel>
+          </ui:CardExpander.Header>
+          <StackPanel>
+            <ui:TextBlock TextWrapping="Wrap" Margin="0,0,0,8"
+                          Text="PC Checker is free, open-source software (MIT licence). It checks, monitors and tunes a Windows PC: hardware, health, temperatures, power, drivers, software, performance, storage, memory, displays, audio, input, fans, lighting, latency and overclocking." />
+            <WrapPanel Margin="0,0,0,10">
+              <ui:Button Content="Project on GitHub" Icon="{ui:SymbolIcon Open24}" Command="{Binding OpenRepositoryCommand}" Margin="0,0,8,6" />
+              <ui:Button Content="Releases" Icon="{ui:SymbolIcon Open24}" Command="{Binding OpenReleasesPageCommand}" Margin="0,0,8,6" />
+            </WrapPanel>
+            <ui:TextBlock Style="{StaticResource CardTitle}" Text="Third-party components" />
+            <ui:TextBlock Style="{StaticResource Muted}" Text="Full notices are in docs/THIRD-PARTY-NOTICES.md." Margin="0,0,0,6" />
+            <controls:KeyValueList ItemsSource="{Binding Licenses}" KeyColumnWidth="300" />
+          </StackPanel>
+        </ui:CardExpander>
       </StackPanel>
     </ScrollViewer>
 
