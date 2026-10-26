@@ -12,17 +12,18 @@ internal static class CleanupNativeMethods
     private const uint ShErbNoSound = 0x00000004;
     private const int EUnexpected = unchecked((int)0x8000FFFF);
 
-    /// <summary>Mirrors SHQUERYRBINFO, which the Windows SDK declares with 1-byte packing (20 bytes, i64Size at offset 4).</summary>
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    private struct ShQueryRbInfo
-    {
-        public uint cbSize;
-        public long i64Size;
-        public long i64NumItems;
-    }
+    /// <summary>
+    /// SHQUERYRBINFO is { DWORD cbSize; __int64 i64Size; __int64 i64NumItems; }. shellapi.h applies 1-byte packing only
+    /// on 32-bit builds (20 bytes, i64Size at offset 4); on x64 it is naturally aligned (24 bytes, i64Size at offset 8,
+    /// i64NumItems at offset 16). The layout is therefore chosen at runtime from the pointer size instead of a fixed
+    /// StructLayout, so cbSize always matches what the shell on the running architecture expects.
+    /// </summary>
+    private static int ShQueryRbInfoSize => IntPtr.Size == 8 ? 24 : 20;
+    private static int ShQueryRbInfoSizeOffset => IntPtr.Size == 8 ? 8 : 4;
+    private static int ShQueryRbInfoNumItemsOffset => IntPtr.Size == 8 ? 16 : 12;
 
     [DllImport("shell32.dll", CharSet = CharSet.Unicode, SetLastError = false)]
-    private static extern int SHQueryRecycleBinW(string? pszRootPath, ref ShQueryRbInfo pSHQueryRBInfo);
+    private static extern int SHQueryRecycleBinW(string? pszRootPath, IntPtr pSHQueryRBInfo);
 
     [DllImport("shell32.dll", CharSet = CharSet.Unicode, SetLastError = false)]
     private static extern int SHEmptyRecycleBinW(IntPtr hwnd, string? pszRootPath, uint dwFlags);
@@ -37,9 +38,28 @@ internal static class CleanupNativeMethods
 
         try
         {
-            var info = new ShQueryRbInfo { cbSize = (uint)Marshal.SizeOf<ShQueryRbInfo>() };
-            int hr = SHQueryRecycleBinW(null, ref info);
-            return hr == 0 ? (info.i64Size, info.i64NumItems) : null;
+            int size = ShQueryRbInfoSize;
+            IntPtr buffer = Marshal.AllocHGlobal(size);
+            try
+            {
+                for (int i = 0; i < size; i++)
+                {
+                    Marshal.WriteByte(buffer, i, 0);
+                }
+
+                Marshal.WriteInt32(buffer, 0, size);
+                int hr = SHQueryRecycleBinW(null, buffer);
+                if (hr != 0)
+                {
+                    return null;
+                }
+
+                return (Marshal.ReadInt64(buffer, ShQueryRbInfoSizeOffset), Marshal.ReadInt64(buffer, ShQueryRbInfoNumItemsOffset));
+            }
+            finally
+            {
+                Marshal.FreeHGlobal(buffer);
+            }
         }
         catch
         {
