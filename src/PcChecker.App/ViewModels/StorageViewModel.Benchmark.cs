@@ -136,7 +136,7 @@ public sealed partial class StorageViewModel
         {
             BenchmarkStage = "Cancelled";
             BenchmarkDetail = "The test file was removed.";
-            _notifications.Info("Benchmark", "The benchmark was cancelled.");
+            Notify(() => _notifications.Info("Benchmark", "The benchmark was cancelled."));
         }
         catch (Exception ex)
         {
@@ -182,7 +182,7 @@ public sealed partial class StorageViewModel
         BenchmarkStage = "Done";
         BenchmarkDetail = $"{ByteSize.Format(result.TestFileBytes)} test file, deleted afterwards.";
         BenchmarkPercent = 100;
-        _notifications.Success("Benchmark", $"{volume.Letter}: {result.SeqReadMBps:N0} MB/s read, {result.SeqWriteMBps:N0} MB/s write.");
+        Notify(() => _notifications.Success("Benchmark", $"{volume.Letter}: {result.SeqReadMBps:N0} MB/s read, {result.SeqWriteMBps:N0} MB/s write."));
     }
 
     private void ClearBenchmarkResult()

@@ -25,6 +25,10 @@ internal static class RawDiskIo
     private const uint FileFlagDeleteOnClose = 0x04000000;
     private const uint FileBegin = 0;
     private const uint IoctlDiskGetLengthInfo = 0x0007405C;
+    private const uint FsctlIsVolumeDirty = 0x00090078;
+    private const uint VolumeIsDirty = 0x1;
+    private const uint ThreadTerminate = 0x0001;
+
 
     /// <summary>Win32 errors that mean "this sector is unreadable" rather than "the device is gone".</summary>
     public static readonly int[] SectorErrors = [23 /* CRC */, 27 /* sector not found */, 1117 /* I/O device error */, 1392 /* corrupt */];
@@ -46,6 +50,15 @@ internal static class RawDiskIo
 
     [DllImport("kernel32.dll", SetLastError = true)]
     private static extern bool FlushFileBuffers(SafeFileHandle file);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern IntPtr OpenThread(uint desiredAccess, bool inheritHandle, uint threadId);
+
+    [DllImport("kernel32.dll")]
+    private static extern uint GetCurrentThreadId();
+
+    [DllImport("kernel32.dll", SetLastError = true, EntryPoint = "CancelSynchronousIo")]
+    private static extern bool CancelSynchronousIoNative(SafeFileHandle thread);
 
     /// <summary>Opens <c>\\.\PhysicalDrive{n}</c> read-only, unbuffered. Throws <see cref="Win32Exception"/> when it cannot be opened.</summary>
     public static SafeFileHandle OpenPhysicalDrive(int diskNumber)
@@ -132,6 +145,80 @@ internal static class RawDiskIo
     }
 
     public static void Flush(SafeFileHandle file) => FlushFileBuffers(file);
+
+    /// <summary>Opens <c>\\.\X:</c> for control calls such as the dirty-bit query. Returns null when it cannot be opened.</summary>
+    public static SafeFileHandle? OpenVolume(string driveLetter)
+    {
+        var letter = StorageCodes.NormalizeDriveLetter(driveLetter);
+        if (letter is null)
+        {
+            return null;
+        }
+
+        var handle = CreateFile($@"\\.\{letter}", GenericRead, FileShareRead | FileShareWrite, IntPtr.Zero, OpenExisting, 0, IntPtr.Zero);
+        if (handle.IsInvalid)
+        {
+            handle.Dispose();
+            return null;
+        }
+
+        return handle;
+    }
+
+    /// <summary>FSCTL_IS_VOLUME_DIRTY: true when the volume is marked dirty (autochk will run at the next restart); null when the call fails.</summary>
+    public static bool? IsVolumeDirty(SafeFileHandle volume)
+    {
+        IntPtr buffer = Marshal.AllocHGlobal(4);
+        try
+        {
+            if (DeviceIoControl(volume, FsctlIsVolumeDirty, IntPtr.Zero, 0, buffer, 4, out _, IntPtr.Zero))
+            {
+                return ((uint)Marshal.ReadInt32(buffer) & VolumeIsDirty) != 0;
+            }
+
+            return null;
+        }
+        finally
+        {
+            Marshal.FreeHGlobal(buffer);
+        }
+    }
+
+    /// <summary>
+    /// A handle to the calling thread with the access <see cref="CancelSynchronousIo"/> needs, so a cancel request can
+    /// abort a ReadFile that is stuck on a failing sector. Null when the handle cannot be opened; the scan then just
+    /// stops at the next block.
+    /// </summary>
+    public static SafeFileHandle? OpenCurrentThread()
+    {
+        try
+        {
+            IntPtr raw = OpenThread(ThreadTerminate, false, GetCurrentThreadId());
+            return raw == IntPtr.Zero ? null : new SafeFileHandle(raw, ownsHandle: true);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    /// <summary>Aborts the synchronous I/O call the given thread is blocked in, if any. Never throws.</summary>
+    public static void CancelSynchronousIo(SafeFileHandle? thread)
+    {
+        if (thread is null || thread.IsInvalid || thread.IsClosed)
+        {
+            return;
+        }
+
+        try
+        {
+            CancelSynchronousIoNative(thread);
+        }
+        catch
+        {
+            // ERROR_NOT_FOUND when the thread is between reads; nothing to abort.
+        }
+    }
 
     /// <summary>Rounds down to the sector alignment unbuffered I/O requires.</summary>
     public static int AlignDown(long bytes) => (int)(bytes - bytes % SectorAlignment);

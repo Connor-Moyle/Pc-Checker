@@ -110,6 +110,32 @@ public static class ScanPlan
         return set.ToList();
     }
 
+    /// <summary>
+    /// How many blocks <see cref="Build"/> will return, computed arithmetically so an estimate never has to materialise
+    /// the plan. Equals <c>Build(...).Count</c> (the random sampling in a quick plan adds exactly the requested number of
+    /// distinct middle blocks, or the whole middle when it is smaller).
+    /// </summary>
+    public static long PlannedCount(long totalBlocks, SurfaceScanOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        if (totalBlocks <= 0)
+        {
+            return 0;
+        }
+
+        if (options.Mode == ScanMode.Full)
+        {
+            return totalBlocks;
+        }
+
+        double edgeFraction = Math.Clamp(options.EdgePercent, 0, 50) / 100.0;
+        long edge = Math.Max(1, (long)Math.Ceiling(totalBlocks * edgeFraction));
+        long edges = Math.Min(totalBlocks, 2 * edge);
+        long middleCount = totalBlocks - 2 * edge;
+        long samples = Math.Max(0, options.RandomSamples);
+        return edges + (middleCount > 0 ? Math.Min(samples, middleCount) : 0);
+    }
+
     /// <summary>Rough wall-clock estimate for reading <paramref name="blocks"/> blocks at <paramref name="expectedMBps"/>.</summary>
     public static TimeSpan Estimate(long blocks, long blockSizeBytes, double expectedMBps)
     {

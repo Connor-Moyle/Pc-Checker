@@ -147,7 +147,8 @@ public sealed partial class StorageViewModel
         ErrorMessage = null;
         IsScanning = true;
         RaiseToolStateChanged();
-        ScanMap = BlockMapBuilder.Downsample(BlockMapBuilder.CreateEmpty(device.Device.SizeBytes, options.EffectiveBlockSizeMb), 2000);
+        // A fixed number of Untested cells; never one state per block (a 16 TB drive at 1 MB blocks would be 16M entries).
+        ScanMap = BlockMapBuilder.CreateEmptyCells(ScanPlan.BlockCount(device.Device.SizeBytes, options.BlockSizeBytes));
         _ = TickElapsedAsync(stopwatch);
 
         var progress = new Progress<SurfaceScanProgress>(p =>
@@ -174,7 +175,7 @@ public sealed partial class StorageViewModel
         catch (OperationCanceledException)
         {
             ScanSummary = "Scan cancelled. Nothing was changed on the drive.";
-            _notifications.Info("Surface scan", "The scan was cancelled.");
+            Notify(() => _notifications.Info("Surface scan", "The scan was cancelled."));
         }
         catch (Exception ex)
         {
@@ -212,11 +213,11 @@ public sealed partial class StorageViewModel
 
         if (result.BadBlocks > 0)
         {
-            _notifications.Warning("Surface scan", $"{result.BadBlocks} unreadable block(s) found on {device.Model}. Back up this drive.");
+            Notify(() => _notifications.Warning("Surface scan", $"{result.BadBlocks} unreadable block(s) found on {device.Model}. Back up this drive."));
         }
         else if (result.Completed)
         {
-            _notifications.Success("Surface scan", $"{device.Model}: no unreadable blocks.");
+            Notify(() => _notifications.Success("Surface scan", $"{device.Model}: no unreadable blocks."));
         }
     }
 
@@ -265,7 +266,7 @@ public sealed partial class StorageViewModel
     {
         var options = new SurfaceScanOptions(mode, SelectedBlockSizeMb);
         long totalBlocks = ScanPlan.BlockCount(device.Device.SizeBytes, options.BlockSizeBytes);
-        long planned = mode == ScanMode.Full ? totalBlocks : ScanPlan.Build(totalBlocks, options).Count;
+        long planned = ScanPlan.PlannedCount(totalBlocks, options);
         return ScanPlan.Estimate(planned, options.BlockSizeBytes, ScanPlan.TypicalMBps(device.MediaType, device.BusType));
     }
 }

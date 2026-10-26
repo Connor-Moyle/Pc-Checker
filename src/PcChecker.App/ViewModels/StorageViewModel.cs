@@ -21,6 +21,9 @@ public sealed partial class StorageViewModel : ViewModelBase
     private readonly IStorageToolsService _storage;
     private readonly IDialogService _dialogs;
     private readonly INotificationService _notifications;
+
+    /// <summary>Set while the demo showcase runs so its pre-baked scan and benchmark do not pop snackbars into screenshots.</summary>
+    private bool _quietNotifications;
     private readonly ILogger<StorageViewModel> _logger;
 
     [ObservableProperty]
@@ -213,9 +216,19 @@ public sealed partial class StorageViewModel : ViewModelBase
         OptimizeCommand.NotifyCanExecuteChanged();
     }
 
-    /// <summary>In demo mode, pre-run a quick scan and a benchmark so the page (and screenshots) show real content.</summary>
+    /// <summary>Shows a notification unless the demo showcase is running.</summary>
+    private void Notify(Action show)
+    {
+        if (!_quietNotifications)
+        {
+            show();
+        }
+    }
+
+    /// <summary>In demo mode, pre-run a quick scan and a benchmark so the page (and screenshots) show real content. Notifications stay quiet meanwhile.</summary>
     private async Task RunDemoShowcaseAsync(CancellationToken cancellationToken)
     {
+        _quietNotifications = true;
         try
         {
             var hdd = Devices.FirstOrDefault(d => d.MediaType == "HDD");
@@ -238,6 +251,10 @@ public sealed partial class StorageViewModel : ViewModelBase
         catch (Exception ex)
         {
             _logger.LogDebug(ex, "Demo showcase could not complete.");
+        }
+        finally
+        {
+            _quietNotifications = false;
         }
     }
 

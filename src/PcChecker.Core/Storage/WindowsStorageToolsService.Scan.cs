@@ -63,6 +63,12 @@ public sealed partial class WindowsStorageToolsService
             return new SurfaceScanResult(diskNumber, 0, 0, 0, 0, 0, TimeSpan.Zero, false, [], [], $"Could not open {model}: {ex.Message}");
         }
 
+        // A read stuck on a failing sector can take tens of seconds; CancelSynchronousIo aborts it so Cancel is immediate.
+        using var scanThread = RawDiskIo.OpenCurrentThread();
+        using var cancelRead = scanThread is null
+            ? default
+            : cancellationToken.Register(static state => RawDiskIo.CancelSynchronousIo((Microsoft.Win32.SafeHandles.SafeFileHandle)state!), scanThread);
+
         using (handle)
         using (var buffer = new AlignedBuffer((int)blockBytes))
         {
@@ -116,6 +122,12 @@ public sealed partial class WindowsStorageToolsService
                     blockTimer.Restart();
                     var (read, error) = RawDiskIo.ReadAt(handle, offset, buffer, toRead);
                     blockTimer.Stop();
+                    if (error != 0 && cancellationToken.IsCancellationRequested)
+                    {
+                        // The read was aborted by the cancel request, not by the drive: do not count it as a bad block.
+                        throw new OperationCanceledException(cancellationToken);
+                    }
+
                     double ms = blockTimer.Elapsed.TotalMilliseconds;
 
                     BlockState state;

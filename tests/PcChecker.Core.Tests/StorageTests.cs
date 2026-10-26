@@ -70,6 +70,22 @@ public class StorageTests
         Assert.Empty(ScanPlan.Build(0, SurfaceScanOptions.Quick()));
     }
 
+    [Theory]
+    [InlineData(1)]
+    [InlineData(50)]
+    [InlineData(199)]
+    [InlineData(1000)]
+    [InlineData(125_000)]
+    [InlineData(4_000_000)]
+    public void Planned_count_matches_built_plan_without_materialising_it(long totalBlocks)
+    {
+        Assert.Equal(ScanPlan.Build(totalBlocks, SurfaceScanOptions.Quick()).Count, ScanPlan.PlannedCount(totalBlocks, SurfaceScanOptions.Quick()));
+        Assert.Equal(totalBlocks, ScanPlan.PlannedCount(totalBlocks, SurfaceScanOptions.Full()));
+        var fewSamples = SurfaceScanOptions.Quick() with { RandomSamples = 10 };
+        Assert.Equal(ScanPlan.Build(totalBlocks, fewSamples).Count, ScanPlan.PlannedCount(totalBlocks, fewSamples));
+        Assert.Equal(0, ScanPlan.PlannedCount(0, SurfaceScanOptions.Quick()));
+    }
+
     [Fact]
     public void Scan_estimate_uses_media_type()
     {
@@ -180,6 +196,10 @@ public class StorageTests
 
         Assert.Equal(BlockMapBuilder.Downsample(blocks, 100), acc.Snapshot());
         Assert.Equal(125, BlockMapBuilder.CreateEmpty(1000L * 1024 * 1024, 8).Length);
+        Assert.Equal(125, BlockMapBuilder.CreateEmptyCells(125).Length);
+        Assert.Equal(BlockMapBuilder.DefaultCells, BlockMapBuilder.CreateEmptyCells(16L * 1024 * 1024).Length);
+        Assert.Single(BlockMapBuilder.CreateEmptyCells(0));
+        Assert.All(BlockMapBuilder.CreateEmptyCells(300), s => Assert.Equal(BlockState.Untested, s));
     }
 
     // ---- Benchmark math ------------------------------------------------------------------------------------------
@@ -360,6 +380,33 @@ public class StorageTests
 
         var busy = StorageCommandParsers.ParseChkdsk(string.Empty, 3, "E:");
         Assert.Contains("could not check", busy.Summary);
+    }
+
+    [Fact]
+    public void Localized_chkdsk_output_trusts_the_system_schedule_state()
+    {
+        const string german = "CHKDSK kann nicht ausgeführt werden, da das Volume von einem anderen Prozess verwendet wird.\r\nDieses Volume wird beim nächsten Systemstart überprüft.";
+        var withoutHint = StorageCommandParsers.ParseChkdsk(german, 0, "C:");
+        Assert.False(withoutHint.RebootScheduled);
+
+        var scheduled = StorageCommandParsers.ParseChkdsk(german, 0, "C:", scheduledHint: true);
+        Assert.True(scheduled.RebootScheduled);
+        Assert.Contains("next time Windows starts", scheduled.Summary);
+        Assert.False(scheduled.NoProblems);
+
+        var ranNow = StorageCommandParsers.ParseChkdsk("Windows has scanned the file system and found no problems.", 0, "D:", scheduledHint: false);
+        Assert.False(ranNow.RebootScheduled);
+        Assert.True(ranNow.NoProblems);
+    }
+
+    [Fact]
+    public void Boot_execute_entries_identify_a_scheduled_autochk()
+    {
+        Assert.False(VolumeCheckState.BootExecuteMentionsVolume(["autocheck autochk *"], "C:"));
+        Assert.True(VolumeCheckState.BootExecuteMentionsVolume(["autocheck autochk *", @"autocheck autochk /r \??\C:"], "c"));
+        Assert.False(VolumeCheckState.BootExecuteMentionsVolume([@"autocheck autochk /r \??\D:"], "C:"));
+        Assert.False(VolumeCheckState.BootExecuteMentionsVolume(null, "C:"));
+        Assert.False(VolumeCheckState.BootExecuteMentionsVolume(["autocheck autochk *"], "not a drive"));
     }
 
     [Fact]

@@ -5,6 +5,7 @@
       xmlns:controls="clr-namespace:PcChecker.App.Controls"
       xmlns:vm="clr-namespace:PcChecker.App.ViewModels"
       xmlns:conv="clr-namespace:PcChecker.App.Converters"
+      xmlns:storage="clr-namespace:PcChecker.App.Views.Pages.Storage"
       xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
       xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
       d:DataContext="{d:DesignInstance vm:StorageViewModel}"
@@ -12,8 +13,8 @@
       Title="Storage"
       ScrollViewer.CanContentScroll="False">
   <Page.Resources>
-    <conv:InverseBoolConverter x:Key="InverseBool" />
-    <conv:BoolToInfoBarSeverityConverter x:Key="BoolToInfoBarSeverity" />
+    <storage:StorageInverseBoolConverter x:Key="InverseBool" />
+    <storage:StorageBoolToInfoBarSeverityConverter x:Key="BoolToInfoBarSeverity" />
     <Style x:Key="PillBorder" TargetType="Border">
       <Setter Property="CornerRadius" Value="10" />
       <Setter Property="Padding" Value="8,2" />
@@ -67,6 +68,7 @@
         <ui:TextBlock Style="{StaticResource CardTitle}" Text="Your drives" />
         <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding DevicesSummary}" TextWrapping="Wrap" Margin="0,0,0,8" />
         <ListBox ItemsSource="{Binding Devices}" SelectedItem="{Binding SelectedDevice}" BorderThickness="0" Background="Transparent" Padding="0" Margin="0,0,0,8"
+                 IsEnabled="{Binding IsAnyToolRunning, Converter={StaticResource InverseBool}}"
                  ScrollViewer.HorizontalScrollBarVisibility="Disabled">
           <ListBox.ItemsPanel>
             <ItemsPanelTemplate>

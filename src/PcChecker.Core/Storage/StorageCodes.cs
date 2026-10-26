@@ -169,10 +169,17 @@ public static partial class StorageCommandParsers
     public sealed record ChkdskOutcome(bool RebootScheduled, bool ProblemsFound, bool NoProblems, long? BadSectorKb, string Summary);
 
     /// <summary>Reads the chkdsk output and the exit code (0 ok, 1 fixed, 2 cleanup, 3 could not check) into a verdict.</summary>
-    public static ChkdskOutcome ParseChkdsk(string? output, int exitCode, string driveLetter)
+    public static ChkdskOutcome ParseChkdsk(string? output, int exitCode, string driveLetter) => ParseChkdsk(output, exitCode, driveLetter, scheduledHint: null);
+
+    /// <summary>
+    /// As above, with a locale-independent hint from <see cref="VolumeCheckState"/>: chkdsk prints in the user's
+    /// language, so when the system says a check is scheduled (BootExecute entry or dirty bit) that wins over the
+    /// English text patterns and the "no problems" fallback on exit code 0.
+    /// </summary>
+    public static ChkdskOutcome ParseChkdsk(string? output, int exitCode, string driveLetter, bool? scheduledHint)
     {
         output ??= string.Empty;
-        bool reboot = RebootScheduledPattern().IsMatch(output);
+        bool reboot = RebootScheduledPattern().IsMatch(output) || scheduledHint == true;
         bool noProblems = NoProblemsPattern().IsMatch(output);
         bool problems = ProblemPattern().IsMatch(output) && !noProblems;
         long? badKb = null;
@@ -214,7 +221,7 @@ public static partial class StorageCommandParsers
             summary = $"Check of {driveLetter} finished with exit code {exitCode}. Review the output for details.";
         }
 
-        return new ChkdskOutcome(reboot, problems, noProblems || (exitCode == 0 && !problems), badKb, summary);
+        return new ChkdskOutcome(reboot, problems, noProblems || (exitCode == 0 && !problems && !reboot), badKb, summary);
     }
 
     /// <summary>Turns the Repair-Volume status word into a sentence.</summary>

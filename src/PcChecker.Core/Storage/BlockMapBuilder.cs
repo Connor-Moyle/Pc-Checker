@@ -47,6 +47,16 @@ public static class BlockMapBuilder
         return new BlockState[(int)Math.Min(count, int.MaxValue)];
     }
 
+    /// <summary>
+    /// An all-<see cref="BlockState.Untested"/> cell map for a drive of <paramref name="totalBlocks"/> blocks: at most
+    /// <paramref name="cells"/> entries, never one per block. Matches the cell count <see cref="BlockMapAccumulator"/> uses.
+    /// </summary>
+    public static BlockState[] CreateEmptyCells(long totalBlocks, int cells = DefaultCells)
+    {
+        int count = (int)Math.Min(Math.Max(1, cells), Math.Max(1, totalBlocks));
+        return new BlockState[count];
+    }
+
     /// <summary>Ordering used to pick the "worst" state: Bad > Slow > Ok > Untested.</summary>
     public static int Rank(BlockState state) => state switch
     {
