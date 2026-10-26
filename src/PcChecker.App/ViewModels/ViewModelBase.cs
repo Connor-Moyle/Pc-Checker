@@ -11,7 +11,9 @@ namespace PcChecker.App.ViewModels;
 public abstract partial class ViewModelBase : ObservableObject
 {
     private readonly ISettingsService? _settings;
+    private readonly object _initGate = new();
     private CancellationTokenSource? _busyCts;
+    private Task? _initializeTask;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsNotBusy))]
@@ -40,6 +42,9 @@ public abstract partial class ViewModelBase : ObservableObject
     }
 
     public bool IsNotBusy => !IsBusy;
+
+    /// <summary>True once <see cref="InitializeAsync"/> has completed (successfully or with an error shown).</summary>
+    public bool IsInitialized { get; private set; }
 
     public bool HasError => !string.IsNullOrWhiteSpace(ErrorMessage);
 
@@ -84,6 +89,50 @@ public abstract partial class ViewModelBase : ObservableObject
     /// <summary>Hook for derived classes to log errors.</summary>
     protected virtual void OnBusyError(Exception exception)
     {
+    }
+
+    /// <summary>
+    /// Called once, the first time the page is shown. Load the last results or run the default scan here.
+    /// The default does nothing.
+    /// </summary>
+    public virtual Task InitializeAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+
+    /// <summary>Re-runs the page's main query on request (header "Refresh"). The default does nothing.</summary>
+    public virtual Task RefreshAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+
+    /// <summary>
+    /// Runs <see cref="InitializeAsync"/> exactly once, even when called from several places (page Loaded, navigation,
+    /// screenshot runner). Exceptions become <see cref="ErrorMessage"/>; a cancelled initialization may run again later.
+    /// </summary>
+    public Task EnsureInitializedAsync(CancellationToken cancellationToken = default)
+    {
+        lock (_initGate)
+        {
+            _initializeTask ??= InitializeCoreAsync(cancellationToken);
+            return _initializeTask;
+        }
+    }
+
+    private async Task InitializeCoreAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await InitializeAsync(cancellationToken);
+            IsInitialized = true;
+        }
+        catch (OperationCanceledException)
+        {
+            lock (_initGate)
+            {
+                _initializeTask = null;
+            }
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = ex.Message;
+            OnBusyError(ex);
+            IsInitialized = true;
+        }
     }
 
     [RelayCommand(CanExecute = nameof(IsBusy))]

@@ -18,6 +18,10 @@
     <PackageReference Include="Serilog.Extensions.Logging" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
     <PackageReference Include="Velopack" />
+    <PackageReference Include="OpenRGB.NET" />
+    <PackageReference Include="NAudio.Core" />
+    <PackageReference Include="NAudio.Wasapi" />
+    <PackageReference Include="System.Diagnostics.PerformanceCounter" />
   </ItemGroup>
 
 </Project>

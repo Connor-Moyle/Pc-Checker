@@ -45,4 +45,13 @@ public partial class MainWindow : FluentWindow
 
         _navigation.Navigate(typeof(DashboardPage));
     }
+
+    /// <summary>After each navigation, run the target page's one-time initialization.</summary>
+    private void OnNavigated(NavigationView sender, NavigatedEventArgs args)
+    {
+        if (args.Page is FrameworkElement { DataContext: ViewModelBase viewModel })
+        {
+            _ = viewModel.EnsureInitializedAsync();
+        }
+    }
 }

@@ -13,13 +13,30 @@ public enum GpuControlMethod
     None,
     NvApi,
     AmdAdl,
+    /// <summary>Intel Arc via the Intel Graphics Control Library (experimental).</summary>
+    IntelIgcl,
 }
 
 public enum CpuControlMethod
 {
     None,
     IntelXtuCli,
+    /// <summary>Kept for settings compatibility; new code uses <see cref="RyzenMaster"/>.</summary>
     RyzenMasterCli,
+    /// <summary>AMD Ryzen Master is installed and can be launched for tuning.</summary>
+    RyzenMaster,
+    /// <summary>ryzenadj.exe is available for power limits (mobile/APU focus).</summary>
+    RyzenAdj,
+}
+
+/// <summary>Support levels used in <see cref="OverclockCapabilities.SupportMatrix"/> and on the Overclock page.</summary>
+public static class SupportLevel
+{
+    public const string Full = "Full";
+    public const string Partial = "Partial";
+    public const string Experimental = "Experimental";
+    public const string MonitorOnly = "Monitor only";
+    public const string Unsupported = "Unsupported";
 }
 
 public enum StressTarget
@@ -58,6 +75,9 @@ public sealed record OverclockCapabilities(
 
     public bool CanTuneGpu => GpuMethod != GpuControlMethod.None;
     public bool CanTuneCpu => CpuMethod != CpuControlMethod.None;
+
+    /// <summary>What this app can do for each feature on this machine (Full, Partial, Experimental, Monitor only, Unsupported).</summary>
+    public IReadOnlyList<(string Feature, string Vendor, string Level, string Note)> SupportMatrix { get; init; } = [];
 }
 
 public sealed record OverclockState(

@@ -12,11 +12,17 @@
     <PackageVersion Include="Microsoft.Extensions.Logging" Version="9.0.4" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.4" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <!-- NAudio 2.2.1: reference the Wasapi/Core sub-packages, not the "NAudio" meta-package. The meta-package pulls in
+         NAudio.WinForms, whose Windows Forms framework reference stops the Core tests from running on Linux. -->
+    <PackageVersion Include="NAudio.Core" Version="2.2.1" />
+    <PackageVersion Include="NAudio.Wasapi" Version="2.2.1" />
     <PackageVersion Include="NvAPIWrapper.Net" Version="0.8.1.101" />
+    <PackageVersion Include="OpenRGB.NET" Version="3.1.1" />
     <PackageVersion Include="Serilog" Version="4.2.0" />
     <PackageVersion Include="Serilog.Extensions.Logging" Version="9.0.1" />
     <PackageVersion Include="Serilog.Sinks.File" Version="7.0.0" />
     <PackageVersion Include="Serilog.Sinks.Debug" Version="3.0.0" />
+    <PackageVersion Include="System.Diagnostics.PerformanceCounter" Version="9.0.4" />
     <PackageVersion Include="System.Management" Version="9.0.0" />
     <PackageVersion Include="System.Security.Cryptography.ProtectedData" Version="9.0.4" />
     <PackageVersion Include="Velopack" Version="1.2.161" />

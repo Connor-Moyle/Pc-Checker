@@ -27,37 +27,65 @@
       </ui:TitleBar.Icon>
     </ui:TitleBar>
 
+    <!-- Keep the order in sync with Services/NavigationCatalog.cs (the screenshot runner walks that list). -->
     <ui:NavigationView x:Name="NavigationView"
                        Grid.Row="1"
                        PaneDisplayMode="Left"
-                       OpenPaneLength="220"
+                       OpenPaneLength="232"
                        IsBackButtonVisible="Collapsed"
                        IsPaneToggleVisible="True"
                        FrameMargin="0"
-                       TitleBar="{Binding ElementName=TitleBar}">
+                       TitleBar="{Binding ElementName=TitleBar}"
+                       Navigated="OnNavigated">
       <ui:NavigationView.MenuItems>
+        <ui:NavigationViewItemHeader Text="Overview" />
         <ui:NavigationViewItem Content="Dashboard" Icon="{ui:SymbolIcon Home24}" TargetPageType="{x:Type pages:DashboardPage}" />
-        <ui:NavigationViewItem Content="Hardware" Icon="{ui:SymbolIcon DeveloperBoard24}" TargetPageType="{x:Type pages:HardwarePage}" />
-        <ui:NavigationViewItem Content="Health" Icon="{ui:SymbolIcon Heart24}" TargetPageType="{x:Type pages:HealthPage}" />
+
+        <ui:NavigationViewItemHeader Text="Monitoring" />
         <ui:NavigationViewItem Content="Temperatures" Icon="{ui:SymbolIcon Temperature24}" TargetPageType="{x:Type pages:SensorsPage}" />
         <ui:NavigationViewItem Content="Power" Icon="{ui:SymbolIcon Flash24}" TargetPageType="{x:Type pages:PowerPage}" />
+        <ui:NavigationViewItem Content="Overlay" Icon="{ui:SymbolIcon Layer24}" TargetPageType="{x:Type pages:OverlayPage}" />
+
+        <ui:NavigationViewItemHeader Text="Hardware" />
+        <ui:NavigationViewItem Content="Hardware" Icon="{ui:SymbolIcon DeveloperBoard24}" TargetPageType="{x:Type pages:HardwarePage}" />
+        <ui:NavigationViewItem Content="Health" Icon="{ui:SymbolIcon Heart24}" TargetPageType="{x:Type pages:HealthPage}" />
+        <ui:NavigationViewItem Content="Storage" Icon="{ui:SymbolIcon HardDrive24}" TargetPageType="{x:Type pages:StoragePage}" />
+        <ui:NavigationViewItem Content="Memory" Icon="{ui:SymbolIcon Memory16}" TargetPageType="{x:Type pages:MemoryPage}" />
+        <ui:NavigationViewItem Content="Displays" Icon="{ui:SymbolIcon Desktop24}" TargetPageType="{x:Type pages:DisplaysPage}" />
+        <ui:NavigationViewItem Content="Audio" Icon="{ui:SymbolIcon Speaker224}" TargetPageType="{x:Type pages:AudioPage}" />
+        <ui:NavigationViewItem Content="Keyboard &amp; Mouse" Icon="{ui:SymbolIcon Keyboard24}" TargetPageType="{x:Type pages:InputPage}" />
+        <ui:NavigationViewItem Content="Fans" Icon="{ui:SymbolIcon ArrowSyncCircle24}" TargetPageType="{x:Type pages:FansPage}" />
+        <ui:NavigationViewItem Content="Lighting" Icon="{ui:SymbolIcon LightbulbFilament24}" TargetPageType="{x:Type pages:LightingPage}" />
+
+        <ui:NavigationViewItemHeader Text="Software" />
         <ui:NavigationViewItem Content="Drivers" Icon="{ui:SymbolIcon Wrench24}" TargetPageType="{x:Type pages:DriversPage}" />
         <ui:NavigationViewItem Content="Software" Icon="{ui:SymbolIcon Apps24}" TargetPageType="{x:Type pages:SoftwarePage}" />
+        <ui:NavigationViewItem Content="Startup" Icon="{ui:SymbolIcon Power24}" TargetPageType="{x:Type pages:StartupPage}" />
+        <ui:NavigationViewItem Content="Windows Features" Icon="{ui:SymbolIcon WindowApps24}" TargetPageType="{x:Type pages:WindowsFeaturesPage}" />
+        <ui:NavigationViewItem Content="Cleanup" Icon="{ui:SymbolIcon Broom24}" TargetPageType="{x:Type pages:CleanupPage}" />
+
+        <ui:NavigationViewItemHeader Text="Performance" />
         <ui:NavigationViewItem Content="Performance" Icon="{ui:SymbolIcon TopSpeed24}" TargetPageType="{x:Type pages:PerformancePage}" />
         <ui:NavigationViewItem Content="Optimize" Icon="{ui:SymbolIcon Rocket24}" TargetPageType="{x:Type pages:OptimizePage}" />
-        <ui:NavigationViewItem Content="Cleanup" Icon="{ui:SymbolIcon Broom24}" TargetPageType="{x:Type pages:CleanupPage}" />
-        <ui:NavigationViewItem Content="Windows Features" Icon="{ui:SymbolIcon WindowApps24}" TargetPageType="{x:Type pages:WindowsFeaturesPage}" />
-        <ui:NavigationViewItem Content="Overclock"
-                               Icon="{ui:SymbolIcon Gauge24}"
-                               TargetPageType="{x:Type pages:OverclockPage}"
-                               Visibility="{Binding ViewModel.IsAdvancedMode, RelativeSource={RelativeSource AncestorType={x:Type local:MainWindow}}, Converter={StaticResource BoolToVisibility}}" />
-        <ui:NavigationViewItem Content="Overlay" Icon="{ui:SymbolIcon Layer24}" TargetPageType="{x:Type pages:OverlayPage}" />
-        <ui:NavigationViewItem Content="Logs" Icon="{ui:SymbolIcon DocumentText24}" TargetPageType="{x:Type pages:LogsPage}" />
+        <ui:NavigationViewItem Content="Latency" Icon="{ui:SymbolIcon Timer24}" TargetPageType="{x:Type pages:LatencyPage}" />
+        <ui:NavigationViewItem Content="Overclock" Icon="{ui:SymbolIcon Gauge24}" TargetPageType="{x:Type pages:OverclockPage}" />
+
+        <ui:NavigationViewItemHeader Text="Assistant" />
         <ui:NavigationViewItem Content="Ask Claude" Icon="{ui:SymbolIcon Chat24}" TargetPageType="{x:Type pages:AssistantPage}" />
       </ui:NavigationView.MenuItems>
       <ui:NavigationView.FooterMenuItems>
+        <ui:NavigationViewItem Content="Logs" Icon="{ui:SymbolIcon DocumentText24}" TargetPageType="{x:Type pages:LogsPage}" />
         <ui:NavigationViewItem Content="Settings" Icon="{ui:SymbolIcon Settings24}" TargetPageType="{x:Type pages:SettingsPage}" />
       </ui:NavigationView.FooterMenuItems>
+      <ui:NavigationView.PaneFooter>
+        <StackPanel Margin="12,4,12,8">
+          <ui:ToggleSwitch Content="Advanced mode"
+                           IsChecked="{Binding AdvancedModeEnabled, Mode=TwoWay}"
+                           ToolTip="Shows advanced sections and riskier actions inside pages. Every page stays visible either way." />
+          <ui:TextBlock Style="{StaticResource Caption}" Margin="0,4,0,0" Text="Demo data"
+                        Visibility="{Binding IsDemoMode, Converter={StaticResource BoolToVisibility}}" />
+        </StackPanel>
+      </ui:NavigationView.PaneFooter>
     </ui:NavigationView>
 
     <ContentPresenter x:Name="DialogHost" Grid.Row="0" Grid.RowSpan="2" />

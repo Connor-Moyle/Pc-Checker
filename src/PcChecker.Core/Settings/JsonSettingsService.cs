@@ -159,6 +159,18 @@ public sealed class JsonSettingsService : ISettingsService
         s.Cleanup.EnabledCategoryIds ??= [];
         s.Overclock ??= new OverclockSettings();
         s.Overclock.Profiles ??= [];
+        s.Fans ??= new Fans.FanSettings();
+        s.Fans.Profiles ??= [];
+        s.Lighting ??= new Lighting.LightingSettings();
+        s.Lighting.Profiles ??= [];
+        s.Displays ??= new Displays.DisplaySettings();
+        s.Displays.Profiles ??= [];
+        s.Input ??= new Input.InputSettings();
+        s.Input.Profiles ??= [];
+        s.Memory ??= new MemorySettings();
+        s.Latency ??= new LatencySettings();
+        s.Latency.PingTargets ??= ["gateway", "1.1.1.1", "8.8.8.8"];
+        s.Startup ??= new StartupSettings();
         return s;
     }
 }

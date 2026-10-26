@@ -1,34 +1,22 @@
+using System.IO;
 using System.Windows;
 using System.Windows.Threading;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using PcChecker.App.Services;
 using PcChecker.App.ViewModels;
-using PcChecker.App.Views.Pages;
 using PcChecker.App.Views.Windows;
-using PcChecker.Claude;
-using PcChecker.Core.Assistant;
-using PcChecker.Core.Cleanup;
-using PcChecker.Core.Drivers;
-using PcChecker.Core.Hardware;
-using PcChecker.Core.Health;
+using PcChecker.Core.Common;
 using PcChecker.Core.Logging;
-using PcChecker.Core.Optimization;
-using PcChecker.Core.Overclocking;
-using PcChecker.Core.Performance;
-using PcChecker.Core.Power;
-using PcChecker.Core.Reports;
-using PcChecker.Core.Restore;
 using PcChecker.Core.Sensors;
 using PcChecker.Core.Settings;
-using PcChecker.Core.Software;
-using PcChecker.Core.Updates;
-using PcChecker.Core.WindowsFeatures;
-using Wpf.Ui;
 
 namespace PcChecker.App;
 
-/// <summary>Application bootstrap: single instance, settings, logging, DI container, theme and global error handling.</summary>
+/// <summary>
+/// Application bootstrap: single instance, command line, settings, logging, DI container (via
+/// <see cref="ServiceRegistration"/>), theme, global error handling and the screenshot runner hook.
+/// </summary>
 public partial class App : Application
 {
     private const string MutexName = @"Local\PcChecker.SingleInstance";
@@ -39,42 +27,62 @@ public partial class App : Application
 
     public static IServiceProvider Services => ((App)Current)._services ?? throw new InvalidOperationException("Services are not built yet.");
 
+    /// <summary>The parsed command line for this run.</summary>
+    public static CommandLineOptions Options => AppOptions.Current;
+
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        var options = AppOptions.Current;
 
-        _instanceMutex = new Mutex(true, MutexName, out bool createdNew);
-        if (!createdNew)
+        // Screenshot runs are short-lived and may run next to a normal instance (CI); they skip the single-instance check.
+        if (!options.ScreenshotsRequested)
         {
-            MessageBox.Show("PC Checker is already running. Check the taskbar or system tray.", "PC Checker", MessageBoxButton.OK, MessageBoxImage.Information);
-            Shutdown();
-            return;
+            _instanceMutex = new Mutex(true, MutexName, out bool createdNew);
+            if (!createdNew)
+            {
+                MessageBox.Show("PC Checker is already running. Check the taskbar or system tray.", "PC Checker", MessageBoxButton.OK, MessageBoxImage.Information);
+                Shutdown();
+                return;
+            }
         }
 
         DispatcherUnhandledException += OnDispatcherUnhandledException;
         AppDomain.CurrentDomain.UnhandledException += OnDomainUnhandledException;
         TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
 
-        var settings = new JsonSettingsService();
+        // Demo mode keeps its own settings file so sample runs and screenshots never touch the user's real settings.
+        var settings = options.IsDemo
+            ? new JsonSettingsService(Path.Combine(JsonSettingsService.DefaultDirectory(), "demo"))
+            : new JsonSettingsService();
         settings.LoadAsync().GetAwaiter().GetResult();
 
         var logService = new SerilogLogService(settings.Current.Logging);
         settings.Changed += (_, s) => logService.Reconfigure(s.Logging);
 
-        _services = BuildServices(settings, logService);
+        _services = BuildServices(settings, logService, options.Mode);
         _logger = logService.CreateLogger<App>();
-        _logger.LogInformation("PC Checker starting. Settings: {Path}", settings.SettingsFilePath);
+        _logger.LogInformation("PC Checker starting in {Mode} mode. Settings: {Path}", options.Mode, settings.SettingsFilePath);
+        if (options.UnknownArguments.Count > 0)
+        {
+            _logger.LogWarning("Ignoring unknown command line arguments: {Args}", string.Join(" ", options.UnknownArguments));
+        }
 
         SettingsViewModel.ApplyTheme(settings.Current.General.Theme);
 
         var window = _services.GetRequiredService<MainWindow>();
         MainWindow = window;
-        if (settings.Current.General.StartMinimized)
+        if ((settings.Current.General.StartMinimized || options.StartMinimized) && !options.ScreenshotsRequested)
         {
             window.WindowState = WindowState.Minimized;
         }
 
         window.Show();
+
+        if (options.ScreenshotsDirectory is { } directory)
+        {
+            _ = RunScreenshotsAsync(window, directory);
+        }
     }
 
     protected override void OnExit(ExitEventArgs e)
@@ -94,71 +102,37 @@ public partial class App : Application
         base.OnExit(e);
     }
 
-    private static ServiceProvider BuildServices(ISettingsService settings, ILogService logService)
+    private static ServiceProvider BuildServices(ISettingsService settings, ILogService logService, AppMode mode)
     {
         var services = new ServiceCollection();
 
-        // Infrastructure
+        // Infrastructure created before the container exists.
         services.AddSingleton(settings);
         services.AddSingleton(logService);
-        services.AddSingleton(typeof(ILogger<>), typeof(ServiceLogger<>));
-        services.AddSingleton<ISecretStore, DpapiSecretStore>();
-        services.AddSingleton<IActionJournal, JsonActionJournal>();
 
-        // Core services
-        services.AddSingleton<IHardwareInventoryService, WindowsHardwareInventoryService>();
-        services.AddSingleton<ISensorService, LibreHardwareSensorService>();
-        services.AddSingleton<IHealthService, WindowsHealthService>();
-        services.AddSingleton<IDriverService, WindowsDriverService>();
-        services.AddSingleton<ISoftwareInventoryService, WindowsSoftwareInventoryService>();
-        services.AddSingleton<IUninstallService, WindowsUninstallService>();
-        services.AddSingleton<IPerformanceAnalyzer, WindowsPerformanceAnalyzer>();
-        services.AddSingleton<IOptimizationService, WindowsOptimizationService>();
-        services.AddSingleton<ITempFileScanner, WindowsTempFileScanner>();
-        services.AddSingleton<ITempFileCleaner, WindowsTempFileCleaner>();
-        services.AddSingleton<IWindowsFeatureService, WindowsFeatureService>();
-        services.AddSingleton<IRestorePointService, WindowsRestorePointService>();
-        services.AddSingleton<IChangeGuard, ChangeGuard>();
-        services.AddSingleton<IOverclockService, WindowsOverclockService>();
-        services.AddSingleton<IPowerService, WindowsPowerService>();
-        services.AddSingleton<IAppUpdateService, VelopackUpdateService>();
-        services.AddSingleton<IReportService, HtmlReportService>();
-        services.AddSingleton<IPcAssistantService, ClaudeAssistantService>();
-
-        // UI services
-        services.AddSingleton<IPageService, PageService>();
-        services.AddSingleton<INavigationService, NavigationService>();
-        services.AddSingleton<ISnackbarService, SnackbarService>();
-        services.AddSingleton<IContentDialogService, ContentDialogService>();
-        services.AddSingleton<IDialogService, DialogService>();
-        services.AddSingleton<INotificationService, NotificationService>();
-        services.AddSingleton<IHotkeyService, HotkeyService>();
-        services.AddSingleton<IOverlayService, OverlayService>();
-
-        // Shell
-        services.AddSingleton<MainWindowViewModel>();
-        services.AddSingleton<MainWindow>();
-        services.AddSingleton<OverlayWindow>();
-
-        // Pages and view models
-        services.AddSingleton<DashboardViewModel>().AddSingleton<DashboardPage>();
-        services.AddSingleton<HardwareViewModel>().AddSingleton<HardwarePage>();
-        services.AddSingleton<HealthViewModel>().AddSingleton<HealthPage>();
-        services.AddSingleton<SensorsViewModel>().AddSingleton<SensorsPage>();
-        services.AddSingleton<PowerViewModel>().AddSingleton<PowerPage>();
-        services.AddSingleton<DriversViewModel>().AddSingleton<DriversPage>();
-        services.AddSingleton<SoftwareViewModel>().AddSingleton<SoftwarePage>();
-        services.AddSingleton<PerformanceViewModel>().AddSingleton<PerformancePage>();
-        services.AddSingleton<OptimizeViewModel>().AddSingleton<OptimizePage>();
-        services.AddSingleton<CleanupViewModel>().AddSingleton<CleanupPage>();
-        services.AddSingleton<WindowsFeaturesViewModel>().AddSingleton<WindowsFeaturesPage>();
-        services.AddSingleton<OverclockViewModel>().AddSingleton<OverclockPage>();
-        services.AddSingleton<OverlayViewModel>().AddSingleton<OverlayPage>();
-        services.AddSingleton<LogsViewModel>().AddSingleton<LogsPage>();
-        services.AddSingleton<AssistantViewModel>().AddSingleton<AssistantPage>();
-        services.AddSingleton<SettingsViewModel>().AddSingleton<SettingsPage>();
+        // Everything else: the one place that picks Windows* or Demo* implementations.
+        ServiceRegistration.Register(services, mode);
 
         return services.BuildServiceProvider(new ServiceProviderOptions { ValidateOnBuild = false, ValidateScopes = false });
+    }
+
+    private async Task RunScreenshotsAsync(MainWindow window, string directory)
+    {
+        int code;
+        try
+        {
+            // Let the window finish its first layout pass before driving navigation.
+            await Task.Delay(300);
+            var runner = _services!.GetRequiredService<ScreenshotRunner>();
+            code = await runner.RunAsync(window, directory, CancellationToken.None);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Screenshot runner could not start.");
+            code = 1;
+        }
+
+        Shutdown(code);
     }
 
     private void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
@@ -188,6 +162,12 @@ public partial class App : Application
 
     private void ShowFriendlyError(Exception exception)
     {
+        if (AppOptions.Current.ScreenshotsRequested)
+        {
+            // Never block an unattended run on a dialog.
+            return;
+        }
+
         try
         {
             var logDir = _services?.GetService<ILogService>()?.LogDirectory;
@@ -200,20 +180,5 @@ public partial class App : Application
         {
             // Nothing else we can do.
         }
-    }
-
-    /// <summary>Resolves <see cref="ILogger{T}"/> from the app's log service so every class gets the right category.</summary>
-    private sealed class ServiceLogger<T> : ILogger<T>
-    {
-        private readonly ILogger<T> _inner;
-
-        public ServiceLogger(ILogService logService) => _inner = logService.CreateLogger<T>();
-
-        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => _inner.BeginScope(state);
-
-        public bool IsEnabled(LogLevel logLevel) => _inner.IsEnabled(logLevel);
-
-        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter) =>
-            _inner.Log(logLevel, eventId, state, exception, formatter);
     }
 }

@@ -44,12 +44,22 @@ Every project targets `net8.0-windows10.0.19041.0`. `EnableWindowsTargeting` is 
 | `Updates` | `IAppUpdateService` (Velopack / GitHub Releases) |
 | `Assistant` | `IPcAssistantService`, `AssistantContextBuilder` |
 | `Reports` | `IReportService`, `ReportBundle` |
+| `Fans` | `IFanControlService`, fan devices/curves/profiles, `FanCurveMath` |
+| `Lighting` | `ILightingService` (OpenRGB), `RgbColor`, devices/zones/modes/profiles, `RgbColorMath` |
+| `Storage` | `IStorageToolsService` (surface scan, benchmark, chkdsk, repair, optimize), `BlockMapBuilder`, `BenchmarkMath`, `StorageVendorRules` |
+| `Memory` | `IMemoryService`, `MemoryOverview`, profiles, `MemoryTestPatterns`, `PageFileRules` |
+| `Displays` | `IDisplayService`, `DisplayInfo`/`DisplayMode`, profiles, `DisplayModeMath` |
+| `Audio` | `IAudioService` (NAudio.Wasapi Core Audio wrappers), devices and sessions |
+| `Input` | `IInputService`, `IMousePollingMeter`, mouse/keyboard settings, profiles, vendor links |
+| `Latency` | `ILatencyService`, `LatencyReport`, `LatencyRules`, `BcdEditParser`, `PowerCfgQueryParser`, `LatencyActionIds` |
+| `Startup` | `IStartupService`, `BootConfig`, `StartupEnumerator` (shared with Performance) |
 
 Inside each folder you will find the same shapes:
 
 * `Models/` — records and small classes. Records are immutable; settings-style objects are mutable classes so they serialize cleanly.
 * `I<Thing>Service.cs` — the interface the rest of the app depends on.
-* `Windows<Thing>Service.cs` — the implementation that talks to Windows (WMI, registry, PowerShell, COM, LibreHardwareMonitor, NvAPI).
+* `Windows<Thing>Service.cs` — the implementation that talks to Windows (WMI, registry, PowerShell, COM, LibreHardwareMonitor, NvAPI, ADL, IGCL, OpenRGB, NAudio).
+* `Demo<Thing>Service.cs` — a pure .NET implementation that returns realistic sample data for a gaming desktop (Intel Core i7-13700K, 32 GB DDR5-6000, GeForce RTX 4070, Samsung 990 PRO + WD 4 TB HDD, ASUS ROG STRIX Z790-E, Windows 11 24H2) with small artificial delays so busy states render. `Common/DemoData` holds the shared facts.
 * `static class` helpers — pure logic with no Windows dependency: parsers, validators, catalogs, scoring. These are what the tests cover.
 
 The split matters: anything that reads or changes the system goes behind an interface, and anything that *decides* something is a static function that takes plain data in and returns plain data out.
@@ -63,13 +73,61 @@ The split matters: anything that reads or changes the system goes behind an inte
 `PcChecker.App` is a WPF application using WPF-UI for the Fluent look and CommunityToolkit.Mvvm for view models.
 
 * `Program.cs` runs the Velopack bootstrap, then starts the `App`.
-* `App.xaml.cs` enforces a single instance, loads settings, configures logging, builds the dependency-injection container, applies the theme and wires global exception handlers that log and show a plain-language dialog.
-* `Views/Windows/MainWindow.xaml` is the shell: title bar, left navigation, snackbar and dialog hosts.
-* `Views/Pages/*Page.xaml` — one page per feature. A page's code-behind only receives its view model and calls `InitializeComponent()`.
+* `App.xaml.cs` enforces a single instance, parses the command line (`AppOptions`), loads settings, configures logging, builds the dependency-injection container through `ServiceRegistration.Register`, applies the theme, wires global exception handlers that log and show a plain-language dialog, and starts the `ScreenshotRunner` when asked.
+* `Services/ServiceRegistration.cs` is the **only** place that maps interfaces to implementations. It takes the `AppMode` and registers `Windows*` or `Demo*` classes accordingly. Module action providers are registered on the lines marked `// providers:`.
+* `Views/Windows/MainWindow.xaml` is the shell: title bar, grouped left navigation, snackbar and dialog hosts. Its `Navigated` handler calls `EnsureInitializedAsync` on the target page's view model.
+* `Views/Pages/*Page.xaml` — one page per feature. A page's code-behind only receives its view model, sets `DataContext` and calls `InitializeComponent()`.
 * `ViewModels/*ViewModel.cs` — one per page, all deriving from `ViewModelBase`.
 * `Controls/` — shared controls used by every page: `SectionHeader`, `StatCard`, `GaugeControl`, `SparklineControl`, `KeyValueList`, `EmptyState`, `BusyOverlay`.
 * `Converters/` — value converters registered in `Resources/Styles.xaml`.
-* `Services/` — UI-side services: `PageService` (resolves pages from DI), `DialogService`, `NotificationService`, `HotkeyService`, `OverlayService`, `DispatcherHelper`.
+* `Services/` — UI-side services: `PageService` (resolves pages from DI), `DialogService`, `NotificationService`, `HotkeyService`, `OverlayService`, `DispatcherHelper`, `NavigationCatalog` (page order), `StartupNotices` (messages for the Dashboard), `ScreenshotRunner`.
+
+## Navigation
+
+The side navigation is grouped with headers. Every page is always visible; Advanced mode (the toggle in the navigation footer, also in Settings) only reveals advanced sections *inside* pages. Pages that need a consent gate (Overclock) handle it themselves.
+
+```
+OVERVIEW      Dashboard
+MONITORING    Temperatures, Power, Overlay
+HARDWARE      Hardware, Health, Storage, Memory, Displays, Audio, Keyboard & Mouse, Fans, Lighting
+SOFTWARE      Drivers, Software, Startup, Windows Features, Cleanup
+PERFORMANCE   Performance, Optimize, Latency, Overclock
+ASSISTANT     Ask Claude
+Footer        Logs, Settings, Advanced mode toggle
+```
+
+`Services/NavigationCatalog.cs` lists the same pages in the same order; `MainWindow.xaml` and the catalog must be kept in sync when a page is added.
+
+## App modes and the command line
+
+`Core.Common.CommandLineOptions` parses the arguments (it is pure, so it is unit-tested):
+
+| Switch | Effect |
+|---|---|
+| `--demo` | `AppMode.Demo`: every service is a `Demo*` implementation with sample data. Demo mode uses its own settings file (`%LOCALAPPDATA%\PcChecker\demo\settings.json`). |
+| `--real` | Forces `AppMode.Normal` even when `--demo` or `--screenshots` is present. |
+| `--screenshots <dir>` | Implies demo. After the window shows, `ScreenshotRunner` sizes it to 1440×900, visits every page in navigation order, waits for `EnsureInitializedAsync` and `IsBusy == false` plus 400 ms, renders the window with `RenderTargetBitmap` to `<nn>-<page>.png`, captures the overlay over a dark gradient as `<nn>-overlay.png`, writes `index.json` and exits with code 0 (1 on failure, with the reason on stderr and in the log). CI uses this on Windows to produce real screenshots. |
+| `--minimized` | Starts minimized (same as the setting). |
+
+## View model lifecycle
+
+`ViewModelBase` has three lifecycle members besides the busy/error state:
+
+* `InitializeAsync(ct)` — override to load the last results or run the page's default scan. Called once.
+* `EnsureInitializedAsync(ct)` — runs `InitializeAsync` exactly once even when called from several places (navigation, page `Loaded`, the screenshot runner). Exceptions become `ErrorMessage`.
+* `RefreshAsync(ct)` — override for the header "Refresh" action.
+
+## Shared hardware monitor host
+
+Only one LibreHardwareMonitor `Computer` may be open at a time. `LibreHardwareSensorService` implements both `ISensorService` and `IHardwareMonitorHost`, and `ServiceRegistration` registers the same instance for both. Fans, Health (SMART) and Overclock read through `IHardwareMonitorHost.WithComputer(...)` instead of opening their own instance. In demo mode `DemoHardwareMonitorHost` reports `IsOpen == false` so callers take their "not available" paths.
+
+## Optimization action providers
+
+`IOptimizationService` owns the actions in `OptimizationCatalog` and aggregates every `IOptimizationActionProvider` registered in DI. The Latency, Memory, Startup and Input modules contribute their own actions (for example `latency.hags.on`, `memory.standby.clear`, `startup.faststartup.off`, `input.pointerprecision.off`) through a provider class in their own folder; the service dispatches by `Handles(actionId)`. Providers run their changes through `IChangeGuard` themselves. Registering a provider is a one-line change on the `// providers:` lines in `ServiceRegistration.cs`.
+
+## Vendor breadth and honesty
+
+Overclocking detects the GPU vendor from the PNP vendor id (NVIDIA via NvAPI, AMD via ADL/Overdrive8, Intel Arc via IGCL) and the CPU tool that is installed (Intel XTU CLI, AMD Ryzen Master, ryzenadj). `OverclockCapabilities.SupportMatrix` lists, per feature, whether support is Full, Partial, Experimental, Monitor only or Unsupported with a one-line reason, and the page shows it. Any feature that cannot be verified on the user's hardware must say so and fall back to launching the vendor's own software rather than silently doing nothing.
 
 ## Key contracts
 
@@ -110,7 +168,7 @@ Long operations accept `IProgress<ProgressUpdate>?` and a `CancellationToken`. `
 * UI text is plain English for non-technical users. Explain technical terms in a tooltip or a subtitle.
 * Destructive actions use `Appearance="Danger"` buttons and always confirm through `IDialogService.ConfirmAsync`.
 * Advanced-only pages and controls bind their visibility to `IsAdvancedMode`.
-* NuGet versions are pinned centrally in `Directory.Packages.props`. Add a package there before referencing it.
+* NuGet versions are pinned centrally in `Directory.Packages.props`. Add a package there before referencing it. Never reference the `NAudio` meta-package: it pulls in Windows Forms through `NAudio.WinForms`, which stops the tests from running on Linux. Use `NAudio.Wasapi` (Core Audio) and `NAudio.Core`.
 
 ## Module boundaries
 
@@ -120,7 +178,9 @@ Each feature area owns:
 * its view model and page in the app,
 * its tests file in `tests/PcChecker.Core.Tests`.
 
-Shared files — `App.xaml.cs`, `MainWindow.xaml`, `ViewModelBase`, the shared controls and converters, `Directory.Packages.props` — should change rarely and deliberately. If a feature needs a new service, add the interface and implementation to its own folder and register it in `App.xaml.cs` in the existing block for that area. If it needs a shared control, prefer extending the existing control with a new property over creating a near-duplicate.
+Shared files — `App.xaml.cs`, `MainWindow.xaml`, `ViewModelBase`, `ServiceRegistration.cs`, the shared controls and converters, `Directory.Packages.props` — should change rarely and deliberately. If a feature needs a new service, add the interface, the `Windows*` implementation and a `Demo*` implementation to its own folder and register them on one line in `ServiceRegistration.cs`. If it needs a shared control, prefer extending the existing control with a new property over creating a near-duplicate.
+
+Settings sections for the new modules (`Fans`, `Lighting`, `Displays`, `Input`, `Memory`, `Latency`, `Startup`) live on `AppSettings`; `JsonSettingsService.Repair` makes sure none of them is null after loading an older file.
 
 Cross-feature communication goes through the interfaces, never through another feature's view model. For example, the Dashboard reads `IHealthService.Last` and `ISensorService.Latest`; it does not reach into `HealthViewModel`.
 

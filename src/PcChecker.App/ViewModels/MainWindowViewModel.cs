@@ -18,11 +18,55 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     [ObservableProperty]
     private string _title = "PC Checker";
 
+    /// <summary>Bound two-way by the Advanced mode toggle in the navigation footer; saves immediately.</summary>
+    [ObservableProperty]
+    private bool _advancedModeEnabled;
+
+    private bool _syncingAdvancedMode;
+
     public MainWindowViewModel(ISettingsService settings, INavigationService navigation, IAppUpdateService updates)
         : base(settings)
     {
         _navigation = navigation;
         _appVersion = "v" + updates.CurrentVersion;
+        _advancedModeEnabled = settings.Current.General.AdvancedMode;
+        settings.Changed += (_, s) => Services.DispatcherHelper.PostToUi(() =>
+        {
+            _syncingAdvancedMode = true;
+            try
+            {
+                AdvancedModeEnabled = s.General.AdvancedMode;
+            }
+            finally
+            {
+                _syncingAdvancedMode = false;
+            }
+        });
+    }
+
+    public bool IsDemoMode => AppOptions.Mode == Core.Common.AppMode.Demo;
+
+    partial void OnAdvancedModeEnabledChanged(bool value)
+    {
+        if (_syncingAdvancedMode || Settings.Current.General.AdvancedMode == value)
+        {
+            return;
+        }
+
+        Settings.Current.General.AdvancedMode = value;
+        _ = SaveSettingsAsync();
+    }
+
+    private async Task SaveSettingsAsync()
+    {
+        try
+        {
+            await Settings.SaveAsync();
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = "Settings could not be saved: " + ex.Message;
+        }
     }
 
     public void NavigateTo<TPage>() where TPage : class => _navigation.Navigate(typeof(TPage));

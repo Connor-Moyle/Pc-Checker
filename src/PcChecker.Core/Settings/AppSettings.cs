@@ -1,3 +1,7 @@
+using PcChecker.Core.Displays;
+using PcChecker.Core.Fans;
+using PcChecker.Core.Input;
+using PcChecker.Core.Lighting;
 using PcChecker.Core.Logging;
 using PcChecker.Core.Overclocking;
 
@@ -15,6 +19,13 @@ public sealed class AppSettings
     public ClaudeSettings Claude { get; set; } = new();
     public CleanupSettings Cleanup { get; set; } = new();
     public OverclockSettings Overclock { get; set; } = new();
+    public FanSettings Fans { get; set; } = new();
+    public LightingSettings Lighting { get; set; } = new();
+    public DisplaySettings Displays { get; set; } = new();
+    public InputSettings Input { get; set; } = new();
+    public MemorySettings Memory { get; set; } = new();
+    public LatencySettings Latency { get; set; } = new();
+    public StartupSettings Startup { get; set; } = new();
 
     /// <summary>Returns a fresh instance with every value at its default.</summary>
     public static AppSettings CreateDefault() => new();
@@ -219,4 +230,23 @@ public sealed class OverclockSettings
     public List<OverclockProfile> Profiles { get; set; } = [];
     public string? ActiveProfileName { get; set; }
     public bool LastSessionClean { get; set; } = true;
+}
+
+public sealed class MemorySettings
+{
+    public bool WarnOnLowMemory { get; set; } = true;
+    public int LowMemoryPercent { get; set; } = 10;
+}
+
+public sealed class LatencySettings
+{
+    /// <summary>Hosts to ping; "gateway" means the default gateway.</summary>
+    public List<string> PingTargets { get; set; } = ["gateway", "1.1.1.1", "8.8.8.8"];
+    public int PingCount { get; set; } = 10;
+}
+
+public sealed class StartupSettings
+{
+    public bool WarnOnManyStartupItems { get; set; } = true;
+    public int ManyStartupItems { get; set; } = 10;
 }
