@@ -1,0 +1,117 @@
+using PcChecker.Core.Common;
+using PcChecker.Core.Optimization;
+
+namespace PcChecker.Core.Memory;
+
+/// <summary>
+/// Memory-related actions for the Optimize page. Every action delegates to <see cref="IMemoryService"/>, whose
+/// Windows implementation runs each change through <c>IChangeGuard</c> (restore point, journal, log); the demo
+/// implementation only updates its sample state.
+/// </summary>
+public sealed class MemoryActionsProvider : IOptimizationActionProvider
+{
+    public const string CompressionOn = "memory.compression.on";
+    public const string CompressionOff = "memory.compression.off";
+    public const string SysMainOn = "memory.sysmain.on";
+    public const string SysMainOff = "memory.sysmain.off";
+    public const string StandbyClear = "memory.standby.clear";
+    public const string PageFileAuto = "memory.pagefile.auto";
+
+    private const string Category = "Memory";
+
+    private readonly IMemoryService _memory;
+
+    public MemoryActionsProvider(IMemoryService memory)
+    {
+        _memory = memory ?? throw new ArgumentNullException(nameof(memory));
+    }
+
+    public IReadOnlyList<OptimizationAction> Actions { get; } =
+    [
+        new(CompressionOn, "Turn memory compression on", "Keeps more programs in RAM by compressing pages Windows is not using right now. Recommended on every PC; the default on Windows 10 and 11.", Category, RiskLevel.Safe, true, false, false),
+        new(CompressionOff, "Turn memory compression off", "Stops Windows compressing idle memory. Only useful on machines with lots of RAM where the small CPU cost matters more than fitting more in memory.", Category, RiskLevel.Moderate, true, false, true),
+        new(SysMainOn, "Turn SysMain (Superfetch) on", "Lets Windows preload the programs you use most so they open faster. The default setting.", Category, RiskLevel.Safe, true, false, false),
+        new(SysMainOff, "Turn SysMain (Superfetch) off", "Stops Windows preloading programs. Sometimes helps on very old hard-drive PCs that show constant disk activity; usually makes things slower.", Category, RiskLevel.Moderate, true, false, true),
+        new(StandbyClear, "Clear the standby list", "Releases cached file data that Windows keeps in RAM \"just in case\". Harmless and instant; useful when a game stutters because the cache will not let go. Windows refills it over time.", Category, RiskLevel.Safe, false, false, false),
+        new(PageFileAuto, "Let Windows manage the page file", "Returns the page file to the automatic size Windows chooses. Fixes most page file problems and is the safe default.", Category, RiskLevel.Safe, true, true, false),
+    ];
+
+    public bool Handles(string actionId) => Actions.Any(a => a.Id.Equals(actionId, StringComparison.OrdinalIgnoreCase));
+
+    public async Task<ActionState> GetStateAsync(string id, CancellationToken cancellationToken)
+    {
+        var overview = _memory.Last ?? await SafeOverviewAsync(cancellationToken).ConfigureAwait(false);
+        if (overview is null)
+        {
+            return new ActionState(id, null, null);
+        }
+
+        return id.ToLowerInvariant() switch
+        {
+            CompressionOn => new ActionState(id, overview.MemoryCompressionEnabled, overview.MemoryCompressionEnabled ? "On" : "Off"),
+            CompressionOff => new ActionState(id, !overview.MemoryCompressionEnabled, overview.MemoryCompressionEnabled ? "On" : "Off"),
+            SysMainOn => new ActionState(id, overview.SysMainEnabled, overview.SysMainEnabled ? "Running" : "Stopped"),
+            SysMainOff => new ActionState(id, !overview.SysMainEnabled, overview.SysMainEnabled ? "Running" : "Stopped"),
+            StandbyClear => new ActionState(id, null, ByteSize.Format(overview.StandbyBytes) + " on standby"),
+            PageFileAuto => new ActionState(id, overview.AutomaticPageFile, overview.AutomaticPageFile ? "Automatic" : "Custom size"),
+            _ => new ActionState(id, null, null),
+        };
+    }
+
+    public Task<OperationResult> ApplyAsync(string id, CancellationToken cancellationToken) => id.ToLowerInvariant() switch
+    {
+        CompressionOn => _memory.SetMemoryCompressionAsync(true, cancellationToken),
+        CompressionOff => _memory.SetMemoryCompressionAsync(false, cancellationToken),
+        SysMainOn => SetSysMainAsync(true, cancellationToken),
+        SysMainOff => SetSysMainAsync(false, cancellationToken),
+        StandbyClear => _memory.ClearStandbyListAsync(cancellationToken),
+        PageFileAuto => _memory.SetPageFileAsync(SystemDrive(), true, null, null, cancellationToken),
+        _ => Task.FromResult(OperationResult.Fail($"Unknown memory action \"{id}\".")),
+    };
+
+    public Task<OperationResult> RevertAsync(string id, CancellationToken cancellationToken) => id.ToLowerInvariant() switch
+    {
+        CompressionOn => _memory.SetMemoryCompressionAsync(false, cancellationToken),
+        CompressionOff => _memory.SetMemoryCompressionAsync(true, cancellationToken),
+        SysMainOn => SetSysMainAsync(false, cancellationToken),
+        SysMainOff => SetSysMainAsync(true, cancellationToken),
+        StandbyClear => Task.FromResult(OperationResult.Ok("Nothing to undo: Windows refills the standby list on its own.")),
+        PageFileAuto => RestoreRecommendedPageFileAsync(cancellationToken),
+        _ => Task.FromResult(OperationResult.Fail($"Unknown memory action \"{id}\".")),
+    };
+
+    private Task<OperationResult> SetSysMainAsync(bool enabled, CancellationToken cancellationToken) =>
+        _memory is IMemoryTuning tuning
+            ? tuning.SetSysMainAsync(enabled, cancellationToken)
+            : Task.FromResult(OperationResult.Fail("SysMain cannot be changed with this memory service."));
+
+    private async Task<OperationResult> RestoreRecommendedPageFileAsync(CancellationToken cancellationToken)
+    {
+        var overview = _memory.Last ?? await SafeOverviewAsync(cancellationToken).ConfigureAwait(false);
+        var (initial, max) = PageFileRules.Recommend(overview?.TotalBytes ?? 16L * 1024 * 1024 * 1024);
+        return await _memory.SetPageFileAsync(SystemDrive(), false, initial, max, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<MemoryOverview?> SafeOverviewAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await _memory.GetOverviewAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private string SystemDrive()
+    {
+        var existing = _memory.Last?.PageFiles ?? [];
+        string system = Environment.GetEnvironmentVariable("SystemDrive") ?? "C:";
+        return PageFileRules.ChooseDrive(existing, system);
+    }
+}

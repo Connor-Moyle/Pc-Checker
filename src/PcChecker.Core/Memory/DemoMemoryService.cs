@@ -3,15 +3,24 @@ using PcChecker.Core.Hardware;
 
 namespace PcChecker.Core.Memory;
 
-/// <summary>Demo memory service: 32 GB DDR5-6000 kit running at 4800 (XMP off) so the page has something to advise.</summary>
-public sealed class DemoMemoryService : IMemoryService
+/// <summary>
+/// Demo memory service for the sample gaming desktop: a 32 GB DDR5-6000 kit running at 4800 (XMP off) so the page
+/// has something to advise. Pure .NET; remembers the changes it is asked to make so the page reacts realistically.
+/// </summary>
+public sealed class DemoMemoryService : IMemoryService, IMemoryTuning
 {
+    private const long DemoTestCapBytes = 256L * 1024 * 1024;
+
     private bool _compression = true;
+    private bool _sysMain = true;
     private bool _automaticPageFile = true;
+    private bool _diagnosticScheduled;
     private PageFileInfo _pageFile = new("C:", 4864, 19456, true);
+    private double _standbyFraction = 0.17;
 
     public IReadOnlyList<MemoryProfile> Profiles => MemoryProfileCatalog.All;
     public MemoryOverview? Last { get; private set; }
+    public string? PlatformVendor => "Intel";
 
     public async Task<MemoryOverview> GetOverviewAsync(CancellationToken cancellationToken)
     {
@@ -21,45 +30,51 @@ public sealed class DemoMemoryService : IMemoryService
         long available = (long)(total * DemoData.Jitter(random, 0.58, 0.03));
         var modules = new List<MemoryModuleInfo>
         {
-            Module("DIMM_A2", "F5-6000J3636F16G"),
-            Module("DIMM_B2", "F5-6000J3636F16G"),
+            Module("DIMM_A2", "F5-6000J3636F16GX2-TZ5RK", "F5A2"),
+            Module("DIMM_B2", "F5-6000J3636F16GX2-TZ5RK", "F5B2"),
         };
-        var warnings = new List<string>
-        {
-            "Your RAM is rated for 6000 MT/s but runs at 4800. Enable XMP (Intel) or EXPO (AMD) in the BIOS to get the speed you paid for.",
-        };
-        warnings.AddRange(PageFileRules.Evaluate(total, _automaticPageFile, [_pageFile]));
-        Last = new MemoryOverview(total, available, (long)(total * 0.52), total + 19456L * 1024 * 1024, (long)(total * 0.21), (long)(total * 0.17),
-            _compression, true, _automaticPageFile, [_pageFile], "Disabled", 4800, 6000, modules,
-            "No errors were detected (Windows Memory Diagnostic, 12 days ago)", 4, 2, true, warnings);
+
+        var xmp = MemoryRules.EvaluateXmp(modules, "Intel");
+        var channels = MemoryRules.EvaluateChannels(modules, 4);
+        string diagnostic = _diagnosticScheduled
+            ? "Windows Memory Diagnostic is scheduled for the next restart (last run: no errors, 12 days ago)"
+            : MemoryRules.DescribeDiagnostic(new MemoryDiagnosticEvent(1201, DateTimeOffset.Now.AddDays(-12), "no errors"), DateTimeOffset.Now);
+        long commitTotal = (long)(total * 0.52);
+        long commitLimit = total + (long)_pageFile.MaximumMb * 1024 * 1024;
+        var facts = new MemoryFacts(total, available, commitTotal, commitLimit, _compression, _sysMain, _automaticPageFile, [_pageFile], modules, xmp, diagnostic);
+        var warnings = MemoryRules.BuildWarnings(facts);
+
+        Last = new MemoryOverview(total, available, commitTotal, commitLimit, (long)(total * 0.21), (long)(total * _standbyFraction),
+            _compression, _sysMain, _automaticPageFile, [_pageFile], xmp.State, xmp.ConfiguredMhz, xmp.RatedMhz, modules,
+            diagnostic, 4, 2, channels.DualChannelLikely, warnings);
         return Last;
     }
 
     public async Task<MemoryTestResult> RunMemoryTestAsync(int percentOfAvailable, int passes, IProgress<ProgressUpdate>? progress, CancellationToken cancellationToken)
     {
+        long available = Last?.AvailableBytes ?? (long)(DemoData.TotalMemoryBytes * 0.58);
+        long planned = MemoryTestRunner.PlanBytes(available, percentOfAvailable);
+        passes = Math.Max(1, passes);
+
+        // Run the real engine on a small buffer so progress and timing look genuine, then report the planned size.
         var started = DateTimeOffset.Now;
-        int totalSteps = Math.Max(1, passes) * MemoryTestPatterns.Names.Count;
-        int step = 0;
-        for (int pass = 1; pass <= Math.Max(1, passes); pass++)
+        var real = await MemoryTestRunner.RunAsync(Math.Min(planned, DemoTestCapBytes), passes, progress, cancellationToken).ConfigureAwait(false);
+        for (int i = 0; i < passes && real.Completed; i++)
         {
-            for (int p = 0; p < MemoryTestPatterns.Names.Count; p++)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                progress?.Report(new ProgressUpdate($"Pass {pass}: {MemoryTestPatterns.Names[p]}", 100.0 * step++ / totalSteps));
-                await Task.Delay(250, cancellationToken).ConfigureAwait(false);
-            }
+            await Task.Delay(300, cancellationToken).ConfigureAwait(false);
         }
 
-        long bytes = (long)(DemoData.TotalMemoryBytes * 0.58 * Math.Clamp(percentOfAvailable, 1, 100) / 100);
-        progress?.Report(new ProgressUpdate("Done", 100));
-        return new MemoryTestResult(bytes, Math.Max(1, passes), 0, [], DateTimeOffset.Now - started, true,
-            $"Tested {ByteSize.Format(bytes)} of free memory in {Math.Max(1, passes)} pass(es): no errors (demo). This is a quick user-mode check; run the Windows Memory Diagnostic for a full test.");
+        var elapsed = DateTimeOffset.Now - started;
+        long reported = real.Completed ? planned : Math.Min(planned, real.BytesTested);
+        string summary = MemoryTestRunner.BuildSummary(reported, passes, real.Errors, !real.Completed, elapsed, "(demo)");
+        return new MemoryTestResult(reported, passes, real.Errors, real.ErrorDetails, elapsed, real.Completed, summary);
     }
 
     public async Task<OperationResult> ScheduleWindowsMemoryDiagnosticAsync(CancellationToken cancellationToken)
     {
         await DemoData.DelayAsync(cancellationToken).ConfigureAwait(false);
-        return OperationResult.Ok("Windows Memory Diagnostic will run the next time the PC restarts (demo).", rebootRequired: true);
+        _diagnosticScheduled = true;
+        return OperationResult.Ok("Windows Memory Diagnostic will run the next time the PC restarts (demo). It takes a few minutes and shows the result after Windows starts again.", rebootRequired: true);
     }
 
     public async Task<OperationResult> ApplyProfileAsync(MemoryProfile profile, CancellationToken cancellationToken)
@@ -67,32 +82,41 @@ public sealed class DemoMemoryService : IMemoryService
         ArgumentNullException.ThrowIfNull(profile);
         await DemoData.DelayAsync(cancellationToken).ConfigureAwait(false);
         _compression = profile.MemoryCompression;
+        _sysMain = profile.SysMain;
         _automaticPageFile = profile.AutomaticPageFile;
-        if (!profile.AutomaticPageFile)
-        {
-            var (initial, max) = PageFileRules.Recommend(DemoData.TotalMemoryBytes);
-            _pageFile = new PageFileInfo("C:", profile.PageFileInitialMb ?? initial, profile.PageFileMaxMb ?? max, false);
-        }
-        else
-        {
-            _pageFile = new PageFileInfo("C:", 4864, 19456, true);
-        }
+        var size = PageFileRules.SizeForProfile(profile, DemoData.TotalMemoryBytes);
+        _pageFile = size is null
+            ? new PageFileInfo("C:", 4864, 19456, true)
+            : new PageFileInfo("C:", size.Value.InitialMb, size.Value.MaximumMb, false);
 
-        return OperationResult.Ok($"Profile \"{profile.Name}\" applied (demo).", rebootRequired: !profile.AutomaticPageFile);
+        string pageFileText = size is null ? "Windows manages the page file." : $"Page file on C: fixed at {size.Value.MaximumMb} MB.";
+        return OperationResult.Ok($"Profile \"{profile.Name}\" applied (demo). Memory compression {(profile.MemoryCompression ? "on" : "off")}, SysMain {(profile.SysMain ? "on" : "off")}. {pageFileText}"
+            + (size is null ? string.Empty : " Restart the PC for the page file change to take effect."), rebootRequired: size is not null);
     }
 
     public async Task<OperationResult> ClearStandbyListAsync(CancellationToken cancellationToken)
     {
         await DemoData.DelayAsync(cancellationToken).ConfigureAwait(false);
-        return OperationResult.Ok("Standby list cleared: 5.4 GB returned to free memory (demo).");
+        long freed = (long)(DemoData.TotalMemoryBytes * _standbyFraction);
+        _standbyFraction = 0.02;
+        return OperationResult.Ok($"Standby list cleared: {ByteSize.Format(freed)} returned to free memory (demo).");
     }
 
     public async Task<OperationResult> SetPageFileAsync(string drive, bool systemManaged, int? initialMb, int? maxMb, CancellationToken cancellationToken)
     {
+        string? problem = PageFileRules.Validate(drive, systemManaged, initialMb, maxMb, DemoData.TotalMemoryBytes);
+        if (problem is not null)
+        {
+            return OperationResult.Fail(problem);
+        }
+
         await DemoData.DelayAsync(cancellationToken).ConfigureAwait(false);
+        string normalized = PageFileRules.ChooseDrive([new PageFileInfo(drive, 0, 0, true)], drive);
         _automaticPageFile = systemManaged;
-        _pageFile = new PageFileInfo(drive, initialMb ?? 4864, maxMb ?? 19456, systemManaged);
-        return OperationResult.Ok($"Page file on {drive} updated (demo).", rebootRequired: true);
+        _pageFile = systemManaged ? new PageFileInfo(normalized, 4864, 19456, true) : new PageFileInfo(normalized, initialMb ?? 4864, maxMb ?? 19456, false);
+        return OperationResult.Ok(systemManaged
+            ? "Windows now manages the page file (demo). Restart the PC to apply."
+            : $"Page file on {normalized} set to {initialMb}–{maxMb} MB (demo). Restart the PC to apply.", rebootRequired: true);
     }
 
     public async Task<OperationResult> SetMemoryCompressionAsync(bool enabled, CancellationToken cancellationToken)
@@ -102,7 +126,22 @@ public sealed class DemoMemoryService : IMemoryService
         return OperationResult.Ok($"Memory compression {(enabled ? "enabled" : "disabled")} (demo).");
     }
 
-    private static MemoryModuleInfo Module(string slot, string part) =>
+    public async Task<OperationResult> SetSysMainAsync(bool enabled, CancellationToken cancellationToken)
+    {
+        await DemoData.DelayAsync(cancellationToken).ConfigureAwait(false);
+        _sysMain = enabled;
+        return OperationResult.Ok(enabled ? "SysMain (Superfetch) is running and starts with Windows (demo)." : "SysMain (Superfetch) is stopped and disabled (demo).");
+    }
+
+    private static MemoryModuleInfo Module(string slot, string part, string serialSuffix) =>
         new($"{slot} 16 GB DDR5", "G.Skill", slot, "OK", "BANK 0", slot, DemoData.MemoryModuleBytes, 6000, 4800, "DDR5", "DIMM", part,
-            "0000" + slot[^2..], 1100, 64, 64, new Dictionary<string, string>());
+            "04C" + serialSuffix + "71", 1100, 64, 64, new Dictionary<string, string>
+            {
+                ["Capacity"] = DemoData.MemoryModuleBytes.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                ["Speed"] = "6000",
+                ["ConfiguredClockSpeed"] = "4800",
+                ["SMBIOSMemoryType"] = "34",
+                ["Manufacturer"] = "G.Skill",
+                ["PartNumber"] = part,
+            });
 }
