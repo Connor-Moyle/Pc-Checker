@@ -390,6 +390,52 @@ public class DemoMemoryServiceTests
     }
 
     [Fact]
+    public void Compression_change_asks_for_a_restart_only_when_the_state_changes()
+    {
+        var on = MemoryCompressionChange.Evaluate(true, before: false, after: true);
+        Assert.True(on.Success);
+        Assert.True(on.RebootRequired);
+        Assert.Contains("restart", on.Message);
+
+        var unknownBefore = MemoryCompressionChange.Evaluate(false, before: null, after: false);
+        Assert.True(unknownBefore.Success);
+        Assert.True(unknownBefore.RebootRequired);
+
+        var already = MemoryCompressionChange.Evaluate(true, before: true, after: true);
+        Assert.True(already.Success);
+        Assert.False(already.RebootRequired);
+
+        var refused = MemoryCompressionChange.Evaluate(false, before: true, after: true);
+        Assert.False(refused.Success);
+        Assert.Contains("still on", refused.Message);
+    }
+
+    [Theory]
+    [InlineData("False\r\nTrue\r\n", false, true)]
+    [InlineData("True\nTrue", true, true)]
+    [InlineData("True", null, true)]
+    [InlineData("", null, null)]
+    [InlineData(null, null, null)]
+    [InlineData("\nFalse\n", null, false)]
+    public void Compression_change_output_is_parsed(string? output, bool? before, bool? after)
+    {
+        Assert.Equal((before, after), MemoryCompressionChange.ParseStates(output));
+    }
+
+    [Fact]
+    public async Task Demo_compression_toggle_reports_restart_needed()
+    {
+        var svc = new DemoMemoryService();
+        bool current = (await svc.GetOverviewAsync(CancellationToken.None)).MemoryCompressionEnabled;
+        var changed = await svc.SetMemoryCompressionAsync(!current, CancellationToken.None);
+        Assert.True(changed.Success);
+        Assert.True(changed.RebootRequired);
+        var same = await svc.SetMemoryCompressionAsync(!current, CancellationToken.None);
+        Assert.True(same.Success);
+        Assert.False(same.RebootRequired);
+    }
+
+    [Fact]
     public async Task Quick_test_runs_the_real_engine_on_a_small_buffer()
     {
         var svc = new DemoMemoryService();

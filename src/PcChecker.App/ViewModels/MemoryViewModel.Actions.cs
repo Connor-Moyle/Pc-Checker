@@ -86,7 +86,14 @@ public sealed partial class MemoryViewModel
             return;
         }
 
-        string restartNote = item.Profile.AutomaticPageFile ? string.Empty : "\n\nThe page file change needs a restart to take effect.";
+        bool compressionChanges = item.Profile.MemoryCompression != MemoryCompressionEnabled;
+        string restartNote = (item.Profile.AutomaticPageFile, compressionChanges) switch
+        {
+            (false, true) => "\n\nThe page file and memory compression changes need a restart to take effect.",
+            (false, false) => "\n\nThe page file change needs a restart to take effect.",
+            (true, true) => "\n\nThe memory compression change needs a restart to take effect.",
+            _ => string.Empty,
+        };
         bool ok = await _dialogs.ConfirmAsync($"Apply \"{item.Name}\"",
             $"{item.Description}\n\nThis will set: {item.Settings}.{restartNote}\n\nA restore point is created first if that option is on in Settings.",
             "Apply", isDanger: item.IsAdvancedOnly);
@@ -109,8 +116,8 @@ public sealed partial class MemoryViewModel
         bool enable = !MemoryCompressionEnabled;
         bool ok = await _dialogs.ConfirmAsync(enable ? "Turn memory compression on" : "Turn memory compression off",
             enable
-                ? "Windows will compress memory pages it is not using so more programs fit in RAM. This is the Windows default and recommended for nearly every PC."
-                : "Windows will stop compressing idle memory. Only useful on machines with lots of RAM; most PCs are slower without it.",
+                ? "Windows will compress memory pages it is not using so more programs fit in RAM. This is the Windows default and recommended for nearly every PC.\n\nTakes effect after a restart."
+                : "Windows will stop compressing idle memory. Only useful on machines with lots of RAM; most PCs are slower without it.\n\nTakes effect after a restart.",
             enable ? "Turn on" : "Turn off", isDanger: !enable);
         if (!ok)
         {

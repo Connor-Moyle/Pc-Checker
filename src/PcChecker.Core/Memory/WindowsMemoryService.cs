@@ -139,7 +139,7 @@ public sealed class WindowsMemoryService : IMemoryService, IMemoryTuning
                     return OperationResult.Fail($"Profile \"{profile.Name}\" was only partly applied. {summary} Problems: {string.Join(" ", failures)}");
                 }
 
-                return OperationResult.Ok($"Profile \"{profile.Name}\" applied. {summary}" + (reboot ? " Restart the PC for the page file change to take effect." : string.Empty), reboot);
+                return OperationResult.Ok($"Profile \"{profile.Name}\" applied. {summary}" + (reboot ? " Restart the PC for these changes to take effect." : string.Empty), reboot);
             }, null, cancellationToken);
     }
 
@@ -190,20 +190,18 @@ public sealed class WindowsMemoryService : IMemoryService, IMemoryTuning
 
     private static async Task<OperationResult> SetMemoryCompressionCoreAsync(bool enabled, CancellationToken cancellationToken)
     {
-        string command = enabled ? "Enable-MMAgent -MemoryCompression" : "Disable-MMAgent -MemoryCompression";
-        var run = await PowerShellRunner.RunAsync(command + "; (Get-MMAgent).MemoryCompression", cancellationToken: cancellationToken).ConfigureAwait(false);
+        // Print the state before and after so the result only asks for a restart when something changed.
+        string command = enabled
+            ? "$b = (Get-MMAgent).MemoryCompression; if ($b -ne $true) { Enable-MMAgent -MemoryCompression }; \"$b\"; (Get-MMAgent).MemoryCompression"
+            : "$b = (Get-MMAgent).MemoryCompression; if ($b -ne $false) { Disable-MMAgent -MemoryCompression }; \"$b\"; (Get-MMAgent).MemoryCompression";
+        var run = await PowerShellRunner.RunAsync(command, cancellationToken: cancellationToken).ConfigureAwait(false);
         if (!run.Success)
         {
             return OperationResult.Fail($"Memory compression could not be changed: {(string.IsNullOrWhiteSpace(run.StdErr) ? run.StdOut : run.StdErr).Trim()}");
         }
 
-        bool? now = ParseBool(run.StdOut);
-        if (now is not null && now != enabled)
-        {
-            return OperationResult.Fail($"Windows reported memory compression still {(now.Value ? "on" : "off")} after the change.");
-        }
-
-        return OperationResult.Ok(enabled ? "Memory compression is on." : "Memory compression is off.");
+        var (before, after) = MemoryCompressionChange.ParseStates(run.StdOut);
+        return MemoryCompressionChange.Evaluate(enabled, before, after);
     }
 
     private static async Task<OperationResult> SetSysMainCoreAsync(bool enabled, CancellationToken cancellationToken)

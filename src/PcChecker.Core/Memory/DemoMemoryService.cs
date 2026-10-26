@@ -81,6 +81,7 @@ public sealed class DemoMemoryService : IMemoryService, IMemoryTuning
     {
         ArgumentNullException.ThrowIfNull(profile);
         await DemoData.DelayAsync(cancellationToken).ConfigureAwait(false);
+        bool compressionChanged = _compression != profile.MemoryCompression;
         _compression = profile.MemoryCompression;
         _sysMain = profile.SysMain;
         _automaticPageFile = profile.AutomaticPageFile;
@@ -91,7 +92,7 @@ public sealed class DemoMemoryService : IMemoryService, IMemoryTuning
 
         string pageFileText = size is null ? "Windows manages the page file." : $"Page file on C: fixed at {size.Value.MaximumMb} MB.";
         return OperationResult.Ok($"Profile \"{profile.Name}\" applied (demo). Memory compression {(profile.MemoryCompression ? "on" : "off")}, SysMain {(profile.SysMain ? "on" : "off")}. {pageFileText}"
-            + (size is null ? string.Empty : " Restart the PC for the page file change to take effect."), rebootRequired: size is not null);
+            + (size is null && !compressionChanged ? string.Empty : " Restart the PC for these changes to take effect."), rebootRequired: size is not null || compressionChanged);
     }
 
     public async Task<OperationResult> ClearStandbyListAsync(CancellationToken cancellationToken)
@@ -122,8 +123,10 @@ public sealed class DemoMemoryService : IMemoryService, IMemoryTuning
     public async Task<OperationResult> SetMemoryCompressionAsync(bool enabled, CancellationToken cancellationToken)
     {
         await DemoData.DelayAsync(cancellationToken).ConfigureAwait(false);
+        bool before = _compression;
         _compression = enabled;
-        return OperationResult.Ok($"Memory compression {(enabled ? "enabled" : "disabled")} (demo).");
+        var result = MemoryCompressionChange.Evaluate(enabled, before, enabled);
+        return result with { Message = result.Message + " (demo)" };
     }
 
     public async Task<OperationResult> SetSysMainAsync(bool enabled, CancellationToken cancellationToken)

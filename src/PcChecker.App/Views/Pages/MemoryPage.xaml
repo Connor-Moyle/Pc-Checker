@@ -64,7 +64,7 @@
                              ToolTip="Memory promised to programs. It can exceed physical RAM because the page file on disk backs the rest." />
           <controls:StatCard Title="Cached / standby" Value="{Binding CachedText}" Icon="History24" Accent="{StaticResource AccentGreyBrush}" Subtitle="{Binding StandbyText, StringFormat='{}{0} on the standby list'}" Margin="0,0,12,12"
                              ToolTip="Recently used file data kept in RAM so it opens faster next time. Windows gives it up instantly when a program needs the space." />
-          <controls:StatCard Title="Memory compression" Value="{Binding CompressionText}" Icon="BoxMultiple24" Accent="{StaticResource AccentCyanBrush}" Subtitle="Fits more in RAM by squeezing idle pages" Margin="0,0,12,12" />
+          <controls:StatCard Title="Memory compression" Value="{Binding CompressionText}" Icon="BoxMultiple24" Accent="{StaticResource AccentCyanBrush}" Subtitle="Fits more in RAM by squeezing idle pages. Changes take effect after a restart" Margin="0,0,12,12" />
           <controls:StatCard Title="SysMain (Superfetch)" Value="{Binding SysMainText}" Icon="Rocket24" Accent="{StaticResource AccentOrangeBrush}" Subtitle="Preloads the programs you use most" Margin="0,0,12,12" />
         </WrapPanel>
 
@@ -321,7 +321,7 @@
                          ToolTip="SysMain (Superfetch) preloads the programs you use most. On is the Windows default." />
             </WrapPanel>
             <ui:TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap"
-                          Text="Each action explains itself and asks for confirmation. Changes are written to the action journal, and a restore point is created first when that option is on in Settings." />
+                          Text="Each action explains itself and asks for confirmation. Changes are written to the action journal. Setting changes get a restore point first when that option is on in Settings; clearing the standby list does not, because Windows refills it on its own." />
           </StackPanel>
         </ui:Card>
       </StackPanel>
