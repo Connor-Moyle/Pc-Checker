@@ -6,7 +6,8 @@ namespace PcChecker.Core.Software;
 public static class StoreAppReader
 {
     private const string Command =
-        "Get-AppxPackage | Select-Object Name, PackageFullName, PackageFamilyName, Publisher, PublisherId, Version, InstallLocation, " +
+        "Get-AppxPackage | Select-Object Name, PackageFullName, PackageFamilyName, Publisher, PublisherId, " +
+        "@{Name='Version';Expression={[string]$_.Version}}, InstallLocation, " +
         "IsFramework, IsResourcePackage, IsBundle, NonRemovable, @{Name='SignatureKind';Expression={[string]$_.SignatureKind}}";
 
     /// <summary>Returns Store apps; problems become warnings and an empty list.</summary>
@@ -32,6 +33,12 @@ public static class StoreAppReader
             if (packages is null)
             {
                 var single = PowerShellRunner.ParseJson<AppxPackageDto>(result.StdOut);
+                if (single is null && !string.IsNullOrWhiteSpace(result.StdOut))
+                {
+                    warnings.Add("Store apps could not be listed: the package list returned by PowerShell could not be parsed.");
+                    return [];
+                }
+
                 packages = single is null ? [] : [single];
             }
 

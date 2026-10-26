@@ -10,6 +10,9 @@ public sealed class AppxPackageDto
     public string? PackageFamilyName { get; set; }
     public string? Publisher { get; set; }
     public string? PublisherId { get; set; }
+
+    /// <summary>Windows PowerShell 5.1 serializes <c>System.Version</c> as an object (<c>{"Major":1,"Minor":2,...}</c>) unless it was projected to a string.</summary>
+    [JsonConverter(typeof(AppxVersionConverter))]
     public string? Version { get; set; }
     public string? InstallLocation { get; set; }
     public bool IsFramework { get; set; }
@@ -65,6 +68,78 @@ public static class StoreAppMapper
 
     public static IReadOnlyList<InstalledProgram> MapAll(IEnumerable<AppxPackageDto> packages) =>
         packages.Select(Map).Where(p => p is not null).Select(p => p!).ToList();
+}
+
+/// <summary>
+/// Reads an Appx package version as a string. Accepts a plain string, a number, or the object that
+/// <c>ConvertTo-Json</c> in Windows PowerShell 5.1 emits for <c>System.Version</c>
+/// (<c>{"Major":1,"Minor":2,"Build":3,"Revision":4,...}</c>), which is folded back into <c>1.2.3.4</c>.
+/// </summary>
+public sealed class AppxVersionConverter : JsonConverter<string?>
+{
+    public override string? Read(ref System.Text.Json.Utf8JsonReader reader, Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
+    {
+        if (reader.TokenType != System.Text.Json.JsonTokenType.StartObject)
+        {
+            return new LenientStringConverter().Read(ref reader, typeToConvert, options);
+        }
+
+        int? major = null, minor = null, build = null, revision = null;
+        while (reader.Read())
+        {
+            if (reader.TokenType == System.Text.Json.JsonTokenType.EndObject)
+            {
+                break;
+            }
+
+            if (reader.TokenType != System.Text.Json.JsonTokenType.PropertyName)
+            {
+                throw new System.Text.Json.JsonException("Unexpected token in a version object.");
+            }
+
+            var property = reader.GetString();
+            reader.Read();
+            int? value = reader.TokenType == System.Text.Json.JsonTokenType.Number && reader.TryGetInt32(out var n) ? n : null;
+            if (reader.TokenType is System.Text.Json.JsonTokenType.StartObject or System.Text.Json.JsonTokenType.StartArray)
+            {
+                reader.Skip();
+            }
+
+            switch (property?.ToLowerInvariant())
+            {
+                case "major": major = value; break;
+                case "minor": minor = value; break;
+                case "build": build = value; break;
+                case "revision": revision = value; break;
+            }
+        }
+
+        return Format(major, minor, build, revision);
+    }
+
+    /// <summary>Formats version parts the way <c>System.Version.ToString()</c> does; -1 parts (undefined) and trailing nulls are dropped.</summary>
+    public static string? Format(int? major, int? minor, int? build, int? revision)
+    {
+        if (major is null || major < 0)
+        {
+            return null;
+        }
+
+        var parts = new List<int> { major.Value };
+        foreach (var part in new[] { minor, build, revision })
+        {
+            if (part is null || part < 0)
+            {
+                break;
+            }
+
+            parts.Add(part.Value);
+        }
+
+        return string.Join('.', parts.Select(p => p.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+    }
+
+    public override void Write(System.Text.Json.Utf8JsonWriter writer, string? value, System.Text.Json.JsonSerializerOptions options) => writer.WriteStringValue(value);
 }
 
 /// <summary>Reads a JSON string, number or boolean as a string.</summary>

@@ -656,6 +656,37 @@ public class StoreAppMapperTests
         Assert.NotNull(app);
         Assert.True(app!.IsSystemComponent);
     }
+
+    [Fact]
+    public void Json_from_windows_powershell_parses_version_object()
+    {
+        // Windows PowerShell 5.1 serializes System.Version as an object when it is not projected to a string.
+        const string json = """[{"Name":"Contoso.App","PackageFullName":"Contoso.App_1.2.3.4_x64__abc","Version":{"Major":1,"Minor":2,"Build":3,"Revision":4,"MajorRevision":0,"MinorRevision":4},"SignatureKind":"Store"}]""";
+        var dtos = PowerShellRunner.ParseJson<List<AppxPackageDto>>(json);
+        Assert.NotNull(dtos);
+        var dto = Assert.Single(dtos!);
+        Assert.Equal("1.2.3.4", dto.Version);
+        Assert.Equal("1.2.3.4", StoreAppMapper.Map(dto)!.Version);
+    }
+
+    [Fact]
+    public void Version_converter_accepts_string_null_and_partial_objects()
+    {
+        Assert.Equal("2.0.1.0", PowerShellRunner.ParseJson<AppxPackageDto>("""{"PackageFullName":"x","Version":"2.0.1.0"}""")!.Version);
+        Assert.Null(PowerShellRunner.ParseJson<AppxPackageDto>("""{"PackageFullName":"x","Version":null}""")!.Version);
+        Assert.Equal("1.2", PowerShellRunner.ParseJson<AppxPackageDto>("""{"PackageFullName":"x","Version":{"Major":1,"Minor":2,"Build":-1,"Revision":-1}}""")!.Version);
+        Assert.Equal("1.2.3.4", AppxVersionConverter.Format(1, 2, 3, 4));
+        Assert.Equal("1.2", AppxVersionConverter.Format(1, 2, -1, -1));
+        Assert.Null(AppxVersionConverter.Format(null, null, null, null));
+    }
+
+    [Fact]
+    public void Reader_command_projects_version_to_string()
+    {
+        var field = typeof(StoreAppReader).GetField("Command", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+        var command = (string)field!.GetValue(null)!;
+        Assert.Contains("[string]$_.Version", command);
+    }
 }
 
 public class SoftwareInventoryAssemblerTests
