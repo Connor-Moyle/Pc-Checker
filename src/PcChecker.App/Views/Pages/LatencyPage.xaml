@@ -10,29 +10,379 @@
       mc:Ignorable="d"
       Title="Latency"
       ScrollViewer.CanContentScroll="False">
+  <Page.Resources>
+    <Style x:Key="Badge" TargetType="Border">
+      <Setter Property="CornerRadius" Value="4" />
+      <Setter Property="Padding" Value="6,1" />
+      <Setter Property="Margin" Value="0,0,6,0" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+    <Style x:Key="BadgeText" TargetType="TextBlock">
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+    <Style x:Key="ColumnHeader" TargetType="ui:TextBlock" BasedOn="{StaticResource Muted}">
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Margin" Value="0,0,8,0" />
+    </Style>
+    <Style x:Key="Cell" TargetType="ui:TextBlock">
+      <Setter Property="Margin" Value="0,0,8,0" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+    <Style x:Key="Paragraph" TargetType="ui:TextBlock">
+      <Setter Property="TextWrapping" Value="Wrap" />
+      <Setter Property="Margin" Value="0,0,0,8" />
+    </Style>
+  </Page.Resources>
+
   <Grid Style="{StaticResource PageRoot}">
     <Grid.RowDefinitions>
-      <RowDefinition Height="Auto" />
       <RowDefinition Height="Auto" />
       <RowDefinition Height="*" />
     </Grid.RowDefinitions>
 
-    <controls:SectionHeader Grid.Row="0" Title="Latency" Subtitle="Driver, timer, input and network latency checks with known fixes." />
+    <controls:SectionHeader Grid.Row="0" Title="Latency" Subtitle="How quickly your PC reacts: driver load, timers, power saving, mouse and network. Known fixes are one click away.">
+      <controls:SectionHeader.Actions>
+        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+          <ui:TextBlock Text="Sample for" Appearance="Secondary" VerticalAlignment="Center" Margin="0,0,6,0" />
+          <ComboBox ItemsSource="{Binding SampleOptions}"
+                    SelectedItem="{Binding SampleSeconds}"
+                    MinWidth="72"
+                    IsEnabled="{Binding IsNotBusy}"
+                    ToolTip="How long to watch the driver and interrupt counters. Longer gives a steadier average."
+                    Margin="0,0,4,0" />
+          <ui:TextBlock Text="seconds" Appearance="Secondary" VerticalAlignment="Center" Margin="0,0,16,0" />
+          <ui:ToggleSwitch Content="Include network test"
+                           IsChecked="{Binding IncludeNetwork}"
+                           IsEnabled="{Binding IsNotBusy}"
+                           ToolTip="Pings your router and two public DNS servers and times a DNS lookup."
+                           Margin="0,0,16,0" />
+          <ui:Button Appearance="Primary"
+                     Content="Run latency check"
+                     Icon="{ui:SymbolIcon Timer24}"
+                     Command="{Binding RunCheckCommand}"
+                     IsEnabled="{Binding IsNotBusy}" />
+        </StackPanel>
+      </controls:SectionHeader.Actions>
+    </controls:SectionHeader>
 
-    <ui:InfoBar Grid.Row="1"
-                Severity="Error"
-                Title="Something went wrong"
-                Message="{Binding ErrorMessage}"
-                IsOpen="{Binding HasError, Mode=OneWay}"
-                IsClosable="True"
-                Margin="0,0,0,12" />
+    <ScrollViewer Grid.Row="1" Style="{StaticResource PageScroll}">
+      <StackPanel>
+        <ui:InfoBar Severity="Error"
+                    Title="Something went wrong"
+                    Message="{Binding ErrorMessage}"
+                    IsOpen="{Binding HasError, Mode=OneWay}"
+                    IsClosable="True"
+                    Margin="0,0,0,12" />
 
-    <controls:EmptyState Grid.Row="2"
-                         Icon="Timer24"
-                         Title="This section is being prepared"
-                         Message="Driver, timer, input and network latency checks with known fixes." />
+        <ui:InfoBar Severity="Warning"
+                    Title="Advanced mode is on"
+                    Message="Fixes marked Advanced change boot options, interrupt modes or TCP behaviour. They are reversible, but read each description before applying one."
+                    IsOpen="{Binding IsAdvancedMode, Mode=OneWay}"
+                    IsClosable="False"
+                    Margin="0,0,0,12" />
 
-    <controls:BusyOverlay Grid.Row="0" Grid.RowSpan="3"
+        <ui:InfoBar Severity="Informational"
+                    Title="Some advanced fixes are hidden"
+                    Message="Turn on Advanced mode in Settings to see fixes that change boot options or interrupt handling."
+                    IsOpen="{Binding HasHiddenAdvanced, Mode=OneWay}"
+                    IsClosable="False"
+                    Margin="0,0,0,12" />
+
+        <controls:EmptyState Icon="Timer24"
+                             Title="No latency check yet"
+                             Message="Run a check to measure driver (DPC) load, timer resolution, mouse polling and network ping, and to see which settings add delay."
+                             Visibility="{Binding ShowEmptyState, Converter={StaticResource BoolToVisibility}}">
+          <controls:EmptyState.Action>
+            <ui:Button Appearance="Primary" Content="Run latency check" Icon="{ui:SymbolIcon Timer24}" Command="{Binding RunCheckCommand}" />
+          </controls:EmptyState.Action>
+        </controls:EmptyState>
+
+        <StackPanel Visibility="{Binding HasReport, Converter={StaticResource BoolToVisibility}}">
+
+          <!-- Score hero -->
+          <ui:Card Style="{StaticResource CardSpacing}">
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+              <Border Grid.Column="0"
+                      Width="104" Height="104"
+                      CornerRadius="52"
+                      BorderThickness="7"
+                      BorderBrush="{Binding ScoreBrush}"
+                      Margin="4,0,20,0"
+                      VerticalAlignment="Center">
+                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                  <ui:TextBlock FontSize="32" FontWeight="Bold" Text="{Binding Score}" HorizontalAlignment="Center" />
+                  <ui:TextBlock Style="{StaticResource Caption}" Text="of 100" HorizontalAlignment="Center" Margin="0,-4,0,0" />
+                </StackPanel>
+              </Border>
+              <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                <StackPanel Orientation="Horizontal">
+                  <ui:TextBlock FontTypography="Subtitle" FontWeight="SemiBold" Text="Latency score:" Margin="0,0,6,0" />
+                  <ui:TextBlock FontTypography="Subtitle" FontWeight="SemiBold" Text="{Binding Grade}" Foreground="{Binding ScoreBrush}" />
+                </StackPanel>
+                <ui:TextBlock Text="{Binding SummaryText}" TextWrapping="Wrap" Margin="0,4,0,0" />
+                <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding CapturedText}" Margin="0,4,0,0" />
+                <ui:TextBlock Style="{StaticResource Caption}"
+                              Text="The score starts at 100 and loses points for each finding: high-impact problems cost more than small tweaks."
+                              TextWrapping="Wrap" Margin="0,4,0,0" />
+              </StackPanel>
+            </Grid>
+          </ui:Card>
+
+          <ui:InfoBar Severity="Warning"
+                      Title="Some values could not be measured"
+                      Message="{Binding WarningsText}"
+                      IsOpen="{Binding HasWarnings, Mode=OneWay}"
+                      IsClosable="False"
+                      Margin="0,0,0,12" />
+
+          <!-- Measurement cards -->
+          <WrapPanel Margin="0,0,0,4">
+            <controls:StatCard Title="Driver (DPC) time" Value="{Binding DpcText}" Unit="%" Icon="DesktopPulse24" Accent="{StaticResource AccentCyanBrush}"
+                               Subtitle="Under 3 % is healthy" Margin="0,0,12,12"
+                               ToolTip="DPC = deferred procedure call: work a driver postpones after an interrupt. High values mean a driver is hogging the CPU and audio or input can stutter." />
+            <controls:StatCard Title="Interrupt (ISR) time" Value="{Binding IsrText}" Unit="%" Icon="Flash24" Accent="{StaticResource AccentPurpleBrush}"
+                               Subtitle="Under 1 % is healthy" Margin="0,0,12,12"
+                               ToolTip="ISR = interrupt service routine: the first, very short reaction to a hardware event. High values point at a misbehaving device or driver." />
+            <controls:StatCard Title="DPCs queued" Value="{Binding DpcsText}" Unit="/s" Icon="DataLine24" Accent="{StaticResource AccentGreyBrush}"
+                               Subtitle="Count only; no fixed limit" Margin="0,0,12,12"
+                               ToolTip="How many deferred calls drivers queue per second. Only a problem when DPC time is high too." />
+            <controls:StatCard Title="Interrupts" Value="{Binding InterruptsText}" Unit="/s" Icon="Timeline24" Accent="{StaticResource AccentGreyBrush}"
+                               Subtitle="Count only; no fixed limit" Margin="0,0,12,12"
+                               ToolTip="Hardware events per second. Busy GPUs, NVMe drives and fast network adapters raise this normally." />
+            <controls:StatCard Title="Timer resolution" Value="{Binding TimerText}" Unit="ms" Icon="Timer324" Accent="{StaticResource AccentYellowBrush}"
+                               Subtitle="{Binding TimerSubtitle}" Margin="0,0,12,12"
+                               ToolTip="How often the system timer ticks. Games ask Windows for 0.5–1 ms while they run; a coarser value at idle is normal." />
+            <controls:StatCard Title="Mouse polling" Value="{Binding PollingText}" Unit="Hz" Icon="CursorHover24" Accent="{StaticResource AccentGreenBrush}"
+                               Subtitle="{Binding PollingSubtitle}" Margin="0,0,12,12"
+                               ToolTip="How many times per second the mouse reports its position. 1000 Hz = a report every millisecond." />
+            <controls:StatCard Title="DNS lookup" Value="{Binding DnsText}" Unit="ms" Icon="NetworkCheck24" Accent="{StaticResource AccentOrangeBrush}"
+                               Subtitle="{Binding DnsSubtitle}" Margin="0,0,12,12"
+                               ToolTip="Time to turn a web address into an IP address. Every new connection waits for this first." />
+          </WrapPanel>
+
+          <!-- Network table -->
+          <ui:Card Style="{StaticResource CardSpacing}" Visibility="{Binding HasNetwork, Converter={StaticResource BoolToVisibility}}">
+            <StackPanel>
+              <Grid Margin="0,0,0,8">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0">
+                  <ui:TextBlock Style="{StaticResource CardTitle}" Text="Network: your router and public DNS servers" Margin="0" />
+                  <ui:TextBlock Style="{StaticResource Muted}" Text="Ping = round trip time. Jitter = how much it varies between pings. Loss = pings that got no answer." TextWrapping="Wrap" />
+                </StackPanel>
+                <ui:Button Grid.Column="1" Content="Ping again" Icon="{ui:SymbolIcon ArrowSync24}" Command="{Binding PingAgainCommand}" IsEnabled="{Binding IsNotBusy}" VerticalAlignment="Top" />
+              </Grid>
+              <Grid Margin="0,0,0,4">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="2*" />
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="110" />
+                </Grid.ColumnDefinitions>
+                <ui:TextBlock Grid.Column="0" Style="{StaticResource ColumnHeader}" Text="Target" />
+                <ui:TextBlock Grid.Column="1" Style="{StaticResource ColumnHeader}" Text="Average" />
+                <ui:TextBlock Grid.Column="2" Style="{StaticResource ColumnHeader}" Text="Best" />
+                <ui:TextBlock Grid.Column="3" Style="{StaticResource ColumnHeader}" Text="Worst" />
+                <ui:TextBlock Grid.Column="4" Style="{StaticResource ColumnHeader}" Text="Jitter" />
+                <ui:TextBlock Grid.Column="5" Style="{StaticResource ColumnHeader}" Text="Loss" />
+                <ui:TextBlock Grid.Column="6" Style="{StaticResource ColumnHeader}" Text="Verdict" />
+              </Grid>
+              <ItemsControl ItemsSource="{Binding NetworkItems}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <Border BorderThickness="0,1,0,0" BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}" Padding="0,6">
+                      <Grid>
+                        <Grid.ColumnDefinitions>
+                          <ColumnDefinition Width="2*" />
+                          <ColumnDefinition Width="*" />
+                          <ColumnDefinition Width="*" />
+                          <ColumnDefinition Width="*" />
+                          <ColumnDefinition Width="*" />
+                          <ColumnDefinition Width="*" />
+                          <ColumnDefinition Width="110" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                          <ui:TextBlock Text="{Binding Label}" FontWeight="SemiBold" />
+                          <ui:TextBlock Style="{StaticResource Caption}" Text="{Binding Target}" />
+                        </StackPanel>
+                        <ui:TextBlock Grid.Column="1" Style="{StaticResource Cell}" Text="{Binding AvgText}" FontWeight="SemiBold" />
+                        <ui:TextBlock Grid.Column="2" Style="{StaticResource Cell}" Text="{Binding MinText}" />
+                        <ui:TextBlock Grid.Column="3" Style="{StaticResource Cell}" Text="{Binding MaxText}" />
+                        <ui:TextBlock Grid.Column="4" Style="{StaticResource Cell}" Text="{Binding JitterText}" />
+                        <ui:TextBlock Grid.Column="5" Style="{StaticResource Cell}" Text="{Binding LossText}" />
+                        <Border Grid.Column="6" Style="{StaticResource Badge}" Background="{Binding StatusBrush}" HorizontalAlignment="Left">
+                          <TextBlock Style="{StaticResource BadgeText}" Text="{Binding Verdict}" />
+                        </Border>
+                      </Grid>
+                    </Border>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+              <ui:TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,8,0,0"
+                            Text="Good values: router under 5 ms on a cable (under 15 ms on Wi-Fi), public DNS under 40 ms, jitter under 5 ms, no loss. Some routers and networks block ping, so a single 'No reply' is not always a fault." />
+            </StackPanel>
+          </ui:Card>
+
+          <!-- Findings -->
+          <ui:Card Style="{StaticResource CardSpacing}">
+            <StackPanel>
+              <ui:TextBlock Style="{StaticResource CardTitle}" Text="What to fix" />
+              <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,8"
+                            Text="Each fix explains what it changes and asks before applying. Everything marked Safe can be undone from the Optimize page." />
+              <StackPanel Orientation="Horizontal" Visibility="{Binding ShowNoFindings, Converter={StaticResource BoolToVisibility}}" Margin="0,4,0,4">
+                <ui:SymbolIcon Symbol="CheckmarkCircle24" Foreground="{StaticResource AccentGreenBrush}" FontSize="20" Margin="0,0,8,0" />
+                <ui:TextBlock Text="Nothing to fix. All measured values and settings look good for low latency." VerticalAlignment="Center" />
+              </StackPanel>
+              <ItemsControl ItemsSource="{Binding Findings}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <Border BorderThickness="0,1,0,0" BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}" Padding="0,10">
+                      <Grid>
+                        <Grid.ColumnDefinitions>
+                          <ColumnDefinition Width="Auto" />
+                          <ColumnDefinition Width="*" />
+                          <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <Border Grid.Column="0" Width="4" CornerRadius="2" Background="{Binding SeverityBrush}" Margin="0,2,12,2" />
+                        <StackPanel Grid.Column="1">
+                          <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                            <ui:TextBlock FontWeight="SemiBold" Text="{Binding Title}" VerticalAlignment="Center" Margin="0,0,10,0" />
+                            <Border Style="{StaticResource Badge}" Background="{Binding SeverityBrush}">
+                              <TextBlock Style="{StaticResource BadgeText}" Text="{Binding SeverityText}" />
+                            </Border>
+                            <Border Style="{StaticResource Badge}" Background="{Binding RiskBrush}" Visibility="{Binding HasAction, Converter={StaticResource BoolToVisibility}}">
+                              <TextBlock Style="{StaticResource BadgeText}" Text="{Binding RiskText}" />
+                            </Border>
+                            <Border Style="{StaticResource Badge}" Background="{StaticResource AccentGreyBrush}" Visibility="{Binding RequiresRestart, Converter={StaticResource BoolToVisibility}}">
+                              <TextBlock Style="{StaticResource BadgeText}" Text="Restart needed" />
+                            </Border>
+                          </StackPanel>
+                          <ui:TextBlock Text="{Binding Detail}" TextWrapping="Wrap" Appearance="Secondary" />
+                          <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding ResultMessage}" TextWrapping="Wrap" Margin="0,4,0,0"
+                                        Visibility="{Binding ResultMessage, Converter={StaticResource NullToVisibility}}" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="2" VerticalAlignment="Center" Margin="16,0,0,0" MinWidth="110">
+                          <ui:Button Content="{Binding FixText}"
+                                     Appearance="Secondary"
+                                     HorizontalAlignment="Right"
+                                     Command="{Binding DataContext.FixCommand, RelativeSource={RelativeSource AncestorType=Page}}"
+                                     CommandParameter="{Binding}"
+                                     IsEnabled="{Binding CanFix}"
+                                     Visibility="{Binding HasAction, Converter={StaticResource BoolToVisibility}}" />
+                          <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Visibility="{Binding IsFixed, Converter={StaticResource BoolToVisibility}}">
+                            <ui:SymbolIcon Symbol="CheckmarkCircle24" Foreground="{StaticResource AccentGreenBrush}" Margin="0,0,4,0" />
+                            <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding StatusText}" VerticalAlignment="Center" />
+                          </StackPanel>
+                        </StackPanel>
+                      </Grid>
+                    </Border>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
+          </ui:Card>
+
+          <!-- Settings at a glance -->
+          <ui:Card Style="{StaticResource CardSpacing}">
+            <StackPanel>
+              <ui:TextBlock Style="{StaticResource CardTitle}" Text="Settings that affect latency" />
+              <controls:KeyValueList ItemsSource="{Binding SettingRows}" KeyColumnWidth="320" />
+            </StackPanel>
+          </ui:Card>
+
+          <!-- Learn -->
+          <ui:CardExpander Icon="{ui:SymbolIcon BookOpen24}" Margin="0,0,0,12" IsExpanded="False">
+            <ui:CardExpander.Header>
+              <StackPanel>
+                <ui:TextBlock FontTypography="BodyStrong" Text="Learn: what these numbers mean and how to go deeper" />
+                <ui:TextBlock Style="{StaticResource Muted}" Text="Plain-English explanation of DPC, ISR, timers and the limits of this check." />
+              </StackPanel>
+            </ui:CardExpander.Header>
+            <StackPanel Margin="0,4,0,0">
+              <ui:TextBlock FontTypography="BodyStrong" Text="What is latency?" Margin="0,0,0,4" />
+              <ui:TextBlock Style="{StaticResource Paragraph}"
+                            Text="Latency is the delay between something happening (you click, a packet arrives, a sound should play) and the PC reacting. A few extra milliseconds are invisible on the desktop but show up as audio crackle, stuttery games and a mouse that feels 'floaty'." />
+              <ui:TextBlock FontTypography="BodyStrong" Text="DPC and ISR" Margin="0,0,0,4" />
+              <ui:TextBlock Style="{StaticResource Paragraph}"
+                            Text="When hardware needs attention it raises an interrupt. The driver's interrupt service routine (ISR) runs immediately and should finish in microseconds. Anything slower is handed to a deferred procedure call (DPC). While an ISR or DPC runs, nothing else on that CPU core does, so a driver that spends too long here blocks games and audio. Healthy desktops stay under 1 % ISR time and 3 % DPC time; a single DPC should finish in under 1 ms." />
+              <ui:TextBlock FontTypography="BodyStrong" Text="What this check can and cannot see" Margin="0,0,0,4" />
+              <ui:TextBlock Style="{StaticResource Paragraph}"
+                            Text="This page averages the Windows performance counters over a few seconds, which is enough to tell whether something is wrong. It cannot tell you which driver is responsible or catch rare long DPCs. For that, use a kernel tracing tool: LatencyMon shows the worst drivers by name, and Windows Performance Analyzer (part of the Windows Performance Toolkit) records a full timeline. Run them while the problem happens, for example during a game." />
+              <ui:TextBlock FontTypography="BodyStrong" Text="Using the fixes safely" Margin="0,0,0,4" />
+              <ui:TextBlock Style="{StaticResource Paragraph}"
+                            Text="Apply one fix at a time and test. Start with Safe fixes (power plan, USB and PCI Express power saving, mouse acceleration). Advanced fixes edit boot options and interrupt modes: they are reversible, but if the PC misbehaves afterwards, undo them from the Optimize page or with the command shown in the action journal. Every fix is recorded, and a restore point is created first when that is enabled in Settings." />
+              <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                <ui:Button Content="LatencyMon (free for home use)" Icon="{ui:SymbolIcon BookInformation24}" Command="{Binding OpenLinkCommand}" CommandParameter="https://www.resplendence.com/latencymon" Margin="0,0,8,0" />
+                <ui:Button Content="Windows Performance Toolkit" Icon="{ui:SymbolIcon BookInformation24}" Command="{Binding OpenLinkCommand}" CommandParameter="https://learn.microsoft.com/windows-hardware/test/wpt/" />
+              </StackPanel>
+            </StackPanel>
+          </ui:CardExpander>
+
+          <!-- History -->
+          <ui:Card Style="{StaticResource CardSpacing}" Visibility="{Binding HasHistory, Converter={StaticResource BoolToVisibility}}">
+            <StackPanel>
+              <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                <ui:SymbolIcon Symbol="History24" Margin="0,0,8,0" />
+                <ui:TextBlock Style="{StaticResource CardTitle}" Text="Recent runs" Margin="0" />
+              </StackPanel>
+              <Grid Margin="0,0,0,4">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="2*" />
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <ui:TextBlock Grid.Column="0" Style="{StaticResource ColumnHeader}" Text="When" />
+                <ui:TextBlock Grid.Column="1" Style="{StaticResource ColumnHeader}" Text="Score" />
+                <ui:TextBlock Grid.Column="2" Style="{StaticResource ColumnHeader}" Text="Grade" />
+                <ui:TextBlock Grid.Column="3" Style="{StaticResource ColumnHeader}" Text="DPC time" />
+                <ui:TextBlock Grid.Column="4" Style="{StaticResource ColumnHeader}" Text="Ping" />
+                <ui:TextBlock Grid.Column="5" Style="{StaticResource ColumnHeader}" Text="Findings" />
+              </Grid>
+              <ItemsControl ItemsSource="{Binding History}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <Border BorderThickness="0,1,0,0" BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}" Padding="0,5">
+                      <Grid>
+                        <Grid.ColumnDefinitions>
+                          <ColumnDefinition Width="2*" />
+                          <ColumnDefinition Width="*" />
+                          <ColumnDefinition Width="*" />
+                          <ColumnDefinition Width="*" />
+                          <ColumnDefinition Width="*" />
+                          <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <ui:TextBlock Grid.Column="0" Style="{StaticResource Cell}" Text="{Binding TimeText}" />
+                        <ui:TextBlock Grid.Column="1" Style="{StaticResource Cell}" Text="{Binding Score}" FontWeight="SemiBold" />
+                        <ui:TextBlock Grid.Column="2" Style="{StaticResource Cell}" Text="{Binding Grade}" />
+                        <ui:TextBlock Grid.Column="3" Style="{StaticResource Cell}" Text="{Binding DpcText}" />
+                        <ui:TextBlock Grid.Column="4" Style="{StaticResource Cell}" Text="{Binding PingText}" />
+                        <ui:TextBlock Grid.Column="5" Style="{StaticResource Cell}" Text="{Binding Findings}" />
+                      </Grid>
+                    </Border>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
+          </ui:Card>
+        </StackPanel>
+      </StackPanel>
+    </ScrollViewer>
+
+    <controls:BusyOverlay Grid.Row="0" Grid.RowSpan="2"
                           IsBusy="{Binding IsBusy}"
                           Text="{Binding BusyText}"
                           CancelCommand="{Binding CancelCommand}" />

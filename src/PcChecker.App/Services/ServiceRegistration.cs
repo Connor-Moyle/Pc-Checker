@@ -99,7 +99,8 @@ public static class ServiceRegistration
         Add<IMousePollingMeter, RawInputPollingMeter, DemoMousePollingMeter>(services, demo);
 
         // Optimization action providers (IOptimizationService aggregates every registration below).
-        // providers: Latency   → services.AddSingleton<IOptimizationActionProvider, LatencyActionsProvider>();
+        // providers: Latency (Windows: LatencyActionsProvider, Demo: DemoLatencyActionsProvider)
+        Add<IOptimizationActionProvider, LatencyActionsProvider, DemoLatencyActionsProvider>(services, demo);
         services.AddSingleton<IOptimizationActionProvider, MemoryActionsProvider>(); // providers: Memory
         // providers: Startup   → services.AddSingleton<IOptimizationActionProvider, StartupActionsProvider>();
         // providers: Input
