@@ -1,0 +1,40 @@
+<Page x:Class="PcChecker.App.Views.Pages.OverclockPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+      xmlns:controls="clr-namespace:PcChecker.App.Controls"
+      xmlns:vm="clr-namespace:PcChecker.App.ViewModels"
+      d:DataContext="{d:DesignInstance vm:OverclockViewModel}"
+      xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+      mc:Ignorable="d"
+      Title="Overclock"
+      ScrollViewer.CanContentScroll="False">
+  <Grid Style="{StaticResource PageRoot}">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="*" />
+    </Grid.RowDefinitions>
+
+    <controls:SectionHeader Grid.Row="0" Title="Overclock" Subtitle="Tune your GPU and CPU step by step with safety limits." />
+
+    <ui:InfoBar Grid.Row="1"
+                Severity="Error"
+                Title="Something went wrong"
+                Message="{Binding ErrorMessage}"
+                IsOpen="{Binding HasError, Mode=OneWay}"
+                IsClosable="True"
+                Margin="0,0,0,12" />
+
+    <controls:EmptyState Grid.Row="2"
+                         Icon="Gauge24"
+                         Title="This section is being prepared"
+                         Message="Tune your GPU and CPU step by step with safety limits." />
+
+    <controls:BusyOverlay Grid.Row="0" Grid.RowSpan="3"
+                          IsBusy="{Binding IsBusy}"
+                          Text="{Binding BusyText}"
+                          CancelCommand="{Binding CancelCommand}" />
+  </Grid>
+</Page>

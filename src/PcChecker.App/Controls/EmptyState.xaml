@@ -1,0 +1,12 @@
+<UserControl x:Class="PcChecker.App.Controls.EmptyState"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+             x:Name="Root">
+  <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="420" Margin="24,48">
+    <ui:SymbolIcon Symbol="{Binding Icon, ElementName=Root}" FontSize="48" Opacity="0.6" HorizontalAlignment="Center" />
+    <ui:TextBlock FontTypography="Subtitle" Text="{Binding Title, ElementName=Root}" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" Margin="0,12,0,4" />
+    <ui:TextBlock Appearance="Secondary" Text="{Binding Message, ElementName=Root}" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" />
+    <ContentPresenter Content="{Binding Action, ElementName=Root}" HorizontalAlignment="Center" Margin="0,16,0,0" />
+  </StackPanel>
+</UserControl>

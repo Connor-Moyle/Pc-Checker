@@ -1,0 +1,16 @@
+<Window x:Class="PcChecker.App.Views.Windows.OverlayWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="PC Checker overlay"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        Topmost="True"
+        ShowInTaskbar="False"
+        ResizeMode="NoResize"
+        SizeToContent="WidthAndHeight"
+        ShowActivated="False">
+  <Border Background="#CC101010" CornerRadius="8" Padding="12,8">
+    <TextBlock Foreground="White" FontFamily="Segoe UI" FontSize="14" Text="PC Checker overlay" />
+  </Border>
+</Window>

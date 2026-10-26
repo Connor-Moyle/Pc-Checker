@@ -1,0 +1,22 @@
+<Project>
+  <PropertyGroup>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <WarningLevel>4</WarningLevel>
+    <Deterministic>true</Deterministic>
+    <Product>PC Checker</Product>
+    <Company>PC Checker</Company>
+    <Authors>PC Checker contributors</Authors>
+    <Copyright>© PC Checker contributors</Copyright>
+    <VersionPrefix>0.1.0</VersionPrefix>
+    <RepositoryUrl>https://github.com/Connor-Moyle/test-pcchecker</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591;CA1416</NoWarn>
+  </PropertyGroup>
+</Project>

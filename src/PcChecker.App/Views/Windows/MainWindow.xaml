@@ -1,0 +1,66 @@
+<ui:FluentWindow x:Class="PcChecker.App.Views.Windows.MainWindow"
+                 xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                 xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+                 xmlns:pages="clr-namespace:PcChecker.App.Views.Pages"
+                 xmlns:local="clr-namespace:PcChecker.App.Views.Windows"
+                 xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+                 xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+                 mc:Ignorable="d"
+                 Title="PC Checker"
+                 Width="1280" Height="820"
+                 MinWidth="1100" MinHeight="700"
+                 WindowStartupLocation="CenterScreen"
+                 WindowBackdropType="Mica"
+                 ExtendsContentIntoTitleBar="True"
+                 WindowCornerPreference="Round"
+                 Loaded="OnLoaded">
+  <Grid>
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="*" />
+    </Grid.RowDefinitions>
+
+    <ui:TitleBar x:Name="TitleBar" Grid.Row="0" Title="PC Checker" ShowMaximize="True" ShowMinimize="True">
+      <ui:TitleBar.Icon>
+        <ui:ImageIcon Source="pack://application:,,,/Assets/logo.png" />
+      </ui:TitleBar.Icon>
+    </ui:TitleBar>
+
+    <ui:NavigationView x:Name="NavigationView"
+                       Grid.Row="1"
+                       PaneDisplayMode="Left"
+                       OpenPaneLength="220"
+                       IsBackButtonVisible="Collapsed"
+                       IsPaneToggleVisible="True"
+                       FrameMargin="0"
+                       TitleBar="{Binding ElementName=TitleBar}">
+      <ui:NavigationView.MenuItems>
+        <ui:NavigationViewItem Content="Dashboard" Icon="{ui:SymbolIcon Home24}" TargetPageType="{x:Type pages:DashboardPage}" />
+        <ui:NavigationViewItem Content="Hardware" Icon="{ui:SymbolIcon DeveloperBoard24}" TargetPageType="{x:Type pages:HardwarePage}" />
+        <ui:NavigationViewItem Content="Health" Icon="{ui:SymbolIcon Heart24}" TargetPageType="{x:Type pages:HealthPage}" />
+        <ui:NavigationViewItem Content="Temperatures" Icon="{ui:SymbolIcon Temperature24}" TargetPageType="{x:Type pages:SensorsPage}" />
+        <ui:NavigationViewItem Content="Power" Icon="{ui:SymbolIcon Flash24}" TargetPageType="{x:Type pages:PowerPage}" />
+        <ui:NavigationViewItem Content="Drivers" Icon="{ui:SymbolIcon Wrench24}" TargetPageType="{x:Type pages:DriversPage}" />
+        <ui:NavigationViewItem Content="Software" Icon="{ui:SymbolIcon Apps24}" TargetPageType="{x:Type pages:SoftwarePage}" />
+        <ui:NavigationViewItem Content="Performance" Icon="{ui:SymbolIcon TopSpeed24}" TargetPageType="{x:Type pages:PerformancePage}" />
+        <ui:NavigationViewItem Content="Optimize" Icon="{ui:SymbolIcon Rocket24}" TargetPageType="{x:Type pages:OptimizePage}" />
+        <ui:NavigationViewItem Content="Cleanup" Icon="{ui:SymbolIcon Broom24}" TargetPageType="{x:Type pages:CleanupPage}" />
+        <ui:NavigationViewItem Content="Windows Features" Icon="{ui:SymbolIcon WindowApps24}" TargetPageType="{x:Type pages:WindowsFeaturesPage}" />
+        <ui:NavigationViewItem Content="Overclock"
+                               Icon="{ui:SymbolIcon Gauge24}"
+                               TargetPageType="{x:Type pages:OverclockPage}"
+                               Visibility="{Binding ViewModel.IsAdvancedMode, RelativeSource={RelativeSource AncestorType={x:Type local:MainWindow}}, Converter={StaticResource BoolToVisibility}}" />
+        <ui:NavigationViewItem Content="Overlay" Icon="{ui:SymbolIcon Layer24}" TargetPageType="{x:Type pages:OverlayPage}" />
+        <ui:NavigationViewItem Content="Logs" Icon="{ui:SymbolIcon DocumentText24}" TargetPageType="{x:Type pages:LogsPage}" />
+        <ui:NavigationViewItem Content="Ask Claude" Icon="{ui:SymbolIcon Chat24}" TargetPageType="{x:Type pages:AssistantPage}" />
+      </ui:NavigationView.MenuItems>
+      <ui:NavigationView.FooterMenuItems>
+        <ui:NavigationViewItem Content="Settings" Icon="{ui:SymbolIcon Settings24}" TargetPageType="{x:Type pages:SettingsPage}" />
+      </ui:NavigationView.FooterMenuItems>
+    </ui:NavigationView>
+
+    <ContentPresenter x:Name="DialogHost" Grid.Row="0" Grid.RowSpan="2" />
+    <ui:SnackbarPresenter x:Name="SnackbarPresenter" Grid.Row="1" VerticalAlignment="Bottom" Margin="0,0,0,16" />
+  </Grid>
+</ui:FluentWindow>

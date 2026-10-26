@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>PcChecker.App</RootNamespace>
+    <AssemblyName>PcChecker</AssemblyName>
+    <ApplicationIcon>Assets/icon.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <StartupObject>PcChecker.App.Program</StartupObject>
+    <SelfContained>false</SelfContained>
+    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
+    <Description>PC Checker — hardware, health, performance and maintenance for Windows 11.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\PcChecker.Core\PcChecker.Core.csproj" />
+    <ProjectReference Include="..\PcChecker.Claude\PcChecker.Claude.csproj" />
+    <PackageReference Include="WPF-UI" />
+    <PackageReference Include="CommunityToolkit.Mvvm" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="Velopack" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\icon.ico" />
+    <Resource Include="Assets\logo.png" />
+  </ItemGroup>
+
+</Project>

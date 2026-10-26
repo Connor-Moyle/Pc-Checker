@@ -1,0 +1,16 @@
+<UserControl x:Class="PcChecker.App.Controls.SparklineControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Name="Root"
+             MinHeight="32"
+             SizeChanged="OnSizeChanged">
+  <Grid ClipToBounds="True">
+    <Path Data="{Binding FillGeometry, ElementName=Root}" Fill="{Binding Fill, ElementName=Root}" />
+    <Path Data="{Binding LineGeometry, ElementName=Root}"
+          Stroke="{Binding Stroke, ElementName=Root}"
+          StrokeThickness="{Binding StrokeThickness, ElementName=Root}"
+          StrokeLineJoin="Round"
+          StrokeStartLineCap="Round"
+          StrokeEndLineCap="Round" />
+  </Grid>
+</UserControl>

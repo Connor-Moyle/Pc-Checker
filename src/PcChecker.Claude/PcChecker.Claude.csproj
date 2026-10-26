@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <RootNamespace>PcChecker.Claude</RootNamespace>
+    <AssemblyName>PcChecker.Claude</AssemblyName>
+    <Description>Claude assistant integration for PC Checker, built on the official Anthropic SDK.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\PcChecker.Core\PcChecker.Core.csproj" />
+    <PackageReference Include="Anthropic" />
+  </ItemGroup>
+
+</Project>
