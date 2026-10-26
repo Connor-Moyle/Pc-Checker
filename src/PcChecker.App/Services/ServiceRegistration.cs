@@ -102,7 +102,7 @@ public static class ServiceRegistration
         // providers: Latency (Windows: LatencyActionsProvider, Demo: DemoLatencyActionsProvider)
         Add<IOptimizationActionProvider, LatencyActionsProvider, DemoLatencyActionsProvider>(services, demo);
         services.AddSingleton<IOptimizationActionProvider, MemoryActionsProvider>(); // providers: Memory
-        // providers: Startup   → services.AddSingleton<IOptimizationActionProvider, StartupActionsProvider>();
+        services.AddSingleton<IOptimizationActionProvider, StartupActionsProvider>(); // providers: Startup
         // providers: Input
         services.AddSingleton<IOptimizationActionProvider, InputActionsProvider>();
 
