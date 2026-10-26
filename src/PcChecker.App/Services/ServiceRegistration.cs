@@ -96,13 +96,14 @@ public static class ServiceRegistration
         Add<IInputService, WindowsInputService, DemoInputService>(services, demo);
         Add<ILatencyService, WindowsLatencyService, DemoLatencyService>(services, demo);
         Add<IStartupService, WindowsStartupService, DemoStartupService>(services, demo);
-        services.AddSingleton<IMousePollingMeter, NullMousePollingMeter>(); // the Input module replaces this with RawInputPollingMeter in Normal mode
+        Add<IMousePollingMeter, RawInputPollingMeter, DemoMousePollingMeter>(services, demo);
 
         // Optimization action providers (IOptimizationService aggregates every registration below).
         // providers: Latency   → services.AddSingleton<IOptimizationActionProvider, LatencyActionsProvider>();
         services.AddSingleton<IOptimizationActionProvider, MemoryActionsProvider>(); // providers: Memory
         // providers: Startup   → services.AddSingleton<IOptimizationActionProvider, StartupActionsProvider>();
-        // providers: Input     → services.AddSingleton<IOptimizationActionProvider, InputActionsProvider>();
+        // providers: Input
+        services.AddSingleton<IOptimizationActionProvider, InputActionsProvider>();
 
         // UI services
         services.AddSingleton<IPageService, PageService>();
