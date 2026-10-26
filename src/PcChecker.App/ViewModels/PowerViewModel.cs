@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using PcChecker.App.Services;
 using PcChecker.App.ViewModels.Power;
 using PcChecker.Core.Power;
+using PcChecker.Core.Restore;
 using PcChecker.Core.Sensors;
 using PcChecker.Core.Settings;
 
@@ -166,7 +167,7 @@ public sealed partial class PowerViewModel : ViewModelBase
 
         bool ok = await _dialogs.ConfirmAsync(
             "Switch power plan?",
-            $"Windows will switch to the \"{plan.Name}\" power plan.\n\n{PowerPlanParser.Explain(plan.Id)}\n\nYou can switch back at any time from this page.",
+            $"Windows will switch to the \"{plan.Name}\" power plan.\n\n{PowerPlanParser.Explain(plan.Id)}\n\nYou can switch back at any time from this page.\n{RestorePointPolicyText.Note(Settings.Current.RestorePoints.CreateBeforeChanges)}",
             "Switch plan");
         if (!ok)
         {

@@ -51,9 +51,7 @@ public sealed class OptimizationActionRunner
     public event EventHandler<OptimizationRunResult>? ActionCompleted;
 
     /// <summary>One-line explanation of the restore point policy for confirmation dialogs.</summary>
-    public string RestorePointNote => _settings.Current.RestorePoints.CreateBeforeChanges
-        ? "A system restore point will be created before the change (you can turn this off in Settings)."
-        : "No restore point will be created before this change (turn it on in Settings if you want one).";
+    public string RestorePointNote => PcChecker.Core.Restore.RestorePointPolicyText.Note(_settings.Current.RestorePoints.CreateBeforeChanges);
 
     /// <summary>Confirms with the user, runs the action and notifies. Returns true when the change succeeded.</summary>
     public Task<bool> RunAsync(string actionId, bool revert = false) => RunAsync(actionId, revert, confirm: true, CancellationToken.None);

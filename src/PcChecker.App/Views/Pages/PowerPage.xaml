@@ -134,7 +134,7 @@
                   <ui:TextBlock FontTypography="BodyStrong" Text="Windows power plan" VerticalAlignment="Center" />
                 </StackPanel>
                 <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,8"
-                              Text="A power plan tells Windows how to balance speed against power use. Switching is safe and can be undone at any time." />
+                              Text="A power plan tells Windows how to balance speed against power use. Switching is safe and can be undone at any time. If restore points before changes are on in Settings, one is created first, which can take a few seconds." />
                 <ui:TextBlock Margin="0,0,0,8">
                   <Run Text="Active now: " /><Run FontWeight="SemiBold" Text="{Binding ActivePlanName, Mode=OneWay}" />
                 </ui:TextBlock>

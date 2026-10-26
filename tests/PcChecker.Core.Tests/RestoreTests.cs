@@ -201,3 +201,24 @@ public class ChangeGuardTests : IDisposable
         }
     }
 }
+
+public class RestorePointPolicyTextTests
+{
+    [Fact]
+    public void Note_when_on_says_a_restore_point_will_be_created_and_mentions_the_delay()
+    {
+        string note = RestorePointPolicyText.Note(createBeforeChanges: true);
+        Assert.Contains("restore point will be created", note);
+        Assert.Contains("few seconds", note);
+        Assert.Contains("Settings", note);
+    }
+
+    [Fact]
+    public void Note_when_off_says_no_restore_point()
+    {
+        string note = RestorePointPolicyText.Note(createBeforeChanges: false);
+        Assert.StartsWith("No restore point", note);
+        Assert.Contains("Settings", note);
+        Assert.NotEqual(RestorePointPolicyText.Note(true), note);
+    }
+}
