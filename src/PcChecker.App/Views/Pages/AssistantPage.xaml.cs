@@ -9,6 +9,7 @@ public partial class AssistantPage
         ViewModel = viewModel;
         DataContext = viewModel;
         InitializeComponent();
+        Loaded += (_, _) => viewModel.OnPageShown();
     }
 
     public AssistantViewModel ViewModel { get; }

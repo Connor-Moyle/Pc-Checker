@@ -3,21 +3,107 @@
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
       xmlns:controls="clr-namespace:PcChecker.App.Controls"
+      xmlns:helpers="clr-namespace:PcChecker.App.Helpers"
       xmlns:vm="clr-namespace:PcChecker.App.ViewModels"
-      d:DataContext="{d:DesignInstance vm:AssistantViewModel}"
       xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
       xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+      d:DataContext="{d:DesignInstance vm:AssistantViewModel}"
       mc:Ignorable="d"
       Title="Ask Claude"
       ScrollViewer.CanContentScroll="False">
+  <Page.Resources>
+    <!-- One chat bubble. User messages sit on the right in the accent colour; Claude's on the left. -->
+    <DataTemplate x:Key="ChatMessageTemplate" DataType="{x:Type vm:AssistantChatMessage}">
+      <Grid Margin="0,0,0,10">
+        <Border x:Name="Bubble"
+                MaxWidth="780"
+                HorizontalAlignment="Left"
+                CornerRadius="10"
+                Padding="14,10,14,12"
+                BorderThickness="1"
+                Background="{DynamicResource ControlFillColorDefaultBrush}"
+                BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}">
+          <StackPanel>
+            <Grid Margin="0,0,0,4">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
+              <ui:TextBlock x:Name="Sender" Grid.Column="0" FontTypography="Caption" FontWeight="SemiBold" Text="{Binding SenderLabel}" VerticalAlignment="Center" />
+              <ui:TextBlock x:Name="Time" Grid.Column="1" Style="{StaticResource Caption}" Text="{Binding TimeText}" Margin="8,0,0,0" VerticalAlignment="Center" />
+              <ui:Button x:Name="CopyButton"
+                         Grid.Column="3"
+                         Appearance="Transparent"
+                         Padding="4"
+                         Margin="12,-4,-8,-4"
+                         Icon="{ui:SymbolIcon Copy20}"
+                         ToolTip="Copy this message"
+                         Command="{Binding DataContext.CopyMessageCommand, RelativeSource={RelativeSource AncestorType=Page}}"
+                         CommandParameter="{Binding}"
+                         Visibility="{Binding HasText, Converter={StaticResource BoolToVisibility}}" />
+            </Grid>
+            <ui:TextBlock x:Name="Body"
+                          Text="{Binding DisplayText}"
+                          TextWrapping="Wrap"
+                          FontSize="14"
+                          LineHeight="21"
+                          Visibility="{Binding HasText, Converter={StaticResource BoolToVisibility}}" />
+            <StackPanel Orientation="Horizontal" Visibility="{Binding ShowTypingIndicator, Converter={StaticResource BoolToVisibility}}">
+              <ui:ProgressRing IsIndeterminate="True" Width="16" Height="16" />
+              <ui:TextBlock Style="{StaticResource Muted}" Text="Claude is thinking…" Margin="8,0,0,0" VerticalAlignment="Center" />
+            </StackPanel>
+          </StackPanel>
+        </Border>
+      </Grid>
+      <DataTemplate.Triggers>
+        <DataTrigger Binding="{Binding IsUser}" Value="True">
+          <Setter TargetName="Bubble" Property="HorizontalAlignment" Value="Right" />
+          <Setter TargetName="Bubble" Property="Background" Value="{DynamicResource AccentFillColorDefaultBrush}" />
+          <Setter TargetName="Bubble" Property="BorderBrush" Value="{DynamicResource AccentFillColorDefaultBrush}" />
+          <Setter TargetName="Body" Property="Foreground" Value="{DynamicResource TextOnAccentFillColorPrimaryBrush}" />
+          <Setter TargetName="Sender" Property="Foreground" Value="{DynamicResource TextOnAccentFillColorPrimaryBrush}" />
+          <Setter TargetName="Time" Property="Foreground" Value="{DynamicResource TextOnAccentFillColorSecondaryBrush}" />
+          <Setter TargetName="CopyButton" Property="Foreground" Value="{DynamicResource TextOnAccentFillColorPrimaryBrush}" />
+        </DataTrigger>
+        <DataTrigger Binding="{Binding IsError}" Value="True">
+          <Setter TargetName="Bubble" Property="BorderBrush" Value="{StaticResource AccentRedBrush}" />
+          <Setter TargetName="Sender" Property="Text" Value="Problem" />
+          <Setter TargetName="Sender" Property="Foreground" Value="{StaticResource AccentRedBrush}" />
+        </DataTrigger>
+      </DataTemplate.Triggers>
+    </DataTemplate>
+
+    <!-- Label + control row used in the settings card. -->
+    <Style x:Key="SettingRow" TargetType="Grid">
+      <Setter Property="Margin" Value="0,6" />
+    </Style>
+  </Page.Resources>
+
   <Grid Style="{StaticResource PageRoot}">
     <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" />
       <RowDefinition Height="Auto" />
       <RowDefinition Height="Auto" />
       <RowDefinition Height="*" />
     </Grid.RowDefinitions>
 
-    <controls:SectionHeader Grid.Row="0" Title="Ask Claude" Subtitle="Chat about this PC with Claude using your scan results." />
+    <controls:SectionHeader Grid.Row="0" Title="Ask Claude" Subtitle="Chat about this PC with Claude. Your latest scan results are attached to each question so the answers are about your machine.">
+      <controls:SectionHeader.Actions>
+        <StackPanel Orientation="Horizontal">
+          <ui:Button Content="Settings"
+                     Icon="{ui:SymbolIcon Settings24}"
+                     Command="{Binding ToggleSettingsCommand}"
+                     ToolTip="API key, model, effort and what is shared"
+                     Margin="0,0,8,0" />
+          <ui:Button Content="Clear chat"
+                     Icon="{ui:SymbolIcon Delete24}"
+                     Command="{Binding ClearChatCommand}"
+                     ToolTip="Removes the conversation from this page. Nothing is stored on disk." />
+        </StackPanel>
+      </controls:SectionHeader.Actions>
+    </controls:SectionHeader>
 
     <ui:InfoBar Grid.Row="1"
                 Severity="Error"
@@ -27,12 +113,237 @@
                 IsClosable="True"
                 Margin="0,0,0,12" />
 
-    <controls:EmptyState Grid.Row="2"
-                         Icon="Chat24"
-                         Title="This section is being prepared"
-                         Message="Chat about this PC with Claude using your scan results." />
+    <!-- Setup / settings card: always visible until a key exists, then on demand. -->
+    <ui:Card Grid.Row="2"
+             Style="{StaticResource CardSpacing}"
+             Visibility="{Binding ShowSetupPanel, Converter={StaticResource BoolToVisibility}}">
+      <Grid>
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*" MinWidth="320" />
+          <ColumnDefinition Width="24" />
+          <ColumnDefinition Width="*" MinWidth="320" />
+        </Grid.ColumnDefinitions>
 
-    <controls:BusyOverlay Grid.Row="0" Grid.RowSpan="3"
+        <!-- Left: what it is, privacy, key. -->
+        <StackPanel Grid.Column="0">
+          <ui:TextBlock Style="{StaticResource CardTitle}" Text="{Binding SetupTitle}" />
+          <ui:TextBlock TextWrapping="Wrap" Margin="0,0,0,10"
+                        Visibility="{Binding IsConfigured, Converter={StaticResource InverseBoolToVisibility}}"
+                        Text="Claude is an assistant that can read the results of your scans and answer questions like &quot;why is my PC slow?&quot; or &quot;is this error serious?&quot; in plain English. It needs an API key from Anthropic; usage is billed to that account (a typical question costs a fraction of a cent)." />
+
+          <Border CornerRadius="6" Padding="12,8" Margin="0,0,0,12"
+                  Background="{DynamicResource ControlFillColorSecondaryBrush}">
+            <StackPanel>
+              <ui:TextBlock FontTypography="BodyStrong" Text="Privacy" Margin="0,0,0,4" />
+              <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap"
+                            Text="Nothing is sent until you ask a question. Each question carries only your text plus the scan summary shown under &quot;What is shared&quot;, and you can turn that off. Serial numbers are masked when the Logging setting &quot;Redact serial numbers&quot; is on. The key is stored encrypted for your Windows account and never leaves this PC except to authenticate with Anthropic." />
+            </StackPanel>
+          </Border>
+
+          <ui:TextBlock FontTypography="BodyStrong" Text="API key" />
+          <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Text="{Binding KeyStatusText}" Margin="0,2,0,6" />
+          <Grid>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <ui:PasswordBox Grid.Column="0"
+                            PlaceholderText="Paste your key (starts with sk-ant-…)"
+                            Password="{Binding ApiKeyInput, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"
+                            Margin="0,0,8,0" />
+            <ui:Button Grid.Column="1" Content="Save key" Appearance="Primary" Icon="{ui:SymbolIcon Key24}" Command="{Binding SaveKeyCommand}" />
+          </Grid>
+          <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+            <ui:HyperlinkButton Content="Get an API key at console.anthropic.com" NavigateUri="https://console.anthropic.com/" Padding="0" />
+            <ui:Button Content="Remove saved key"
+                       Appearance="Danger"
+                       Margin="16,0,0,0"
+                       Command="{Binding RemoveKeyCommand}"
+                       Visibility="{Binding HasStoredKey, Converter={StaticResource BoolToVisibility}}" />
+          </StackPanel>
+        </StackPanel>
+
+        <!-- Right: model, effort, sharing, test. -->
+        <StackPanel Grid.Column="2">
+          <ui:TextBlock Style="{StaticResource CardTitle}" Text="Model and behaviour" />
+
+          <Grid Style="{StaticResource SettingRow}">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0" Margin="0,0,12,0">
+              <ui:TextBlock Text="Model" />
+              <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Text="{Binding SelectedModel.Description}" />
+            </StackPanel>
+            <ComboBox Grid.Column="1" MinWidth="190" VerticalAlignment="Center"
+                      ItemsSource="{Binding Models}"
+                      DisplayMemberPath="Name"
+                      SelectedItem="{Binding SelectedModel}" />
+          </Grid>
+
+          <Grid Style="{StaticResource SettingRow}">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0" Margin="0,0,12,0">
+              <ui:TextBlock Text="Effort" />
+              <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Text="Low answers fastest and costs least; High thinks longer about tricky problems." />
+            </StackPanel>
+            <ComboBox Grid.Column="1" MinWidth="190" VerticalAlignment="Center"
+                      ItemsSource="{Binding Efforts}"
+                      SelectedItem="{Binding SelectedEffort}" />
+          </Grid>
+
+          <Grid Style="{StaticResource SettingRow}">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0" Margin="0,0,12,0">
+              <ui:TextBlock Text="Share scan context" />
+              <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Text="Attach a summary of your latest scans so answers are about this PC. Off gives a general chat with nothing about your machine attached." />
+            </StackPanel>
+            <ui:ToggleSwitch Grid.Column="1" IsChecked="{Binding ShareScanContext}" VerticalAlignment="Center" />
+          </Grid>
+
+          <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+            <ui:Button Content="Test connection" Icon="{ui:SymbolIcon PlugConnected24}" Command="{Binding TestConnectionCommand}" />
+            <ui:ProgressRing IsIndeterminate="True" Width="18" Height="18" Margin="10,0,0,0"
+                             Visibility="{Binding IsTestingConnection, Converter={StaticResource BoolToVisibility}}" />
+          </StackPanel>
+          <StackPanel Orientation="Horizontal" Margin="0,8,0,0"
+                      Visibility="{Binding ConnectionStatus, Converter={StaticResource NullToVisibility}}">
+            <ui:SymbolIcon Symbol="CheckmarkCircle24" Foreground="{StaticResource AccentGreenBrush}" VerticalAlignment="Top" Margin="0,2,6,0"
+                           Visibility="{Binding ConnectionOk, Converter={StaticResource BoolToVisibility}}" />
+            <ui:SymbolIcon Symbol="ErrorCircle24" Foreground="{StaticResource AccentOrangeBrush}" VerticalAlignment="Top" Margin="0,2,6,0"
+                           Visibility="{Binding ConnectionOk, Converter={StaticResource InverseBoolToVisibility}}" />
+            <ui:TextBlock Text="{Binding ConnectionStatus}" TextWrapping="Wrap" MaxWidth="420" />
+          </StackPanel>
+        </StackPanel>
+      </Grid>
+    </ui:Card>
+
+    <!-- Chat area -->
+    <Grid Grid.Row="3">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="*" />
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="Auto" />
+      </Grid.RowDefinitions>
+
+      <!-- Transparency: exactly what will be attached to the next question. -->
+      <ui:CardExpander Grid.Row="0" Margin="0,0,0,12" Icon="{ui:SymbolIcon DocumentBulletList24}" IsExpanded="False">
+        <ui:CardExpander.Header>
+          <Grid>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0">
+              <ui:TextBlock FontTypography="BodyStrong" Text="What is shared with Claude" />
+              <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding ContextSummary}" />
+            </StackPanel>
+            <ui:Button Grid.Column="1" Content="Refresh" Icon="{ui:SymbolIcon ArrowSync24}" Appearance="Secondary"
+                       Command="{Binding RefreshContextCommand}" Margin="12,0" VerticalAlignment="Center"
+                       ToolTip="Rebuild the summary from the latest scan results" />
+          </Grid>
+        </ui:CardExpander.Header>
+        <StackPanel>
+          <ui:InfoBar Severity="Informational" IsOpen="True" IsClosable="False" Margin="0,0,0,8"
+                      Title="Sharing is off"
+                      Message="Scan context is not attached to your questions. Turn on &quot;Share scan context&quot; in Settings to let Claude see your results."
+                      Visibility="{Binding ShareScanContext, Converter={StaticResource InverseBoolToVisibility}}" />
+          <ui:TextBlock Style="{StaticResource Caption}" Text="{Binding ContextCharBudget}" Margin="0,0,0,6" />
+          <ScrollViewer MaxHeight="260" VerticalScrollBarVisibility="Auto">
+            <TextBox Text="{Binding ContextPreview, Mode=OneWay}"
+                     IsReadOnly="True"
+                     TextWrapping="Wrap"
+                     FontFamily="Cascadia Mono, Consolas, Courier New"
+                     FontSize="12"
+                     BorderThickness="0"
+                     Background="Transparent" />
+          </ScrollViewer>
+        </StackPanel>
+      </ui:CardExpander>
+
+      <!-- Messages -->
+      <Border Grid.Row="1" CornerRadius="8" BorderThickness="1"
+              BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
+              Background="{DynamicResource ControlFillColorTransparentBrush}">
+        <Grid>
+          <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="16,16,16,4" helpers:InputBehaviors.AutoScrollToEnd="True">
+            <ItemsControl ItemsSource="{Binding Messages}" ItemTemplate="{StaticResource ChatMessageTemplate}" />
+          </ScrollViewer>
+
+          <controls:EmptyState Icon="Chat24"
+                               Title="Ask anything about this PC"
+                               Message="Claude knows your latest scan results. Pick a question below or type your own."
+                               Visibility="{Binding ShowSuggestions, Converter={StaticResource BoolToVisibility}}" />
+
+          <controls:EmptyState Icon="Key24"
+                               Title="Add your API key to start"
+                               Message="Paste a key above and press Save key. Until then nothing is sent anywhere."
+                               Visibility="{Binding IsConfigured, Converter={StaticResource InverseBoolToVisibility}}" />
+        </Grid>
+      </Border>
+
+      <!-- Suggested questions -->
+      <ItemsControl Grid.Row="2" ItemsSource="{Binding SuggestedQuestions}" Margin="0,10,0,0"
+                    Visibility="{Binding ShowSuggestions, Converter={StaticResource BoolToVisibility}}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <WrapPanel Orientation="Horizontal" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate>
+            <ui:Button Content="{Binding}"
+                       Appearance="Secondary"
+                       Icon="{ui:SymbolIcon Sparkle24}"
+                       Margin="0,0,8,8"
+                       Command="{Binding DataContext.AskSuggestedCommand, RelativeSource={RelativeSource AncestorType=Page}}"
+                       CommandParameter="{Binding}" />
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+
+      <!-- Input -->
+      <Grid Grid.Row="3" Margin="0,10,0,0">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+        <ui:TextBox Grid.Column="0"
+                    PlaceholderText="Ask about this PC… (Enter sends, Shift+Enter adds a line)"
+                    Text="{Binding Input, UpdateSourceTrigger=PropertyChanged}"
+                    IsEnabled="{Binding CanType}"
+                    AcceptsReturn="True"
+                    TextWrapping="Wrap"
+                    MinHeight="44"
+                    MaxHeight="150"
+                    VerticalScrollBarVisibility="Auto"
+                    helpers:InputBehaviors.EnterCommand="{Binding SendCommand}" />
+        <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="8,0,0,0" VerticalAlignment="Bottom">
+          <ui:Button Content="Send"
+                     Appearance="Primary"
+                     Icon="{ui:SymbolIcon Send24}"
+                     MinHeight="44"
+                     Command="{Binding SendCommand}"
+                     Visibility="{Binding IsStreaming, Converter={StaticResource InverseBoolToVisibility}}" />
+          <ui:Button Content="Stop"
+                     Appearance="Danger"
+                     Icon="{ui:SymbolIcon Stop24}"
+                     MinHeight="44"
+                     Command="{Binding StopCommand}"
+                     Visibility="{Binding IsStreaming, Converter={StaticResource BoolToVisibility}}" />
+        </StackPanel>
+      </Grid>
+    </Grid>
+
+    <controls:BusyOverlay Grid.Row="0" Grid.RowSpan="4"
                           IsBusy="{Binding IsBusy}"
                           Text="{Binding BusyText}"
                           CancelCommand="{Binding CancelCommand}" />
