@@ -29,6 +29,19 @@ public sealed partial class TrayIconService
         var fans = new MenuItem { Header = "Fan profile", Icon = new SymbolIcon(SymbolRegular.ArrowSyncCircle24) };
         var health = new MenuItem { Header = "Check health now", Icon = new SymbolIcon(SymbolRegular.Heart24) };
         health.Click += (_, _) => _ = RunFromTrayAsync(ScheduledJobKind.Health);
+        // Opens the window on Check-up and starts it: the same as the Dashboard's Run check-up (nothing changes until the user picks fixes).
+        var checkup = new MenuItem
+        {
+            Header = Localization.Loc.T("Run a check-up"),
+            Icon = new SymbolIcon(SymbolRegular.ClipboardTaskListLtr24),
+            ToolTip = Localization.Loc.T("Opens PC Checker and checks everything at once. Nothing is changed by a check-up."),
+        };
+        checkup.Click += (_, _) =>
+        {
+            ShowMainWindow();
+            var runner = Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetService<Services.QuickActionRunner>(App.Services);
+            _ = runner?.RunAsync(Core.Shell.QuickActionIds.Checkup, waitWhileBusy: true);
+        };
         var exit = new MenuItem { Header = "Exit PC Checker", Icon = new SymbolIcon(SymbolRegular.Power24) };
         exit.Click += (_, _) => ExitApplication();
 
@@ -37,6 +50,7 @@ public sealed partial class TrayIconService
         menu.Items.Add(liveUsage);
         menu.Items.Add(fans);
         menu.Items.Add(health);
+        menu.Items.Add(checkup);
         menu.Items.Add(new Separator());
         menu.Items.Add(exit);
         menu.Opened += (_, _) =>
