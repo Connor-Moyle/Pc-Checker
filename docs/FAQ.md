@@ -120,6 +120,11 @@ in the BIOS fan settings), the header may be in DC mode with a PWM fan (or
 the other way round), or the fan sits on a hub or AIO that only its maker's
 app can drive. PawnIO can be removed any time from Settings → Apps.
 
+PC Checker also offers PawnIO on its own: a ticked choice on the first-start
+welcome, a one-time question on later starts while it is missing (*Not now*
+asks again a week later, *Don't ask again* stops it), and **Settings →
+Monitoring → Sensor driver (PawnIO)** with Install, Repair and Remove.
+
 ### The Fans page says no controllable fans were found
 
 The app can only drive fans that LibreHardwareMonitor exposes a control for:

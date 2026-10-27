@@ -47,6 +47,15 @@
                   Text="Off, every page shows the safe, everyday tools. On, pages also show advanced sections and riskier actions. You can switch it any time at the bottom of the menu." />
     <ui:ToggleSwitch Margin="0,8,0,0" Content="Advanced mode" IsChecked="{Binding AdvancedMode}" />
 
+    <StackPanel Visibility="{Binding ShowPawnIoOnWelcome, Converter={StaticResource BoolToVisibility}}">
+      <ui:TextBlock FontTypography="BodyStrong" Margin="0,16,0,4" Text="Sensor driver" />
+      <CheckBox IsChecked="{Binding InstallPawnIoFromWelcome}">
+        <ui:TextBlock TextWrapping="Wrap" Text="Install PawnIO (recommended) so PC Checker can read the CPU and motherboard sensors, including the CPU and case fans." />
+      </CheckBox>
+      <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="28,2,0,0"
+                    Text="A free, signed driver, installed when you close this window. Remove it any time from Windows Settings → Apps." />
+    </StackPanel>
+
     <ui:TextBlock Style="{StaticResource Caption}" Margin="0,16,0,0" TextWrapping="Wrap"
                   Text="Tip: press Ctrl+K to find any page, setting or action." />
   </StackPanel>

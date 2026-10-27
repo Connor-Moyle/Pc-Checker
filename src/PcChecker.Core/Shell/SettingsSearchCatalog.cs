@@ -29,6 +29,8 @@ public static class SettingsSearchCatalog
         S("Language", "Appearance", T("translate translation locale")),
 
         // Monitoring
+        S("Sensor driver (PawnIO)", "Monitoring", T("pawnio fans motherboard cpu sensors install driver missing")),
+        S("Offer to install PawnIO at start-up", "Monitoring", T("pawnio prompt ask again")),
         S("Temperature alerts", "Monitoring", T("warnings overheating notify")),
         S("Sensor refresh (milliseconds)", "Monitoring", T("poll interval update rate")),
         S("History kept (minutes)", "Monitoring", T("graph chart duration")),

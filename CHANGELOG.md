@@ -7,6 +7,12 @@ All notable changes to PC Checker are recorded here. The format follows
 ## [Unreleased]
 
 ### Added
+- **PawnIO from inside the app**: the welcome has a ticked *Install PawnIO*
+  choice, later starts ask once when the sensor driver is missing (*Install*,
+  *Not now* for a week, or *Don't ask again*), and Settings → Monitoring has
+  a *Sensor driver (PawnIO)* row with its status, Install or Repair, and
+  Remove. Nobody has to find and install the driver by hand to see the CPU
+  and motherboard fans.
 - **Windows Update → Roll back**: lists installed updates (KB, title, date,
   type) and removes the one you pick behind a restore point, with wusa or,
   for the combined servicing stack and cumulative update, DISM and its

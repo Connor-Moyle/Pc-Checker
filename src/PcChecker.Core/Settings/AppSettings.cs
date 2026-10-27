@@ -72,6 +72,12 @@ public sealed class GeneralSettings
     /// </summary>
     public bool? WelcomeSeen { get; set; }
 
+    /// <summary>True after "Don't ask again" (or an unticked welcome choice): no start-up offer to install PawnIO.</summary>
+    public bool PawnIoOfferDismissed { get; set; }
+
+    /// <summary>When the start-up PawnIO offer was last answered with "Not now" (UTC), so it waits a week.</summary>
+    public DateTimeOffset? PawnIoOfferedUtc { get; set; }
+
     /// <summary>Quick search items opened most recently, newest first (index ids such as "page:drivers").</summary>
     public List<string> RecentSearchItems { get; set; } = [];
 }

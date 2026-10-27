@@ -34,6 +34,7 @@ public sealed partial class SettingsViewModel : ViewModelBase
     private readonly ScheduledRunner _scheduledRunner;
     private readonly WelcomeService _welcome;
     private readonly ISetupBackupService _setupBackup;
+    private readonly PawnIoInstallFlow _pawnIo;
     private readonly object _saveGate = new();
     private CancellationTokenSource? _saveDebounce;
     private bool _savePending;
@@ -70,9 +71,10 @@ public sealed partial class SettingsViewModel : ViewModelBase
     public SettingsViewModel(ISettingsService settings, IAppUpdateService updates, INotificationService notifications,
         IDialogService dialogs, ILogService logs, INavigationService navigation, ILogger<SettingsViewModel> logger,
         IScheduledTaskService scheduledTasks, IScheduledJobStore jobStore, ScheduledRunner scheduledRunner, WelcomeService welcome,
-        ISetupBackupService setupBackup)
+        ISetupBackupService setupBackup, PawnIoInstallFlow pawnIo)
         : base(settings)
     {
+        _pawnIo = pawnIo;
         _welcome = welcome;
         _setupBackup = setupBackup;
         _scheduledTasks = scheduledTasks;
@@ -132,6 +134,7 @@ public sealed partial class SettingsViewModel : ViewModelBase
     public override Task InitializeAsync(CancellationToken cancellationToken)
     {
         ShowUpdateResult(UpdatePrompter.LastResult);
+        _ = RefreshPawnIoAsync();
         return RefreshScheduleStatusAsync(cancellationToken);
     }
 
@@ -173,6 +176,7 @@ public sealed partial class SettingsViewModel : ViewModelBase
             LoadUpdateSettings(s);
             LoadSectionSettings(s);
             LoadHistorySettings(s);
+            OfferPawnIoAtStart = !s.General.PawnIoOfferDismissed;
             LoadTraySettings(s);
             LoadScheduleSettings(s);
             LoadLanguageSettings(s);

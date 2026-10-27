@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using PcChecker.App.Localization;
 using PcChecker.App.ViewModels;
 using PcChecker.App.Views.Dialogs;
+using PcChecker.Core.Sensors.PawnIo;
 using PcChecker.Core.Settings;
 using PcChecker.Core.Shell;
 using Wpf.Ui;
@@ -34,9 +35,12 @@ public sealed class WelcomeService
         _logger = logger;
     }
 
-    /// <summary>Shows the welcome when this is a first start (never in screenshot or scheduled runs).</summary>
+    /// <summary>
+    /// Shows the welcome when this is a first start (never in screenshot or scheduled runs). On later starts it offers
+    /// the PawnIO sensor driver instead when it is missing, as <see cref="PawnIoOfferRules"/> allows.
+    /// </summary>
     public Task ShowOnFirstStartAsync() =>
-        WelcomeRules.ShouldShow(_settings.Current.General.WelcomeSeen, AppOptions.Current) ? ShowAsync() : Task.CompletedTask;
+        WelcomeRules.ShouldShow(_settings.Current.General.WelcomeSeen, AppOptions.Current) ? ShowAsync() : OfferPawnIoAsync();
 
     /// <summary>Shows the welcome now. It is marked as seen as soon as it appears, so it greets each user only once.</summary>
     public async Task ShowAsync()
@@ -56,10 +60,12 @@ public sealed class WelcomeService
             }
 
             await MarkSeenAsync();
+            var settingsVm = _services.GetRequiredService<SettingsViewModel>();
+            await settingsVm.RefreshPawnIoAsync();
             var dialog = new ContentDialog
             {
                 Title = Loc.T("Welcome to PC Checker"),
-                Content = new WelcomeContent { DataContext = _services.GetRequiredService<SettingsViewModel>() },
+                Content = new WelcomeContent { DataContext = settingsVm },
                 PrimaryButtonText = Loc.T("Run a full scan"),
                 CloseButtonText = Loc.T("Look around first"),
                 DefaultButton = ContentDialogButton.Primary,
@@ -69,6 +75,7 @@ public sealed class WelcomeService
 
             var result = await _dialogs.ShowAsync(dialog, CancellationToken.None);
             _logger.LogInformation("Welcome closed with {Choice}.", result == ContentDialogResult.Primary ? "full scan" : "look around");
+            await ApplyWelcomePawnIoChoiceAsync(settingsVm);
             if (result == ContentDialogResult.Primary)
             {
                 await _services.GetRequiredService<QuickActionRunner>().RunAsync(QuickActionIds.FullScan, waitWhileBusy: true);
@@ -81,6 +88,84 @@ public sealed class WelcomeService
         finally
         {
             _showing = false;
+        }
+    }
+
+    /// <summary>
+    /// The welcome's PawnIO choice: ticked installs it now (the tick is the consent; the install is journaled), unticked
+    /// means no start-up offer later. Settings keeps the install button either way.
+    /// </summary>
+    private async Task ApplyWelcomePawnIoChoiceAsync(SettingsViewModel settingsVm)
+    {
+        if (!settingsVm.ShowPawnIoOnWelcome)
+        {
+            return;
+        }
+
+        if (settingsVm.InstallPawnIoFromWelcome)
+        {
+            _logger.LogInformation("Installing PawnIO as chosen on the welcome.");
+            await settingsVm.InstallPawnIoConfirmedAsync();
+        }
+        else
+        {
+            _settings.Current.General.PawnIoOfferDismissed = true;
+            await SaveQuietlyAsync();
+        }
+    }
+
+    /// <summary>The start-up offer: Install (or Repair) PawnIO, Don't ask again, or Not now (asks again in a week).</summary>
+    private async Task OfferPawnIoAsync()
+    {
+        try
+        {
+            var flow = _services.GetRequiredService<PawnIoInstallFlow>();
+            var status = await Task.Run(flow.GetStatus);
+            var general = _settings.Current.General;
+            if (!PawnIoOfferRules.ShouldOfferAtStart(status, general.PawnIoOfferDismissed, general.PawnIoOfferedUtc, DateTimeOffset.UtcNow, AppOptions.Current)
+                || !await WaitForFreeDialogHostAsync())
+            {
+                return;
+            }
+
+            bool repair = PawnIoOfferRules.IsRepair(status);
+            string message = repair
+                ? Loc.T("PawnIO is installed but not running, so the CPU and motherboard sensors (CPU and case fans) cannot be read. Repair reinstalls the official signed driver; a restart may still be needed.")
+                : Loc.T("PC Checker can read your CPU and motherboard sensors, including the CPU and case fans plugged into the motherboard, with the free, signed PawnIO driver. Without it only graphics card fans and a few temperatures appear.");
+            message += "\n\n" + Loc.T("You can install or remove it any time from Settings → Monitoring.");
+            var choice = await _services.GetRequiredService<IDialogService>().ChooseAsync(Loc.T("Read all your fans and sensors?"), message,
+                repair ? Loc.T("Repair PawnIO") : Loc.T("Install PawnIO"), Loc.T("Don't ask again"), Loc.T("Not now"));
+            switch (choice)
+            {
+                case DialogChoice.Primary:
+                    _logger.LogInformation("Installing PawnIO from the start-up offer.");
+                    await _services.GetRequiredService<SettingsViewModel>().InstallPawnIoConfirmedAsync();
+                    break;
+                case DialogChoice.Secondary:
+                    general.PawnIoOfferDismissed = true;
+                    await SaveQuietlyAsync();
+                    break;
+                default:
+                    general.PawnIoOfferedUtc = DateTimeOffset.UtcNow;
+                    await SaveQuietlyAsync();
+                    break;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "The PawnIO offer could not be shown.");
+        }
+    }
+
+    private async Task SaveQuietlyAsync()
+    {
+        try
+        {
+            await _settings.SaveAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not save the PawnIO choice.");
         }
     }
 

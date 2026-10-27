@@ -13,6 +13,7 @@
 1 automatic backup, made {0}.
 1 change
 1 day left
+1 empty header (0 RPM, usually nothing plugged in) is hidden.
 1 item
 1 oldest run on this PC removed (limit {0})
 1 process may be worth a closer look
@@ -34,6 +35,7 @@ A fan profile from the Fans page
 A few are normal; repeats from one source are worth a look.
 A file-system repair cannot be cancelled once it has started; stopping chkdsk half-way leaves the volume dirty.
 A floor for every fan the app controls, so nothing stops by mistake.
+A free, signed driver, installed when you close this window. Remove it any time from Windows Settings → Apps.
 A full scan of a large hard disk takes hours
 A metered connection makes Windows hold back big downloads such as updates.
 A network change you made finishes after Windows restarts. Save your work and restart when convenient.
@@ -185,6 +187,7 @@ Ask Windows Update which updates this PC is missing. Nothing is installed until 
 Asks before every change, makes a restore point and keeps a journal so you can undo.
 Asks Claude for a plan. Needs an Anthropic API key (Ask Claude page).
 Asks NVIDIA's driver service for your GeForce, RTX or Quadro card. Sends the card's device id only.
+Asks once when the driver is missing. Not now waits a week; Don't ask again turns this off.
 Asks the router for a fresh address. The connection drops for a few seconds.
 Asks Windows Update for updates that are not installed yet. This can take a minute. Nothing is installed by a check.
 Asleep
@@ -264,6 +267,7 @@ Browse…
 Bufferbloat
 Bufferbloat grade
 Bufferbloat grade: how much extra delay appears when the connection is busy. A+ means none.
+Building the diagnostic report…
 built-in
 Built-in apps
 Built-in GPU load
@@ -314,6 +318,7 @@ Charge cycles
 Charge limits, battery saver and heat.
 Charged {0} % an hour
 Chat with Claude about this PC, using your latest scan results.
+Check again
 Check again which tweaks are applied on this PC.
 Check disk (chkdsk)
 Check disk, repair and optimize
@@ -343,6 +348,7 @@ Checking System Protection…
 Checking that the PC is idle…
 Checking the download…
 Checking the result…
+Checking…
 Checks every byte of RAM before Windows loads. Runs at the next restart, 5–20 minutes.
 Checks health, temperatures, drivers and what slows it down.
 Checks health, temporary files, drivers, Windows Update, startup apps, speed, recommended settings and old drivers. Nothing is changed by a check-up.
@@ -424,10 +430,12 @@ Copied
 Copies every third-party driver package to a folder you choose, so you can reinstall them after a reset.
 Copies the run on the cards as plain text, ready to paste into a message or forum post.
 Copies the whole report as plain text, ready to paste into an email or support ticket.
+Copies this report as text, to paste into a support request. It contains no personal data.
 Copilot, Recall, search and other Windows policies are read when you sign in. Sign out and back in when it suits you.
 Copy all shown
 Copy comparison
 Copy details
+Copy diagnostic report
 Copy entry
 Copy key path
 Copy line
@@ -439,6 +447,7 @@ Copy summary
 Copy the key path
 Copy this folder's path
 Copy this message
+Copy what PC Checker found about the fans to the clipboard, to paste into a support request. No personal data.
 Core clock offset (MHz)
 Core Windows services are marked Protected and cannot be stopped from starting; 'Careful' ones can, with a note about what you lose.
 Corners follow the monitor your mouse is on when the overlay is shown. Custom pins it to one spot you drag with “Edit position on screen”.
@@ -450,11 +459,13 @@ Could not create the backups folder: {0}
 Could not end {0}
 Could not open the browser
 Could not open the folder
+Could not open Windows Settings
 Could not save
 Could not tell
 Count only; no fixed limit
 Counts the frames the game in front hands to Windows, the same way PresentMon does. More in “About the overlay” below.
 CPU
+CPU and motherboard sensors need PawnIO
 CPU clock
 CPU is a share of the whole processor. Memory is the private working set (what Task Manager shows). GPU adds up every graphics engine a program uses; it is empty when the graphics driver does not report it.
 CPU load
@@ -571,6 +582,7 @@ Displays
 dns gateway router
 DNS lookup
 Documents, music, program files and everything else.
+Don't ask again
 Done
 Double-click here
 Double-click speed
@@ -642,6 +654,7 @@ Electricity price
 Electricity price per kWh
 Empties the in-app buffer. Log files on disk are not touched.
 Empty
+Empty headers (0 RPM, usually nothing plugged in) are shown.
 Empty Recycle Bin now
 End process tree
 End task
@@ -673,6 +686,8 @@ Every change the app makes to this PC (optimizations, cleanups, driver installs,
 Every check came back clean. Nice.
 Every couple of seconds part of the result is read back and compared with the first run. A different value is an error: the same kind of mistake that shows up as artifacts in games.
 Every download is checked against its published SHA-256 before it is installed.
+Every fan PC Checker controls returns to automatic control first, then the hardware monitor restarts and the fans are detected again.
+Every fan returns to automatic control while the sensors reload. The install is recorded in the Action Journal; remove PawnIO any time from Settings → Apps → Installed apps.
 Every fix is saved to a .reg file first. Restore puts the entries back.
 Every installed driver, the ones that need attention, and updates from every source.
 Every minute
@@ -719,8 +734,10 @@ factory reset restore defaults
 Failed
 Failed only
 Failed:
+Fan and control sensors
 Fan control is not available on this PC
 fan control revert automatic exit
+Fan controller chip
 Fan curve
 fan curve cooling speed rpm
 fan curve profile
@@ -1025,6 +1042,7 @@ Include this entry when fixing
 Include this in Fix selected
 Include this in the removal
 Include this when moving items to the Recycle Bin
+Index
 Information suits everyday use; Debug and Verbose write much more.
 Initial size
 Initial size (MB)
@@ -1036,15 +1054,23 @@ Install all
 Install and restart
 Install driver updates?
 Install from Settings
+Install PawnIO
+Install PawnIO (recommended) so PC Checker can read the CPU and motherboard sensors, including the CPU and case fans.
+Install PawnIO…
 Install selected
+Install the free, signed driver needed for the motherboard fan headers and CPU temperatures.
+Install the PawnIO driver?
 Install with winget
 Install {0} {1}?
 Install {0}?
 Installed
 Installed alongside
 Installed alongside this program
+Installed and running (version {0}). CPU and motherboard sensors, including the CPU and case fans, can be read.
+Installed and running. CPU and motherboard sensors, including the CPU and case fans, can be read.
 Installed apps
 Installed apps (Settings app)
+Installed but not running. Restart the PC; if it still does not start, repair it here and check that Memory integrity or antivirus software is not blocking it.
 Installed drivers
 Installed for this user only
 Installed from the maker
@@ -1061,8 +1087,11 @@ Installed, restart needed
 Installed. Search again to open it from here.
 Installers
 Installing driver updates…
+Installing PawnIO…
 Installing updates accepts Microsoft's licence terms for them, as Windows Update does. The screen may flicker while a display driver installs.
 Installing {0}…
+Installs the free, signed PawnIO driver so the CPU and the motherboard sensor chip (CPU and case fans) can be read. You are asked first.
+Installs the official signed PawnIO driver with winget, or from its GitHub releases after checking the signature.
 Installs the tool with winget after you confirm.
 Intel
 Intensity
@@ -1078,6 +1107,7 @@ It can take several minutes and cannot be stopped once it starts. Windows usuall
 It has lost much of its capacity. A replacement from the laptop maker brings back the original run time.
 It has not started any other programs right now, so only it is ended.
 It installs the next time you choose Install in Settings → Updates, or press Update now again.
+It is installed with the Windows Package Manager (winget install namazso.PawnIO).
 It is recorded in the Action Journal (Logs page). No restore point is needed because nothing in Windows' settings changes.
 It no longer exists.
 Items that were kept
@@ -1298,6 +1328,8 @@ More pings take longer but catch occasional loss. 500 is good for an intermitten
 More pointer options
 Most batteries are rated for 300 to 1,000
 Most serious first, each with what to do.
+Motherboard
+Motherboard fans cannot be read without PawnIO
 Motherboard headers, memory, graphics card, coolers, fans and strips.
 Mouse
 mouse keyboard pointer polling rate dpi
@@ -1415,6 +1447,7 @@ No valid digital signature
 No valid signature
 No Wi-Fi connection
 None
+None found.
 none new
 None of the parts in this file can be used by this version of PC Checker.
 None of the selected tweaks is applied, or they cannot be undone here.
@@ -1426,6 +1459,7 @@ Not analysed yet
 Not checked yet
 not compared
 Not counted by this battery
+not detected
 Not done
 Not enough use on battery yet
 Not everything could be read
@@ -1434,6 +1468,8 @@ Not everything was moved
 Not everything was removed
 Not in this run. Run this test on its own, or include it in the next full run.
 Not installed (download failed):
+Not installed. Without it only graphics card fans and a few temperatures can be read.
+Not needed on this system.
 Not now
 Not paused
 Not read yet
@@ -1499,6 +1535,7 @@ Off, every page shows the safe, everyday tools. On, pages also show advanced sec
 Off: a notification after every scheduled run.
 Off: apps are removed for your account only. On: they are removed for everyone on this PC and won't be installed for new accounts.
 Offer it again
+Offer to install PawnIO at start-up
 Offered by:
 Offsets are added to the card's own boost behaviour.
 OK
@@ -1616,6 +1653,7 @@ Opens the Windows Update page in Settings that lists optional driver updates.
 Opens Windows display settings, where you drag displays into a different order.
 Opens Windows Settings at Battery: battery saver and which apps use the most battery.
 Opens Windows Settings at Power: screen and sleep times and the power mode.
+Opens Windows Settings → Apps → Installed apps, where PawnIO is uninstalled like any other program.
 Opens Windows Settings → System → Sound (spatial audio, mono audio, app defaults).
 Opens Windows System Restore so you can go back to a restore point listed here.
 Opens Windows Update in the Settings app.
@@ -1639,6 +1677,7 @@ Orientation
 Original name
 Other
 Other accounts included
+Other fan software
 Other programs were installed together with this one.
 out of 100
 Output
@@ -1670,6 +1709,7 @@ Page file
 Page files
 Page settings
 Pages in this section
+Paired
 Part
 Part number
 Parts at or above the warning temperature you set in Settings → Monitoring.
@@ -1685,7 +1725,17 @@ Paused
 Paused. Press Resume to continue live updates.
 Pauses (or extends the pause) for the chosen number of weeks, after you confirm.
 Pausing is set by a policy on this PC, so it can only be changed there.
+PawnIO driver
+pawnio fans motherboard cpu sensors install driver missing
+PawnIO installed
+PawnIO is installed but not running
+PawnIO is installed but not running, so the CPU and motherboard sensors (CPU and case fans) cannot be read. Repair reinstalls the official signed driver; a restart may still be needed.
+PawnIO is the free, signed driver PC Checker uses to read the CPU and the motherboard sensor chip, where the CPU and case fan headers are. Without it only graphics card fans appear.
+pawnio prompt ask again
+PawnIO was not installed
+PawnIO, the sensor chip ({0}) and {1} fan sensor(s) checked: no problems found.
 PC Checker
+PC Checker can read your CPU and motherboard sensors, including the CPU and case fans plugged into the motherboard, with the free, signed PawnIO driver. Without it only graphics card fans and a few temperatures appear.
 PC Checker could not get a tuning interface for this graphics card. The vendor's own program offers the same controls.
 PC Checker is already downloading the update.
 PC Checker is still busy on this page. Try again when it has finished.
@@ -1863,6 +1913,7 @@ Re-read the power plans and readings.
 Re-reads every device. Takes a few seconds.
 Re-run tests and compare
 Re-runs every check. Takes a few seconds.
+Read all your fans and sensors?
 Read every (ms)
 Read from Get-HotFix, the Windows Update history and DISM. Select an update to see how it would be removed.
 Read installed updates
@@ -1928,7 +1979,12 @@ Release notes
 Released {0}
 Releases
 Releases page
+Reload
+Reload sensors
+Reload sensors?
 Reload tuning settings
+Reloading sensors…
+Reloading the sensors failed:
 Remembered, with their own driver
 Remove
 Remove an update only when it causes a problem. Windows Update may install it again unless you hide it.
@@ -1949,10 +2005,12 @@ Removes the app from every user account on this PC and stops Windows pre-install
 Removes the conversation from this page. Nothing is stored on disk.
 Removes the program with its own uninstaller. You will be asked to confirm first.
 Removes the ticked categories. With Dry run on, only a report is produced.
+Remove…
 Removing leftovers…
 Removing the run…
 Removing {0}… This can take several minutes.
 Renew IP address
+Repair PawnIO
 Repair volume
 Repeat delay
 Repeat rate
@@ -2015,6 +2073,9 @@ Results of the last removal
 Results of the last run
 Resume
 Retry
+Return every fan to automatic, restart the hardware monitor and detect the fans again.
+Return every fan to automatic, restart the hardware monitor and detect the fans again. Use it after installing PawnIO or closing another fan program.
+Return every fan to automatic, restart the hardware monitor and read the sensors again. Use it after installing PawnIO.
 Returns this PC to the previous version of Windows after two confirmations. The PC restarts; back up your files first.
 Reversible
 Revert
@@ -2186,9 +2247,13 @@ Send
 Send results back
 Sends a short hardware and findings summary so answers fit your PC.
 Sensor
+Sensor driver
+Sensor driver (PawnIO)
 Sensor refresh (milliseconds)
 Sensor {0}
+Sensors cannot be reloaded here.
 sensors heat cpu gpu temp hot thermal
+Sensors reloaded
 Sent
 Sent to the monitor over DDC/CI (the same channel as its on-screen menu), or to Windows for a built-in panel.
 Separate lighting areas on this device (for example each RGB header or key block) that can have their own colour.
@@ -2248,6 +2313,7 @@ Show alerts when a limit is crossed
 Show and hide
 Show bundled groups
 Show cards for programs that were installed together, such as a browser that came with an antivirus.
+Show empty headers
 Show every metric
 Show in File Explorer
 Show licence texts
@@ -2524,9 +2590,11 @@ The defaults work when OpenRGB runs on this PC.
 The description is shown in System Restore so you can recognise the point later.
 The details are on the clipboard.
 The device is not ready: it is unplugged, disabled in Windows or missing.
+The diagnostic report could not be built.
 The drive test writes a temporary {0} MB file to {1} and deletes it afterwards.
 The drive's own temperature (NVMe composite or SMART). This is the value PC Checker reports for the drive.
 The energy a full battery holds today, in watt-hours.
+The fan diagnostic report is on the clipboard. It contains no personal data.
 The files add up to {0} more than Windows reports in use: files that share their data (hard links in the Windows folder) are counted once per path, and compressed or sparse files at their full size.
 The fix was applied.
 The format Windows uses for this device (bit depth, sample rate, channels). Change it under Properties → Advanced.
@@ -2558,6 +2626,7 @@ The NVIDIA installer opens so you can choose its options.
 The NVIDIA installer runs silently (-s -noreboot).
 The NVIDIA installer runs silently as a clean install (-s -clean -noreboot); NVIDIA settings return to their defaults.
 The oemN.inf packages Windows has staged.
+The official PawnIO_setup.exe is downloaded from github.com/namazso/PawnIO.Setup, its digital signature is checked, and it is run silently.
 The only battery Windows reports belongs to a UPS (battery backup) plugged in over USB. Its health and run time are shown by the UPS maker's own software.
 The order Windows tries them in, auto-connect and metered.
 The overall score is the geometric mean of the tests that ran, so every test counts equally. Comparisons only show an overall change when both runs completed the same tests.
@@ -2821,6 +2890,7 @@ Use recommended
 Use recommended size
 Use the minimum level everywhere
 Use this
+Use this after installing PawnIO yourself.
 Use this device for voice chat and calls only; music and games keep the default device.
 Use this source for this device.
 Used
@@ -2832,6 +2902,7 @@ User
 Uses the values Windows has now, not unapplied edits.
 Using the fixes safely
 Usually a program that was deleted instead of uninstalled.
+Value
 Values
 Variable refresh rate (G-Sync / FreeSync), Auto HDR, hardware-accelerated GPU scheduling and per-app GPU choice are switched here, not in PC Checker.
 Vendor downloads
@@ -2925,7 +2996,9 @@ While downloading and uploading
 While the window is hidden. At most one per part every 10 minutes.
 whole folder
 Whose settings change
+Why a fan cannot be controlled
 Why each of them was not moved to the Recycle Bin.
+Why is a fan missing?
 Why OpenRGB?
 Wi-Fi
 Wi-Fi networks on the same channel take turns to talk. The more networks share yours, the slower and laggier it gets. The channel is set on the router, not on this PC. 'best' marks the least crowded of the non-overlapping 2.4 GHz channels (1, 6, 11) as seen from here.
@@ -3019,6 +3092,7 @@ Yes
 You are looking at sample data. These settings are stored in a separate demo file and never touch your real settings.
 You can download the driver from the maker's own page instead.
 You can go back
+You can install or remove it any time from Settings → Monitoring.
 You can restore them from the Recycle Bin. The space is only freed when the Recycle Bin is emptied (Cleanup page or the Recycle Bin itself).
 You need the password you used to sign in to the previous version.
 You will be asked once more before anything starts.
@@ -3050,6 +3124,7 @@ Zones
 {0} automatic backups, the newest made {1}.
 {0} changes
 {0} closes straight away. Anything unsaved in it is lost.
+{0} controllable fan(s) and {1} read-only fan(s) found.
 {0} copies of {1}
 {0} could be freed
 {0} could be freed by keeping one copy of each.
@@ -3058,6 +3133,7 @@ Zones
 {0} days
 {0} days left
 {0} days stored, {1} on disk.
+{0} empty headers (0 RPM, usually nothing plugged in) are hidden.
 {0} file
 {0} file in this folder
 {0} file was in use or unreadable and left out.
@@ -3115,6 +3191,7 @@ Zones
 {0} selected · one restore point first
 {0} selected · {1} to download
 {0} tests
+{0} thing(s) can stop fans from showing up or being controlled.
 {0} things to look at, {1} can be fixed from here.
 {0} to download
 {0} too old to keep
@@ -3129,6 +3206,7 @@ Zones
 {0}: changed
 {0}: removed
 {0}: {1} process(es) ended.
+— close it while using fan control.
 • and {0} more
 • Corners follow the monitor your mouse is on when the overlay is shown; use Custom to pin it to one spot.
 • FPS counts the frames the game in front hands to Windows, the same way PresentMon does. It needs administrator rights, which PC Checker always runs with, and only runs while an FPS metric is shown.

@@ -232,6 +232,32 @@
               </ui:CardControl.Header>
               <ui:ToggleSwitch IsChecked="{Binding AlertsEnabled}" />
             </ui:CardControl>
+            <ui:CardControl Style="{StaticResource Row}" Icon="{ui:SymbolIcon DeveloperBoard24}">
+              <ui:CardControl.Header>
+                <StackPanel>
+                  <ui:TextBlock Text="Sensor driver (PawnIO)" />
+                  <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Text="{Binding PawnIoStatusText}" />
+                </StackPanel>
+              </ui:CardControl.Header>
+              <StackPanel Orientation="Horizontal">
+                <ui:Button Appearance="Primary" Content="{Binding PawnIoInstallText}" Icon="{ui:SymbolIcon ArrowDownload24}" Command="{Binding InstallPawnIoCommand}" Margin="0,0,8,0"
+                           Visibility="{Binding PawnIoNeedsAttention, Converter={StaticResource BoolToVisibility}}"
+                           ToolTip="Installs the free, signed PawnIO driver so the CPU and the motherboard sensor chip (CPU and case fans) can be read. You are asked first." />
+                <ui:Button Content="Remove…" Command="{Binding OpenInstalledAppsCommand}" Margin="0,0,8,0"
+                           Visibility="{Binding PawnIoIsRunning, Converter={StaticResource BoolToVisibility}}"
+                           ToolTip="Opens Windows Settings → Apps → Installed apps, where PawnIO is uninstalled like any other program." />
+                <ui:Button Icon="{ui:SymbolIcon ArrowSync24}" Command="{Binding RefreshPawnIoCommand}" AutomationProperties.Name="Check again" ToolTip="Check again" />
+              </StackPanel>
+            </ui:CardControl>
+            <ui:CardControl Style="{StaticResource Row}" Icon="{ui:SymbolIcon QuestionCircle24}">
+              <ui:CardControl.Header>
+                <StackPanel>
+                  <ui:TextBlock Text="Offer to install PawnIO at start-up" />
+                  <ui:TextBlock Style="{StaticResource Muted}" Text="Asks once when the driver is missing. Not now waits a week; Don't ask again turns this off." />
+                </StackPanel>
+              </ui:CardControl.Header>
+              <ui:ToggleSwitch IsChecked="{Binding OfferPawnIoAtStart}" />
+            </ui:CardControl>
             <ui:CardControl Style="{StaticResource Row}" Icon="{ui:SymbolIcon Timer24}">
               <ui:CardControl.Header>
                 <StackPanel>
