@@ -115,7 +115,7 @@ internal static class UserSessionNative
             }
         }
 
-        int processors = Math.Max(1, Environment.ProcessorCount);
+        int processors = Math.Max(1, PcChecker.Core.Processes.ProcessNative.MachineProcessorCount());
         var result = new Dictionary<int, SessionUsage>();
         foreach (var (session, agg) in first)
         {

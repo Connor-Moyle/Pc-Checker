@@ -158,6 +158,54 @@ public static class TaskManagerReplacement
     }
 
     /// <summary>
+    /// True when a saved third-party Debugger value (Process Explorer, ...) may be put back when the option is turned
+    /// off: its program still exists. A value whose program was removed would leave Task Manager unable to open, so it
+    /// is dropped instead. A bare file name (found through the search path) cannot be checked and is kept. An unquoted
+    /// path with spaces is tried the way Windows reads it, one space at a time.
+    /// </summary>
+    public static bool ShouldRestoreBackup(string? backup, Func<string, bool> fileExists)
+    {
+        ArgumentNullException.ThrowIfNull(fileExists);
+        if (ParseDebuggerValue(backup) is not { } parsed)
+        {
+            return false;
+        }
+
+        var candidates = new List<string> { parsed.ExePath };
+        var text = backup!.Trim();
+        if (!text.StartsWith('"'))
+        {
+            for (int space = text.IndexOf(' '); space >= 0; space = text.IndexOf(' ', space + 1))
+            {
+                candidates.Add(text[..space]);
+            }
+
+            candidates.Add(text);
+        }
+
+        foreach (var candidate in candidates)
+        {
+            var path = candidate.Trim();
+            if (path.Length == 0)
+            {
+                continue;
+            }
+
+            if (path.IndexOfAny(['\\', '/', ':']) < 0 || path.Contains('%'))
+            {
+                return true;
+            }
+
+            if (fileExists(path))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
     /// True when PC Checker runs from a location that is not writable by a standard user, which is the only place the
     /// option may be turned on: an installer under Program Files. A user-writable location would let someone drop a
     /// different exe there and have Windows run it elevated in place of Task Manager.

@@ -21,9 +21,9 @@ public sealed partial class ServiceListRow : ObservableObject
 
     public string? Description => Details.Description;
 
-    public string StatusText => ServiceStartupMapping.StateLabel(Details.State);
+    public string StatusText => StateLabel(Details.State);
 
-    public string StartupText => ServiceStartupMapping.Label(Details.StartupType);
+    public string StartupText => StartupLabel(Details.StartupType);
 
     public string LogOnText => string.IsNullOrWhiteSpace(Details.LogOnAs) ? "—" : Details.LogOnAs!;
 
@@ -40,6 +40,31 @@ public sealed partial class ServiceListRow : ObservableObject
     public bool HasSafeNote => SafeToSetManualNote is not null;
 
     public string PublisherKind => Details.IsMicrosoft ? Loc.T("Windows") : Loc.T("Other");
+
+    /// <summary>The translated name of a service state (the literals let the string extractor find them).</summary>
+    public static string StateLabel(ServiceRunState state) => state switch
+    {
+        ServiceRunState.Stopped => Loc.T("Stopped"),
+        ServiceRunState.StartPending => Loc.T("Starting…"),
+        ServiceRunState.StopPending => Loc.T("Stopping…"),
+        ServiceRunState.Running => Loc.T("Running"),
+        ServiceRunState.ContinuePending => Loc.T("Resuming…"),
+        ServiceRunState.PausePending => Loc.T("Pausing…"),
+        ServiceRunState.Paused => Loc.T("Paused"),
+        _ => Loc.T("Unknown"),
+    };
+
+    /// <summary>The translated name of a start type.</summary>
+    public static string StartupLabel(ServiceStartupType type) => type switch
+    {
+        ServiceStartupType.Automatic => Loc.T("Automatic"),
+        ServiceStartupType.AutomaticDelayed => Loc.T("Automatic (Delayed)"),
+        ServiceStartupType.Manual => Loc.T("Manual"),
+        ServiceStartupType.Disabled => Loc.T("Disabled"),
+        ServiceStartupType.Boot => Loc.T("Boot"),
+        ServiceStartupType.System => Loc.T("System"),
+        _ => Loc.T("Unknown"),
+    };
 
     /// <summary>Replaces the row's data in place so the grid keeps the selection and scroll position.</summary>
     public void Update(ServiceDetails details)

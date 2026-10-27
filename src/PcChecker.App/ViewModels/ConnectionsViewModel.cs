@@ -134,6 +134,10 @@ public sealed partial class ConnectionsViewModel : ViewModelBase
 
     public override Task RefreshAsync(CancellationToken cancellationToken) => ReadNowAsync();
 
+    /// <summary>The header's Refresh button and F5.</summary>
+    [RelayCommand]
+    private Task Refresh() => RefreshAsync(CancellationToken.None);
+
     /// <summary>Starts the two-second refresh for <paramref name="viewer"/> (the page while it is visible).</summary>
     public void StartLive(object viewer)
     {

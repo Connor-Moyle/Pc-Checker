@@ -16,7 +16,23 @@ public sealed class UserRow
 
     public string DisplayName => Session.DisplayName;
 
-    public string StateText => SessionStateMapper.Label(Session.State);
+    public string StateText => StateLabel(Session.State);
+
+    /// <summary>The translated name of a session state (the literals let the string extractor find them).</summary>
+    public static string StateLabel(SessionState state) => state switch
+    {
+        SessionState.Active => Loc.T("Active"),
+        SessionState.Connected => Loc.T("Connected"),
+        SessionState.ConnectQuery => Loc.T("Connecting"),
+        SessionState.Shadow => Loc.T("Shadowing"),
+        SessionState.Disconnected => Loc.T("Disconnected"),
+        SessionState.Idle => Loc.T("Idle"),
+        SessionState.Listen => Loc.T("Listening"),
+        SessionState.Reset => Loc.T("Resetting"),
+        SessionState.Down => Loc.T("Signing out"),
+        SessionState.Init => Loc.T("Starting"),
+        _ => Loc.T("Unknown"),
+    };
 
     public string SessionIdText => Session.SessionId.ToString(System.Globalization.CultureInfo.CurrentCulture);
 

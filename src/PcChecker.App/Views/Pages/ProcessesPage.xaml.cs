@@ -16,6 +16,7 @@ namespace PcChecker.App.Views.Pages;
 public partial class ProcessesPage
 {
     private readonly ContextMenu _headerColumnsMenu;
+    private Window? _host;
 
     public ProcessesPage(ProcessesViewModel viewModel)
     {
@@ -29,6 +30,7 @@ public partial class ProcessesPage
         ApplyColumns();
         Loaded += OnLoaded;
         Unloaded += OnUnloaded;
+        IsVisibleChanged += (_, _) => UpdateLive();
     }
 
     public ProcessesViewModel ViewModel { get; }
@@ -36,7 +38,15 @@ public partial class ProcessesPage
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
         ViewModel.SelectionRequested += OnSelectionRequested;
-        ViewModel.StartLive();
+
+        // Hidden to the tray turns IsVisible off; minimized does not, so watch the window's state too.
+        _host = Window.GetWindow(this);
+        if (_host is not null)
+        {
+            _host.StateChanged += OnHostStateChanged;
+        }
+
+        UpdateLive();
         ViewModel.RefreshTaskManagerReplacement();
 
         // Arrived from "Go to the process": show the selected row.
@@ -49,7 +59,29 @@ public partial class ProcessesPage
     private void OnUnloaded(object sender, RoutedEventArgs e)
     {
         ViewModel.SelectionRequested -= OnSelectionRequested;
+        if (_host is not null)
+        {
+            _host.StateChanged -= OnHostStateChanged;
+            _host = null;
+        }
+
         ViewModel.StopLive();
+    }
+
+    private void OnHostStateChanged(object? sender, EventArgs e) => UpdateLive();
+
+    /// <summary>Reads processes only while the page can actually be seen (not hidden to the tray or minimized).</summary>
+    private void UpdateLive()
+    {
+        bool showing = IsLoaded && IsVisible && _host?.WindowState != WindowState.Minimized;
+        if (showing)
+        {
+            ViewModel.StartLive();
+        }
+        else
+        {
+            ViewModel.StopLive();
+        }
     }
 
     private void OnSelectionRequested(object? sender, RunningProcessRow row) => ProcessGrid.ScrollIntoView(row);

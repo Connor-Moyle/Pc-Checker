@@ -112,6 +112,10 @@ public sealed partial class ScheduledTasksViewModel : ViewModelBase
 
     public override Task RefreshAsync(CancellationToken cancellationToken) => LoadAsync();
 
+    /// <summary>The header's Refresh button and F5.</summary>
+    [RelayCommand]
+    private Task Refresh() => RefreshAsync(CancellationToken.None);
+
     private Task LoadAsync() =>
         RunBusyAsync(async ct =>
         {
