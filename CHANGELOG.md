@@ -7,7 +7,14 @@ All notable changes to PC Checker are recorded here. The format follows
 ## [Unreleased]
 
 ### Added
-- Nothing yet.
+- **Update prompt**: when GitHub has a newer release, PC Checker asks with
+  *Update now*, *Later* or *Skip this version* and shows what is new. *Update
+  now* downloads the new PcChecker.exe, checks its SHA-256 and restarts into
+  it. Checks run when the app opens and every 6 hours while it runs, also
+  from the tray (as a notification). Settings → Updates → *When a new version
+  is available* chooses between asking, downloading first and then asking to
+  restart, or just telling you. The Dashboard banner has an *Update now*
+  button.
 
 ## [0.4.0] - 2026-10-27
 

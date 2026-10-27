@@ -61,6 +61,8 @@ public sealed partial class SettingsViewModel
         UpdateChannel = s.Updates.Channel;
         AutoCheckForUpdates = s.Updates.AutoCheck;
         AutoDownloadUpdates = s.Updates.AutoDownload;
+        UpdateMode = UpdatePromptRules.EffectiveMode(s.Updates);
+        RefreshSkippedVersion(s);
         LastCheckedText = s.Updates.LastCheckedUtc is { } t
             ? "Last checked " + Converters.RelativeTimeConverter.Format(t.ToLocalTime(), DateTimeOffset.Now)
             : "Not checked yet";
@@ -84,6 +86,49 @@ public sealed partial class SettingsViewModel
 
     partial void OnAutoCheckForUpdatesChanged(bool value) => Persist(s => s.Updates.AutoCheck = value);
     partial void OnAutoDownloadUpdatesChanged(bool value) => Persist(s => s.Updates.AutoDownload = value);
+
+    public IReadOnlyList<UpdateMode> UpdateModes { get; } = Enum.GetValues<UpdateMode>();
+
+    [ObservableProperty]
+    private UpdateMode _updateMode;
+
+    [ObservableProperty]
+    private string? _skippedVersionText;
+
+    [ObservableProperty]
+    private bool _hasSkippedVersion;
+
+    partial void OnUpdateModeChanged(UpdateMode value)
+    {
+        if (_loading)
+        {
+            return;
+        }
+
+        // The mode replaces the older "download in the background" switch.
+        Persist(s =>
+        {
+            s.Updates.Mode = value;
+            s.Updates.AutoDownload = false;
+        });
+    }
+
+    private void RefreshSkippedVersion(AppSettings s)
+    {
+        HasSkippedVersion = !string.IsNullOrWhiteSpace(s.Updates.SkippedVersion);
+        SkippedVersionText = HasSkippedVersion
+            ? Localization.Loc.F("PC Checker {0} is not offered because you chose Skip this version.", s.Updates.SkippedVersion)
+            : null;
+    }
+
+    [RelayCommand]
+    private void ClearSkippedVersion()
+    {
+        Persist(s => s.Updates.SkippedVersion = null);
+        HasSkippedVersion = false;
+        SkippedVersionText = null;
+        UpdatePrompter.Reset();
+    }
 
     private void ShowUpdateResult(AppUpdateInfo? info)
     {

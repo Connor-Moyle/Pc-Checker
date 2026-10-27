@@ -42,6 +42,26 @@ public sealed class DialogService : IDialogService
         });
     }
 
+    public async Task<DialogChoice> AskAsync(string title, string message, string primaryText, string? secondaryText, string closeText)
+    {
+        var result = await ShowAsync(new ContentDialog
+        {
+            Title = Localization.Loc.T(title),
+            Content = Localization.Loc.T(message),
+            PrimaryButtonText = Localization.Loc.T(primaryText),
+            SecondaryButtonText = secondaryText is null ? string.Empty : Localization.Loc.T(secondaryText),
+            IsSecondaryButtonEnabled = secondaryText is not null,
+            CloseButtonText = Localization.Loc.T(closeText),
+            DefaultButton = ContentDialogButton.Primary,
+        });
+        return result switch
+        {
+            ContentDialogResult.Primary => DialogChoice.Primary,
+            ContentDialogResult.Secondary => DialogChoice.Secondary,
+            _ => DialogChoice.Close,
+        };
+    }
+
     public Task<string?> PickFolderAsync(string title)
     {
         var picker = new OpenFolderDialog { Title = title, Multiselect = false };

@@ -205,6 +205,15 @@ translation.
 `%LOCALAPPDATA%\PcChecker\logs` and `%LOCALAPPDATA%\PcChecker\actions.jsonl`.
 Delete the folder to reset the app.
 
+### How does PC Checker update itself?
+
+It checks GitHub Releases when it opens and every 6 hours while it runs. When
+there is a newer version it asks: **Update now** downloads the new
+`PcChecker.exe`, checks it against the SHA-256 published with the release and
+restarts into it; **Skip this version** stops it offering that version; **Later**
+asks again next time. Change this in **Settings → Updates**, or turn the checks
+off there. Nothing installs without your say-so unless you choose that.
+
 ### Can I run it without installing?
 
 Yes, that is the only way it ships. Download `PcChecker.exe` from Releases and

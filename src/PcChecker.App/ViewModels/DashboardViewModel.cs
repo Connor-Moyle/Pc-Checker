@@ -330,11 +330,22 @@ public sealed partial class DashboardViewModel : ViewModelBase
         OnPropertyChanged(nameof(HasTopIssues));
     }
 
+    [RelayCommand]
+    private async Task UpdateNowAsync()
+    {
+        if (UpdatePrompter.LastResult is { IsNewer: true } info)
+        {
+            await Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetRequiredService<AppUpdateFlow>(App.Services).UpdateNowAsync(info, askBeforeRestart: false);
+        }
+    }
+
     private void ShowUpdate(AppUpdateInfo? info)
     {
         IsUpdateAvailable = info?.IsNewer == true;
         UpdateBannerText = info?.IsNewer == true
-            ? $"PC Checker {info.LatestVersion} is available (you have {info.CurrentVersion})." + (_updates.IsInstalledViaUpdater ? " Download and install it from Settings." : " Download it from the releases page via Settings.")
+            ? Localization.Loc.F("PC Checker {0} is available (you have {1}).", info.LatestVersion, info.CurrentVersion) + " " + Localization.Loc.T(_updates.IsInstalledViaUpdater
+                ? "Update now downloads it, checks it and restarts PC Checker."
+                : "Download the new PcChecker.exe from the releases page.")
             : null;
     }
 

@@ -84,6 +84,13 @@ public sealed class UpdateSettings
 {
     public bool AutoCheck { get; set; } = true;
     public bool AutoDownload { get; set; }
+
+    /// <summary>What happens when a newer release is found: ask (default), download automatically, or only notify.</summary>
+    public Updates.UpdateMode Mode { get; set; } = Updates.UpdateMode.Ask;
+
+    /// <summary>A version the user chose to skip; it is not offered again (a newer one is).</summary>
+    public string? SkippedVersion { get; set; }
+
     public UpdateChannel Channel { get; set; } = UpdateChannel.Stable;
     public DateTimeOffset? LastCheckedUtc { get; set; }
 }

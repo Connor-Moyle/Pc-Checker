@@ -150,6 +150,7 @@ public static class ServiceRegistration
         services.AddSingleton<ScreenshotRunner>();
         services.AddSingleton<ScheduledRunner>();
         services.AddSingleton<TrayIconService>();
+        services.AddSingleton<AppUpdateFlow>();
 
         // Shell
         services.AddSingleton<QuickActionRunner>();

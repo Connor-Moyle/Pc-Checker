@@ -20,6 +20,7 @@ TEXT_ATTRS = ("Text", "ToolTip", "Content", "Title", "Header", "Message", "Subti
 ATTR = re.compile(r'\b(?:[a-zA-Z]+:)?(?:[A-Z][A-Za-z]*\.)?(' + "|".join(TEXT_ATTRS) + r')="([^"]*)"')
 SETTER = re.compile(r'<Setter\s+Property="(?:[A-Za-z]+\.)?(' + "|".join(TEXT_ATTRS) + r')"\s+Value="([^"]*)"')
 CODE = re.compile(r'\bLoc\.[TF]\(\s*"((?:[^"\\]|\\.)*)"')
+DESCRIPTION = re.compile(r'\bDescription\(\s*"((?:[^"\\]|\\.)*)"\s*\)')
 CATALOG = re.compile(r'\b(?:Section|Footer|Page)\("([^"]+)"')
 MARKED = re.compile(r'(?<![\w.])T\(\s*"((?:[^"\\]|\\.)*)"')
 
@@ -66,8 +67,15 @@ def collect():
         source = path.read_text(encoding="utf-8")
         for match in CODE.finditer(source):
             found.add(unescape_csharp(match.group(1)))
+        for match in DESCRIPTION.finditer(source):
+            found.add(unescape_csharp(match.group(1)))
         if path.name == "NavigationCatalog.cs":
             found.update(m.group(1) for m in CATALOG.finditer(source))
+    for path in (ROOT / "src" / "PcChecker.Core").rglob("*.cs"):
+        if "obj" in path.parts or "bin" in path.parts:
+            continue
+        for match in DESCRIPTION.finditer(path.read_text(encoding="utf-8")):
+            found.add(unescape_csharp(match.group(1)))
     for path in CORE_SHELL.glob("*.cs"):
         for match in MARKED.finditer(path.read_text(encoding="utf-8")):
             found.add(unescape_csharp(match.group(1)))

@@ -61,7 +61,12 @@
             <ui:TextBlock FontTypography="BodyStrong" Text="Update available" />
             <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding UpdateBannerText}" TextWrapping="Wrap" />
           </StackPanel>
-          <ui:Button Grid.Column="2" Content="Open Settings" Appearance="Primary" Icon="{ui:SymbolIcon Settings24}" Command="{Binding GoToSettingsCommand}" VerticalAlignment="Center" />
+          <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+            <ui:Button Content="Release notes" Icon="{ui:SymbolIcon Settings24}" Command="{Binding GoToSettingsCommand}" Margin="0,0,8,0"
+                       ToolTip="Settings → Updates shows what is new, the channel and how updates are offered." />
+            <ui:Button Content="Update now" Appearance="Primary" Icon="{ui:SymbolIcon ArrowDownload24}" Command="{Binding UpdateNowCommand}"
+                       ToolTip="Downloads the new version from GitHub, checks it and restarts PC Checker. Your settings are kept." />
+          </StackPanel>
         </Grid>
       </ui:Card>
     </StackPanel>

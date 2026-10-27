@@ -577,7 +577,7 @@
               <ui:CardControl.Header>
                 <StackPanel>
                   <ui:TextBlock Text="Check for updates automatically" />
-                  <ui:TextBlock Style="{StaticResource Muted}" Text="Once, shortly after the app opens. Nothing installs without asking." />
+                  <ui:TextBlock Style="{StaticResource Muted}" Text="When the app opens and every 6 hours while it runs." />
                 </StackPanel>
               </ui:CardControl.Header>
               <ui:ToggleSwitch IsChecked="{Binding AutoCheckForUpdates}" />
@@ -585,13 +585,23 @@
             <ui:CardControl Style="{StaticResource Row}" Icon="{ui:SymbolIcon CloudArrowDown24}">
               <ui:CardControl.Header>
                 <StackPanel>
-                  <ui:TextBlock Text="Download updates in the background" />
-                  <ui:TextBlock Style="{StaticResource Muted}" Text="Fetch a new version right away and ask before restarting."
-                                ToolTip="Installed builds only." />
+                  <ui:TextBlock Text="When a new version is available" />
+                  <ui:TextBlock Style="{StaticResource Muted}" Text="Every download is checked against its published SHA-256 before it is installed."
+                                ToolTip="Checks run when the app opens and every 6 hours while it runs, also from the tray." />
                 </StackPanel>
               </ui:CardControl.Header>
-              <ui:ToggleSwitch IsChecked="{Binding AutoDownloadUpdates}" />
+              <ComboBox MinWidth="220" ItemsSource="{Binding UpdateModes}" SelectedItem="{Binding UpdateMode}">
+                <ComboBox.ItemTemplate>
+                  <DataTemplate>
+                    <TextBlock Text="{Binding Converter={StaticResource EnumToString}}" />
+                  </DataTemplate>
+                </ComboBox.ItemTemplate>
+              </ComboBox>
             </ui:CardControl>
+            <ui:InfoBar Severity="Informational" Title="A version is skipped" IsClosable="False" Margin="0,4,0,0"
+                        Message="{Binding SkippedVersionText}" IsOpen="{Binding HasSkippedVersion, Mode=OneWay}">
+              <ui:Button Content="Offer it again" Command="{Binding ClearSkippedVersionCommand}" Margin="0,4" />
+            </ui:InfoBar>
             <Grid Margin="0,4,0,0">
               <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />

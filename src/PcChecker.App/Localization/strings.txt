@@ -39,6 +39,7 @@ A sample every {0}, kept for {1} days. Nothing leaves this PC.
 A scan only reads the registry. Choose the categories under What to check below; nothing changes until you confirm a fix.
 A starting point, not a guarantee: stop at the first crash or artifact and go back one step.
 A tiny graph of the last minute next to each value.
+A version is skipped
 A vertical list or one horizontal strip.
 A warning sign means: it runs from a Temp or AppData folder without a valid signature, it uses a lot of the PC without being a known or signed program, or it has a Windows name but runs from another folder. It is a hint, not proof, and PC Checker never acts on it by itself.
 A Windows snapshot to go back to if a change causes trouble.
@@ -149,6 +150,7 @@ Ask about this PC… (Enter sends, Shift+Enter adds a line)
 Ask anything about this PC
 Ask Claude
 Ask Claude page
+Ask me
 Ask the Windows Package Manager (winget) which programs have a newer version. Nothing is installed.
 Ask things like "why is my PC slow?" or "is this error serious?". Usage is billed to the key's Anthropic account; a typical question costs a fraction of a cent.
 Ask Windows Update which updates this PC is missing. Nothing is installed until you choose to.
@@ -164,8 +166,8 @@ At the warning value a reading turns yellow; at the critical value it turns red 
 Attach a summary of your latest scans so answers fit this PC.
 Attribute
 Audio
-auto download
 auto update
+auto update download install skip version prompt
 Auto-connect
 Automatic
 Automatic: starts with Windows. Manual: starts only when something needs it. Disabled: never starts.
@@ -270,6 +272,7 @@ Checked {0}.
 Checking that the PC is idle…
 Checks every byte of RAM before Windows loads. Runs at the next restart, 5–20 minutes.
 Checks health, temperatures, drivers and what slows it down.
+Checks run when the app opens and every 6 hours while it runs, also from the tray.
 Checks that passed, so you know what was covered.
 Checks the ticked categories. A scan only reads the registry; nothing is changed.
 chkdsk X: /f /r — on the Windows drive it runs before Windows starts; a data volume is repaired now if nothing is using it, otherwise at the next restart. Can take hours.
@@ -396,6 +399,7 @@ dark mode light mode colours colors
 Dashboard
 Data
 Date
+Date installed (newest first)
 Day of the week
 dBm (decibel-milliwatts) is the signal power reaching the adapter: closer to 0 is stronger. -50 dBm is excellent, -67 dBm is fine for calls and games, below -75 dBm is weak.
 dBm measures how much radio power reaches your adapter. It is negative, and closer to zero is stronger: -30 to -50 dBm is excellent, -50 to -67 good (fine for calls and games), -67 to -75 fair, below -75 weak. Windows shows a percentage instead; PC Checker converts it with the usual estimate (percent ÷ 2 − 100).
@@ -465,13 +469,15 @@ Double-click here
 Double-click speed
 Download
 Download from the maker
+Download it, then ask to restart
 Download only
 Download OpenRGB
-Download updates in the background
 Downloaded
+Downloading update
 Downloads (if needed) and installs the ticked updates after creating a restore point when that option is on in Settings.
 Downloads (if needed) and installs the ticked updates one at a time, after a restore point when that option is on in Settings.
 Downloads and installs every update except the optional ones, after you confirm.
+Downloads the new version from GitHub, checks it and restarts PC Checker. Your settings are kept.
 DPC = deferred procedure call: work a driver postpones after an interrupt. High values mean a driver is hogging the CPU and audio or input can stutter.
 DPC and ISR
 dpc input lag ping stutter
@@ -548,6 +554,7 @@ Every batch, app removals included, starts with a restore point and saves the cu
 Every change the app makes to this PC (optimizations, cleanups, driver installs, uninstalls, fan or lighting profiles) is listed here with what it was before and how to undo it.
 Every check came back clean. Nice.
 Every couple of seconds part of the result is read back and compared with the first run. A different value is an error: the same kind of mistake that shows up as artifacts in games.
+Every download is checked against its published SHA-256 before it is installed.
 Every fix is saved to a .reg file first. Restore puts the entries back.
 Every installed driver, the ones that need attention, and driver updates.
 Every minute
@@ -558,6 +565,7 @@ Every removed package is copied here first, one folder per removal.
 Every run is kept on this PC. Show one on the cards, or compare two below.
 Every third-party driver package in the driver store is in use and current.
 Everyday: 30 % at 30 °C rising to 100 % at 80 °C
+Everything
 Everything at once
 Everything back to stock values in the sliders.
 Everything stays on this PC unless you export it or ask the assistant.
@@ -595,7 +603,6 @@ Fans
 Fans page
 Fast startup
 Fast startup, boot menu, Safe Mode and restarting into the firmware.
-Fetch a new version right away and ask before restarting.
 Fetches the ticked updates now so they install faster later.
 File
 File types
@@ -839,8 +846,8 @@ Installed alongside
 Installed alongside this program
 Installed apps
 Installed apps (Settings app)
-Installed builds only.
 Installed drivers
+Installed for this user only
 Installed games in Steam, Epic, Xbox and other libraries, and game data files.
 Installed programs and Store apps, and a safe way to remove them.
 Installed, restart needed
@@ -855,6 +862,7 @@ IP address
 ISR = interrupt service routine: the first, very short reaction to a hardware event. High values point at a misbehaving device or driver.
 It also ends the {0} program(s) it started: {1}.
 It has not started any other programs right now, so only it is ended.
+It installs the next time you choose Install in Settings → Updates, or press Update now again.
 It is recorded in the Action Journal (Logs page). No restore point is needed because nothing in Windows' settings changes.
 Items that were kept
 Items you remove here wait in the Recycle Bin until it is emptied.
@@ -866,6 +874,7 @@ json folder location
 JSON format (one object per line, for log tools)
 Jumps onto OK / Yes when a dialog opens. Most people leave this off.
 junk temp files cache free space
+Just tell me
 KB
 Keep history (min)
 Keep history for (days)
@@ -1199,6 +1208,7 @@ Off keeps your profiles but stops switching.
 Off, every page shows the safe, everyday tools. On, pages also show advanced sections and riskier actions. You can switch it any time at the bottom of the menu.
 Off: a notification after every scheduled run.
 Off: apps are removed for your account only. On: they are removed for everyone on this PC and won't be installed for new accounts.
+Offer it again
 Offered by:
 Offsets are added to the card's own boost behaviour.
 OK
@@ -1216,7 +1226,6 @@ On the monitor under your mouse, or Custom.
 On: fast flicks move the pointer further than slow movements. Off: the same hand movement always moves the same distance. Fine to keep on for desktop work.
 On: only a health score drop or new critical problem, driver updates, cleanup errors or a failed run.
 On: Windows Task Scheduler runs this job. Off: the task is removed.
-Once, shortly after the app opens. Nothing installs without asking.
 One of the changes you applied finishes after Windows restarts. Save your work and restart when convenient.
 One screen per notch
 One small file per day. Nothing is sent anywhere.
@@ -1254,6 +1263,7 @@ Open Registry Editor
 Open Reliability Monitor
 Open report
 Open Settings
+Open Settings → Updates, or press Update now on the Dashboard.
 Open Storage settings
 Open System Restore
 Open Task Scheduler. PC Checker's tasks are in the "PC Checker" folder.
@@ -1352,6 +1362,7 @@ Pauses (or extends the pause) for the chosen number of weeks, after you confirm.
 Pausing is set by a policy on this PC, so it can only be changed there.
 PC Checker
 PC Checker could not get a tuning interface for this graphics card. The vendor's own program offers the same controls.
+PC Checker is already downloading the update.
 PC Checker looks after this PC in one place:
 PC Checker overlay
 PC Checker records temperatures, loads, power and free space in the background while it is open or in the tray. Check back in a few minutes, or pick a longer period.
@@ -1359,7 +1370,14 @@ PC Checker shows the new language after it restarts.
 PC Checker switches when the game has been in front for 2 seconds and puts everything back when the game closes. Switching to another window does not switch back.
 PC Checker was moved
 PC Checker will not load the graphics card itself; it only watches temperatures and clocks while you run your own game or benchmark.
+PC Checker will not offer {0} again. Newer versions are still offered.
 PC Checker will run {0} and use the PC fully for about {1}. Fans may get loud; that is normal.
+PC Checker {0} has been downloaded and checked. Restart now to install it? Your settings are kept.
+PC Checker {0} is available (you have {1}).
+PC Checker {0} is available. Click to update.
+PC Checker {0} is available. You have {1}.
+PC Checker {0} is downloading. You can keep working; it restarts when you say so.
+PC Checker {0} is not offered because you chose Skip this version.
 Per-app volume
 Performance
 Personal choices with no safe policy to set. PC Checker opens the right page.
@@ -1782,6 +1800,7 @@ Settings file
 Settings from Device Manager → your adapter → Advanced. Only settings your adapter actually has are listed. Changing one restarts the adapter, so the connection drops for a few seconds.
 Settings that affect latency
 Settings that belong to one page each. Most can also be changed on that page.
+Settings → Updates shows what is new, the channel and how updates are offered.
 Setup files and installer packages you may no longer need.
 Severity
 Shader maths on the graphics card through DirectX 11. Skipped when there is no DirectX 11 card.
@@ -1840,7 +1859,9 @@ Since Windows last started
 Since {0} ({1})
 Six short tests score the processor (one core and all cores), memory, the Windows drive and the graphics card. 1,000 points is a typical mid-range 2024 desktop. Every run is saved here, so you can compare before and after an Optimize or Overclock change.
 Size
+Size (largest first)
 Size limit per file (MB)
+Skip this version
 Skipped
 Skipped items and errors from the last run
 Skipped: not available on this PC.
@@ -1966,6 +1987,7 @@ Switch to this plan
 Sync colour
 SysMain (Superfetch)
 SysMain (Superfetch) preloads the programs you use most. On is the Windows default.
+System components
 System Configuration (msconfig)
 System drive
 System Protection is off
@@ -2105,6 +2127,7 @@ Third-party services are listed first. Prefer Manual over Disabled so programs c
 Third-party services first. Prefer Manual over Disabled.
 This cannot be undone; start the program again to get it back.
 This card is monitor-only here; the readouts, stress test and advisor still work.
+This copy cannot update itself. Download the new PcChecker.exe from the releases page.
 This copy cannot update itself; PC Checker still checks for new versions and links you to the download.
 This drive
 This folder is empty.
@@ -2234,6 +2257,13 @@ Update channel
 Update check
 Update every (ms)
 Update history in Settings
+Update in progress
+Update not downloaded
+Update not installed
+Update now
+Update now downloads it from GitHub, checks it and restarts PC Checker. Your settings are kept.
+Update ready
+Update ready to install
 Update the Wi-Fi driver
 Updaters from Google, Microsoft Edge and OneDrive live here; they are harmless but not essential.
 Updates
@@ -2271,6 +2301,7 @@ Variable refresh rate (G-Sync / FreeSync), Auto HDR, hardware-accelerated GPU sc
 Vendor tools
 Verdict
 Version
+Version skipped
 Video
 Voltage
 Voltage offset (mV)
@@ -2323,12 +2354,15 @@ What to fix
 What to record
 What to test
 What went wrong
+What's new:
 Wheel scrolling
 When
+When a new version is available
 When a temperature counts as too hot: yellow at the warning level, red and an alert at the critical level.
 When hardware needs attention it raises an interrupt. The driver's interrupt service routine (ISR) runs immediately and should finish in microseconds. Anything slower is handed to a deferred procedure call (DPC). While an ISR or DPC runs, nothing else on that CPU core does, so a driver that spends too long here blocks games and audio. Healthy desktops stay under 1 % ISR time and 3 % DPC time; a single DPC should finish in under 1 ms.
 When off, lines are only kept in the live viewer and are lost when the app closes.
 When started with Windows, stay in the tray
+When the app opens and every 6 hours while it runs.
 When your line is full, many routers queue packets in large buffers instead of slowing senders down. Everything then waits in that queue, so ping can jump from 15 ms to several hundred while someone downloads. The speed test measures ping before and during the download and upload; the difference is the bufferbloat grade. The fix is on the router: enable SQM / Smart Queue Management (sometimes called Adaptive QoS).
 Where
 Where removed startup entries and shortcuts are kept

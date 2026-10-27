@@ -51,7 +51,7 @@ public static class SettingsSearchCatalog
         S("Check for updates", "Updates", T("new version upgrade")),
         S("Update channel", "Updates", T("beta stable")),
         S("Check for updates automatically", "Updates", T("auto update")),
-        S("Download updates in the background", "Updates", T("auto download")),
+        S("When a new version is available", "Updates", T("auto update download install skip version prompt")),
 
         // Assistant
         S("Share scan results with the assistant", "Assistant", T("claude ai privacy context")),
