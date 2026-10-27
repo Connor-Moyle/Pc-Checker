@@ -23,9 +23,13 @@ internal static class ProcessWindows
     private const int SwMaximize = 3;
     private const int SwRestore = 9;
 
-    // The desktop (File Explorer's "Program Manager" and its wallpaper layer) and the stand-in windows Windows draws
-    // over a frozen window ("Ghost", owned by the desktop window manager, not by the frozen program).
-    private static readonly HashSet<string> SkippedClasses = new(StringComparer.Ordinal) { "Progman", "WorkerW", "Ghost" };
+    // The desktop (File Explorer's "Program Manager" and its wallpaper layer), the taskbars, and the stand-in windows
+    // Windows draws over a frozen window ("Ghost", owned by the desktop window manager, not by the frozen program).
+    // A close request to the desktop opens the "Shut Down Windows" dialog, so these are never closed either.
+    private static readonly HashSet<string> SkippedClasses = new(StringComparer.Ordinal)
+    {
+        "Progman", "WorkerW", "Ghost", "Shell_TrayWnd", "Shell_SecondaryTrayWnd",
+    };
 
     // The app window last seen for each process, so a window Windows has hidden behind its "Not responding" stand-in
     // is still found (and still reported as hung) on the next refresh.
@@ -130,7 +134,10 @@ internal static class ProcessWindows
         }
     }
 
-    /// <summary>Every app window of a process (to close them all).</summary>
+    /// <summary>
+    /// Every app window of a process (to close them all): the same windows <see cref="Enumerate"/> counts, so the
+    /// desktop, the taskbar and tool windows are never sent a close request.
+    /// </summary>
     public static IReadOnlyList<IntPtr> WindowsOf(int pid)
     {
         var list = new List<IntPtr>();
@@ -138,9 +145,16 @@ internal static class ProcessWindows
         {
             EnumWindows((hwnd, _) =>
             {
-                if (IsWindowVisible(hwnd) && GetWindow(hwnd, GwOwner) == IntPtr.Zero && OwnerPid(hwnd) == pid)
+                try
                 {
-                    list.Add(hwnd);
+                    if (IsAppWindow(hwnd, out string _) && OwnerPid(hwnd) == pid)
+                    {
+                        list.Add(hwnd);
+                    }
+                }
+                catch
+                {
+                    // Skip a window that closed while it was being read.
                 }
 
                 return true;

@@ -16,6 +16,7 @@ public sealed class DemoProcessService : IProcessService
     private readonly Random _random = DemoData.CreateRandom(4071);
     private readonly DateTimeOffset _boot = DateTimeOffset.Now.AddHours(-6).AddMinutes(-12);
     private readonly List<DemoProcessTemplate> _processes;
+    private readonly HashSet<int> _suspendedHere = [];
 
     public DemoProcessService()
     {
@@ -133,26 +134,53 @@ public sealed class DemoProcessService : IProcessService
             return Task.FromResult(OperationResult.Fail(reason));
         }
 
-        return Task.FromResult(Change(process, t =>
+        var result = Change(process, t =>
         {
             t.State = ProcessRunState.Suspended;
             return $"{process.Name} is paused (demo).";
-        }));
+        });
+        if (result.Success)
+        {
+            lock (_gate)
+            {
+                _suspendedHere.Add(process.Pid);
+            }
+        }
+
+        return Task.FromResult(result);
+    }
+
+    public bool WasSuspendedByPcChecker(ProcessInfo process)
+    {
+        ArgumentNullException.ThrowIfNull(process);
+        lock (_gate)
+        {
+            return _suspendedHere.Contains(process.Pid);
+        }
     }
 
     public Task<OperationResult> ResumeAsync(ProcessInfo process, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(process);
-        if (ProcessSafetyRules.ResumeRefusal(process, OwnProcessId) is { } reason)
+        if (ProcessSafetyRules.ResumeRefusal(process, DemoWindows, OwnProcessId, WasSuspendedByPcChecker(process)) is { } reason)
         {
             return Task.FromResult(OperationResult.Fail(reason));
         }
 
-        return Task.FromResult(Change(process, t =>
+        var result = Change(process, t =>
         {
             t.State = ProcessRunState.Running;
             return $"{process.Name} runs again (demo).";
-        }));
+        });
+        if (result.Success)
+        {
+            lock (_gate)
+            {
+                _suspendedHere.Remove(process.Pid);
+            }
+        }
+
+        return Task.FromResult(result);
     }
 
     public Task<OperationResult> SetEfficiencyModeAsync(ProcessInfo process, bool on, CancellationToken cancellationToken)

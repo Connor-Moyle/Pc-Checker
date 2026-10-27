@@ -379,7 +379,7 @@ public sealed partial class RunningProcessRow : ObservableObject
     private static string? StatusHelp(ProcessRunState state, bool efficiency) => state switch
     {
         ProcessRunState.NotResponding => Loc.T("Its window has not reacted for a while. Wait a moment, or use End task to close it."),
-        ProcessRunState.Suspended => Loc.T("Paused: it uses no processor time. Windows pauses Store apps in the background; use Resume to let it run."),
+        ProcessRunState.Suspended => Loc.T("Paused: it uses no processor time. Windows pauses some Store apps in the background by itself and wakes them when you open them."),
         _ => efficiency ? Loc.T("Windows runs it with less power and Low priority to save energy and keep other programs responsive.") : null,
     };
 

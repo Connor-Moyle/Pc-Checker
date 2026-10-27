@@ -48,7 +48,7 @@ public sealed partial class WindowsProcessService : IProcessService, IDisposable
 
     public int OwnProcessId { get; } = Environment.ProcessId;
 
-    public int LogicalProcessorCount { get; } = Environment.ProcessorCount;
+    public int LogicalProcessorCount { get; } = ProcessNative.MachineProcessorCount();
 
     public void ResetRates() => Interlocked.Exchange(ref _resetRequested, 1);
 

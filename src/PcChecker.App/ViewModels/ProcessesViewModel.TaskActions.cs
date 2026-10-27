@@ -69,7 +69,18 @@ public sealed partial class ProcessesViewModel
         }
 
         string title = Title(row);
-        var targets = row.Members.Where(m => m.State == ProcessRunState.Suspended).ToList();
+        // Store and Windows apps that Windows paused itself are left alone (see ProcessSafetyRules.ResumeRefusal).
+        var checks = row.Members.Where(m => m.State == ProcessRunState.Suspended)
+            .Select(m => (Process: m, Refusal: ProcessSafetyRules.ResumeRefusal(m, _windowsDirectory, _processes.OwnProcessId, _processes.WasSuspendedByPcChecker(m))))
+            .ToList();
+        var targets = checks.Where(c => c.Refusal is null).Select(c => c.Process).ToList();
+        if (targets.Count == 0)
+        {
+            string reason = checks.Select(c => c.Refusal).FirstOrDefault(r => r is not null) ?? Loc.T("It is not suspended.");
+            await _dialogs.ShowMessageAsync(Loc.F("{0} cannot be resumed", title), reason);
+            return;
+        }
+
         await RunForMembersAsync(targets, (p, ct) => _processes.ResumeAsync(p, ct), Loc.T("Running again"), Loc.F("Could not resume {0}", title), Loc.F("Resuming {0}…", title));
     }
 

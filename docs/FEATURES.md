@@ -225,6 +225,8 @@ second), Low (every 4 seconds) or Paused; *Pause updates* freezes it to read.
     own programs and browser helper processes are not restarted: start them
     again from the Start menu or restart the main program.
   - *Suspend* / *Resume*: pauses a program so it uses no processor time.
+    Store and Windows apps that Windows paused itself (Search, Start) are
+    left alone; Windows wakes them when you open them.
   - *Efficiency mode*: Windows' EcoQoS power throttling plus Low priority,
     as Task Manager sets it; turning it off restores Normal priority.
   - *Set priority* (Realtime only in Advanced mode, with a warning) and *Set

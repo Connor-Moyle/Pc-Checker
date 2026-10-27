@@ -71,6 +71,9 @@ public static class SetupMachineFields
         "Fans.ActiveProfileName",
         "Lighting.ActiveProfileName",
         "Overclock.ConsentAccepted", "Overclock.ConsentAcceptedUtc", "Overclock.ActiveProfileName", "Overclock.LastSessionClean",
+
+        // Commands typed into "Run new task" can hold passwords, tokens or private paths typed as options.
+        "Processes.RecentRunCommands",
     ];
 
     /// <summary>The machine-only field names inside the settings property <paramref name="property"/>.</summary>

@@ -14,7 +14,8 @@ public static class ProcessSafetyRules
     private static readonly HashSet<string> RunnableExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
         ".exe", ".com", ".bat", ".cmd", ".msc", ".lnk", ".ps1", ".vbs", ".vbe", ".js", ".jse", ".wsf", ".wsh", ".msi", ".msp",
-        ".scr", ".cpl", ".pif", ".hta", ".url", ".appref-ms", ".reg",
+        ".scr", ".cpl", ".pif", ".hta", ".url", ".appref-ms", ".reg", ".psm1", ".psd1", ".py", ".pyw", ".pyz", ".pyzw", ".jar",
+        ".appx", ".appxbundle", ".msix", ".msixbundle", ".appinstaller", ".application", ".settingcontent-ms", ".wsc", ".ws",
     };
 
     /// <summary>
@@ -38,8 +39,13 @@ public static class ProcessSafetyRules
         return process.State == ProcessRunState.Suspended ? "It is already suspended. Use Resume to let it run again." : null;
     }
 
-    /// <summary>Why the process may not be resumed, or null. Anything PC Checker could pause may be resumed.</summary>
-    public static string? ResumeRefusal(ProcessInfo process, int ownPid)
+    /// <summary>
+    /// Why the process may not be resumed, or null. A program PC Checker paused may always be resumed. Store apps and
+    /// Windows' own processes that Windows paused itself (Search, Start, Store apps in the background) are left alone:
+    /// Windows holds them in a frozen job that resuming the threads does not lift, and it wakes them by itself when
+    /// they are opened. Task Manager does not offer this either.
+    /// </summary>
+    public static string? ResumeRefusal(ProcessInfo process, string windowsDirectory, int ownPid, bool suspendedByPcChecker)
     {
         ArgumentNullException.ThrowIfNull(process);
         if (process.Pid == ownPid || process.Pid <= CriticalProcessRules.SystemPid)
@@ -47,7 +53,17 @@ public static class ProcessSafetyRules
             return CriticalProcessRules.Reason(process.Name, process.Pid, ownPid);
         }
 
-        return process.State == ProcessRunState.Suspended ? null : "It is not suspended.";
+        if (process.State != ProcessRunState.Suspended)
+        {
+            return "It is not suspended.";
+        }
+
+        if (!suspendedByPcChecker && (IsPackagedApp(process.Path) || IsWindowsOrShell(process, windowsDirectory)))
+        {
+            return "Windows paused this app itself to save power. It wakes it up by itself when you open the app.";
+        }
+
+        return null;
     }
 
     /// <summary>
@@ -169,6 +185,86 @@ public static class ProcessSafetyRules
         return programFilesFolders.Any(folder => !string.IsNullOrWhiteSpace(folder) && ProcessSuspicionRules.IsUnder(path, folder));
     }
 
+    /// <summary>
+    /// What "Run new task" may start with administrator rights, and the exact thing to hand to Windows: a full path,
+    /// never a bare name. Windows would look a bare name up in the current folder first and in the user's own App Paths
+    /// list, which any program the user runs can change, and PC Checker (already an administrator) gets no Windows
+    /// prompt to catch that. So a bare name must be found on the PATH (<paramref name="resolveOnPath"/>) or in the
+    /// machine-wide App Paths list (<paramref name="machineAppPath"/>), and the program found must live in Program
+    /// Files or the Windows folder. Full paths to programs follow the same rule; folders, documents, web addresses and
+    /// links such as ms-settings: open in their usual app.
+    /// </summary>
+    public static ElevatedLaunch DecideElevatedLaunch(string target, string windowsDirectory, IReadOnlyList<string> programFilesFolders,
+        Func<string, bool> directoryExists, Func<string, string?> resolveOnPath, Func<string, string?> machineAppPath)
+    {
+        ArgumentNullException.ThrowIfNull(programFilesFolders);
+        ArgumentNullException.ThrowIfNull(directoryExists);
+        ArgumentNullException.ThrowIfNull(resolveOnPath);
+        ArgumentNullException.ThrowIfNull(machineAppPath);
+        const string Refusal = "PC Checker only starts programs from Program Files or the Windows folder with administrator rights, because a program in your own folders could have been changed by any other program. Untick the administrator box, or right-click the file and choose Run as administrator if you trust it.";
+        const string Unknown = "PC Checker could not find where this program is installed, so it does not start it with administrator rights. Type its full path, or untick the administrator box.";
+        if (string.IsNullOrWhiteSpace(target))
+        {
+            return new ElevatedLaunch(null, Unknown);
+        }
+
+        string text = target.Trim();
+        if (text.Contains("://", StringComparison.Ordinal) || IsShellLink(text))
+        {
+            return new ElevatedLaunch(text, null);
+        }
+
+        if (ProcessSuspicionRules.IsFullPath(text))
+        {
+            if (directoryExists(text) || !IsRunnableFile(text) || MayRunElevated(text, windowsDirectory, programFilesFolders))
+            {
+                return new ElevatedLaunch(text, null);
+            }
+
+            return new ElevatedLaunch(null, Refusal);
+        }
+
+        // A relative path: PC Checker cannot tell where it leads.
+        if (text.IndexOfAny(['\\', '/', ':']) >= 0)
+        {
+            return new ElevatedLaunch(null, Refusal);
+        }
+
+        string? resolved = resolveOnPath(text) ?? machineAppPath(text);
+        if (resolved is null || !ProcessSuspicionRules.IsFullPath(resolved))
+        {
+            return new ElevatedLaunch(null, Unknown);
+        }
+
+        return MayRunElevated(resolved, windowsDirectory, programFilesFolders) ? new ElevatedLaunch(resolved, null) : new ElevatedLaunch(null, Refusal);
+    }
+
+    /// <summary>True for a link such as "ms-settings:" or "mailto:x" (a scheme of two or more letters, so not a drive letter).</summary>
+    public static bool IsShellLink(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return false;
+        }
+
+        int colon = text.IndexOf(':', StringComparison.Ordinal);
+        if (colon < 2 || !char.IsAsciiLetter(text[0]))
+        {
+            return false;
+        }
+
+        for (int i = 1; i < colon; i++)
+        {
+            char c = text[i];
+            if (!char.IsAsciiLetterOrDigit(c) && c is not ('-' or '+' or '.'))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     /// <summary>True for files Windows runs as a program when opened (as opposed to documents, which open in their app).</summary>
     public static bool IsRunnableFile(string? path)
     {
@@ -238,9 +334,16 @@ public static class ProcessSafetyRules
     private static bool IsWindowsOrShell(ProcessInfo process, string windowsDirectory) =>
         ProcessGrouping.IsWindowsProcess(process, windowsDirectory) || (IsExplorer(process) && IsShellExplorer(process, windowsDirectory));
 
-    // explorer.exe from the Windows folder, or one whose file is not known (it is then treated as the real one).
-    private static bool IsShellExplorer(ProcessInfo process, string windowsDirectory) =>
-        !ProcessSuspicionRules.IsFullPath(process.Path) || ProcessSuspicionRules.IsUnder(process.Path!, windowsDirectory);
+    /// <summary>
+    /// True for File Explorer from the Windows folder (or one whose file is not known, which is then treated as the
+    /// real one): the process that also draws the desktop and the taskbar.
+    /// </summary>
+    public static bool IsShellExplorer(ProcessInfo process, string windowsDirectory)
+    {
+        ArgumentNullException.ThrowIfNull(process);
+        return IsExplorer(process)
+               && (!ProcessSuspicionRules.IsFullPath(process.Path) || ProcessSuspicionRules.IsUnder(process.Path!, windowsDirectory));
+    }
 
     /// <summary>True for File Explorer (the desktop and taskbar).</summary>
     public static bool IsExplorer(ProcessInfo process)
@@ -249,3 +352,6 @@ public static class ProcessSafetyRules
         return ProcessCatalog.Normalize(process.Name) == "explorer";
     }
 }
+
+/// <summary>What "Run new task" hands to Windows with administrator rights (<see cref="Target"/>), or why it refuses (<see cref="Refusal"/>).</summary>
+public sealed record ElevatedLaunch(string? Target, string? Refusal);

@@ -34,6 +34,12 @@ public sealed partial class WindowsProcessService
             return Task.FromResult(OperationResult<bool>.Fail(refusal));
         }
 
+        if (ProcessSafetyRules.IsShellExplorer(process, WindowsDirectoryPath))
+        {
+            // A close request to the desktop opens "Shut Down Windows"; End task ends File Explorer directly instead.
+            return Task.FromResult(OperationResult<bool>.Fail("File Explorer also draws the desktop and taskbar, so it is not asked to close. Use Restart, or End task, which ends it directly."));
+        }
+
         var options = Options(process, reversible: false, "A closed program cannot be reopened from the journal. Start it again from the Start menu.");
         return _guard.RunGuardedAsync($"Close the windows of {Target(process)}", options, ct => Task.Run(() =>
         {
@@ -48,6 +54,39 @@ public sealed partial class WindowsProcessService
         }, ct), null, cancellationToken);
     }
 
+    // Processes PC Checker paused, by process id and start time, so they can always be resumed.
+    private readonly HashSet<(int Pid, long Created)> _suspendedHere = [];
+
+    public bool WasSuspendedByPcChecker(ProcessInfo process)
+    {
+        ArgumentNullException.ThrowIfNull(process);
+        if (process.StartTime is not { } start)
+        {
+            return false;
+        }
+
+        lock (_suspendedHere)
+        {
+            return _suspendedHere.Contains((process.Pid, start.ToFileTime()));
+        }
+    }
+
+    private void MarkSuspendedHere(ProcessInfo process, bool suspended)
+    {
+        var key = (process.Pid, process.StartTime!.Value.ToFileTime());
+        lock (_suspendedHere)
+        {
+            if (suspended)
+            {
+                _suspendedHere.Add(key);
+            }
+            else
+            {
+                _suspendedHere.Remove(key);
+            }
+        }
+    }
+
     public Task<OperationResult> SuspendAsync(ProcessInfo process, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(process);
@@ -59,14 +98,23 @@ public sealed partial class WindowsProcessService
 
         var options = Options(process, reversible: true, "Use Resume on the Processes page. Closing PC Checker does not resume it.");
         return _guard.RunGuardedAsync($"Suspend {Target(process)}", options, _ => Task.Run(() =>
-            Outcome(ProcessNative.SuspendOrResume(process.Pid, process.StartTime!.Value.ToFileTime(), suspend: true), process,
-                $"{process.Name} is paused. It uses no processor time until you resume it.", "pause")), null, cancellationToken);
+        {
+            int error = ProcessNative.SuspendOrResume(process.Pid, process.StartTime!.Value.ToFileTime(), suspend: true);
+            if (error == 0)
+            {
+                MarkSuspendedHere(process, suspended: true);
+            }
+
+            return Outcome(error, process, $"{process.Name} is paused. It uses no processor time until you resume it.", "pause");
+        }), null, cancellationToken);
     }
 
     public Task<OperationResult> ResumeAsync(ProcessInfo process, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(process);
-        string? refusal = process.StartTime is null ? Unidentified(process) : ProcessSafetyRules.ResumeRefusal(process, OwnProcessId);
+        string? refusal = process.StartTime is null
+            ? Unidentified(process)
+            : ProcessSafetyRules.ResumeRefusal(process, WindowsDirectoryPath, OwnProcessId, WasSuspendedByPcChecker(process));
         if (refusal is not null)
         {
             return Task.FromResult(OperationResult.Fail(refusal));
@@ -74,8 +122,15 @@ public sealed partial class WindowsProcessService
 
         var options = Options(process, reversible: true, "Use Suspend to pause it again.");
         return _guard.RunGuardedAsync($"Resume {Target(process)}", options, _ => Task.Run(() =>
-            Outcome(ProcessNative.SuspendOrResume(process.Pid, process.StartTime!.Value.ToFileTime(), suspend: false), process,
-                $"{process.Name} runs again.", "resume")), null, cancellationToken);
+        {
+            int error = ProcessNative.SuspendOrResume(process.Pid, process.StartTime!.Value.ToFileTime(), suspend: false);
+            if (error == 0)
+            {
+                MarkSuspendedHere(process, suspended: false);
+            }
+
+            return Outcome(error, process, $"{process.Name} runs again.", "resume");
+        }), null, cancellationToken);
     }
 
     public Task<OperationResult> SetEfficiencyModeAsync(ProcessInfo process, bool on, CancellationToken cancellationToken)
@@ -148,7 +203,7 @@ public sealed partial class WindowsProcessService
             : OperationResult.Fail($"Windows could not show the properties of {process.Name}.");
     }
 
-    public Task<OperationResult<string>> CreateDumpAsync(ProcessInfo process, CancellationToken cancellationToken)
+    public async Task<OperationResult<string>> CreateDumpAsync(ProcessInfo process, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(process);
         string? refusal = !PlatformGuard.IsWindows ? NotOnWindows
@@ -156,27 +211,19 @@ public sealed partial class WindowsProcessService
             : ProcessSafetyRules.DumpRefusal(process, OwnProcessId);
         if (refusal is not null)
         {
-            return Task.FromResult(OperationResult<string>.Fail(refusal));
+            return OperationResult<string>.Fail(refusal);
         }
 
-        string folder = Path.GetTempPath();
-        string path = CommandLineText.DumpFilePath(folder, process.Name, File.Exists);
-        try
+        // Finding a free name and checking the free space touch the disk (Temp may be on a slow or network drive),
+        // so they run off the UI thread.
+        var (path, spaceRefusal) = await Task.Run(() => PrepareDump(process), cancellationToken).ConfigureAwait(false);
+        if (spaceRefusal is not null)
         {
-            long free = new DriveInfo(Path.GetPathRoot(folder)!).AvailableFreeSpace;
-            if (free < (process.PrivateBytes * 2) + DumpHeadroomBytes)
-            {
-                return Task.FromResult(OperationResult<string>.Fail(
-                    $"There is not enough free space on {Path.GetPathRoot(folder)} for a dump of {process.Name} (it can be as large as the program's memory). Free up some space first."));
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogDebug(ex, "Could not check the free space for a dump.");
+            return OperationResult<string>.Fail(spaceRefusal);
         }
 
         var options = Options(process, reversible: true, $"Delete {path} when you no longer need it.");
-        return _guard.RunGuardedAsync($"Create memory dump of {Target(process)}", options, _ => Task.Run(() =>
+        return await _guard.RunGuardedAsync($"Create memory dump of {Target(process)}", options, _ => Task.Run(() =>
         {
             int error = ProcessNative.WriteDump(process.Pid, process.StartTime!.Value.ToFileTime(), path);
             if (error == 0)
@@ -191,7 +238,27 @@ public sealed partial class WindowsProcessService
                 5 or StatusAccessDenied or unchecked((int)0x80070005) => $"Windows refused to read the memory of {process.Name}. It is protected.",
                 _ => $"The dump file of {process.Name} could not be written (error {error}).",
             });
-        }), null, cancellationToken);
+        }), null, cancellationToken).ConfigureAwait(false);
+    }
+
+    private (string Path, string? Refusal) PrepareDump(ProcessInfo process)
+    {
+        string folder = Path.GetTempPath();
+        string path = CommandLineText.DumpFilePath(folder, process.Name, File.Exists);
+        try
+        {
+            long free = new DriveInfo(Path.GetPathRoot(folder)!).AvailableFreeSpace;
+            if (free < (process.PrivateBytes * 2) + DumpHeadroomBytes)
+            {
+                return (path, $"There is not enough free space on {Path.GetPathRoot(folder)} for a dump of {process.Name} (it can be as large as the program's memory). Free up some space first.");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Could not check the free space for a dump.");
+        }
+
+        return (path, null);
     }
 
     public OperationResult ShowInFolder(string path)
@@ -220,34 +287,91 @@ public sealed partial class WindowsProcessService
         return _guard.RunGuardedAsync($"Restart {Target(process)}", options, ct => Task.Run(() => RestartCore(process), ct), null, cancellationToken);
     }
 
-    public Task<OperationResult> RunNewTaskAsync(string command, bool asAdministrator, CancellationToken cancellationToken)
+    public async Task<OperationResult> RunNewTaskAsync(string command, bool asAdministrator, CancellationToken cancellationToken)
     {
         if (!PlatformGuard.IsWindows)
         {
-            return Task.FromResult(OperationResult.Fail(NotOnWindows));
+            return OperationResult.Fail(NotOnWindows);
         }
 
+        // The file checks below can touch slow network folders (on the PATH or typed), so they run off the UI thread.
+        var (parsed, refusal) = await Task.Run(() => PrepareRunCommand(command, asAdministrator), cancellationToken).ConfigureAwait(false);
+        if (refusal is not null)
+        {
+            return OperationResult.Fail(refusal);
+        }
+
+        var options = new ChangeOptions(CreateBefore: false, CreateAfter: false, Module, parsed!.Target, Reversible: false,
+            UndoHint: "Close the program if you did not want it.");
+        string description = asAdministrator ? $"Run new task as administrator: {command.Trim()}" : $"Run new task: {command.Trim()}";
+        return await _guard.RunGuardedAsync(description, options, _ => Task.Run(() => Launch(parsed, asAdministrator)), null, cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Parses a Run new task command and checks it. With administrator rights the target is replaced by the full path
+    /// it was found at, so Windows does not look the name up again (in the current folder or the user's own lists).
+    /// </summary>
+    private static (RunCommand? Command, string? Refusal) PrepareRunCommand(string command, bool asAdministrator)
+    {
         var parsed = CommandLineText.ParseRunCommand(command, p => File.Exists(p) || Directory.Exists(p));
         if (parsed is null)
         {
-            return Task.FromResult(OperationResult.Fail("Type the name of a program, folder, document or web address."));
+            return (null, "Type the name of a program, folder, document or web address.");
         }
 
         bool looksLikePath = parsed.Target.Contains('\\', StringComparison.Ordinal) && !parsed.Target.Contains("://", StringComparison.Ordinal);
         if (looksLikePath && !File.Exists(parsed.Target) && !Directory.Exists(parsed.Target))
         {
-            return Task.FromResult(OperationResult.Fail($"Windows cannot find \"{parsed.Target}\". Check the name and try again."));
+            return (null, $"Windows cannot find \"{parsed.Target}\". Check the name and try again.");
         }
 
-        if (asAdministrator && ElevationRefusal(parsed.Target) is { } elevationRefusal)
+        if (!asAdministrator)
         {
-            return Task.FromResult(OperationResult.Fail(elevationRefusal));
+            return (parsed, null);
         }
 
-        var options = new ChangeOptions(CreateBefore: false, CreateAfter: false, Module, parsed.Target, Reversible: false,
-            UndoHint: "Close the program if you did not want it.");
-        string description = asAdministrator ? $"Run new task as administrator: {command.Trim()}" : $"Run new task: {command.Trim()}";
-        return _guard.RunGuardedAsync(description, options, _ => Task.Run(() => Launch(parsed, asAdministrator)), null, cancellationToken);
+        var decision = ProcessSafetyRules.DecideElevatedLaunch(parsed.Target, WindowsDirectoryPath, ProgramFilesFolders(), Directory.Exists,
+            name => ProcessSafetyRules.ResolveOnPath(name, Environment.GetEnvironmentVariable("PATH"), Environment.GetEnvironmentVariable("PATHEXT"), File.Exists),
+            MachineAppPath);
+        return decision.Refusal is not null ? (null, decision.Refusal) : (parsed with { Target = decision.Target! }, null);
+    }
+
+    /// <summary>
+    /// The program a bare name stands for in the machine-wide App Paths list (HKEY_LOCAL_MACHINE only: the per-user
+    /// list can be changed by any program the user runs). Null when it is not listed or the file is missing.
+    /// </summary>
+    private static string? MachineAppPath(string name)
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return null;
+        }
+
+        try
+        {
+            using var hklm = Microsoft.Win32.RegistryKey.OpenBaseKey(Microsoft.Win32.RegistryHive.LocalMachine, Microsoft.Win32.RegistryView.Default);
+            foreach (string candidate in Path.HasExtension(name) ? new[] { name } : new[] { name + ".exe", name })
+            {
+                using var key = hklm.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\" + candidate);
+                if (key?.GetValue(null) is not string value || string.IsNullOrWhiteSpace(value))
+                {
+                    continue;
+                }
+
+                string path = Environment.ExpandEnvironmentVariables(value.Trim().Trim('"'));
+                if (ProcessSuspicionRules.IsFullPath(path) && File.Exists(path))
+                {
+                    return path;
+                }
+            }
+        }
+        catch
+        {
+            // Not listed as far as PC Checker can tell.
+        }
+
+        return null;
     }
 
     private OperationResult RestartCore(ProcessInfo process)
@@ -272,7 +396,7 @@ public sealed partial class WindowsProcessService
         }
 
         string path = process.Path!;
-        string arguments = CommandLineText.ArgumentsAfterExecutable(process.CommandLine);
+        string arguments = CommandLineText.ArgumentsAfterExecutable(process.CommandLine, process.Path);
         bool exited = false;
         if (process.HasWindow && ProcessWindows.RequestClose(process.Pid) > 0)
         {
@@ -356,39 +480,6 @@ public sealed partial class WindowsProcessService
                     $"Windows could not start {command.Target} without administrator rights (File Explorer's desktop must be running for that). Tick \"Create this task with administrative privileges\" to start it anyway.",
                     ex);
         }
-    }
-
-    /// <summary>
-    /// Why a Run new task command may not get administrator rights, or null: a program (or shortcut or script) must
-    /// live in Program Files or the Windows folder. Bare names are looked up on the PATH first, the way Windows does,
-    /// so a name that leads to a user's own folder (such as a Store app alias) is caught too. Folders, documents and
-    /// web addresses open in their usual app.
-    /// </summary>
-    private static string? ElevationRefusal(string target)
-    {
-        const string Refusal = "PC Checker only starts programs from Program Files or the Windows folder with administrator rights, because a program in your own folders could have been changed by any other program. Untick the administrator box, or right-click the file and choose Run as administrator if you trust it.";
-        if (target.Contains("://", StringComparison.Ordinal) || Directory.Exists(target))
-        {
-            return null;
-        }
-
-        if (ProcessSuspicionRules.IsFullPath(target))
-        {
-            return !ProcessSafetyRules.IsRunnableFile(target) || ProcessSafetyRules.MayRunElevated(target, WindowsDirectoryPath, ProgramFilesFolders())
-                ? null
-                : Refusal;
-        }
-
-        string? resolved = ProcessSafetyRules.ResolveOnPath(target, Environment.GetEnvironmentVariable("PATH"),
-            Environment.GetEnvironmentVariable("PATHEXT"), File.Exists);
-        if (resolved is not null)
-        {
-            return ProcessSafetyRules.MayRunElevated(resolved, WindowsDirectoryPath, ProgramFilesFolders()) ? null : Refusal;
-        }
-
-        // Not on the PATH: a protocol ("ms-settings:") or a name from Windows' App Paths list, which only lists
-        // installed programs; a relative path is refused because PC Checker cannot tell where it leads.
-        return target.Contains('\\', StringComparison.Ordinal) || target.Contains('/', StringComparison.Ordinal) ? Refusal : null;
     }
 
     private static IReadOnlyList<string> ProgramFilesFolders() =>

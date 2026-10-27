@@ -47,7 +47,13 @@ public interface IProcessService
     /// <summary>Pauses every thread of the process. Refused for critical processes and Windows' own. Journaled.</summary>
     Task<OperationResult> SuspendAsync(ProcessInfo process, CancellationToken cancellationToken);
 
-    /// <summary>Lets a suspended process run again. Journaled.</summary>
+    /// <summary>True when PC Checker itself suspended this process (so it may always resume it).</summary>
+    bool WasSuspendedByPcChecker(ProcessInfo process);
+
+    /// <summary>
+    /// Lets a suspended process run again. Refused for Store and Windows apps that Windows paused itself (see
+    /// <see cref="ProcessSafetyRules.ResumeRefusal"/>). Journaled.
+    /// </summary>
     Task<OperationResult> ResumeAsync(ProcessInfo process, CancellationToken cancellationToken);
 
     /// <summary>Turns efficiency mode (EcoQoS and Low priority) on or off. Refused for Windows' own processes. Journaled.</summary>

@@ -15,9 +15,12 @@ public static class CommandLineText
     /// <summary>
     /// Everything after the program file in a Windows command line, unchanged: <c>"C:\A B\app.exe" --x "y z"</c> gives
     /// <c>--x "y z"</c>. The file is the first token: up to the closing quote when it starts with one, otherwise up to
-    /// the first space or tab (the rule Windows itself uses for argv[0]). Returns an empty string for none.
+    /// the first space or tab (the rule Windows itself uses for argv[0]). Some launchers start a program without quotes
+    /// around a path with spaces (<c>C:\Program Files\App\app.exe --x</c>); when the command line starts with the
+    /// program's known <paramref name="executablePath"/> (any case), that whole path is taken as the file instead.
+    /// Returns an empty string for none.
     /// </summary>
-    public static string ArgumentsAfterExecutable(string? commandLine)
+    public static string ArgumentsAfterExecutable(string? commandLine, string? executablePath = null)
     {
         if (string.IsNullOrWhiteSpace(commandLine))
         {
@@ -25,6 +28,16 @@ public static class CommandLineText
         }
 
         string text = commandLine.TrimStart();
+        if (!string.IsNullOrWhiteSpace(executablePath) && text[0] != '"')
+        {
+            string path = executablePath.Trim();
+            if (text.StartsWith(path, StringComparison.OrdinalIgnoreCase)
+                && (text.Length == path.Length || text[path.Length] is ' ' or '\t'))
+            {
+                return text[path.Length..].Trim();
+            }
+        }
+
         int end;
         if (text[0] == '"')
         {

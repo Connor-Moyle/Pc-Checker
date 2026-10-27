@@ -418,6 +418,33 @@ internal static partial class ProcessNative
         public uint MachineAttributes;
     }
 
+    private const ushort AllProcessorGroups = 0xFFFF;
+
+    /// <summary>
+    /// The logical processors of the whole PC. <see cref="Environment.ProcessorCount"/> counts only the ones PC Checker
+    /// itself may use (its own affinity and job limits), which can be fewer.
+    /// </summary>
+    public static int MachineProcessorCount()
+    {
+        try
+        {
+            if (OperatingSystem.IsWindows())
+            {
+                uint count = GetActiveProcessorCount(AllProcessorGroups);
+                if (count > 0)
+                {
+                    return (int)Math.Min(count, int.MaxValue);
+                }
+            }
+        }
+        catch
+        {
+            // Fall back below.
+        }
+
+        return Environment.ProcessorCount;
+    }
+
     [DllImport("ntdll.dll")]
     private static extern int NtQuerySystemInformation(int informationClass, IntPtr information, int length, out int returnLength);
 
@@ -453,6 +480,9 @@ internal static partial class ProcessNative
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool GetProcessAffinityMask(IntPtr process, out UIntPtr processMask, out UIntPtr systemMask);
 
+    [DllImport("kernel32.dll")]
+    private static extern uint GetActiveProcessorCount(ushort groupNumber);
+
     [DllImport("kernel32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool SetProcessAffinityMask(IntPtr process, UIntPtr mask);
@@ -461,7 +491,10 @@ internal static partial class ProcessNative
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool GetTokenInformation(IntPtr token, int informationClass, out int information, int length, out int returnLength);
 
+    // dbghelp.dll is not one of Windows' known DLLs, so without this the copy next to PC Checker (a user-writable
+    // folder when it runs portable) would be loaded first, with administrator rights.
     [DllImport("dbghelp.dll", SetLastError = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool MiniDumpWriteDump(IntPtr process, uint processId, SafeFileHandle file, uint dumpType,
         IntPtr exceptionParam, IntPtr userStreamParam, IntPtr callbackParam);

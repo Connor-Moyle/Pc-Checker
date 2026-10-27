@@ -326,8 +326,8 @@ public class TaskManagerProcessesTests
         Assert.Null(ProcessSafetyRules.SuspendRefusal(game, Windows, OwnPid));
         Assert.Contains("already", ProcessSafetyRules.SuspendRefusal(pausedGame, Windows, OwnPid));
 
-        Assert.Null(ProcessSafetyRules.ResumeRefusal(pausedGame, OwnPid));
-        Assert.NotNull(ProcessSafetyRules.ResumeRefusal(game, OwnPid));
+        Assert.Null(ProcessSafetyRules.ResumeRefusal(pausedGame, Windows, OwnPid, suspendedByPcChecker: false));
+        Assert.NotNull(ProcessSafetyRules.ResumeRefusal(game, Windows, OwnPid, suspendedByPcChecker: false));
 
         Assert.NotNull(ProcessSafetyRules.EfficiencyRefusal(dwm, Windows, OwnPid));
         Assert.Null(ProcessSafetyRules.EfficiencyRefusal(game, Windows, OwnPid));
@@ -464,6 +464,13 @@ public class TaskManagerProcessesTests
         Assert.Equal(string.Empty, CommandLineText.ArgumentsAfterExecutable("\"C:\\App\\app.exe\""));
         Assert.Equal(string.Empty, CommandLineText.ArgumentsAfterExecutable(null));
         Assert.Equal("/k echo hi", CommandLineText.ArgumentsAfterExecutable("  cmd.exe\t/k echo hi "));
+
+        // An unquoted path with spaces: the known program path is taken as a whole.
+        Assert.Equal("--x", CommandLineText.ArgumentsAfterExecutable(@"C:\Program Files\App\app.exe --x", @"C:\Program Files\App\app.exe"));
+        Assert.Equal("--x", CommandLineText.ArgumentsAfterExecutable(@"c:\program files\app\APP.EXE --x", @"C:\Program Files\App\app.exe"));
+        Assert.Equal(string.Empty, CommandLineText.ArgumentsAfterExecutable(@"C:\Program Files\App\app.exe", @"C:\Program Files\App\app.exe"));
+        Assert.Equal("--x \"y z\"", CommandLineText.ArgumentsAfterExecutable("\"C:\\Program Files\\App\\app.exe\" --x \"y z\"", @"C:\Program Files\App\app.exe"));
+        Assert.Equal("Files\\Other\\b.exe", CommandLineText.ArgumentsAfterExecutable(@"C:\Program Files\Other\b.exe", @"C:\Program Files\App\app.exe"));
     }
 
     [Fact]
@@ -567,6 +574,130 @@ public class TaskManagerProcessesTests
         Assert.Equal([3, 1, 2, 4], ProcessSorting.Sort(list, ProcessSortColumn.Network, descending: true).Select(p => p.Pid));
         Assert.True(ProcessSorting.DefaultDescending(ProcessSortColumn.Power));
         Assert.False(ProcessSorting.DefaultDescending(ProcessSortColumn.CommandLine));
+    }
+
+    [Fact]
+    public void Store_and_windows_apps_paused_by_windows_are_not_resumed()
+    {
+        var searchHost = P(4664, "SearchHost.exe", @"C:\Windows\SystemApps\MicrosoftWindows.Client.CBS_cw5n1h2txyewy\SearchHost.exe",
+            signature: Microsoft, state: ProcessRunState.Suspended);
+        var storeApp = P(4700, "Calculator.exe", @"C:\Program Files\WindowsApps\Microsoft.WindowsCalculator_8wekyb3d8bbwe\Calculator.exe",
+            window: true, state: ProcessRunState.Suspended);
+        var spotify = P(8410, "Spotify.exe", @"C:\Users\Alex\AppData\Roaming\Spotify\Spotify.exe", window: true, state: ProcessRunState.Suspended);
+
+        Assert.Contains("Windows paused", ProcessSafetyRules.ResumeRefusal(searchHost, Windows, OwnPid, suspendedByPcChecker: false));
+        Assert.NotNull(ProcessSafetyRules.ResumeRefusal(storeApp, Windows, OwnPid, suspendedByPcChecker: false));
+        Assert.Null(ProcessSafetyRules.ResumeRefusal(storeApp, Windows, OwnPid, suspendedByPcChecker: true));
+        Assert.Null(ProcessSafetyRules.ResumeRefusal(spotify, Windows, OwnPid, suspendedByPcChecker: false));
+    }
+
+    [Fact]
+    public async Task Demo_refuses_to_resume_search_that_windows_paused_but_resumes_what_it_paused_itself()
+    {
+        var demo = new DemoProcessService();
+        var snapshot = await demo.SampleAsync(CancellationToken.None);
+        var searchHost = snapshot.Processes.First(p => p.Name == "SearchHost.exe");
+        Assert.Equal(ProcessRunState.Suspended, searchHost.State);
+        Assert.False((await demo.ResumeAsync(searchHost, CancellationToken.None)).Success);
+
+        var game = snapshot.Processes.First(p => p.HasWindow && p.State == ProcessRunState.Running
+                                                 && ProcessSafetyRules.SuspendRefusal(p, Windows, demo.OwnProcessId) is null);
+        Assert.True((await demo.SuspendAsync(game, CancellationToken.None)).Success);
+        Assert.True(demo.WasSuspendedByPcChecker(game));
+        var paused = (await demo.SampleAsync(CancellationToken.None)).Processes.First(p => p.Pid == game.Pid);
+        Assert.True((await demo.ResumeAsync(paused, CancellationToken.None)).Success);
+        Assert.False(demo.WasSuspendedByPcChecker(game));
+    }
+
+    [Fact]
+    public void File_explorer_as_the_desktop_is_ended_directly_never_asked_to_close()
+    {
+        var shell = P(50, "explorer.exe", @"C:\Windows\explorer.exe", window: true, signature: Microsoft);
+        var copy = P(51, "explorer.exe", @"D:\Portable\explorer.exe", window: true);
+
+        Assert.True(ProcessSafetyRules.IsShellExplorer(shell, Windows));
+        Assert.True(ProcessSafetyRules.IsShellExplorer(P(52, "explorer.exe", null, window: true), Windows));
+        Assert.False(ProcessSafetyRules.IsShellExplorer(copy, Windows));
+        Assert.False(ProcessSafetyRules.IsShellExplorer(P(53, "notepad.exe", @"C:\Windows\notepad.exe", window: true), Windows));
+
+        Assert.Equal(EndTaskPlan.EndNow, ProcessStatusRules.PlanEndTask(hasWindow: true, ProcessRunState.Running, isShell: true));
+        Assert.Equal(EndTaskPlan.CloseWindowsFirst, ProcessStatusRules.PlanEndTask(hasWindow: true, ProcessRunState.Running, isShell: false));
+    }
+
+    [Fact]
+    public void Run_as_administrator_starts_the_full_path_it_checked_never_a_bare_name()
+    {
+        string[] programFiles = [@"C:\Program Files", @"C:\Program Files (x86)"];
+        static string? NotFound(string _) => null;
+        static bool NoFolder(string _) => false;
+        Func<string, string?> onPath = name => name.Equals("notepad", StringComparison.OrdinalIgnoreCase) ? @"C:\Windows\System32\notepad.exe"
+            : name.Equals("evil", StringComparison.OrdinalIgnoreCase) ? @"C:\Users\Alex\AppData\Local\Microsoft\WindowsApps\evil.exe" : null;
+        Func<string, string?> appPaths = name => name.Equals("chrome", StringComparison.OrdinalIgnoreCase)
+            ? @"C:\Program Files\Google\Chrome\Application\chrome.exe" : null;
+
+        var notepad = ProcessSafetyRules.DecideElevatedLaunch("notepad", Windows, programFiles, NoFolder, onPath, appPaths);
+        Assert.Null(notepad.Refusal);
+        Assert.Equal(@"C:\Windows\System32\notepad.exe", notepad.Target);
+
+        Assert.Equal(@"C:\Program Files\Google\Chrome\Application\chrome.exe",
+            ProcessSafetyRules.DecideElevatedLaunch("chrome", Windows, programFiles, NoFolder, onPath, appPaths).Target);
+
+        // Found only in a user folder, not found at all (Windows would look in the current folder and the user's own
+        // App Paths list), or a relative path: refused.
+        Assert.NotNull(ProcessSafetyRules.DecideElevatedLaunch("evil", Windows, programFiles, NoFolder, onPath, appPaths).Refusal);
+        Assert.NotNull(ProcessSafetyRules.DecideElevatedLaunch("planted", Windows, programFiles, NoFolder, NotFound, NotFound).Refusal);
+        Assert.NotNull(ProcessSafetyRules.DecideElevatedLaunch("notes.txt", Windows, programFiles, NoFolder, NotFound, NotFound).Refusal);
+        Assert.NotNull(ProcessSafetyRules.DecideElevatedLaunch(@"tools\x.exe", Windows, programFiles, NoFolder, NotFound, NotFound).Refusal);
+        Assert.NotNull(ProcessSafetyRules.DecideElevatedLaunch(@"C:\Users\Alex\Downloads\setup.exe", Windows, programFiles, NoFolder, NotFound, NotFound).Refusal);
+        Assert.NotNull(ProcessSafetyRules.DecideElevatedLaunch(@"C:\Users\Alex\Downloads\run.py", Windows, programFiles, NoFolder, NotFound, NotFound).Refusal);
+
+        // Trusted programs, folders, documents, web addresses and Windows links open as before.
+        Assert.Null(ProcessSafetyRules.DecideElevatedLaunch(@"C:\Windows\System32\cmd.exe", Windows, programFiles, NoFolder, NotFound, NotFound).Refusal);
+        Assert.Null(ProcessSafetyRules.DecideElevatedLaunch(@"C:\Users\Alex\Documents", Windows, programFiles, _ => true, NotFound, NotFound).Refusal);
+        Assert.Null(ProcessSafetyRules.DecideElevatedLaunch(@"C:\Users\Alex\notes.txt", Windows, programFiles, NoFolder, NotFound, NotFound).Refusal);
+        Assert.Equal("ms-settings:", ProcessSafetyRules.DecideElevatedLaunch("ms-settings:", Windows, programFiles, NoFolder, NotFound, NotFound).Target);
+        Assert.Null(ProcessSafetyRules.DecideElevatedLaunch("https://example.com", Windows, programFiles, NoFolder, NotFound, NotFound).Refusal);
+    }
+
+    [Theory]
+    [InlineData("script.py", true)]
+    [InlineData("tool.pyw", true)]
+    [InlineData("app.jar", true)]
+    [InlineData("module.psm1", true)]
+    [InlineData("package.msix", true)]
+    [InlineData("package.appx", true)]
+    [InlineData("setup.appinstaller", true)]
+    [InlineData("deploy.application", true)]
+    [InlineData("notes.txt", false)]
+    [InlineData("photo.jpg", false)]
+    public void Scripts_and_installers_count_as_programs_not_documents(string file, bool runnable)
+    {
+        Assert.Equal(runnable, ProcessSafetyRules.IsRunnableFile(@"C:\Users\Alex\Downloads\" + file));
+    }
+
+    [Theory]
+    [InlineData("ms-settings:", true)]
+    [InlineData("mailto:a@b.c", true)]
+    [InlineData(@"C:\Windows", false)]
+    [InlineData("C:", false)]
+    [InlineData("notepad", false)]
+    public void Windows_links_are_told_apart_from_drive_letters(string text, bool link)
+    {
+        Assert.Equal(link, ProcessSafetyRules.IsShellLink(text));
+    }
+
+    [Fact]
+    public void Run_new_task_history_is_never_written_to_a_setup_file()
+    {
+        var settings = AppSettings.CreateDefault();
+        settings.Processes.RecentRunCommands = ["tool.exe --token=SECRET-TOKEN"];
+        settings.Processes.DetailsView = true;
+
+        string text = PcChecker.Core.SetupBackup.SetupExporter.Export(settings, null, PcChecker.Core.SetupBackup.SetupExportOptions.Everything, "0.5.0", T0, null);
+
+        Assert.DoesNotContain("SECRET-TOKEN", text);
+        Assert.DoesNotContain("RecentRunCommands", text);
+        Assert.Contains("DetailsView", text);
     }
 
     // ------------------------------------------------------------------ demo data

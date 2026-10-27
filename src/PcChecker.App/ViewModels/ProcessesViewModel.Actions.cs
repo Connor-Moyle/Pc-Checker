@@ -34,9 +34,12 @@ public sealed partial class ProcessesViewModel
         var members = row.Members.Where(m => !CriticalProcessRules.IsCritical(m.Name, m.Pid, _processes.OwnProcessId)).ToList();
         string title = row.Group?.Title ?? ProcessSorting.TitleOf(lead);
         var state = row.Group?.State ?? lead.State;
-        var plan = ProcessStatusRules.PlanEndTask(lead.HasWindow, state);
+        bool shell = ProcessSafetyRules.IsShellExplorer(lead, _windowsDirectory);
+        var plan = ProcessStatusRules.PlanEndTask(lead.HasWindow, state, shell);
         string first = plan == EndTaskPlan.CloseWindowsFirst
             ? Loc.F("{0} is asked to close, as if you clicked its X, so it can save your work. If it is still open after a few seconds, PC Checker asks before forcing it.", title)
+            : shell
+                ? Loc.T("File Explorer also draws the taskbar and the desktop. It ends straight away: open folder windows close, the taskbar disappears for a moment and Windows starts File Explorer again by itself. Restart does the same in one step.")
             : state == ProcessRunState.NotResponding
                 ? Loc.F("{0} is not responding, so it is ended straight away. Anything unsaved in it is lost.", title)
                 : row.IsGroup

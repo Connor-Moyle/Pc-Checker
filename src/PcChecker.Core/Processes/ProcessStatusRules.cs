@@ -57,10 +57,12 @@ public static class ProcessStatusRules
 
     /// <summary>
     /// Close the windows first for a running program with a window; end straight away otherwise (a hung or suspended
-    /// program cannot react to a close request, and a program without a window has nothing to close).
+    /// program cannot react to a close request, and a program without a window has nothing to close). File Explorer as
+    /// the desktop (<paramref name="isShell"/>) is ended directly, as Task Manager does: a close request to it would
+    /// open the "Shut Down Windows" dialog or close the taskbar, and Windows starts it again by itself.
     /// </summary>
-    public static EndTaskPlan PlanEndTask(bool hasWindow, ProcessRunState state) =>
-        hasWindow && state == ProcessRunState.Running ? EndTaskPlan.CloseWindowsFirst : EndTaskPlan.EndNow;
+    public static EndTaskPlan PlanEndTask(bool hasWindow, ProcessRunState state, bool isShell = false) =>
+        hasWindow && state == ProcessRunState.Running && !isShell ? EndTaskPlan.CloseWindowsFirst : EndTaskPlan.EndNow;
 
     /// <summary>"Not responding", "Suspended", "Efficiency mode" or an empty string while running normally.</summary>
     public static string Label(ProcessRunState state, bool efficiencyMode) => state switch
