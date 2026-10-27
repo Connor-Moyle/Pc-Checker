@@ -74,10 +74,7 @@ public sealed partial class WindowsContextMenuService : IContextMenuService
         var entries = new List<MenuEntry>();
         foreach (var (name, instances) in verbs)
         {
-            if (BuildVerb(name, instances, windows) is { } entry)
-            {
-                entries.Add(entry);
-            }
+            entries.AddRange(BuildVerbs(name, instances, windows));
         }
 
         progress?.Report(new ProgressUpdate("Checking shell extensions", 75, null));
@@ -169,14 +166,30 @@ public sealed partial class WindowsContextMenuService : IContextMenuService
         }
     }
 
-    private MenuEntry? BuildVerb(string name, List<VerbInstance> instances, string windows)
+    /// <summary>
+    /// One entry per verb name and program, so a program's verb never merges with a Windows verb of the same name
+    /// (for example "edit") in another class. Keys that only hold LegacyDisable count for the state of their class.
+    /// </summary>
+    private IEnumerable<MenuEntry> BuildVerbs(string name, List<VerbInstance> instances, string windows)
     {
-        // Instances that only hold LegacyDisable (or nothing) still decide the state but say nothing about the program.
-        if (!instances.Any(i => i.Command is not null || i.HandlerClsid is not null || i.HasSubCommands || !string.IsNullOrWhiteSpace(i.Text)))
-        {
-            return null;
-        }
+        static bool HasContent(VerbInstance i) =>
+            i.Command is not null || i.HandlerClsid is not null || i.HasSubCommands || !string.IsNullOrWhiteSpace(i.Text);
+        static string ProgramKey(VerbInstance i) =>
+            (i.Command is not null ? ContextMenuRules.ProgramOfCommand(i.Command) : null) ?? i.HandlerClsid ?? string.Empty;
 
+        var stubs = instances.Where(i => !HasContent(i)).ToList();
+        var groups = instances.Where(HasContent).GroupBy(ProgramKey, StringComparer.OrdinalIgnoreCase).ToList();
+        foreach (var group in groups)
+        {
+            var members = group.ToList();
+            var state = members.Concat(stubs.Where(s => members.Any(m => m.ClassKey.Equals(s.ClassKey, StringComparison.OrdinalIgnoreCase)))).ToList();
+            string id = "verb|" + name.ToLowerInvariant() + (groups.Count > 1 ? "|" + group.Key.ToLowerInvariant() : string.Empty);
+            yield return BuildVerb(id, name, members, state, windows);
+        }
+    }
+
+    private MenuEntry BuildVerb(string id, string name, List<VerbInstance> instances, List<VerbInstance> state, string windows)
+    {
         var preferred = instances.OrderBy(i => i.Scope).ToList();
         string? rawText = preferred.Select(i => i.Text).FirstOrDefault(t => !string.IsNullOrWhiteSpace(t));
         string text = IndirectString.DisplayText(rawText, Resolve(rawText), name);
@@ -192,18 +205,18 @@ public sealed partial class WindowsContextMenuService : IContextMenuService
         file = ResolveBareFile(file, windows);
 
         // A class shows the verb unless its effective key (HKCU over HKLM) hides it.
-        bool enabled = instances.GroupBy(i => i.ClassKey, StringComparer.OrdinalIgnoreCase)
+        bool enabled = state.GroupBy(i => i.ClassKey, StringComparer.OrdinalIgnoreCase)
             .Any(g => !(g.FirstOrDefault(i => i.Scope == MenuEntryScope.User) ?? g.First()).Hidden);
 
         var (owner, publisher, broken) = Describe(file, windows, name, handler);
         return new MenuEntry
         {
-            Id = "verb|" + name.ToLowerInvariant(),
+            Id = id,
             Kind = MenuEntryKind.Command,
             Text = text,
             KeyName = name,
             Clsid = handler,
-            Keys = instances.Select(i => new MenuEntryKey(i.Scope, i.Path)).ToList(),
+            Keys = state.Select(i => new MenuEntryKey(i.Scope, i.Path)).ToList(),
             Command = command,
             FilePath = file,
             Publisher = publisher,

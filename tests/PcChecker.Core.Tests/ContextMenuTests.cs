@@ -321,6 +321,25 @@ public class PackagedMenuAndSendToTests
     }
 
     [Fact]
+    public async Task Filters_hide_Windows_entries_unless_asked_and_match_places_and_text()
+    {
+        var entries = (await new DemoContextMenuService().ScanAsync(null, CancellationToken.None)).Entries;
+
+        var everything = ContextMenuFilter.Apply(entries, null, MenuFilter.All, showWindowsEntries: false);
+        Assert.DoesNotContain(everything, e => e.Owner == MenuEntryOwner.Windows);
+        Assert.Contains(ContextMenuFilter.Apply(entries, null, MenuFilter.All, showWindowsEntries: true), e => e.Owner == MenuEntryOwner.Windows);
+
+        Assert.All(ContextMenuFilter.Apply(entries, null, MenuFilter.TurnedOff, false), e => Assert.False(e.IsEnabled));
+        Assert.All(ContextMenuFilter.Apply(entries, null, MenuFilter.SendTo, false), e => Assert.Equal(MenuEntryKind.SendTo, e.Kind));
+        Assert.All(ContextMenuFilter.Apply(entries, null, MenuFilter.NotWorking, false), e => Assert.True(e.IsBroken));
+        Assert.Contains(ContextMenuFilter.Apply(entries, null, MenuFilter.DesktopAndDrives, false), e => e.Text == "NVIDIA Control Panel");
+        Assert.Contains(ContextMenuFilter.Apply(entries, null, MenuFilter.Files, false), e => e.Locations.Contains(".mp4 files"));
+
+        var vlc = ContextMenuFilter.Apply(entries, "videolan", MenuFilter.All, false);
+        Assert.Equal(2, vlc.Count);
+    }
+
+    [Fact]
     public async Task Demo_menu_has_programs_and_Windows_entries_and_refuses_Windows_changes()
     {
         var demo = new DemoContextMenuService();
