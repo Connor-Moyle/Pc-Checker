@@ -19,7 +19,10 @@ public sealed partial class SettingsViewModel
         nameof(ShowPawnIoOnWelcome))]
     private PawnIoStatus _pawnIoStatus = new(PawnIoState.Unknown, null, null, null);
 
-    /// <summary>The welcome's "Install PawnIO" choice. Ticked by default; unticking it also stops the start-up offer.</summary>
+    /// <summary>
+    /// The welcome's "Install PawnIO" choice. <see cref="WelcomeService"/> ticks it only on the first welcome when the
+    /// start-up offer was not turned down; unticking it also stops the start-up offer.
+    /// </summary>
     [ObservableProperty]
     private bool _installPawnIoFromWelcome = true;
 
