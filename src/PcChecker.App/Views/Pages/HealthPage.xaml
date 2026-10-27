@@ -14,6 +14,9 @@
   <Page.Resources>
     <!-- Used only by this page (advanced-mode SMART grid), so it is registered here rather than in Styles.xaml. -->
     <conv:AllTrueToVisibilityConverter x:Key="AllTrueToVisibility" />
+    <Style x:Key="Tile" TargetType="controls:StatCard">
+      <Setter Property="Margin" Value="0" />
+    </Style>
     <!-- Small coloured pill showing a HealthStatus. -->
     <DataTemplate x:Key="StatusBadge">
       <Border CornerRadius="10" Padding="8,2" VerticalAlignment="Center"
@@ -86,7 +89,7 @@
 
     <!-- A drive card. -->
     <DataTemplate x:Key="DiskTemplate">
-      <Border Margin="0,0,0,10" CornerRadius="6" Padding="14"
+      <Border Margin="0,0,0,12" CornerRadius="6" Padding="16"
               Background="{DynamicResource ControlFillColorDefaultBrush}"
               BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}" BorderThickness="1">
         <StackPanel>
@@ -111,17 +114,17 @@
             </StackPanel>
           </Grid>
 
-          <UniformGrid Columns="4" Margin="0,12,0,0">
-            <StackPanel Margin="0,0,12,0">
+          <controls:AdaptiveGrid MinItemWidth="120" MaxColumns="4" Margin="0,12,0,0">
+            <StackPanel>
               <ui:TextBlock Style="{StaticResource Caption}" Text="TEMPERATURE" />
               <ui:TextBlock FontTypography="Subtitle" Text="{Binding TemperatureText}"
                             Foreground="{Binding TemperatureC, Converter={StaticResource TemperatureToBrush}, ConverterParameter='55;65'}" />
             </StackPanel>
-            <StackPanel Margin="0,0,12,0" ToolTip="How long the drive has been switched on in total.">
+            <StackPanel ToolTip="How long the drive has been switched on in total.">
               <ui:TextBlock Style="{StaticResource Caption}" Text="POWER-ON HOURS" />
               <ui:TextBlock FontTypography="Subtitle" Text="{Binding HoursText}" />
             </StackPanel>
-            <StackPanel Margin="0,0,12,0" ToolTip="How much of the drive's rated write endurance has been used (SSDs only).">
+            <StackPanel ToolTip="How much of the drive's rated write endurance has been used (SSDs only).">
               <ui:TextBlock Style="{StaticResource Caption}" Text="WEAR" />
               <ui:TextBlock FontTypography="Subtitle" Text="{Binding WearText}" />
             </StackPanel>
@@ -129,7 +132,7 @@
               <ui:TextBlock Style="{StaticResource Caption}" Text="TOTAL WRITTEN" />
               <ui:TextBlock FontTypography="Subtitle" Text="{Binding WrittenText}" />
             </StackPanel>
-          </UniformGrid>
+          </controls:AdaptiveGrid>
 
           <ui:TextBlock Margin="0,10,0,0" Text="{Binding VerdictSummary}" TextWrapping="Wrap" />
           <ItemsControl ItemsSource="{Binding Reasons}" Margin="12,4,0,0"
@@ -172,7 +175,7 @@
 
     <!-- A battery card. -->
     <DataTemplate x:Key="BatteryTemplate">
-      <Border Margin="0,0,0,10" CornerRadius="6" Padding="14"
+      <Border Margin="0,0,0,12" CornerRadius="6" Padding="16"
               Background="{DynamicResource ControlFillColorDefaultBrush}"
               BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}" BorderThickness="1">
         <Grid>
@@ -194,7 +197,7 @@
               <ContentPresenter Content="{Binding}" ContentTemplate="{StaticResource StatusBadge}" />
             </StackPanel>
             <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding Subtitle}" />
-            <UniformGrid Columns="4" Margin="0,10,0,0">
+            <controls:AdaptiveGrid MinItemWidth="110" MaxColumns="4" Margin="0,10,0,0">
               <StackPanel ToolTip="The capacity the battery had when new.">
                 <ui:TextBlock Style="{StaticResource Caption}" Text="DESIGN" />
                 <ui:TextBlock FontTypography="Subtitle" Text="{Binding DesignText}" />
@@ -211,7 +214,7 @@
                 <ui:TextBlock Style="{StaticResource Caption}" Text="CHARGE" />
                 <ui:TextBlock FontTypography="Subtitle" Text="{Binding ChargeText}" />
               </StackPanel>
-            </UniformGrid>
+            </controls:AdaptiveGrid>
           </StackPanel>
         </Grid>
       </Border>
@@ -225,7 +228,8 @@
       <RowDefinition Height="*" />
     </Grid.RowDefinitions>
 
-    <controls:SectionHeader Grid.Row="0" Title="Health" Subtitle="Drive self-checks, battery wear, device problems, logged errors, crashes and security basics.">
+    <controls:SectionHeader Grid.Row="0" Title="Health"
+                            Subtitle="{Binding CapturedText, TargetNullValue='Drives, battery, devices, logged errors, crashes and security basics.'}">
       <controls:SectionHeader.Actions>
         <StackPanel Orientation="Horizontal">
           <ui:Button Appearance="Secondary" Icon="{ui:SymbolIcon Copy24}" Content="Copy report"
@@ -238,92 +242,69 @@
       </controls:SectionHeader.Actions>
     </controls:SectionHeader>
 
-    <ui:InfoBar Grid.Row="1"
-                Severity="Error"
-                Title="Something went wrong"
-                Message="{Binding ErrorMessage}"
-                IsOpen="{Binding HasError, Mode=OneWay}"
-                IsClosable="True"
-                Margin="0,0,0,12" />
+    <StackPanel Grid.Row="1">
+      <ui:InfoBar Severity="Error"
+                  Title="Something went wrong"
+                  Message="{Binding ErrorMessage}"
+                  IsOpen="{Binding HasError, Mode=OneWay}"
+                  IsClosable="True"
+                  Margin="0,0,0,12" />
+      <ui:InfoBar Severity="Warning"
+                  Title="Some checks could not run"
+                  Message="{Binding WarningsText}"
+                  IsOpen="{Binding HasWarnings, Mode=OneWay}"
+                  IsClosable="True"
+                  Margin="0,0,0,12" />
+    </StackPanel>
 
-    <ScrollViewer Grid.Row="2" Style="{StaticResource PageScroll}">
+    <!-- Before the first analysis: one clear call to action. -->
+    <controls:EmptyState Grid.Row="2" Icon="Heart24" Title="Not analysed yet" Message="Press Analyze to check drives, devices, logs and security."
+                         Visibility="{Binding HasReport, Converter={StaticResource InverseBoolToVisibility}}">
+      <controls:EmptyState.Action>
+        <ui:Button Content="Analyze" Appearance="Primary" Icon="{ui:SymbolIcon ArrowSync24}" Command="{Binding AnalyzeCommand}" />
+      </controls:EmptyState.Action>
+    </controls:EmptyState>
+
+    <ScrollViewer Grid.Row="2" Style="{StaticResource PageScroll}"
+                  Visibility="{Binding HasReport, Converter={StaticResource BoolToVisibility}}">
       <StackPanel>
 
-        <!-- Hero: score ring, verdict, counts. -->
+        <!-- Summary: score and verdict. -->
         <ui:Card Style="{StaticResource CardSpacing}">
           <Grid>
             <Grid.ColumnDefinitions>
               <ColumnDefinition Width="Auto" />
               <ColumnDefinition Width="*" />
-              <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
 
             <!-- Score gauge. The gauge colours by "value above threshold", so the view model flips the thresholds
                  (GaugeWarnAt/GaugeCritAt) to make a low score red and a middling one yellow. -->
-            <controls:GaugeControl Grid.Column="0" Width="160" Height="126" Margin="4,0,24,0" VerticalAlignment="Center"
+            <controls:GaugeControl Grid.Column="0" Width="160" Height="126" Margin="0,0,24,0" VerticalAlignment="Center"
                                    Value="{Binding Score}" Minimum="0" Maximum="100" Unit="" Label="out of 100" ValueFormat="0"
-                                   WarnAt="{Binding GaugeWarnAt}" CritAt="{Binding GaugeCritAt}" />
+                                   WarnAt="{Binding GaugeWarnAt}" CritAt="{Binding GaugeCritAt}"
+                                   ToolTip="Starts at 100 and loses 8 points per warning and 30 per critical finding. A quick guide, not a verdict." />
 
             <StackPanel Grid.Column="1" VerticalAlignment="Center">
-              <StackPanel Orientation="Horizontal">
-                <ui:TextBlock FontTypography="Title" Text="{Binding ScoreLabel}" />
-                <ui:TextBlock Style="{StaticResource Muted}" VerticalAlignment="Bottom" Margin="12,0,0,6" Text="{Binding CapturedText}" />
-              </StackPanel>
+              <ui:TextBlock FontTypography="Title" Text="{Binding ScoreLabel}" />
               <ui:TextBlock Appearance="Secondary" TextWrapping="Wrap" Margin="0,4,0,0" MaxWidth="640" HorizontalAlignment="Left" Text="{Binding SummaryText}" />
               <ui:TextBlock Style="{StaticResource Caption}" Margin="0,10,0,0" Text="{Binding ProgressText}"
                             Visibility="{Binding ProgressText, Converter={StaticResource NullToVisibility}}" />
-              <ui:TextBlock Style="{StaticResource Caption}" Margin="0,10,0,0" TextWrapping="Wrap" MaxWidth="640" HorizontalAlignment="Left"
-                            Text="The score starts at 100 and loses points for every warning (−8) and critical finding (−30). It is a quick guide, not a verdict: read the items below." />
-            </StackPanel>
-
-            <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-              <controls:StatCard Title="Critical" Value="{Binding CriticalCount}" Icon="ErrorCircle24" Accent="{StaticResource AccentRedBrush}" MinWidth="150" Margin="0,0,8,0" />
-              <controls:StatCard Title="Warnings" Value="{Binding WarningCount}" Icon="Warning24" Accent="{StaticResource AccentYellowBrush}" MinWidth="150" Margin="0,0,8,0" />
-              <controls:StatCard Title="Looks fine" Value="{Binding GoodCount}" Icon="CheckmarkCircle24" Accent="{StaticResource AccentGreenBrush}" MinWidth="150" />
             </StackPanel>
           </Grid>
         </ui:Card>
 
-        <ui:InfoBar Severity="Warning"
-                    Title="Some checks could not run"
-                    Message="{Binding WarningsText}"
-                    IsOpen="{Binding HasWarnings, Mode=OneWay}"
-                    IsClosable="False"
-                    Margin="0,0,0,12" />
-
-        <!-- Deep tools -->
-        <Grid Margin="0,0,0,12">
-          <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="*" />
-            <ColumnDefinition Width="*" />
-            <ColumnDefinition Width="*" />
-          </Grid.ColumnDefinitions>
-          <ui:CardAction Grid.Column="0" Margin="0,0,6,0" Icon="{ui:SymbolIcon HardDrive20}" Command="{Binding OpenStoragePageCommand}">
-            <StackPanel>
-              <ui:TextBlock FontTypography="BodyStrong" Text="Storage tools" />
-              <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Text="Surface scan, check disk repairs and speed benchmarks." />
-            </StackPanel>
-          </ui:CardAction>
-          <ui:CardAction Grid.Column="1" Margin="6,0,6,0" Icon="{ui:SymbolIcon Memory16}" Command="{Binding OpenMemoryPageCommand}">
-            <StackPanel>
-              <ui:TextBlock FontTypography="BodyStrong" Text="Memory tools" />
-              <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Text="RAM tests and the Windows Memory Diagnostic." />
-            </StackPanel>
-          </ui:CardAction>
-          <ui:CardAction Grid.Column="2" Margin="6,0,0,0" Icon="{ui:SymbolIcon Wrench24}" Command="{Binding OpenDriversPageCommand}">
-            <StackPanel>
-              <ui:TextBlock FontTypography="BodyStrong" Text="Driver updates" />
-              <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Text="Fix device problems and crashes caused by old drivers." />
-            </StackPanel>
-          </ui:CardAction>
-        </Grid>
+        <controls:AdaptiveGrid MinItemWidth="200" MaxColumns="3" Margin="0,0,0,12">
+          <controls:StatCard Style="{StaticResource Tile}" Title="Critical" Value="{Binding CriticalCount}" Icon="ErrorCircle24" Accent="{StaticResource AccentRedBrush}" />
+          <controls:StatCard Style="{StaticResource Tile}" Title="Warnings" Value="{Binding WarningCount}" Icon="Warning24" Accent="{StaticResource AccentYellowBrush}" />
+          <controls:StatCard Style="{StaticResource Tile}" Title="Looks fine" Value="{Binding GoodCount}" Icon="CheckmarkCircle24" Accent="{StaticResource AccentGreenBrush}" />
+        </controls:AdaptiveGrid>
 
         <!-- Issues -->
         <ui:CardExpander Margin="0,0,0,12" IsExpanded="True" Icon="{ui:SymbolIcon Warning24}" ContentPadding="16">
           <ui:CardExpander.Header>
             <StackPanel>
               <ui:TextBlock FontTypography="BodyStrong" Text="{Binding IssuesHeader}" />
-              <ui:TextBlock Style="{StaticResource Muted}" Text="Most serious first. Each item says what it means and what to do." />
+              <ui:TextBlock Style="{StaticResource Muted}" Text="Most serious first, each with what to do." />
             </StackPanel>
           </ui:CardExpander.Header>
           <StackPanel>
@@ -352,14 +333,15 @@
           <ui:CardExpander.Header>
             <StackPanel>
               <ui:TextBlock FontTypography="BodyStrong" Text="{Binding DrivesHeader}" />
-              <ui:TextBlock Style="{StaticResource Muted}" Text="SMART self-check, temperature, age and wear for every disk. Turn on Advanced mode to see the raw attribute table." />
+              <ui:TextBlock Style="{StaticResource Muted}" Text="SMART self-check, temperature, age and wear for every disk."
+                            ToolTip="Turn on Advanced mode to see the raw SMART attribute table." />
             </StackPanel>
           </ui:CardExpander.Header>
           <StackPanel>
             <ItemsControl ItemsSource="{Binding Disks}" ItemTemplate="{StaticResource DiskTemplate}"
                           Visibility="{Binding HasDisks, Converter={StaticResource BoolToVisibility}}" />
             <controls:EmptyState Icon="HardDrive20" Title="No drives reported"
-                                 Message="Windows did not list any fixed drives, or the drive health check could not run. Run PC Checker as administrator."
+                                 Message="No fixed drives were listed, or the check could not run. Try running PC Checker as administrator."
                                  Visibility="{Binding HasDisks, Converter={StaticResource InverseBoolToVisibility}}" />
           </StackPanel>
         </ui:CardExpander>
@@ -391,7 +373,7 @@
               </Grid.ColumnDefinitions>
               <StackPanel Grid.Column="0">
                 <ui:TextBlock FontTypography="BodyStrong" Text="{Binding DeviceProblemsHeader}" />
-                <ui:TextBlock Style="{StaticResource Muted}" Text="Devices that Device Manager marks with a yellow warning, with the problem code explained." />
+                <ui:TextBlock Style="{StaticResource Muted}" Text="Devices Device Manager flags, with the problem code explained." />
               </StackPanel>
               <ui:Button Grid.Column="1" Appearance="Secondary" Icon="{ui:SymbolIcon Open24}" Content="Open Device Manager" Margin="12,0"
                          Command="{Binding OpenDeviceManagerCommand}" />
@@ -436,7 +418,8 @@
               </Grid.ColumnDefinitions>
               <StackPanel Grid.Column="0">
                 <ui:TextBlock FontTypography="BodyStrong" Text="{Binding SystemErrorsHeader}" />
-                <ui:TextBlock Style="{StaticResource Muted}" Text="Critical and error entries from the System and Application logs. A few are normal; repeats from one source are worth a look." />
+                <ui:TextBlock Style="{StaticResource Muted}" Text="Critical and error entries from the System and Application logs."
+                              ToolTip="A few are normal; repeats from one source are worth a look." />
               </StackPanel>
               <ui:Button Grid.Column="1" Appearance="Secondary" Icon="{ui:SymbolIcon Open24}" Content="Open Event Viewer" Margin="12,0"
                          Command="{Binding OpenEventViewerCommand}" />
@@ -506,7 +489,8 @@
               </Grid.ColumnDefinitions>
               <StackPanel Grid.Column="0">
                 <ui:TextBlock FontTypography="BodyStrong" Text="{Binding ReliabilityHeader}" />
-                <ui:TextBlock Style="{StaticResource Muted}" Text="The last 30 days of app crashes, unexpected shutdowns, updates and installs, as Windows Reliability Monitor records them." />
+                <ui:TextBlock Style="{StaticResource Muted}" Text="Crashes, shutdowns, updates and installs from the last 30 days."
+                              ToolTip="As Windows Reliability Monitor records them." />
               </StackPanel>
               <ui:Button Grid.Column="1" Appearance="Secondary" Icon="{ui:SymbolIcon Open24}" Content="Open Reliability Monitor" Margin="12,0"
                          Command="{Binding OpenReliabilityMonitorCommand}" />
@@ -540,7 +524,7 @@
               </ui:DataGrid.Columns>
             </ui:DataGrid>
             <controls:EmptyState Icon="History24" Title="No reliability events"
-                                 Message="Windows has no reliability records for the last 30 days, or the Reliability Monitor data could not be read."
+                                 Message="No reliability records for the last 30 days, or they could not be read."
                                  Visibility="{Binding HasReliability, Converter={StaticResource InverseBoolToVisibility}}" />
           </StackPanel>
         </ui:CardExpander>
@@ -555,7 +539,7 @@
               </Grid.ColumnDefinitions>
               <StackPanel Grid.Column="0">
                 <ui:TextBlock FontTypography="BodyStrong" Text="{Binding CrashDumpsHeader}" />
-                <ui:TextBlock Style="{StaticResource Muted}" Text="Files Windows writes when it blue-screens. Their dates tell you when crashes happened." />
+                <ui:TextBlock Style="{StaticResource Muted}" Text="Files Windows writes when it blue-screens, dated by crash." />
               </StackPanel>
               <ui:Button Grid.Column="1" Appearance="Secondary" Icon="{ui:SymbolIcon FolderOpen24}" Content="Open folder" Margin="12,0"
                          Command="{Binding OpenCrashDumpFolderCommand}" />
@@ -605,7 +589,8 @@
               </Grid.ColumnDefinitions>
               <StackPanel Grid.Column="0">
                 <ui:TextBlock FontTypography="BodyStrong" Text="Security basics" />
-                <ui:TextBlock Style="{StaticResource Muted}" Text="Antivirus, firewall and drive encryption. Not a full security audit, just the essentials." />
+                <ui:TextBlock Style="{StaticResource Muted}" Text="Antivirus, firewall and drive encryption."
+                              ToolTip="Not a full security audit, just the essentials." />
               </StackPanel>
               <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="12,0">
                 <ui:Button Appearance="Secondary" Icon="{ui:SymbolIcon Open24}" Content="Windows Security" Margin="0,0,8,0" Command="{Binding OpenWindowsSecurityCommand}" />
@@ -622,8 +607,33 @@
           </StackPanel>
         </ui:CardExpander>
 
-        <controls:EmptyState Icon="Heart24" Title="Not analysed yet" Message="Press Analyze to check drives, devices, logs and security."
-                             Visibility="{Binding HasReport, Converter={StaticResource InverseBoolToVisibility}}" />
+        <!-- Related tools on other pages -->
+        <controls:AdaptiveGrid MinItemWidth="260" MaxColumns="3" Margin="0,0,0,12">
+          <ui:CardAction Icon="{ui:SymbolIcon HardDrive20}" Command="{Binding OpenStoragePageCommand}">
+            <StackPanel>
+              <ui:TextBlock FontTypography="BodyStrong" Text="Storage tools" />
+              <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Text="Surface scan, check disk repairs and speed benchmarks." />
+            </StackPanel>
+          </ui:CardAction>
+          <ui:CardAction Icon="{ui:SymbolIcon Memory16}" Command="{Binding OpenMemoryPageCommand}">
+            <StackPanel>
+              <ui:TextBlock FontTypography="BodyStrong" Text="Memory tools" />
+              <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Text="RAM tests and the Windows Memory Diagnostic." />
+            </StackPanel>
+          </ui:CardAction>
+          <ui:CardAction Icon="{ui:SymbolIcon Wrench24}" Command="{Binding OpenDriversPageCommand}">
+            <StackPanel>
+              <ui:TextBlock FontTypography="BodyStrong" Text="Driver updates" />
+              <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Text="Fix device problems and crashes caused by old drivers." />
+            </StackPanel>
+          </ui:CardAction>
+        </controls:AdaptiveGrid>
+
+        <!-- One-off explanation, collapsed. -->
+        <ui:CardExpander Margin="0,0,0,12" IsExpanded="False" Icon="{ui:SymbolIcon Info24}" ContentPadding="16" Header="About the score">
+          <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap"
+                        Text="The score starts at 100 and loses points for every warning (−8) and critical finding (−30). It is a quick guide, not a verdict: read the items above." />
+        </ui:CardExpander>
       </StackPanel>
     </ScrollViewer>
 
