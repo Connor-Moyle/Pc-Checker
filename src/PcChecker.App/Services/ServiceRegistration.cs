@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
+using PcChecker.App.Tray;
 using PcChecker.App.ViewModels;
 using PcChecker.App.Views.Pages;
 using PcChecker.App.Views.Windows;
@@ -30,6 +31,7 @@ using PcChecker.Core.Power;
 using PcChecker.Core.RegistryHealth;
 using PcChecker.Core.Reports;
 using PcChecker.Core.Restore;
+using PcChecker.Core.Scheduling;
 using PcChecker.Core.Sensors;
 using PcChecker.Core.Settings;
 using PcChecker.Core.Software;
@@ -111,6 +113,9 @@ public static class ServiceRegistration
         Add<IForegroundAppTracker, WindowsForegroundAppTracker, DemoForegroundAppTracker>(services, demo);
         Add<IFrameRateMonitor, WindowsFrameRateMonitor, DemoFrameRateMonitor>(services, demo);
         Add<IGameProfileService, WindowsGameProfileService, DemoGameProfileService>(services, demo);
+        Add<IScheduledTaskService, WindowsScheduledTaskService, DemoScheduledTaskService>(services, demo);
+        Add<IScheduledJobStore, JsonScheduledJobStore, DemoScheduledJobStore>(services, demo);
+        services.AddSingleton<ScheduledJobExecutor>();
 
         // Optimization action providers (IOptimizationService aggregates every registration below).
         // providers: Latency (Windows: LatencyActionsProvider, Demo: DemoLatencyActionsProvider)
@@ -132,6 +137,8 @@ public static class ServiceRegistration
         services.AddSingleton<GameProfileSwitcher>();
         services.AddSingleton<RestartPromptService>();
         services.AddSingleton<ScreenshotRunner>();
+        services.AddSingleton<ScheduledRunner>();
+        services.AddSingleton<TrayIconService>();
 
         // Shell
         services.AddSingleton<MainWindowViewModel>();

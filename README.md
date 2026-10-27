@@ -52,7 +52,9 @@ channel to get pre-releases).
 - Administrator rights. The app asks for them on every start because reading
   SMART data, controlling fans, installing drivers, cleaning system folders,
   changing services, scheduling `chkdsk` and applying GPU clocks all need
-  them. It does not install a service and nothing runs when it is closed.
+  them. It does not install a service. Nothing runs while it is closed unless
+  you turn on a schedule or *Start with Windows*; both are off by default and
+  use Windows Task Scheduler, so they need no UAC prompt later.
 
 **About SmartScreen.** Releases are not yet signed with a code-signing
 certificate, so the first time you run a new version Windows may show
@@ -99,6 +101,10 @@ gaming desktop) every time the app changes. The full set of every page is in
   <tr>
     <td width="50%"><img src="docs/screenshots/health.png" alt="Health page"><br><sub>Health</sub></td>
     <td width="50%"><img src="docs/screenshots/assistant.png" alt="Ask Claude page"><br><sub>Ask Claude</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/25-settings.png" alt="Settings page with the Tray and Schedules sections"><br><sub>Settings: tray and schedules</sub></td>
+    <td width="50%"><img src="docs/screenshots/27-tray.png" alt="Tray popup with temperatures, load, power and quick actions"><br><sub>Tray popup</sub></td>
   </tr>
 </table>
 
@@ -170,7 +176,14 @@ limitations, is in [docs/FEATURES.md](docs/FEATURES.md).
 | Page | What it does |
 |---|---|
 | **Logs** | Live log viewer with per-category levels, filters and a diagnostics zip export, plus the Action Journal: every change the app made, when, and how to undo it. |
-| **Settings** | Theme, advanced mode, startup behaviour, updates and channel, restore-point policy, temperature thresholds, electricity price, fans, lighting, latency targets, overclock safety limits, memory and startup warnings, the Claude connection, data and privacy tools, and About. Overlay options live on the Overlay page, logging options on the Logs page and cleanup categories on the Cleanup page. |
+| **Settings** | Theme, advanced mode, startup behaviour, updates and channel, tray options, schedules, restore-point policy, temperature thresholds, electricity price, fans, lighting, latency targets, overclock safety limits, memory and startup warnings, the Claude connection, data and privacy tools, and About. Overlay options live on the Overlay page, logging options on the Logs page and cleanup categories on the Cleanup page. |
+
+### In the background
+
+| Feature | What it does |
+|---|---|
+| **Tray** | An icon next to the clock with CPU and GPU temperatures in its tooltip (or the hottest one drawn as the icon). Click it for a compact popup with temperatures, load, RAM, power draw, alerts, a fan-profile switch, the overlay toggle and *Quick clean*; right-click for a menu. Minimize or close to the tray, start with Windows (straight into the tray if you like) without a UAC prompt, and get temperature alerts as notifications while the window is hidden. |
+| **Schedules** | Health checks, Safe-only junk cleanup, driver update checks and HTML reports on a daily or weekly timetable through Windows Task Scheduler, so they run even while the app is closed. You get a notification only when something needs attention (a score drop, a new critical problem, driver updates, a failed run), and each job shows its next run, last result and *Run now* in Settings. |
 
 ## Hardware support matrix
 
@@ -301,8 +314,8 @@ not the public tracker.
 - [x] FPS counter in the overlay
 - [x] Built-in GPU load generator so the GPU stress test no longer needs a game
 - [x] Per-game overlay and fan profiles that switch automatically
-- [ ] Tray mode with a compact temperature popup
-- [ ] Scheduled health checks and cleanup
+- [x] Tray mode with a compact temperature popup
+- [x] Scheduled health checks and cleanup
 - [ ] Localization (the UI is English only today)
 - [ ] Code-signed releases
 - [ ] ARM64 build for Windows on Arm

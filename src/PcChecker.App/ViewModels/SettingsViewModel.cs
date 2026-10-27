@@ -5,6 +5,7 @@ using PcChecker.App.Services;
 using PcChecker.App.Views.Pages;
 using PcChecker.Core.Common;
 using PcChecker.Core.Logging;
+using PcChecker.Core.Scheduling;
 using PcChecker.Core.Settings;
 using PcChecker.Core.Updates;
 using Wpf.Ui;
@@ -27,6 +28,9 @@ public sealed partial class SettingsViewModel : ViewModelBase
     private readonly ILogService _logs;
     private readonly INavigationService _navigation;
     private readonly ILogger<SettingsViewModel> _logger;
+    private readonly IScheduledTaskService _scheduledTasks;
+    private readonly IScheduledJobStore _jobStore;
+    private readonly ScheduledRunner _scheduledRunner;
     private readonly object _saveGate = new();
     private CancellationTokenSource? _saveDebounce;
     private bool _savePending;
@@ -61,15 +65,20 @@ public sealed partial class SettingsViewModel : ViewModelBase
     private string? _saveStatus;
 
     public SettingsViewModel(ISettingsService settings, IAppUpdateService updates, INotificationService notifications,
-        IDialogService dialogs, ILogService logs, INavigationService navigation, ILogger<SettingsViewModel> logger)
+        IDialogService dialogs, ILogService logs, INavigationService navigation, ILogger<SettingsViewModel> logger,
+        IScheduledTaskService scheduledTasks, IScheduledJobStore jobStore, ScheduledRunner scheduledRunner)
         : base(settings)
     {
+        _scheduledTasks = scheduledTasks;
+        _jobStore = jobStore;
+        _scheduledRunner = scheduledRunner;
         _updates = updates;
         _notifications = notifications;
         _dialogs = dialogs;
         _logs = logs;
         _navigation = navigation;
         _logger = logger;
+        HookSchedules();
         LoadFromSettings();
         settings.Changed += (_, _) => DispatcherHelper.PostToUi(OnSettingsChanged);
         UpdatePrompter.ResultChanged += (_, _) => DispatcherHelper.PostToUi(() => ShowUpdateResult(UpdatePrompter.LastResult));
@@ -106,6 +115,7 @@ public sealed partial class SettingsViewModel : ViewModelBase
         new("OpenRGB.NET", "MIT"),
         new("NAudio", "MIT"),
         new("Vortice.Windows (Direct3D 11, DXGI, D3DCompiler)", "MIT"),
+        new("H.NotifyIcon", "MIT"),
         new("System.Diagnostics.PerformanceCounter", "MIT"),
         new("System.Management", "MIT"),
         new("System.Security.Cryptography.ProtectedData", "MIT"),
@@ -115,7 +125,7 @@ public sealed partial class SettingsViewModel : ViewModelBase
     public override Task InitializeAsync(CancellationToken cancellationToken)
     {
         ShowUpdateResult(UpdatePrompter.LastResult);
-        return Task.CompletedTask;
+        return RefreshScheduleStatusAsync(cancellationToken);
     }
 
     /// <summary>
@@ -155,6 +165,8 @@ public sealed partial class SettingsViewModel : ViewModelBase
             BypassRestorePointFrequencyLimit = s.RestorePoints.BypassFrequencyLimit;
             LoadUpdateSettings(s);
             LoadSectionSettings(s);
+            LoadTraySettings(s);
+            LoadScheduleSettings(s);
         }
         finally
         {
@@ -332,7 +344,7 @@ public sealed partial class SettingsViewModel : ViewModelBase
     {
         bool ok = await _dialogs.ConfirmAsync("Reset all settings?",
             "Every option goes back to its default: theme, thresholds, overlay layout, fan, lighting and overclock profiles. " +
-            "Your Claude API key is kept. This cannot be undone.", "Reset settings", isDanger: true);
+            "PC Checker's scheduled tasks and \"Start with Windows\" are removed. Your Claude API key is kept. This cannot be undone.", "Reset settings", isDanger: true);
         if (!ok)
         {
             return;
@@ -358,6 +370,7 @@ public sealed partial class SettingsViewModel : ViewModelBase
         current.Memory = defaults.Memory;
         current.Latency = defaults.Latency;
         current.Startup = defaults.Startup;
+        await ResetTrayAndSchedulesAsync(current, defaults);
         await SaveNowAsync();
         LoadFromSettings();
         ApplyTheme(current.General.Theme);

@@ -209,7 +209,12 @@ local machine.
 
 ## What the app never does
 
-- Run with elevated rights silently in the background, or install a service
+- Run with elevated rights in the background without your say-so, or install
+  a service. The only background runs are the schedules and *Start with
+  Windows* you turn on yourself in Settings (both off by default). They are
+  ordinary tasks in the "PC Checker" folder of Task Scheduler, scheduled
+  cleanup only ever touches Safe categories, and turning a switch off removes
+  its task.
 - Delete user documents, pictures, downloads or anything outside its category
   roots
 - Change settings it did not show you first

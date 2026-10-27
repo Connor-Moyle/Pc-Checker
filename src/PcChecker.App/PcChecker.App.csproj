@@ -21,6 +21,7 @@
     <PackageReference Include="CommunityToolkit.Mvvm" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
     <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="H.NotifyIcon.Wpf" />
   </ItemGroup>
 
   <ItemGroup>

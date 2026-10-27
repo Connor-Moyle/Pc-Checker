@@ -16,7 +16,7 @@ namespace PcChecker.App.Services;
 
 /// <summary>
 /// Walks every page in navigation order, waits for it to load, renders the window to PNG, captures the overlay over a
-/// dark gradient and writes <c>index.json</c>. Started by <c>App</c> when <c>--screenshots &lt;dir&gt;</c> is given.
+/// dark gradient and the tray popup over a desktop backdrop, and writes <c>index.json</c>. Started by <c>App</c> when <c>--screenshots &lt;dir&gt;</c> is given.
 /// </summary>
 public sealed class ScreenshotRunner
 {
@@ -87,6 +87,10 @@ public sealed class ScreenshotRunner
             var overlayFile = "overlay.png";
             await CaptureOverlayAsync(Path.Combine(dir, overlayFile), cancellationToken);
             index["Overlay"] = overlayFile;
+
+            var trayFile = $"{number + 1:00}-tray.png";
+            await Tray.TrayScreenshot.CaptureAsync(_services, Path.Combine(dir, trayFile), cancellationToken);
+            index["Tray"] = trayFile;
 
             var json = JsonSerializer.Serialize(new { generated = DateTimeOffset.Now, width = WindowWidth, height = WindowHeight, pages = index },
                 new JsonSerializerOptions { WriteIndented = true });

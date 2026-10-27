@@ -4,10 +4,12 @@ using System.Windows.Threading;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using PcChecker.App.Services;
+using PcChecker.App.Tray;
 using PcChecker.App.ViewModels;
 using PcChecker.App.Views.Windows;
 using PcChecker.Core.Common;
 using PcChecker.Core.Logging;
+using PcChecker.Core.Scheduling;
 using PcChecker.Core.Sensors;
 using PcChecker.Core.Settings;
 
@@ -24,6 +26,7 @@ public partial class App : Application
     private Mutex? _instanceMutex;
     private ServiceProvider? _services;
     private ILogger<App>? _logger;
+    private bool _headless;
 
     public static IServiceProvider Services => ((App)Current)._services ?? throw new InvalidOperationException("Services are not built yet.");
 
@@ -41,18 +44,75 @@ public partial class App : Application
             WaitForPreviousInstance(previous);
         }
 
+        // Task Scheduler started a maintenance job: no window, hand it to a running copy or run it headless and exit.
+        if (options.ScheduledJob is { } scheduledJob)
+        {
+            StartHeadless(scheduledJob);
+            return;
+        }
+
         // Screenshot runs are short-lived and may run next to a normal instance (CI); they skip the single-instance check.
         if (!options.ScreenshotsRequested)
         {
             _instanceMutex = new Mutex(true, MutexName, out bool createdNew);
             if (!createdNew)
             {
-                MessageBox.Show("PC Checker is already running. Check the taskbar or system tray.", "PC Checker", MessageBoxButton.OK, MessageBoxImage.Information);
+                // The running copy may be hidden in the tray: ask it to come to the front instead of showing a message.
+                if (SendToRunningInstance(new PipeRequest(PipeCommand.Show, null)) != ScheduledJobPipe.ReplyOk)
+                {
+                    MessageBox.Show("PC Checker is already running. Check the taskbar or system tray.", "PC Checker", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+
                 Shutdown();
                 return;
             }
         }
 
+        BuildContainer(options);
+        var settings = _services.GetRequiredService<ISettingsService>();
+
+        SettingsViewModel.ApplyTheme(settings.Current.General.Theme);
+
+        var window = _services.GetRequiredService<MainWindow>();
+        MainWindow = window;
+        bool startInTray = options.StartInTray && !options.ScreenshotsRequested;
+        if ((settings.Current.General.StartMinimized || options.StartMinimized) && !options.ScreenshotsRequested && !startInTray)
+        {
+            window.WindowState = WindowState.Minimized;
+        }
+
+        bool trayReady = !options.ScreenshotsRequested && InitializeTray(window, startInTray);
+        if (!startInTray || !trayReady)
+        {
+            window.Show();
+        }
+
+        StartupTasks.Begin(_services, _logger);
+        FanLifecycleHooks.OnStartup(_services);
+        _ = OverclockStartupGuard.CheckAsync(_services, _logger);
+
+        try
+        {
+            // Registers the overlay toggle hotkey and shows the overlay when it was left enabled.
+            _services.GetRequiredService<IOverlayService>().Initialize();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "The overlay could not be initialized.");
+        }
+
+        StartGameProfiles();
+
+        if (options.ScreenshotsDirectory is { } directory)
+        {
+            _ = RunScreenshotsAsync(window, directory);
+        }
+    }
+
+    /// <summary>Settings, logging, global error handlers and the DI container (shared by normal and headless runs).</summary>
+    [System.Diagnostics.CodeAnalysis.MemberNotNull(nameof(_services), nameof(_logger))]
+    private void BuildContainer(CommandLineOptions options)
+    {
         DispatcherUnhandledException += OnDispatcherUnhandledException;
         AppDomain.CurrentDomain.UnhandledException += OnDomainUnhandledException;
         TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
@@ -80,36 +140,78 @@ public partial class App : Application
         {
             _logger.LogWarning("Ignoring unknown command line arguments: {Args}", string.Join(" ", options.UnknownArguments));
         }
+    }
 
-        SettingsViewModel.ApplyTheme(settings.Current.General.Theme);
-
-        var window = _services.GetRequiredService<MainWindow>();
-        MainWindow = window;
-        if ((settings.Current.General.StartMinimized || options.StartMinimized) && !options.ScreenshotsRequested)
-        {
-            window.WindowState = WindowState.Minimized;
-        }
-
-        window.Show();
-        StartupTasks.Begin(_services, _logger);
-        FanLifecycleHooks.OnStartup(_services);
-        _ = OverclockStartupGuard.CheckAsync(_services, _logger);
-
+    /// <summary>Creates the tray icon (when wanted), hooks minimize/close to tray and opens the job pipe. False on failure.</summary>
+    private bool InitializeTray(MainWindow window, bool startInTray)
+    {
         try
         {
-            // Registers the overlay toggle hotkey and shows the overlay when it was left enabled.
-            _services.GetRequiredService<IOverlayService>().Initialize();
+            var services = _services ?? throw new InvalidOperationException("Services are not built yet.");
+            var tray = services.GetRequiredService<TrayIconService>();
+            tray.Initialize(window, startInTray);
+            var runner = services.GetRequiredService<ScheduledRunner>();
+            runner.StartListening(tray.ShowMainWindow);
+            if (!AppOptions.Current.IsDemo)
+            {
+                runner.CheckMovedTasksInBackground();
+            }
+
+            return true;
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "The overlay could not be initialized.");
+            _logger?.LogWarning(ex, "The tray icon could not be set up; the window opens normally.");
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// <c>--scheduled &lt;job&gt;</c>: if PC Checker is already open, hand the job to it over the pipe and exit; otherwise
+    /// run the job without a window, show a short tray notification and exit with 0 (success) or 1 (failure).
+    /// </summary>
+    private void StartHeadless(ScheduledJobKind job)
+    {
+        _headless = true;
+        if (Mutex.TryOpenExisting(MutexName, out var running))
+        {
+            running.Dispose();
+            var reply = SendToRunningInstance(new PipeRequest(PipeCommand.Run, job));
+            if (reply is ScheduledJobPipe.ReplyOk or ScheduledJobPipe.ReplyBusy)
+            {
+                Shutdown(0);
+                return;
+            }
         }
 
-        StartGameProfiles();
-
-        if (options.ScreenshotsDirectory is { } directory)
+        // One headless run per job at a time (a slow run overlapping the next trigger simply skips it).
+        _instanceMutex = new Mutex(true, @"Local\PcChecker.Scheduled." + ScheduledJobIds.Id(job), out bool createdNew);
+        if (!createdNew)
         {
-            _ = RunScreenshotsAsync(window, directory);
+            Shutdown(0);
+            return;
+        }
+
+        BuildContainer(AppOptions.Current);
+        _logger.LogInformation("Headless scheduled run: {Job}.", job);
+        _ = RunHeadlessAsync(job);
+    }
+
+    private async Task RunHeadlessAsync(ScheduledJobKind job)
+    {
+        int code = await ScheduledRunner.RunHeadlessAsync(_services!, job, _logger);
+        Shutdown(code);
+    }
+
+    private static string? SendToRunningInstance(PipeRequest request)
+    {
+        try
+        {
+            return Task.Run(() => ScheduledJobPipe.SendAsync(request, TimeSpan.FromSeconds(3), CancellationToken.None)).GetAwaiter().GetResult();
+        }
+        catch (Exception)
+        {
+            return null;
         }
     }
 
@@ -144,14 +246,19 @@ public partial class App : Application
     protected override void OnExit(ExitEventArgs e)
     {
         _logger?.LogInformation("PC Checker exiting with code {Code}.", e.ApplicationExitCode);
-        if (_services is not null)
+        // A headless scheduled run never touched fans or clocks, so it leaves their crash-recovery state alone.
+        if (_services is not null && !_headless)
         {
             // Game profiles first, so fans and the power plan are put back before the fan hooks run.
             _services.GetService<GameProfileSwitcher>()?.Stop();
             FanLifecycleHooks.OnExit(_services);
         }
 
-        OverclockStartupGuard.MarkClean(_services);
+        if (!_headless)
+        {
+            OverclockStartupGuard.MarkClean(_services);
+        }
+
         try
         {
             _services?.GetService<ISensorService>()?.Stop();
@@ -233,7 +340,7 @@ public partial class App : Application
 
     private void ShowFriendlyError(Exception exception)
     {
-        if (AppOptions.Current.ScreenshotsRequested)
+        if (AppOptions.Current.ScreenshotsRequested || _headless)
         {
             // Never block an unattended run on a dialog.
             return;

@@ -6,6 +6,7 @@ using PcChecker.Core.Lighting;
 using PcChecker.Core.Logging;
 using PcChecker.Core.Network;
 using PcChecker.Core.Overclocking;
+using PcChecker.Core.Scheduling;
 
 namespace PcChecker.Core.Settings;
 
@@ -30,6 +31,8 @@ public sealed class AppSettings
     public StartupSettings Startup { get; set; } = new();
     public NetworkSettings Network { get; set; } = new();
     public GamingSettings Gaming { get; set; } = new();
+    public TraySettings Tray { get; set; } = new();
+    public SchedulesSettings Schedules { get; set; } = new();
 
     /// <summary>Returns a fresh instance with every value at its default.</summary>
     public static AppSettings CreateDefault() => new();

@@ -37,6 +37,16 @@ All notable changes to PC Checker are recorded here. The format follows
 - **Game profiles** on the Overlay page: per-game overlay preset and
   visibility, fan profile and power plan, applied automatically when the game
   is in front and put back when it closes.
+- **Tray**: an icon next to the clock with CPU/GPU temperatures in the tooltip
+  (optionally the hottest temperature drawn as the icon), a compact popup
+  (temperatures, load, RAM, power, alerts, fan-profile switch, overlay toggle,
+  quick clean, exit), a right-click menu, minimize and close to the tray,
+  *Start with Windows* through a logon task with highest privileges (no UAC
+  prompt), the `--tray` switch and temperature alerts as notifications.
+- **Schedules**: health checks, Safe-only cleanup, driver update checks and
+  HTML reports on a daily or weekly timetable through Windows Task Scheduler
+  (`--scheduled <job>`), with notifications only when something needs
+  attention, last results, *Run now* and *Fix tasks* after the exe moved.
 
 ### Changed
 - The Drivers page header keeps *Scan drivers* and *Check for updates*; the

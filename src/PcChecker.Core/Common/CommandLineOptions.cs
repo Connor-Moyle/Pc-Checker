@@ -1,8 +1,11 @@
+using PcChecker.Core.Scheduling;
+
 namespace PcChecker.Core.Common;
 
 /// <summary>
-/// Parsed command line: <c>--demo</c>, <c>--real</c>, <c>--screenshots &lt;dir&gt;</c>, <c>--minimized</c>, and the
-/// self-update hand-over switches <c>--wait-pid &lt;id&gt;</c> and <c>--updated-from &lt;version&gt;</c>.
+/// Parsed command line: <c>--demo</c>, <c>--real</c>, <c>--screenshots &lt;dir&gt;</c>, <c>--minimized</c>, <c>--tray</c>
+/// (start hidden with only the tray icon), <c>--scheduled &lt;job&gt;</c> (run one maintenance job without a window and
+/// exit), and the self-update hand-over switches <c>--wait-pid &lt;id&gt;</c> and <c>--updated-from &lt;version&gt;</c>.
 /// Pure so it can be unit-tested; the app feeds it <c>Environment.GetCommandLineArgs()</c> minus the executable.
 /// </summary>
 public sealed record CommandLineOptions(
@@ -28,6 +31,15 @@ public sealed record CommandLineOptions(
     /// <summary>The version this run replaced, when started by the self-updater.</summary>
     public string? UpdatedFrom { get; init; }
 
+    /// <summary><c>--tray</c>: start hidden with only the tray icon (used by "Start with Windows").</summary>
+    public bool StartInTray { get; init; }
+
+    /// <summary><c>--scheduled &lt;job&gt;</c>: run this job headless (no main window) and exit with 0 or 1.</summary>
+    public ScheduledJobKind? ScheduledJob { get; init; }
+
+    /// <summary>True for a <c>--scheduled</c> run.</summary>
+    public bool IsHeadless => ScheduledJob is not null;
+
     /// <summary>Parses arguments. Switches are case-insensitive and accept <c>--key value</c> or <c>--key=value</c>.</summary>
     public static CommandLineOptions Parse(IEnumerable<string>? args)
     {
@@ -35,6 +47,8 @@ public sealed record CommandLineOptions(
         string? screenshots = null;
         int? waitPid = null;
         string? updatedFrom = null;
+        bool tray = false;
+        ScheduledJobKind? scheduled = null;
         var unknown = new List<string>();
         var list = (args ?? []).Where(a => a is not null).ToList();
 
@@ -100,6 +114,24 @@ public sealed record CommandLineOptions(
                     break;
                 }
 
+                case "tray":
+                    tray = true;
+                    break;
+                case "scheduled":
+                {
+                    var value = inlineValue ?? (i + 1 < list.Count && !IsSwitch(list[i + 1]) ? list[++i].Trim() : null);
+                    if (ScheduledJobIds.TryParse(value, out var job))
+                    {
+                        scheduled = job;
+                    }
+                    else
+                    {
+                        unknown.Add(value is null ? raw : raw + " " + value);
+                    }
+
+                    break;
+                }
+
                 case "updated-from":
                     updatedFrom = inlineValue ?? (i + 1 < list.Count && !IsSwitch(list[i + 1]) ? list[++i].Trim() : null);
                     break;
@@ -115,6 +147,8 @@ public sealed record CommandLineOptions(
         {
             WaitForProcessId = waitPid,
             UpdatedFrom = string.IsNullOrWhiteSpace(updatedFrom) ? null : updatedFrom,
+            StartInTray = tray,
+            ScheduledJob = scheduled,
         };
     }
 

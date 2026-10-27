@@ -10,7 +10,17 @@ assistant uses your own Anthropic API key, which Anthropic bills separately.
 Reading SMART data, controlling fans, installing drivers, cleaning system
 folders, changing services, boot configuration and the page file, scheduling
 `chkdsk` and tuning the GPU all need them. The app does not install a
-background service and nothing runs when it is closed.
+background service. Nothing runs while it is closed unless you turn on a
+schedule or *Start with Windows* in Settings; both use Windows Task Scheduler
+with highest privileges, which is why they start without a UAC prompt.
+
+### Can PC Checker keep running in the tray or run checks on a schedule?
+
+Yes. Settings → Tray lets the minimize or close button hide PC Checker to the
+tray, where its icon shows temperatures and opens a compact popup. Settings →
+Schedules runs health checks, Safe-only cleanup, driver checks and reports
+daily or weekly, even while the app is closed, and only notifies you when
+something needs attention. See [FEATURES.md](FEATURES.md#schedules).
 
 ### Windows SmartScreen says "Windows protected your PC"
 

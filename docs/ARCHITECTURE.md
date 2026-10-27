@@ -53,6 +53,7 @@ Every project targets `net8.0-windows10.0.19041.0`. `EnableWindowsTargeting` is 
 | `Input` | `IInputService`, `IMousePollingMeter`, mouse/keyboard settings, profiles, vendor links |
 | `Latency` | `ILatencyService`, `LatencyReport`, `LatencyRules`, `BcdEditParser`, `PowerCfgQueryParser`, `LatencyActionIds` |
 | `Startup` | `IStartupService`, `BootConfig`, `StartupEnumerator` (shared with Performance) |
+| `Scheduling` | `IScheduledTaskService` (schtasks), `ScheduledJobExecutor`, `IScheduledJobStore`, the `PcChecker.Jobs` pipe, `SchtasksCommandBuilder`, `SchtasksCsvParser`, `ScheduleRules`, `JobResultSummarizer`, tray text and popup placement helpers |
 
 Inside each folder you will find the same shapes:
 
@@ -76,6 +77,7 @@ The split matters: anything that reads or changes the system goes behind an inte
 * `App.xaml.cs` enforces a single instance, parses the command line (`AppOptions`), loads settings, configures logging, builds the dependency-injection container through `ServiceRegistration.Register`, applies the theme, wires global exception handlers that log and show a plain-language dialog, and starts the `ScreenshotRunner` when asked.
 * `Services/ServiceRegistration.cs` is the **only** place that maps interfaces to implementations. It takes the `AppMode` and registers `Windows*` or `Demo*` classes accordingly. Module action providers are registered on the lines marked `// providers:`.
 * `Views/Windows/MainWindow.xaml` is the shell: title bar, section menu built from `NavigationCatalog`, section tabs, snackbar and dialog hosts. Its `Navigated` handler calls `EnsureInitializedAsync` on the target page's view model.
+* `Tray/` — `TrayIconService` (H.NotifyIcon: tooltip, temperature icon, menu, notifications, minimize/close to tray) and the compact `TrayPopupWindow`. `Services/ScheduledRunner.cs` runs `--scheduled` jobs headless, answers the job pipe and finds tasks that point at a moved `PcChecker.exe`.
 * `Views/Pages/*Page.xaml` — one page per feature. A page's code-behind only receives its view model, sets `DataContext` and calls `InitializeComponent()`.
 * `ViewModels/*ViewModel.cs` — one per page, all deriving from `ViewModelBase`.
 * `Controls/` — shared controls used by every page: `SectionHeader`, `StatCard`, `GaugeControl`, `SparklineControl`, `KeyValueList`, `EmptyState`, `BusyOverlay`.
@@ -112,6 +114,8 @@ Footer          Logs · Settings · Advanced mode toggle
 | `--real` | Forces `AppMode.Normal` even when `--demo` or `--screenshots` is present. |
 | `--screenshots <dir>` | Implies demo. After the window shows, `ScreenshotRunner` sizes it to 1440×900, visits every page in navigation order, waits for `EnsureInitializedAsync` and `IsBusy == false` plus 400 ms, renders the window with `RenderTargetBitmap` to `<page>.png`, captures the overlay over a dark gradient as `overlay.png`, writes `index.json` and exits with code 0 (1 on failure, with the reason on stderr and in the log). CI uses this on Windows to produce real screenshots. |
 | `--minimized` | Starts minimized (same as the setting). |
+| `--tray` | Starts hidden with only the tray icon (`TrayIconService`); the logon task behind *Start with Windows* passes it. |
+| `--scheduled <job>` | Headless run of `health`, `cleanup`, `drivers` or `report` for Windows Task Scheduler. If PC Checker is already open the job is handed to it over the `PcChecker.Jobs` named pipe (current user only); otherwise `ScheduledRunner` builds the services without a window, runs `ScheduledJobExecutor` (10-minute limit), writes `%LOCALAPPDATA%\PcChecker\schedules\<job>-last.json`, shows a notification from a temporary tray icon for 10 s and exits with 0 or 1. Task commands come from `SchtasksCommandBuilder` and status from `SchtasksCsvParser` (both pure and tested in `SchedulingTests`). |
 
 ## View model lifecycle
 

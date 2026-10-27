@@ -33,6 +33,10 @@ What you get:
   you are in.
 - The administrator prompt still appears, because the manifest asks for it
   before the command line is read.
+- The tray icon and its popup work as normal. Settings → Schedules shows sample
+  results for every job, but nothing is added to Task Scheduler ("Demo mode:
+  schedules are not created"). *Run now* runs the job on sample data; a demo
+  report is written to `%LOCALAPPDATA%\PcChecker\demo\reports`.
 
 Nothing in demo mode reads WMI, the registry, drivers, OpenRGB or the
 network, and nothing writes outside the demo settings folder.
@@ -51,9 +55,11 @@ PcChecker.exe --screenshots screenshots --demo
    `<dir>\<nn>-<page>.png`.
 3. Shows the overlay window in demo mode and captures it over a dark gradient
    as `<dir>\<nn>-overlay.png`.
-4. Writes `<dir>\index.json` mapping page titles to file names, with the
+4. Opens the tray popup off-screen and captures it above a desktop backdrop
+   with a taskbar strip as `<dir>\<nn>-tray.png`.
+5. Writes `<dir>\index.json` mapping page titles to file names, with the
    capture time and window size.
-5. Exits with code 0, or 1 if anything failed (the reason is on stderr and in
+6. Exits with code 0, or 1 if anything failed (the reason is on stderr and in
    the log).
 
 The file names are:
@@ -67,11 +73,12 @@ The file names are:
 16-startup.png          17-windows-features.png 18-cleanup.png
 19-performance.png      20-optimize.png         21-latency.png
 22-overclock.png        23-assistant.png        24-logs.png
-25-settings.png         26-overlay.png          index.json
+25-settings.png         26-overlay.png          27-tray.png
+index.json
 ```
 
-A screenshot run skips the single-instance check, so it can run next to a
-normal instance, and never shows an error dialog that would block an
+A screenshot run skips the single-instance check and creates no tray icon, so
+it can run next to a normal instance, and never shows an error dialog that would block an
 unattended run.
 
 ### In CI
@@ -97,6 +104,8 @@ lists and your network layout exactly as the pages do.
 | `--real` | Force real services even when `--demo` or `--screenshots` is present |
 | `--screenshots <dir>` | Capture every page (implies `--demo`); `<dir>` defaults to `screenshots` |
 | `--minimized` | Start minimized (same as the setting) |
+| `--tray` | Start hidden with only the tray icon (used by *Start with Windows*) |
+| `--scheduled <job>` | Run one maintenance job without a window and exit: `health`, `cleanup`, `drivers` or `report` (used by Settings → Schedules) |
 
 Switches are case-insensitive and accept `--key value` or `--key=value`.
 Unknown switches are ignored with a warning in the log.
