@@ -42,10 +42,12 @@
       <Setter Property="TextTrimming" Value="CharacterEllipsis" />
       <Setter Property="VerticalAlignment" Value="Center" />
     </Style>
+    <Style x:Key="Tile" TargetType="controls:StatCard">
+      <Setter Property="Margin" Value="0" />
+    </Style>
     <Style x:Key="CategoryTile" TargetType="Border">
       <Setter Property="CornerRadius" Value="6" />
       <Setter Property="Padding" Value="12,10" />
-      <Setter Property="Margin" Value="0,0,8,8" />
       <Setter Property="BorderThickness" Value="1" />
       <Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}" />
       <Setter Property="Background" Value="{DynamicResource CardBackgroundFillColorSecondaryBrush}" />
@@ -56,18 +58,20 @@
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto" />
       <RowDefinition Height="Auto" />
-      <RowDefinition Height="Auto" />
       <RowDefinition Height="*" />
     </Grid.RowDefinitions>
 
-    <controls:SectionHeader Grid.Row="0" Title="Registry" Subtitle="Find leftover entries that point at programs, files and folders that are no longer on this PC, and tidy them up safely.">
+    <controls:SectionHeader Grid.Row="0" Title="Registry" Subtitle="Find entries that point at programs and files that are gone, and tidy them safely.">
       <controls:SectionHeader.Actions>
         <StackPanel Orientation="Horizontal">
-          <ui:Button Content="Registry Editor"
-                     Icon="{ui:SymbolIcon Open24}"
-                     Command="{Binding OpenRegistryEditorCommand}"
-                     ToolTip="Opens Windows' own Registry Editor (regedit). Copy a key path below and paste it into its address bar."
-                     Margin="0,0,8,0" />
+          <ui:DropDownButton Content="More" Icon="{ui:SymbolIcon MoreHorizontal24}" Margin="0,0,8,0">
+            <ui:DropDownButton.Flyout>
+              <ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+                <MenuItem Header="Open Registry Editor" Command="{Binding OpenRegistryEditorCommand}"
+                          ToolTip="Opens Windows' own Registry Editor (regedit). Copy a key path below and paste it into its address bar." />
+              </ContextMenu>
+            </ui:DropDownButton.Flyout>
+          </ui:DropDownButton>
           <ui:Button Content="Scan"
                      Appearance="Primary"
                      Icon="{ui:SymbolIcon DatabaseSearch24}"
@@ -77,116 +81,59 @@
       </controls:SectionHeader.Actions>
     </controls:SectionHeader>
 
-    <ui:InfoBar Grid.Row="1"
-                Severity="Error"
-                Title="Something went wrong"
-                Message="{Binding ErrorMessage}"
-                IsOpen="{Binding HasError, Mode=OneWay}"
-                IsClosable="True"
-                Margin="0,0,0,12" />
+    <StackPanel Grid.Row="1">
+      <ui:InfoBar Severity="Error"
+                  Title="Something went wrong"
+                  Message="{Binding ErrorMessage}"
+                  IsOpen="{Binding HasError, Mode=OneWay}"
+                  IsClosable="True"
+                  Margin="0,0,0,12" />
+      <ui:InfoBar Severity="{Binding FixSeverity}"
+                  Title="{Binding FixTitle}"
+                  Message="{Binding FixMessage}"
+                  IsOpen="{Binding HasFixResult, Mode=OneWay}"
+                  IsClosable="True"
+                  Margin="0,0,0,12" />
+      <!-- Honesty principle: shown once per visit, closable. -->
+      <ui:InfoBar Severity="Informational"
+                  Title="What registry cleaning can and cannot do"
+                  Message="Registry leftovers rarely slow Windows down. Removing them tidies lists and fixes some broken menu entries. Only entries proven broken are changed, each is backed up first, and every fix can be undone under Backups."
+                  IsOpen="True"
+                  IsClosable="True"
+                  Margin="0,0,0,12" />
+    </StackPanel>
 
-    <ui:InfoBar Grid.Row="2"
-                Severity="{Binding FixSeverity}"
-                Title="{Binding FixTitle}"
-                Message="{Binding FixMessage}"
-                IsOpen="{Binding HasFixResult, Mode=OneWay}"
-                IsClosable="True"
-                Margin="0,0,0,12" />
-
-    <ScrollViewer Grid.Row="3" Style="{StaticResource PageScroll}">
+    <ScrollViewer Grid.Row="2" Style="{StaticResource PageScroll}">
       <StackPanel>
 
-        <!-- Honesty principle -->
-        <ui:InfoBar Severity="Informational"
-                    Title="What registry cleaning can and cannot do"
-                    Message="Registry &quot;errors&quot; rarely slow Windows down. This page removes leftovers that point at things that no longer exist, so lists stay tidy and some error messages or broken menu entries go away. It never touches anything it cannot prove is broken, backs up every entry before changing it, and every fix can be undone under Backups."
-                    IsOpen="True"
-                    IsClosable="False"
-                    Margin="0,0,0,12" />
-
         <!-- Summary -->
-        <UniformGrid Columns="4" Margin="0,0,0,12">
-          <controls:StatCard Title="Leftovers found" Value="{Binding IssueCountText}" Icon="DatabaseSearch24" Accent="{StaticResource AccentCyanBrush}" Subtitle="{Binding LastScanText, StringFormat='Last scan {0}', TargetNullValue='Not scanned yet'}" Margin="0,0,12,0" />
-          <controls:StatCard Title="Safe to fix" Value="{Binding SafeToFixText}" Icon="CheckmarkCircle24" Accent="{StaticResource AccentGreenBrush}" Subtitle="{Binding SelectedText}" Margin="0,0,12,0" />
-          <controls:StatCard Title="Report only" Value="{Binding ReportOnlyText}" Icon="Info24" Accent="{StaticResource AccentGreyBrush}" Subtitle="Shown, never changed" Margin="0,0,12,0" />
-          <controls:StatCard Title="Keys checked" Value="{Binding KeysScannedText}" Icon="Database24" Accent="{StaticResource AccentPurpleBrush}" Subtitle="{Binding ScanDurationText}" />
-        </UniformGrid>
-
-        <!-- Categories -->
-        <ui:Card Style="{StaticResource CardSpacing}" Margin="0,0,0,12">
-          <StackPanel>
-            <Grid Margin="0,0,0,8">
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-              </Grid.ColumnDefinitions>
-              <StackPanel Grid.Column="0">
-                <ui:TextBlock Style="{StaticResource CardTitle}" Text="What to check" />
-                <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap"
-                              Text="{Binding CategorySelectionText, StringFormat='{}{0}. Advanced categories (program components, menu handlers, installer folders) appear in advanced mode.'}" />
-              </StackPanel>
-              <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                <ui:Button Content="Select all" Icon="{ui:SymbolIcon CheckboxChecked24}" Command="{Binding SelectAllCategoriesCommand}" Margin="0,0,8,0" />
-                <ui:Button Content="Clear" Icon="{ui:SymbolIcon CheckboxUnchecked24}" Command="{Binding ClearCategoriesCommand}" />
-              </StackPanel>
-            </Grid>
-            <ItemsControl ItemsSource="{Binding Categories}">
-              <ItemsControl.ItemsPanel>
-                <ItemsPanelTemplate>
-                  <UniformGrid Columns="2" />
-                </ItemsPanelTemplate>
-              </ItemsControl.ItemsPanel>
-              <ItemsControl.ItemContainerStyle>
-                <Style TargetType="ContentPresenter">
-                  <Setter Property="Visibility" Value="{Binding IsVisible, Converter={StaticResource BoolToVisibility}}" />
-                </Style>
-              </ItemsControl.ItemContainerStyle>
-              <ItemsControl.ItemTemplate>
-                <DataTemplate DataType="{x:Type vm:RegistryCategoryItem}">
-                  <Border Style="{StaticResource CategoryTile}">
-                    <Grid>
-                      <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" />
-                      </Grid.ColumnDefinitions>
-                      <CheckBox Grid.Column="0" IsChecked="{Binding IsSelected, Mode=TwoWay}" VerticalAlignment="Top" Margin="0,0,8,0"
-                                ToolTip="Include this category in the next scan" />
-                      <StackPanel Grid.Column="1" Margin="0,0,8,0">
-                        <ui:TextBlock FontTypography="BodyStrong" Text="{Binding Name}" TextWrapping="Wrap" />
-                        <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding Description}" TextWrapping="Wrap" />
-                        <ui:TextBlock Style="{StaticResource Caption}" Text="{Binding WhereItLooks}" TextWrapping="Wrap" Margin="0,2,0,0" />
-                      </StackPanel>
-                      <StackPanel Grid.Column="2" HorizontalAlignment="Right">
-                        <Border Style="{StaticResource RiskBadge}" ToolTip="{Binding RiskHint}" HorizontalAlignment="Right">
-                          <TextBlock Style="{StaticResource RiskBadgeText}" Text="{Binding RiskText}" />
-                        </Border>
-                        <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding StatusText}" HorizontalAlignment="Right" Margin="0,6,0,0" />
-                      </StackPanel>
-                    </Grid>
-                  </Border>
-                </DataTemplate>
-              </ItemsControl.ItemTemplate>
-            </ItemsControl>
-          </StackPanel>
-        </ui:Card>
+        <controls:AdaptiveGrid MinItemWidth="200" MaxColumns="4" Margin="0,0,0,12">
+          <controls:StatCard Style="{StaticResource Tile}" Title="Leftovers found" Value="{Binding IssueCountText}" Icon="DatabaseSearch24" Accent="{StaticResource AccentCyanBrush}" Subtitle="{Binding LastScanText, StringFormat='Last scan {0}', TargetNullValue='Not scanned yet'}" />
+          <controls:StatCard Style="{StaticResource Tile}" Title="Safe to fix" Value="{Binding SafeToFixText}" Icon="CheckmarkCircle24" Accent="{StaticResource AccentGreenBrush}" Subtitle="{Binding SelectedText}" />
+          <controls:StatCard Style="{StaticResource Tile}" Title="Report only" Value="{Binding ReportOnlyText}" Icon="Info24" Accent="{StaticResource AccentGreyBrush}" Subtitle="Shown, never changed" />
+          <controls:StatCard Style="{StaticResource Tile}" Title="Keys checked" Value="{Binding KeysScannedText}" Icon="Database24" Accent="{StaticResource AccentPurpleBrush}" Subtitle="{Binding ScanDurationText}" />
+        </controls:AdaptiveGrid>
 
         <!-- Not scanned yet -->
-        <ui:Card Style="{StaticResource CardSpacing}" Margin="0,0,0,12"
+        <ui:Card Style="{StaticResource CardSpacing}"
                  Visibility="{Binding ShowEmptyState, Converter={StaticResource BoolToVisibility}}">
           <controls:EmptyState Icon="DatabaseSearch24"
                                Title="Not scanned yet"
-                               Message="Tick the categories you want checked and press Scan. Scanning only reads the registry; nothing changes until you choose entries and confirm a fix." />
+                               Message="A scan only reads the registry. Choose the categories under What to check below; nothing changes until you confirm a fix.">
+            <controls:EmptyState.Action>
+              <ui:Button Content="Scan" Appearance="Primary" Icon="{ui:SymbolIcon DatabaseSearch24}" Command="{Binding ScanCommand}" />
+            </controls:EmptyState.Action>
+          </controls:EmptyState>
         </ui:Card>
 
         <!-- Results -->
         <StackPanel Visibility="{Binding HasScanned, Converter={StaticResource BoolToVisibility}}">
-          <Grid Margin="0,4,0,8">
+          <Grid Margin="0,0,0,8">
             <Grid.ColumnDefinitions>
               <ColumnDefinition Width="*" />
               <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
-            <StackPanel Grid.Column="0" Margin="0,0,12,0">
+            <StackPanel Grid.Column="0" Margin="0,0,12,0" VerticalAlignment="Center">
               <ui:TextBlock FontTypography="BodyStrong" Text="Results" />
               <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Text="{Binding ScanSummary}" />
             </StackPanel>
@@ -197,24 +144,31 @@
                         Text="{Binding FilterText, UpdateSourceTrigger=PropertyChanged}" />
           </Grid>
 
-          <WrapPanel Margin="0,0,0,8">
-            <ui:Button Content="Select all safe" Icon="{ui:SymbolIcon CheckmarkCircle24}" Command="{Binding SelectAllSafeCommand}" Margin="0,0,8,8"
+          <!-- Selection bar -->
+          <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,0,8">
+            <ui:Button Content="Select all safe" Icon="{ui:SymbolIcon CheckmarkCircle24}" Command="{Binding SelectAllSafeCommand}" Margin="0,0,8,0"
                        ToolTip="Ticks every entry marked Safe. Moderate and Advanced entries stay unticked." />
-            <ui:Button Content="Select every fixable" Icon="{ui:SymbolIcon CheckboxChecked24}" Command="{Binding SelectAllFixableCommand}" Margin="0,0,8,8"
-                       ToolTip="Ticks every entry that can be fixed, including Moderate and Advanced ones." />
-            <ui:Button Content="Clear selection" Icon="{ui:SymbolIcon CheckboxUnchecked24}" Command="{Binding ClearSelectionCommand}" Margin="0,0,8,8" />
-            <ui:Button Content="Expand all" Icon="{ui:SymbolIcon ChevronDown24}" Command="{Binding ExpandAllCommand}" Margin="0,0,8,8" />
-            <ui:Button Content="Collapse all" Icon="{ui:SymbolIcon ChevronUp24}" Command="{Binding CollapseAllCommand}" Margin="0,0,16,8" />
+            <ui:Button Content="Clear" Icon="{ui:SymbolIcon CheckboxUnchecked24}" Command="{Binding ClearSelectionCommand}" Margin="0,0,8,0" />
+            <ui:DropDownButton Content="More" Icon="{ui:SymbolIcon MoreHorizontal24}" Margin="0,0,8,0">
+              <ui:DropDownButton.Flyout>
+                <ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+                  <MenuItem Header="Select every fixable" Command="{Binding SelectAllFixableCommand}"
+                            ToolTip="Ticks every entry that can be fixed, including Moderate and Advanced ones." />
+                  <Separator />
+                  <MenuItem Header="Expand all" Command="{Binding ExpandAllCommand}" />
+                  <MenuItem Header="Collapse all" Command="{Binding CollapseAllCommand}" />
+                </ContextMenu>
+              </ui:DropDownButton.Flyout>
+            </ui:DropDownButton>
             <ui:Button Content="Fix selected"
                        Appearance="Danger"
                        Icon="{ui:SymbolIcon Wrench24}"
                        Command="{Binding FixSelectedCommand}"
-                       Margin="0,0,0,8"
                        ToolTip="Backs up the ticked entries, creates a restore point, then removes them. You can undo it under Backups." />
-          </WrapPanel>
+          </StackPanel>
 
           <!-- Scan notes (keys Windows would not let PC Checker read) -->
-          <ui:Card Style="{StaticResource CardSpacing}" Margin="0,0,0,12"
+          <ui:Card Style="{StaticResource CardSpacing}"
                    Visibility="{Binding HasScanWarnings, Converter={StaticResource BoolToVisibility}}">
             <ItemsControl ItemsSource="{Binding ScanWarnings}">
               <ItemsControl.ItemTemplate>
@@ -229,7 +183,7 @@
           </ui:Card>
 
           <!-- Nothing found -->
-          <ui:Card Style="{StaticResource CardSpacing}" Margin="0,0,0,12"
+          <ui:Card Style="{StaticResource CardSpacing}"
                    Visibility="{Binding ShowNothingFound, Converter={StaticResource BoolToVisibility}}">
             <controls:EmptyState Icon="CheckmarkCircle24"
                                  Title="No leftovers found"
@@ -245,7 +199,7 @@
             </ItemsControl.ItemContainerStyle>
             <ItemsControl.ItemTemplate>
               <DataTemplate DataType="{x:Type vm:RegistryIssueGroup}">
-                <ui:CardExpander Margin="0,0,0,8" ContentPadding="16" IsExpanded="{Binding IsExpanded, Mode=TwoWay}">
+                <ui:CardExpander Margin="0,0,0,12" ContentPadding="16" IsExpanded="{Binding IsExpanded, Mode=TwoWay}">
                   <ui:CardExpander.Header>
                     <Grid>
                       <Grid.ColumnDefinitions>
@@ -343,7 +297,7 @@
           </ItemsControl>
 
           <!-- Details of the last fix -->
-          <ui:CardExpander Margin="0,4,0,12"
+          <ui:CardExpander Margin="0,0,0,12"
                            ContentPadding="16"
                            Icon="{ui:SymbolIcon ClipboardTextLtr24}"
                            Visibility="{Binding HasFixDetails, Converter={StaticResource BoolToVisibility}}">
@@ -362,42 +316,93 @@
             </ItemsControl>
           </ui:CardExpander>
 
-          <ui:Card Style="{StaticResource CardSpacing}" Margin="0,0,0,12">
+          <!-- Report-only entries: how to clean them up properly -->
+          <ui:Card Style="{StaticResource CardSpacing}">
             <Grid>
               <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
               </Grid.ColumnDefinitions>
-              <StackPanel Grid.Column="0" Margin="0,0,12,0">
+              <StackPanel Grid.Column="0" Margin="0,0,12,0" VerticalAlignment="Center">
                 <ui:TextBlock FontTypography="BodyStrong" Text="Services and programs that are still listed" />
                 <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap"
-                              Text="Report-only entries usually mean a program was deleted instead of uninstalled. Reinstalling and then uninstalling it properly, or the vendor's own removal tool, cleans these up the right way." />
+                              Text="Usually a program that was deleted instead of uninstalled."
+                              ToolTip="Reinstalling and then uninstalling it properly, or the vendor's own removal tool, cleans these up the right way." />
               </StackPanel>
               <ui:Button Grid.Column="1" Content="Installed apps" Icon="{ui:SymbolIcon Apps24}" Command="{Binding OpenInstalledAppsCommand}" VerticalAlignment="Center" />
             </Grid>
           </ui:Card>
         </StackPanel>
 
-        <!-- Backups -->
-        <ui:Card Style="{StaticResource CardSpacing}" Margin="0,4,0,12">
+        <!-- Options: what to check -->
+        <ui:CardExpander Margin="0,0,0,12" ContentPadding="16" Icon="{ui:SymbolIcon Filter24}" IsExpanded="False">
+          <ui:CardExpander.Header>
+            <StackPanel>
+              <ui:TextBlock FontTypography="BodyStrong" Text="What to check" />
+              <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Text="{Binding CategorySelectionText}"
+                            ToolTip="Advanced categories (program components, menu handlers, installer folders) appear in advanced mode." />
+            </StackPanel>
+          </ui:CardExpander.Header>
           <StackPanel>
-            <Grid Margin="0,0,0,8">
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-              </Grid.ColumnDefinitions>
-              <ui:SymbolIcon Grid.Column="0" Symbol="History24" FontSize="22" Margin="0,0,12,0" VerticalAlignment="Center" Foreground="{StaticResource AccentCyanBrush}" />
-              <StackPanel Grid.Column="1" Margin="0,0,12,0">
-                <ui:TextBlock Style="{StaticResource CardTitle}" Text="Backups" />
-                <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap"
-                              Text="Every fix saves the removed entries to a .reg file first. Restore puts them back exactly as they were. Backups are never deleted automatically." />
-              </StackPanel>
-              <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                <ui:Button Content="Open folder" Icon="{ui:SymbolIcon FolderOpen24}" Command="{Binding OpenBackupFolderCommand}" Margin="0,0,8,0" ToolTip="{Binding BackupFolder}" />
-                <ui:Button Content="Refresh" Icon="{ui:SymbolIcon ArrowCounterclockwise24}" Command="{Binding RefreshBackupsCommand}" />
-              </StackPanel>
-            </Grid>
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+              <ui:Button Content="Select all" Icon="{ui:SymbolIcon CheckboxChecked24}" Command="{Binding SelectAllCategoriesCommand}" Margin="0,0,8,0" />
+              <ui:Button Content="Clear" Icon="{ui:SymbolIcon CheckboxUnchecked24}" Command="{Binding ClearCategoriesCommand}" />
+            </StackPanel>
+            <ItemsControl ItemsSource="{Binding Categories}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <controls:AdaptiveGrid MinItemWidth="320" MaxColumns="2" Spacing="8" />
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemContainerStyle>
+                <Style TargetType="ContentPresenter">
+                  <Setter Property="Visibility" Value="{Binding IsVisible, Converter={StaticResource BoolToVisibility}}" />
+                </Style>
+              </ItemsControl.ItemContainerStyle>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate DataType="{x:Type vm:RegistryCategoryItem}">
+                  <Border Style="{StaticResource CategoryTile}">
+                    <Grid>
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                      </Grid.ColumnDefinitions>
+                      <CheckBox Grid.Column="0" IsChecked="{Binding IsSelected, Mode=TwoWay}" VerticalAlignment="Top" Margin="0,0,8,0"
+                                ToolTip="Include this category in the next scan" />
+                      <StackPanel Grid.Column="1" Margin="0,0,8,0">
+                        <ui:TextBlock FontTypography="BodyStrong" Text="{Binding Name}" TextWrapping="Wrap" />
+                        <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding Description}" TextWrapping="Wrap" />
+                        <ui:TextBlock Style="{StaticResource Caption}" Text="{Binding WhereItLooks}" TextWrapping="Wrap" Margin="0,2,0,0" />
+                      </StackPanel>
+                      <StackPanel Grid.Column="2" HorizontalAlignment="Right">
+                        <Border Style="{StaticResource RiskBadge}" ToolTip="{Binding RiskHint}" HorizontalAlignment="Right">
+                          <TextBlock Style="{StaticResource RiskBadgeText}" Text="{Binding RiskText}" />
+                        </Border>
+                        <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding StatusText}" HorizontalAlignment="Right" Margin="0,6,0,0" />
+                      </StackPanel>
+                    </Grid>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </ui:CardExpander>
+
+        <!-- Backups (rarely needed) -->
+        <ui:CardExpander Margin="0,0,0,12" ContentPadding="16" Icon="{ui:SymbolIcon History24}" IsExpanded="False">
+          <ui:CardExpander.Header>
+            <StackPanel>
+              <ui:TextBlock FontTypography="BodyStrong" Text="Backups" />
+              <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Text="Every fix is saved to a .reg file first. Restore puts the entries back."
+                            ToolTip="Backups are never deleted automatically." />
+            </StackPanel>
+          </ui:CardExpander.Header>
+          <StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+              <ui:Button Content="Open folder" Icon="{ui:SymbolIcon FolderOpen24}" Command="{Binding OpenBackupFolderCommand}" Margin="0,0,8,0" ToolTip="{Binding BackupFolder}" />
+              <ui:Button Content="Refresh" Icon="{ui:SymbolIcon ArrowCounterclockwise24}" Command="{Binding RefreshBackupsCommand}" />
+            </StackPanel>
 
             <ui:InfoBar Severity="Informational"
                         Title="Old backups"
@@ -453,11 +458,11 @@
               </ItemsControl.ItemTemplate>
             </ItemsControl>
           </StackPanel>
-        </ui:Card>
+        </ui:CardExpander>
       </StackPanel>
     </ScrollViewer>
 
-    <controls:BusyOverlay Grid.Row="0" Grid.RowSpan="4"
+    <controls:BusyOverlay Grid.Row="0" Grid.RowSpan="3"
                           IsBusy="{Binding IsBusy}"
                           Text="{Binding BusyText}"
                           CancelCommand="{Binding CancelCommand}" CanCancel="{Binding CanCancelBusy}" />
