@@ -8,7 +8,7 @@
       xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
       d:DataContext="{d:DesignInstance vm:SoftwareViewModel}"
       mc:Ignorable="d"
-      Title="Software"
+      Title="Apps"
       ScrollViewer.CanContentScroll="False">
   <Page.Resources>
     <!-- Small rounded label used for the source and bundle badges. -->
@@ -23,11 +23,15 @@
       <Setter Property="FontSize" Value="11" />
       <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
     </Style>
+    <Style x:Key="Tile" TargetType="controls:StatCard">
+      <Setter Property="Margin" Value="0" />
+    </Style>
     <DataTemplate x:Key="EnumItem">
       <TextBlock Text="{Binding Converter={StaticResource EnumToString}}" />
     </DataTemplate>
   </Page.Resources>
 
+  <!-- The program list is the page's scroller: it fills the remaining height and scrolls itself. -->
   <Grid Style="{StaticResource PageRoot}">
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto" />
@@ -35,67 +39,62 @@
       <RowDefinition Height="Auto" />
       <RowDefinition Height="Auto" />
       <RowDefinition Height="Auto" />
-      <RowDefinition Height="Auto" />
-      <RowDefinition Height="Auto" />
       <RowDefinition Height="*" />
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="Auto" />
     </Grid.RowDefinitions>
 
-    <!-- Header with the main actions. -->
-    <controls:SectionHeader Grid.Row="0" Title="Software" Subtitle="Installed programs and Store apps, where they live, what came bundled with them, and a safe way to remove them.">
+    <controls:SectionHeader Grid.Row="0" Title="Apps" Subtitle="Installed programs and Store apps, and a safe way to remove them.">
       <controls:SectionHeader.Actions>
         <StackPanel Orientation="Horizontal">
-          <ui:Button Content="Scan" Appearance="Primary" Icon="{ui:SymbolIcon Search24}" Command="{Binding ScanCommand}" Margin="0,0,8,0"
-                     ToolTip="Read the installed-programs lists from the registry and the Store." />
+          <ui:DropDownButton Content="More" Icon="{ui:SymbolIcon MoreHorizontal24}" Margin="0,0,8,0">
+            <ui:DropDownButton.Flyout>
+              <ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+                <MenuItem Header="Export CSV…" Command="{Binding ExportCsvCommand}" IsEnabled="{Binding HasResults}"
+                          ToolTip="Save the whole list as a spreadsheet file." />
+                <MenuItem Header="Check for upgrades" Command="{Binding CheckWingetUpgradesCommand}"
+                          Visibility="{Binding IsAdvancedMode, Converter={StaticResource BoolToVisibility}}"
+                          ToolTip="Ask the Windows Package Manager (winget) which programs have a newer version. Nothing is installed." />
+              </ContextMenu>
+            </ui:DropDownButton.Flyout>
+          </ui:DropDownButton>
           <ui:Button Content="Calculate sizes" Icon="{ui:SymbolIcon Ruler24}" Command="{Binding CalculateSizesCommand}" IsEnabled="{Binding HasResults}" Margin="0,0,8,0"
                      ToolTip="Measure each program's install folder. Takes a moment on large drives; you can cancel." />
-          <ui:Button Content="Export CSV" Icon="{ui:SymbolIcon DocumentTable24}" Command="{Binding ExportCsvCommand}" IsEnabled="{Binding HasResults}" Margin="0,0,8,0"
-                     ToolTip="Save the whole list as a spreadsheet file." />
-          <ui:Button Content="Check for upgrades" Icon="{ui:SymbolIcon ArrowDownload24}" Command="{Binding CheckWingetUpgradesCommand}"
-                     Visibility="{Binding IsAdvancedMode, Converter={StaticResource BoolToVisibility}}"
-                     ToolTip="Ask the Windows Package Manager (winget) which programs have a newer version. Nothing is installed." />
+          <ui:Button Content="Scan" Appearance="Primary" Icon="{ui:SymbolIcon Search24}" Command="{Binding ScanCommand}"
+                     ToolTip="Read the installed-programs lists from the registry and the Store." />
         </StackPanel>
       </controls:SectionHeader.Actions>
     </controls:SectionHeader>
 
-    <ui:InfoBar Grid.Row="1"
-                Severity="Error"
-                Title="Something went wrong"
-                Message="{Binding ErrorMessage}"
-                IsOpen="{Binding HasError, Mode=OneWay}"
-                IsClosable="True"
-                Margin="0,0,0,12" />
+    <StackPanel Grid.Row="1">
+      <ui:InfoBar Severity="Error" Title="Something went wrong" Message="{Binding ErrorMessage}"
+                  IsOpen="{Binding HasError, Mode=OneWay}" IsClosable="True" Margin="0,0,0,12" />
+      <ui:InfoBar Severity="Warning" Title="Some entries could not be read"
+                  IsOpen="{Binding HasWarnings, Mode=OneWay}" IsClosable="True" Margin="0,0,0,12">
+        <ItemsControl ItemsSource="{Binding Warnings}" Margin="0,0,0,4">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate>
+              <ui:TextBlock Text="{Binding}" TextWrapping="Wrap" FontSize="12" />
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </ui:InfoBar>
+    </StackPanel>
 
-    <ui:InfoBar Grid.Row="2"
-                Severity="Warning"
-                Title="Some entries could not be read"
-                IsOpen="{Binding HasWarnings, Mode=OneWay}"
-                IsClosable="True"
-                Margin="0,0,0,12">
-      <ItemsControl ItemsSource="{Binding Warnings}" Margin="0,0,0,4">
-        <ItemsControl.ItemTemplate>
-          <DataTemplate>
-            <ui:TextBlock Text="{Binding}" TextWrapping="Wrap" FontSize="12" />
-          </DataTemplate>
-        </ItemsControl.ItemTemplate>
-      </ItemsControl>
-    </ui:InfoBar>
+    <!-- Summary -->
+    <controls:AdaptiveGrid Grid.Row="2" MinItemWidth="200" MaxColumns="4" Margin="0,0,0,12"
+                           Visibility="{Binding HasScanned, Converter={StaticResource BoolToVisibility}}">
+      <controls:StatCard Style="{StaticResource Tile}" Title="Programs" Value="{Binding ProgramCount}" Icon="Apps24" Accent="{StaticResource AccentCyanBrush}" Subtitle="{Binding LastScanText}" />
+      <controls:StatCard Style="{StaticResource Tile}" Title="Store apps" Value="{Binding StoreAppCount}" Icon="StoreMicrosoft24" Accent="{StaticResource AccentPurpleBrush}" Subtitle="From the Microsoft Store" />
+      <controls:StatCard Style="{StaticResource Tile}" Title="Bundles detected" Value="{Binding BundleCount}" Icon="BoxMultiple24" Accent="{StaticResource AccentOrangeBrush}" Subtitle="Programs that arrived together" />
+      <controls:StatCard Style="{StaticResource Tile}" Title="Total size known" Value="{Binding TotalSizeText}" Icon="HardDrive20" Accent="{StaticResource AccentGreenBrush}" Subtitle="{Binding SizeKnownText}" />
+    </controls:AdaptiveGrid>
 
-    <!-- Headline numbers. -->
-    <UniformGrid Grid.Row="3" Columns="4" Margin="-6,0,-6,12" Visibility="{Binding HasScanned, Converter={StaticResource BoolToVisibility}}">
-      <controls:StatCard Title="Programs" Value="{Binding ProgramCount}" Icon="Apps24" Accent="{StaticResource AccentCyanBrush}" Subtitle="{Binding LastScanText}" Margin="6,0" />
-      <controls:StatCard Title="Store apps" Value="{Binding StoreAppCount}" Icon="StoreMicrosoft24" Accent="{StaticResource AccentPurpleBrush}" Subtitle="From the Microsoft Store" Margin="6,0" />
-      <controls:StatCard Title="Bundles detected" Value="{Binding BundleCount}" Icon="BoxMultiple24" Accent="{StaticResource AccentOrangeBrush}" Subtitle="Programs that arrived together" Margin="6,0" />
-      <controls:StatCard Title="Total size known" Value="{Binding TotalSizeText}" Icon="HardDrive20" Accent="{StaticResource AccentGreenBrush}" Subtitle="{Binding SizeKnownText}" Margin="6,0" />
-    </UniformGrid>
-
-    <!-- Filter bar. -->
-    <ui:Card Grid.Row="4" Padding="12" Margin="0,0,0,12" Visibility="{Binding HasResults, Converter={StaticResource BoolToVisibility}}">
+    <!-- Filter bar: search, source and sort. Uninstall settings live in Options at the bottom. -->
+    <ui:Card Grid.Row="3" Padding="16" Margin="0,0,0,12" Visibility="{Binding HasResults, Converter={StaticResource BoolToVisibility}}">
       <Grid>
         <Grid.ColumnDefinitions>
           <ColumnDefinition Width="*" MinWidth="200" />
-          <ColumnDefinition Width="Auto" />
-          <ColumnDefinition Width="Auto" />
-          <ColumnDefinition Width="Auto" />
           <ColumnDefinition Width="Auto" />
           <ColumnDefinition Width="Auto" />
           <ColumnDefinition Width="Auto" />
@@ -114,36 +113,30 @@
           <ui:TextBlock Text="Sort by" Style="{StaticResource Muted}" VerticalAlignment="Center" Margin="0,0,6,0" />
           <ComboBox MinWidth="190" ItemsSource="{Binding SortOrders}" SelectedItem="{Binding SortOrder}" ItemTemplate="{StaticResource EnumItem}" />
         </StackPanel>
-        <ui:ToggleSwitch Grid.Column="3" Content="Show bundled groups" IsChecked="{Binding ShowBundles}" Margin="0,0,12,0"
-                         ToolTip="Show cards for programs that were installed together, such as a browser that came with an antivirus." />
-        <ui:ToggleSwitch Grid.Column="4" Content="Quiet uninstall" IsChecked="{Binding QuietUninstall}" Margin="0,0,12,0"
-                         ToolTip="Run uninstallers with their silent switches so no installer windows appear. Turn off to follow each uninstaller's own prompts." />
-        <ui:ToggleSwitch Grid.Column="5" Content="Remove Store apps for all users" IsChecked="{Binding RemoveStoreAppsForAllUsers}" Margin="0,0,12,0"
-                         Visibility="{Binding IsAdvancedMode, Converter={StaticResource BoolToVisibility}}"
-                         ToolTip="Advanced: remove a Store app from every user account on this PC (Remove-AppxPackage -AllUsers) instead of only yours. The confirmation dialog states the scope." />
-        <ui:TextBlock Grid.Column="6" Text="{Binding FilterSummary}" Style="{StaticResource Muted}" VerticalAlignment="Center" />
+        <ui:TextBlock Grid.Column="3" Text="{Binding FilterSummary}" Style="{StaticResource Muted}" VerticalAlignment="Center" />
       </Grid>
     </ui:Card>
 
-    <!-- Bundle cards. -->
-    <ui:CardExpander Grid.Row="5" Margin="0,0,0,12" IsExpanded="True" Icon="{ui:SymbolIcon BoxMultiple24}"
+    <!-- Bundles: collapsed so the program list keeps the room; rows in the list carry a bundle badge too. -->
+    <ui:CardExpander Grid.Row="4" Margin="0,0,0,12" IsExpanded="False" Icon="{ui:SymbolIcon BoxMultiple24}"
                      Visibility="{Binding ShowBundleSection, Converter={StaticResource BoolToVisibility}}">
       <ui:CardExpander.Header>
         <StackPanel>
           <ui:TextBlock FontTypography="BodyStrong" Text="Installed alongside" />
-          <ui:TextBlock Style="{StaticResource Muted}" Text="Programs that arrived together. Extras you did not ask for can be removed; runtime dependencies are best kept." TextWrapping="Wrap" />
+          <ui:TextBlock Style="{StaticResource Muted}" Text="Programs that arrived together. Extras can go; runtimes are best kept." TextWrapping="Wrap"
+                        ToolTip="Extras you did not ask for can be removed. Runtime dependencies are best kept, because other programs need them." />
         </StackPanel>
       </ui:CardExpander.Header>
       <ScrollViewer MaxHeight="240" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
         <ItemsControl ItemsSource="{Binding Bundles}">
           <ItemsControl.ItemsPanel>
             <ItemsPanelTemplate>
-              <WrapPanel />
+              <controls:AdaptiveGrid MinItemWidth="340" MaxColumns="3" />
             </ItemsPanelTemplate>
           </ItemsControl.ItemsPanel>
           <ItemsControl.ItemTemplate>
             <DataTemplate>
-              <ui:Card Width="380" Margin="0,0,12,12" Padding="14">
+              <ui:Card Padding="16" VerticalAlignment="Stretch" VerticalContentAlignment="Top">
                 <StackPanel>
                   <ui:TextBlock FontTypography="BodyStrong" Text="{Binding ParentName}" TextTrimming="CharacterEllipsis" />
                   <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding Reason}" TextWrapping="Wrap" Margin="0,2,0,8" />
@@ -175,46 +168,8 @@
       </ScrollViewer>
     </ui:CardExpander>
 
-    <!-- winget upgrades (advanced). -->
-    <ui:CardExpander Grid.Row="6" Margin="0,0,0,12" IsExpanded="True" Icon="{ui:SymbolIcon ArrowDownload24}"
-                     Visibility="{Binding WingetStatus, Converter={StaticResource NullToVisibility}}">
-      <ui:CardExpander.Header>
-        <StackPanel>
-          <ui:TextBlock FontTypography="BodyStrong" Text="Upgrades available via winget" />
-          <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding WingetStatus}" TextWrapping="Wrap" />
-        </StackPanel>
-      </ui:CardExpander.Header>
-      <StackPanel>
-        <ItemsControl ItemsSource="{Binding WingetUpgrades}">
-          <ItemsControl.ItemTemplate>
-            <DataTemplate>
-              <Grid Margin="0,3">
-                <Grid.ColumnDefinitions>
-                  <ColumnDefinition Width="2*" />
-                  <ColumnDefinition Width="2*" />
-                  <ColumnDefinition Width="*" />
-                  <ColumnDefinition Width="Auto" />
-                  <ColumnDefinition Width="*" />
-                </Grid.ColumnDefinitions>
-                <ui:TextBlock Grid.Column="0" Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
-                <ui:TextBlock Grid.Column="1" Text="{Binding Id}" Style="{StaticResource Muted}" TextTrimming="CharacterEllipsis" />
-                <ui:TextBlock Grid.Column="2" Text="{Binding Version}" Style="{StaticResource Muted}" />
-                <ui:SymbolIcon Grid.Column="3" Symbol="ArrowRight16" Margin="8,0" />
-                <ui:TextBlock Grid.Column="4" Text="{Binding Available}" FontWeight="SemiBold" />
-              </Grid>
-            </DataTemplate>
-          </ItemsControl.ItemTemplate>
-        </ItemsControl>
-        <StackPanel Orientation="Horizontal" Margin="0,8,0,0" Visibility="{Binding HasWingetUpgrades, Converter={StaticResource BoolToVisibility}}">
-          <ui:TextBlock Style="{StaticResource Muted}" VerticalAlignment="Center"
-                        Text="To upgrade, open a terminal and run: winget upgrade --id &lt;Id&gt; (or winget upgrade --all)." />
-          <ui:HyperlinkButton Content="How winget upgrade works" Command="{Binding OpenWingetUpgradeHelpCommand}" Margin="8,0,0,0" />
-        </StackPanel>
-      </StackPanel>
-    </ui:CardExpander>
-
     <!-- Main list. -->
-    <Grid Grid.Row="7">
+    <Grid Grid.Row="5">
       <ui:DataGrid ItemsSource="{Binding Programs}"
                    SelectedItem="{Binding SelectedProgram, Mode=TwoWay}"
                    AutoGenerateColumns="False"
@@ -348,6 +303,66 @@
         </controls:EmptyState.Action>
       </controls:EmptyState>
     </Grid>
+
+    <!-- winget upgrades (advanced): shown after "Check for upgrades" in the More menu. -->
+    <ui:CardExpander Grid.Row="6" Margin="0,12,0,0" IsExpanded="True" Icon="{ui:SymbolIcon ArrowDownload24}"
+                     Visibility="{Binding WingetStatus, Converter={StaticResource NullToVisibility}}">
+      <ui:CardExpander.Header>
+        <StackPanel>
+          <ui:TextBlock FontTypography="BodyStrong" Text="Upgrades available via winget" />
+          <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding WingetStatus}" TextWrapping="Wrap" />
+        </StackPanel>
+      </ui:CardExpander.Header>
+      <StackPanel>
+        <ScrollViewer MaxHeight="200" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+          <ItemsControl ItemsSource="{Binding WingetUpgrades}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <Grid Margin="0,3">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="2*" />
+                    <ColumnDefinition Width="2*" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                  </Grid.ColumnDefinitions>
+                  <ui:TextBlock Grid.Column="0" Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                  <ui:TextBlock Grid.Column="1" Text="{Binding Id}" Style="{StaticResource Muted}" TextTrimming="CharacterEllipsis" />
+                  <ui:TextBlock Grid.Column="2" Text="{Binding Version}" Style="{StaticResource Muted}" />
+                  <ui:SymbolIcon Grid.Column="3" Symbol="ArrowRight16" Margin="8,0" />
+                  <ui:TextBlock Grid.Column="4" Text="{Binding Available}" FontWeight="SemiBold" />
+                </Grid>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </ScrollViewer>
+        <StackPanel Orientation="Horizontal" Margin="0,8,0,0" Visibility="{Binding HasWingetUpgrades, Converter={StaticResource BoolToVisibility}}">
+          <ui:TextBlock Style="{StaticResource Muted}" VerticalAlignment="Center"
+                        Text="To upgrade, run winget upgrade --id &lt;Id&gt; (or --all) in a terminal." />
+          <ui:HyperlinkButton Content="How winget upgrade works" Command="{Binding OpenWingetUpgradeHelpCommand}" Margin="8,0,0,0" />
+        </StackPanel>
+      </StackPanel>
+    </ui:CardExpander>
+
+    <!-- Options: how removals run and which extra cards are shown. -->
+    <ui:CardExpander Grid.Row="7" Margin="0,12,0,0" IsExpanded="False" Icon="{ui:SymbolIcon Options24}"
+                     Visibility="{Binding HasResults, Converter={StaticResource BoolToVisibility}}">
+      <ui:CardExpander.Header>
+        <StackPanel>
+          <ui:TextBlock FontTypography="BodyStrong" Text="Options" />
+          <ui:TextBlock Style="{StaticResource Muted}" Text="Bundle cards and how uninstallers run." />
+        </StackPanel>
+      </ui:CardExpander.Header>
+      <StackPanel>
+        <ui:ToggleSwitch Content="Show bundled groups" IsChecked="{Binding ShowBundles}" Margin="0,0,0,8"
+                         ToolTip="Show cards for programs that were installed together, such as a browser that came with an antivirus." />
+        <ui:ToggleSwitch Content="Quiet uninstall" IsChecked="{Binding QuietUninstall}"
+                         ToolTip="Run uninstallers with their silent switches so no installer windows appear. Turn off to follow each uninstaller's own prompts." />
+        <ui:ToggleSwitch Content="Remove Store apps for all users" IsChecked="{Binding RemoveStoreAppsForAllUsers}" Margin="0,8,0,0"
+                         Visibility="{Binding IsAdvancedMode, Converter={StaticResource BoolToVisibility}}"
+                         ToolTip="Advanced: remove a Store app from every user account on this PC (Remove-AppxPackage -AllUsers) instead of only yours. The confirmation dialog states the scope." />
+      </StackPanel>
+    </ui:CardExpander>
 
     <controls:BusyOverlay Grid.Row="0" Grid.RowSpan="8"
                           IsBusy="{Binding IsBusy}"
