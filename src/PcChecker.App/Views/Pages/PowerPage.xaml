@@ -12,6 +12,10 @@
       Title="Power"
       ScrollViewer.CanContentScroll="False">
   <Page.Resources>
+    <Style x:Key="Tile" TargetType="controls:StatCard">
+      <Setter Property="Margin" Value="0" />
+    </Style>
+
     <DataTemplate x:Key="ComponentRow" DataType="{x:Type power:PowerComponentRow}">
       <Grid Margin="0,5">
         <Grid.ColumnDefinitions>
@@ -41,11 +45,17 @@
       <RowDefinition Height="*" />
     </Grid.RowDefinitions>
 
-    <controls:SectionHeader Grid.Row="0" Title="Power" Subtitle="How much electricity the PC is drawing right now, what it costs, and which Windows power plan is active.">
+    <controls:SectionHeader Grid.Row="0" Title="Power" Subtitle="What the PC draws right now, what it costs, and the active power plan.">
       <controls:SectionHeader.Actions>
         <StackPanel Orientation="Horizontal">
-          <ui:Button Content="Reset session" Icon="{ui:SymbolIcon ArrowReset24}" Command="{Binding ResetSessionCommand}" Margin="0,0,8,0"
-                     ToolTip="Start the energy and cost counters again from zero." />
+          <ui:DropDownButton Content="More" Icon="{ui:SymbolIcon MoreHorizontal24}" Margin="0,0,8,0">
+            <ui:DropDownButton.Flyout>
+              <ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+                <MenuItem Header="Reset session" Command="{Binding ResetSessionCommand}"
+                          ToolTip="Start the energy and cost counters again from zero." />
+              </ContextMenu>
+            </ui:DropDownButton.Flyout>
+          </ui:DropDownButton>
           <ui:Button Content="Refresh" Icon="{ui:SymbolIcon ArrowSync24}" Command="{Binding RefreshPlansCommand}" ToolTip="Re-read the power plans and readings." />
         </StackPanel>
       </controls:SectionHeader.Actions>
@@ -55,7 +65,8 @@
       <ui:InfoBar Severity="Error" Title="Something went wrong" Message="{Binding ErrorMessage}" IsOpen="{Binding HasError, Mode=OneWay}" IsClosable="True" Margin="0,0,0,12" />
       <ui:InfoBar Severity="Informational" Title="These numbers are estimates" IsOpen="True" IsClosable="True" Margin="0,0,0,12"
                   Visibility="{Binding IsEstimate, Converter={StaticResource BoolToVisibility}}"
-                  Message="This PC has no power supply with telemetry, so the total is worked out from the processor and graphics card sensors plus a typical allowance for the motherboard, memory, drives and fans. Expect it to be within about 15% of a wall meter." />
+                  Message="No power supply telemetry here, so the total adds a typical allowance to the CPU and GPU sensors. Expect within about 15% of a wall meter."
+                  ToolTip="The allowance covers the motherboard, memory, drives and fans, which have no power sensors." />
       <ui:InfoBar Severity="Warning" Title="No power readings" IsOpen="True" IsClosable="False" Margin="0,0,0,12"
                   Visibility="{Binding HasPowerData, Converter={StaticResource InverseBoolToVisibility}}"
                   Message="{Binding StatusText}" />
@@ -63,36 +74,37 @@
 
     <ScrollViewer Grid.Row="2" Style="{StaticResource PageScroll}">
       <StackPanel>
-        <!-- Headline numbers -->
-        <WrapPanel Margin="0,0,0,4">
-          <controls:StatCard Title="Total draw now" Value="{Binding TotalText}" Unit="W" Icon="Flash24" Accent="{StaticResource AccentCyanBrush}" Subtitle="{Binding TotalSubtitle}" Margin="0,0,12,12" Width="230" />
-          <controls:StatCard Title="Processor" Value="{Binding CpuText}" Unit="W" Icon="DeveloperBoard24" Accent="{StaticResource AccentPurpleBrush}" Subtitle="CPU package" Margin="0,0,12,12" Width="200" />
-          <controls:StatCard Title="Graphics card" Value="{Binding GpuText}" Unit="W" Icon="VideoClip24" Accent="{StaticResource AccentGreenBrush}" Subtitle="GPU board" Margin="0,0,12,12" Width="200" />
-          <controls:StatCard Title="Battery" Value="{Binding BatteryText}" Unit="W" Icon="BatteryCharge24" Accent="{StaticResource AccentYellowBrush}" Subtitle="{Binding BatterySubtitle}" Margin="0,0,12,12" Width="200"
+        <!-- Summary -->
+        <controls:AdaptiveGrid MinItemWidth="200" MaxColumns="4" Margin="0,0,0,12">
+          <controls:StatCard Style="{StaticResource Tile}" Title="Total draw now" Value="{Binding TotalText}" Unit="W" Icon="Flash24" Accent="{StaticResource AccentCyanBrush}" Subtitle="{Binding TotalSubtitle}" />
+          <controls:StatCard Style="{StaticResource Tile}" Title="Processor" Value="{Binding CpuText}" Unit="W" Icon="DeveloperBoard24" Accent="{StaticResource AccentPurpleBrush}" Subtitle="CPU package" />
+          <controls:StatCard Style="{StaticResource Tile}" Title="Graphics card" Value="{Binding GpuText}" Unit="W" Icon="VideoClip24" Accent="{StaticResource AccentGreenBrush}" Subtitle="GPU board" />
+          <controls:StatCard Style="{StaticResource Tile}" Title="Battery" Value="{Binding BatteryText}" Unit="W" Icon="BatteryCharge24" Accent="{StaticResource AccentYellowBrush}" Subtitle="{Binding BatterySubtitle}"
                              Visibility="{Binding HasBattery, Converter={StaticResource BoolToVisibility}}" />
-          <controls:StatCard Title="Energy this session" Value="{Binding EnergyText}" Unit="Wh" Icon="ChartMultiple24" Accent="{StaticResource AccentOrangeBrush}" Subtitle="{Binding EnergySubtitle}" Margin="0,0,12,12" Width="220" />
-          <controls:StatCard Title="Cost per hour" Value="{Binding CostHourText}" Icon="Receipt24" Accent="{StaticResource AccentGreyBrush}" Subtitle="At the current draw" Margin="0,0,12,12" Width="200" />
-          <controls:StatCard Title="Cost per day" Value="{Binding CostDayText}" Icon="CalendarClock24" Accent="{StaticResource AccentGreyBrush}" Subtitle="If it ran like this for 24 h" Margin="0,0,12,12" Width="220" />
-        </WrapPanel>
+          <controls:StatCard Style="{StaticResource Tile}" Title="Energy this session" Value="{Binding EnergyText}" Unit="Wh" Icon="ChartMultiple24" Accent="{StaticResource AccentOrangeBrush}" Subtitle="{Binding EnergySubtitle}" />
+          <controls:StatCard Style="{StaticResource Tile}" Title="Cost per hour" Value="{Binding CostHourText}" Icon="Receipt24" Accent="{StaticResource AccentGreyBrush}" Subtitle="At the current draw" />
+          <controls:StatCard Style="{StaticResource Tile}" Title="Cost per day" Value="{Binding CostDayText}" Icon="CalendarClock24" Accent="{StaticResource AccentGreyBrush}" Subtitle="If it ran like this for 24 h" />
+        </controls:AdaptiveGrid>
 
         <!-- History -->
         <ui:Card Style="{StaticResource CardSpacing}">
           <StackPanel>
-            <Grid Margin="0,0,0,8">
+            <Grid>
               <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
               </Grid.ColumnDefinitions>
-              <StackPanel Grid.Column="0">
+              <StackPanel Grid.Column="0" Margin="0,0,0,8">
                 <ui:TextBlock FontTypography="BodyStrong" Text="Total draw over time" />
                 <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding HistorySummary}" />
               </StackPanel>
-              <ui:TextBlock Grid.Column="1" Style="{StaticResource Muted}" Text="{Binding StatusText}" VerticalAlignment="Top" />
+              <ui:TextBlock Grid.Column="1" Style="{StaticResource Muted}" Text="{Binding StatusText}" VerticalAlignment="Top" Margin="12,0,0,0" />
             </Grid>
             <controls:SparklineControl Height="90" ItemsSource="{Binding History}" Minimum="0" />
           </StackPanel>
         </ui:Card>
 
+        <!-- Main content: components beside battery and power plan -->
         <Grid>
           <Grid.ColumnDefinitions>
             <ColumnDefinition Width="3*" />
@@ -100,10 +112,10 @@
           </Grid.ColumnDefinitions>
 
           <!-- Components -->
-          <ui:Card Grid.Column="0" Style="{StaticResource CardSpacing}" Margin="0,0,12,12" VerticalAlignment="Top">
+          <ui:Card Grid.Column="0" Padding="16" Margin="0,0,12,12" VerticalAlignment="Top">
             <StackPanel>
-              <ui:TextBlock FontTypography="BodyStrong" Text="By component" />
-              <ui:TextBlock Style="{StaticResource Muted}" Text="Every part that reports its own power use. Parts without a sensor are covered by the estimate." Margin="0,0,0,8" TextWrapping="Wrap" />
+              <ui:TextBlock Style="{StaticResource CardTitle}" Text="By component"
+                            ToolTip="Every part that reports its own power use. Parts without a sensor are covered by the estimate." />
               <ItemsControl ItemsSource="{Binding Components}" ItemTemplate="{StaticResource ComponentRow}" />
               <ui:TextBlock Style="{StaticResource Muted}" Text="No component reports its power on this PC." Margin="0,4,0,0"
                             Visibility="{Binding HasPowerData, Converter={StaticResource InverseBoolToVisibility}}" />
@@ -129,12 +141,11 @@
             <!-- Power plan -->
             <ui:Card Style="{StaticResource CardSpacing}">
               <StackPanel>
-                <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
                   <ui:SymbolIcon Symbol="Power24" FontSize="20" Margin="0,0,8,0" />
-                  <ui:TextBlock FontTypography="BodyStrong" Text="Windows power plan" VerticalAlignment="Center" />
+                  <ui:TextBlock FontTypography="BodyStrong" Text="Windows power plan" VerticalAlignment="Center"
+                                ToolTip="A power plan tells Windows how to balance speed against power use. Switching is safe and can be undone at any time. If restore points before changes are on in Settings, one is created first, which can take a few seconds." />
                 </StackPanel>
-                <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,8"
-                              Text="A power plan tells Windows how to balance speed against power use. Switching is safe and can be undone at any time. If restore points before changes are on in Settings, one is created first, which can take a few seconds." />
                 <ui:TextBlock Margin="0,0,0,8">
                   <Run Text="Active now: " /><Run FontWeight="SemiBold" Text="{Binding ActivePlanName, Mode=OneWay}" />
                 </ui:TextBlock>
@@ -142,36 +153,38 @@
                 <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding SelectedPlanExplanation}" TextWrapping="Wrap" Margin="0,8,0,8" />
                 <ui:TextBlock Style="{StaticResource Muted}" Text="Power plans could not be read. Open Windows Settings > System > Power to change them."
                               TextWrapping="Wrap" Margin="0,0,0,8" Visibility="{Binding PlansUnavailable, Converter={StaticResource BoolToVisibility}}" />
-                <ui:Button Content="Switch to this plan" Appearance="Primary" Icon="{ui:SymbolIcon Checkmark24}" Command="{Binding ApplyPlanCommand}" HorizontalAlignment="Right" />
-              </StackPanel>
-            </ui:Card>
-
-            <!-- Electricity price -->
-            <ui:Card Style="{StaticResource CardSpacing}">
-              <StackPanel>
-                <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
-                  <ui:SymbolIcon Symbol="Receipt24" FontSize="20" Margin="0,0,8,0" />
-                  <ui:TextBlock FontTypography="BodyStrong" Text="Electricity price" VerticalAlignment="Center" />
-                </StackPanel>
-                <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,8"
-                              Text="Used for the cost figures above. Your price per kilowatt-hour (kWh) is on your electricity bill." />
-                <Grid>
-                  <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="70" />
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                  </Grid.ColumnDefinitions>
-                  <ui:TextBox Grid.Column="0" Text="{Binding CurrencySymbol, UpdateSourceTrigger=PropertyChanged}" PlaceholderText="$" MaxLength="4" Margin="0,0,8,0" ToolTip="Currency symbol" />
-                  <ui:NumberBox Grid.Column="1" Value="{Binding PricePerKwh, Mode=TwoWay}" Minimum="0" Maximum="10" SmallChange="0.01" MaxDecimalPlaces="4" PlaceholderText="Price per kWh" />
-                  <ui:Button Grid.Column="2" Content="Save" Icon="{ui:SymbolIcon Save24}" Command="{Binding SavePriceCommand}" Margin="8,0,0,0" />
-                </Grid>
-                <ui:TextBlock Style="{StaticResource Muted}" Margin="0,8,0,0">
-                  <Run Text="Session so far: " /><Run FontWeight="SemiBold" Text="{Binding SessionCostText, Mode=OneWay}" />
-                </ui:TextBlock>
+                <ui:Button Content="Switch to this plan" Appearance="Primary" Icon="{ui:SymbolIcon Checkmark24}" Command="{Binding ApplyPlanCommand}" HorizontalAlignment="Right"
+                           ToolTip="Safe, and can be undone at any time." />
               </StackPanel>
             </ui:Card>
           </StackPanel>
         </Grid>
+
+        <!-- Options: electricity price for the cost figures -->
+        <ui:CardExpander Margin="0,0,0,12" ContentPadding="16" Icon="{ui:SymbolIcon Receipt24}" IsExpanded="False">
+          <ui:CardExpander.Header>
+            <StackPanel>
+              <ui:TextBlock FontTypography="BodyStrong" Text="Electricity price" />
+              <ui:TextBlock Style="{StaticResource Muted}">
+                <Run Text="Used for the cost figures. Session so far: " /><Run FontWeight="SemiBold" Text="{Binding SessionCostText, Mode=OneWay}" />
+              </ui:TextBlock>
+            </StackPanel>
+          </ui:CardExpander.Header>
+          <StackPanel>
+            <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,8"
+                          Text="Your price per kilowatt-hour (kWh) is on your electricity bill." />
+            <Grid MaxWidth="420" HorizontalAlignment="Left">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="70" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
+              <ui:TextBox Grid.Column="0" Text="{Binding CurrencySymbol, UpdateSourceTrigger=PropertyChanged}" PlaceholderText="$" MaxLength="4" Margin="0,0,8,0" ToolTip="Currency symbol" />
+              <ui:NumberBox Grid.Column="1" Value="{Binding PricePerKwh, Mode=TwoWay}" Minimum="0" Maximum="10" SmallChange="0.01" MaxDecimalPlaces="4" PlaceholderText="Price per kWh" MinWidth="200" />
+              <ui:Button Grid.Column="2" Content="Save" Icon="{ui:SymbolIcon Save24}" Command="{Binding SavePriceCommand}" Margin="8,0,0,0" />
+            </Grid>
+          </StackPanel>
+        </ui:CardExpander>
       </StackPanel>
     </ScrollViewer>
 
