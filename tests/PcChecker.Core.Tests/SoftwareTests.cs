@@ -445,6 +445,51 @@ public class WingetListParserTests
     {
         Assert.Empty(WingetListParser.Parse("No installed package found matching input criteria."));
         Assert.Empty(WingetListParser.Parse(null));
+        Assert.Null(WingetListParser.TryParse("No installed package found matching input criteria."));
+    }
+
+    private const string GermanSample =
+        "   -\r   \\\r                                                    \r" +
+        "Name                     ID                    Version    Verfügbar  Quelle\r\n" +
+        "-----------------------------------------------------------------------------\r\n" +
+        "Discord                  Discord.Discord       1.0.9170   1.0.9175   winget\r\n" +
+        "Mozilla Firefox (x64 de) Mozilla.Firefox       128.0      129.0      winget\r\n" +
+        "7-Zip 24.08 (x64)        7zip.7zip             24.08                 winget\r\n" +
+        "2 Aktualisierungen verfügbar.\r\n" +
+        "\r\n" +
+        "Die folgenden Pakete haben ein verfügbares Upgrade, erfordern jedoch eine explizite Zielbestimmung für das Upgrade:\r\n" +
+        "Name                     ID                    Version    Verfügbar  Quelle\r\n" +
+        "-----------------------------------------------------------------------------\r\n" +
+        "Pinned App               Pinned.App            1.0        2.0        winget\r\n";
+
+    [Fact]
+    public void Translated_header_is_read_from_the_line_above_the_separator()
+    {
+        var rows = WingetListParser.Parse(GermanSample);
+        Assert.Equal(3, rows.Count);
+        Assert.Equal("Discord", rows[0].Name);
+        Assert.Equal("Discord.Discord", rows[0].Id);
+        Assert.Equal("1.0.9170", rows[0].Version);
+        Assert.Equal("1.0.9175", rows[0].Available);
+        Assert.Equal("winget", rows[0].Source);
+        Assert.Equal("Mozilla Firefox (x64 de)", rows[1].Name);
+        Assert.Null(rows[2].Available);
+
+        var upgrades = WingetListParser.UpgradesOnly(rows);
+        Assert.Equal(["Discord.Discord", "Mozilla.Firefox"], upgrades.Select(u => u.Id));
+    }
+
+    [Fact]
+    public void Unreadable_output_is_not_reported_as_up_to_date()
+    {
+        var unknown = WingetUpgradeChecker.Interpret("Es wurde kein installiertes Paket gefunden, das den Eingabekriterien entspricht.");
+        Assert.Empty(unknown.Upgrades);
+        Assert.DoesNotContain("up to date", unknown.Note);
+
+        Assert.Contains("up to date", WingetUpgradeChecker.Interpret("No installed package found matching input criteria.").Note);
+        var german = WingetUpgradeChecker.Interpret(GermanSample);
+        Assert.Equal(2, german.Upgrades.Count);
+        Assert.Null(german.Note);
     }
 }
 

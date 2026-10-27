@@ -86,9 +86,7 @@ public static class WingetUpgradeChecker
                 return new WingetUpgradeResult(true, [], "winget did not answer in time. Try again later.");
             }
 
-            var entries = WingetListParser.Parse(stdout.ToString());
-            var upgrades = WingetListParser.UpgradesOnly(entries);
-            return new WingetUpgradeResult(true, upgrades, upgrades.Count == 0 ? "Everything winget knows about is up to date." : null);
+            return Interpret(stdout.ToString());
         }
         catch (OperationCanceledException)
         {
@@ -98,6 +96,27 @@ public static class WingetUpgradeChecker
         {
             return new WingetUpgradeResult(true, [], "winget could not be run: " + ex.Message);
         }
+    }
+
+    /// <summary>
+    /// Turns <c>winget upgrade</c> output into a result. "Up to date" is only claimed when a table was read, or when
+    /// winget said so in English; output that could not be read is reported as such instead.
+    /// </summary>
+    public static WingetUpgradeResult Interpret(string? output)
+    {
+        var entries = WingetListParser.TryParse(output);
+        if (entries is null)
+        {
+            bool nothingToUpgrade = output is not null
+                && (output.Contains("No installed package found", StringComparison.OrdinalIgnoreCase)
+                    || output.Contains("No applicable update", StringComparison.OrdinalIgnoreCase));
+            return new WingetUpgradeResult(true, [], nothingToUpgrade
+                ? "Everything winget knows about is up to date."
+                : "winget's answer could not be read, so it is not known whether updates are available. Run \"winget upgrade\" in a terminal to see the list.");
+        }
+
+        var upgrades = WingetListParser.UpgradesOnly(entries);
+        return new WingetUpgradeResult(true, upgrades, upgrades.Count == 0 ? "Everything winget knows about is up to date." : null);
     }
 
     private static void TryKill(Process process)
