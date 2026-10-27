@@ -207,6 +207,25 @@ public static class ScheduleRules
         return exe is not null && !SamePath(exe, currentExecutable);
     }
 
+    /// <summary>
+    /// Why a task cannot be created when the app runs as a different (administrator) account than the person signed in,
+    /// or null when both are the same account or either is unknown. Such a task runs with the administrator's
+    /// interactive token, so Windows only starts it while that administrator is signed in, never for the signed-in user.
+    /// </summary>
+    public static string? WrongAccountProblem(string? processUser, string? sessionUser, string what)
+    {
+        if (!Common.ElevatedUserScope.Differs(processUser, sessionUser))
+        {
+            return null;
+        }
+
+        var admin = processUser!.Trim();
+        var user = sessionUser!.Trim();
+        return $"PC Checker is running as the administrator account {admin}, not as {user} who is signed in. "
+            + $"Windows can only {what} without a UAC prompt in {admin}'s own session, so it would never happen for {user}. "
+            + "Nothing was added to Task Scheduler. To use this, sign in to Windows with an administrator account.";
+    }
+
     /// <summary>Case-insensitive path comparison that ignores slash direction and surrounding quotes.</summary>
     public static bool SamePath(string a, string b)
     {

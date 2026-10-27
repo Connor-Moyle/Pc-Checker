@@ -58,6 +58,11 @@ public sealed class WindowsScheduledTaskService : IScheduledTaskService
             return OperationResult.Fail(unsafeLocation);
         }
 
+        if (ScheduleRules.WrongAccountProblem(ElevatedUserScope.ProcessUser, ElevatedUserScope.SessionUser, "run scheduled jobs") is { } wrongAccount)
+        {
+            return OperationResult.Fail(wrongAccount);
+        }
+
         string xml;
         try
         {
@@ -99,6 +104,11 @@ public sealed class WindowsScheduledTaskService : IScheduledTaskService
         if (ElevatedTaskProblem() is { } unsafeLocation)
         {
             return OperationResult.Fail(unsafeLocation);
+        }
+
+        if (ScheduleRules.WrongAccountProblem(ElevatedUserScope.ProcessUser, ElevatedUserScope.SessionUser, "start PC Checker at sign-in") is { } wrongAccount)
+        {
+            return OperationResult.Fail(wrongAccount);
         }
 
         string xml;

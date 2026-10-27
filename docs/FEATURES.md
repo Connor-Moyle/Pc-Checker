@@ -835,6 +835,10 @@ How it works:
   you could replace `PcChecker.exe` and be started with administrator rights
   without a UAC prompt, so PC Checker asks you to move it to
   `C:\Program Files\PC Checker` first.
+- When PC Checker runs as a different administrator account than the person
+  signed in (a standard account that typed an administrator's password at the
+  UAC prompt), no task is created: Task Scheduler would only start it while
+  that administrator is signed in, never for you.
   Status is read with `schtasks /Query /FO CSV /V /NH` by column position, so it
   works on Windows in any language.
 - `PcChecker.exe --scheduled <job>` runs without a window. If PC Checker is

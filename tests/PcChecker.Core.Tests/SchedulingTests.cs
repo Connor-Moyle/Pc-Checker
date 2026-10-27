@@ -199,6 +199,24 @@ public class SchedulingTests
         Assert.Throws<ArgumentException>(() => JobTaskXml.Build(new JobSchedule(), path!, null, new DateOnly(2026, 10, 27)));
     }
 
+    [Theory]
+    [InlineData(@"PC\Admin", @"PC\Kid", true)]
+    [InlineData(@"PC\Kid", @"PC\Kid", false)]
+    [InlineData(@"PC\Kid", "kid", false)]
+    [InlineData(@"PC\Admin", null, false)]
+    [InlineData(null, @"PC\Kid", false)]
+    public void Tasks_are_refused_when_the_app_runs_as_another_account(string? process, string? session, bool refused)
+    {
+        var problem = ScheduleRules.WrongAccountProblem(process, session, "run scheduled jobs");
+        Assert.Equal(refused, problem is not null);
+        if (refused)
+        {
+            Assert.Contains(@"PC\Admin", problem);
+            Assert.Contains(@"PC\Kid", problem);
+            Assert.Contains("run scheduled jobs", problem);
+        }
+    }
+
     // ---- Elevated task executable location ----------------------------------------------------------------------
 
     private const string UserSid = "S-1-5-21-1000-2000-3000-1001";

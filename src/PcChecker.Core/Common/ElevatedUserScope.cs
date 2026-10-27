@@ -16,6 +16,12 @@ public static class ElevatedUserScope
     /// <summary>A sentence for per-user results and lists, or null when the app runs as the signed-in user.</summary>
     public static string? Note => Describe(Users.Value.ProcessUser, Users.Value.SessionUser);
 
+    /// <summary>DOMAIN\user the app runs as, or null when unknown (off Windows).</summary>
+    public static string? ProcessUser => Users.Value.ProcessUser;
+
+    /// <summary>DOMAIN\user signed in to the app's Windows session, or null when unknown.</summary>
+    public static string? SessionUser => Users.Value.SessionUser;
+
     /// <summary>True when both names are known and are different accounts.</summary>
     public static bool Differs(string? processUser, string? sessionUser) =>
         !string.IsNullOrWhiteSpace(processUser) && !string.IsNullOrWhiteSpace(sessionUser)
