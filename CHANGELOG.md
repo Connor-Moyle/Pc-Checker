@@ -30,6 +30,13 @@ All notable changes to PC Checker are recorded here. The format follows
   the change guard (restore point, Action Journal), exports every package to
   `%LOCALAPPDATA%\PcChecker\driver-backups\<time>` before deleting it, never
   forces a package off a device and reports each item.
+- **Overlay FPS counter**: new metrics *FPS*, *Frame time* and *1% low* for
+  the game in front, measured from the DirectX present events through a
+  real-time event tracing session (the PresentMon approach), with a kernel
+  fallback for OpenGL and Vulkan games.
+- **Game profiles** on the Overlay page: per-game overlay preset and
+  visibility, fan profile and power plan, applied automatically when the game
+  is in front and put back when it closes.
 
 ### Changed
 - The Drivers page header keeps *Scan drivers* and *Check for updates*; the

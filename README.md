@@ -121,7 +121,7 @@ limitations, is in [docs/FEATURES.md](docs/FEATURES.md).
 |---|---|
 | **Temperatures** | Live readings for every sensor your hardware exposes (CPU, GPU, drives, motherboard/VRM, memory, PSU, AIO), with gauges, min/max/average, sparklines, thresholds and alerts. Advanced mode shows every sensor kind (loads, clocks, fans, voltages). |
 | **Power** | Per-component watts where sensors exist, an estimated total (clearly marked as an estimate when there is no PSU sensor), battery discharge, session energy and cost at your electricity price, and power-plan switching. |
-| **Overlay** | A click-through, always-on-top in-game panel. Pick metrics, corner or custom position, opacity, scale, fonts, colours and presets; toggle it with a global hotkey. Works over borderless and windowed games; exclusive full-screen games hide every desktop window, including this one. |
+| **Overlay** | A click-through, always-on-top in-game panel. Pick metrics (including an FPS counter with frame time and 1% low), corner or custom position, opacity, scale, fonts, colours and presets; toggle it with a global hotkey. Game profiles switch the overlay preset, fan profile and power plan automatically while a game runs and put them back when it closes. Works over borderless and windowed games; exclusive full-screen games hide every desktop window, including this one. |
 
 ### Hardware
 
@@ -274,7 +274,7 @@ and the module boundaries are described in
 | [Safety](docs/SAFETY.md) | The rules behind every change the app makes |
 | [Privacy](docs/PRIVACY.md) | What stays local and when the app goes online |
 | [Claude integration](docs/CLAUDE-INTEGRATION.md) | Setting up and using the assistant |
-| [Overlay](docs/OVERLAY.md) | Metrics, layout, hotkey, limitations |
+| [Overlay](docs/OVERLAY.md) | Metrics, FPS counter, game profiles, layout, hotkey, limitations |
 | [Logging](docs/LOGGING.md) | Log settings, diagnostics export and the Action Journal |
 | [Demo mode](docs/DEMO-MODE.md) | Exploring the app safely and capturing screenshots |
 | [FAQ](docs/FAQ.md) | Common questions |
@@ -297,9 +297,9 @@ not the public tracker.
 - [ ] Promote AMD GPU tuning (ADL/Overdrive8) from experimental to full once
       verified on RDNA 2, RDNA 3 and RDNA 4 cards
 - [ ] Promote Intel Arc tuning (IGCL) from experimental to full
-- [ ] FPS counter in the overlay
+- [x] FPS counter in the overlay
 - [ ] Built-in GPU load generator so the GPU stress test no longer needs a game
-- [ ] Per-game overlay and fan profiles that switch automatically
+- [x] Per-game overlay and fan profiles that switch automatically
 - [ ] Tray mode with a compact temperature popup
 - [ ] Scheduled health checks and cleanup
 - [ ] Localization (the UI is English only today)

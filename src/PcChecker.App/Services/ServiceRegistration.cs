@@ -13,6 +13,7 @@ using PcChecker.Core.Debloat;
 using PcChecker.Core.Displays;
 using PcChecker.Core.Drivers;
 using PcChecker.Core.Fans;
+using PcChecker.Core.Gaming;
 using PcChecker.Core.Hardware;
 using PcChecker.Core.Health;
 using PcChecker.Core.Input;
@@ -107,6 +108,9 @@ public static class ServiceRegistration
         Add<IMousePollingMeter, RawInputPollingMeter, DemoMousePollingMeter>(services, demo);
         Add<IRegistryHealthService, WindowsRegistryHealthService, DemoRegistryHealthService>(services, demo);
         Add<IDebloatService, WindowsDebloatService, DemoDebloatService>(services, demo);
+        Add<IForegroundAppTracker, WindowsForegroundAppTracker, DemoForegroundAppTracker>(services, demo);
+        Add<IFrameRateMonitor, WindowsFrameRateMonitor, DemoFrameRateMonitor>(services, demo);
+        Add<IGameProfileService, WindowsGameProfileService, DemoGameProfileService>(services, demo);
 
         // Optimization action providers (IOptimizationService aggregates every registration below).
         // providers: Latency (Windows: LatencyActionsProvider, Demo: DemoLatencyActionsProvider)
@@ -125,6 +129,7 @@ public static class ServiceRegistration
         services.AddSingleton<INotificationService, NotificationService>();
         services.AddSingleton<IHotkeyService, HotkeyService>();
         services.AddSingleton<IOverlayService, OverlayService>();
+        services.AddSingleton<GameProfileSwitcher>();
         services.AddSingleton<RestartPromptService>();
         services.AddSingleton<ScreenshotRunner>();
 

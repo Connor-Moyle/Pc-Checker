@@ -105,9 +105,23 @@ public partial class App : Application
             _logger.LogWarning(ex, "The overlay could not be initialized.");
         }
 
+        StartGameProfiles();
+
         if (options.ScreenshotsDirectory is { } directory)
         {
             _ = RunScreenshotsAsync(window, directory);
+        }
+    }
+
+    private void StartGameProfiles()
+    {
+        try
+        {
+            _services!.GetRequiredService<GameProfileSwitcher>().Start();
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Game profile switching could not be started.");
         }
     }
 
@@ -132,6 +146,8 @@ public partial class App : Application
         _logger?.LogInformation("PC Checker exiting with code {Code}.", e.ApplicationExitCode);
         if (_services is not null)
         {
+            // Game profiles first, so fans and the power plan are put back before the fan hooks run.
+            _services.GetService<GameProfileSwitcher>()?.Stop();
             FanLifecycleHooks.OnExit(_services);
         }
 

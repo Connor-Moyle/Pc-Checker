@@ -1,5 +1,6 @@
 using PcChecker.Core.Displays;
 using PcChecker.Core.Fans;
+using PcChecker.Core.Gaming;
 using PcChecker.Core.Input;
 using PcChecker.Core.Lighting;
 using PcChecker.Core.Logging;
@@ -28,6 +29,7 @@ public sealed class AppSettings
     public LatencySettings Latency { get; set; } = new();
     public StartupSettings Startup { get; set; } = new();
     public NetworkSettings Network { get; set; } = new();
+    public GamingSettings Gaming { get; set; } = new();
 
     /// <summary>Returns a fresh instance with every value at its default.</summary>
     public static AppSettings CreateDefault() => new();
@@ -148,6 +150,9 @@ public sealed class OverlaySettings
 /// <summary>Well-known overlay metric identifiers.</summary>
 public static class OverlayMetricIds
 {
+    public const string Fps = "fps";
+    public const string FrameTime = "frametime";
+    public const string FpsLow1 = "fps.low1";
     public const string CpuTemp = "cpu.temp";
     public const string CpuLoad = "cpu.load";
     public const string CpuClock = "cpu.clock";
@@ -174,6 +179,7 @@ public static class OverlayMetricIds
     /// <summary>Every metric id with a friendly default label.</summary>
     public static IReadOnlyList<(string Id, string Label)> All { get; } =
     [
+        (Fps, "FPS"), (FrameTime, "Frame time"), (FpsLow1, "1% low"),
         (CpuTemp, "CPU temp"), (CpuLoad, "CPU load"), (CpuClock, "CPU clock"), (CpuPower, "CPU power"),
         (GpuTemp, "GPU temp"), (GpuHotspot, "GPU hot spot"), (GpuLoad, "GPU load"), (GpuClock, "GPU clock"),
         (GpuMemClock, "GPU memory clock"), (GpuVram, "VRAM used"), (GpuPower, "GPU power"), (GpuFan, "GPU fan"),

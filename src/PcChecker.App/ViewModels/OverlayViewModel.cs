@@ -6,6 +6,8 @@ using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using PcChecker.App.Services;
 using PcChecker.Core.Common;
+using PcChecker.Core.Fans;
+using PcChecker.Core.Gaming;
 using PcChecker.Core.Settings;
 
 namespace PcChecker.App.ViewModels;
@@ -49,6 +51,7 @@ public sealed record OverlayPresetRow(string Name, bool IsBuiltIn, string Summar
 /// <summary>
 /// View model for the Overlay page: every overlay setting as a bindable property, the metric list with reordering,
 /// presets, the hotkey and a live preview. Changes apply to the overlay immediately and are saved shortly after.
+/// Game profiles live in <c>OverlayViewModel.GameProfiles.cs</c>, the FPS counter status in <c>OverlayViewModel.FrameRate.cs</c>.
 /// </summary>
 public sealed partial class OverlayViewModel : ViewModelBase
 {
@@ -139,7 +142,8 @@ public sealed partial class OverlayViewModel : ViewModelBase
     [ObservableProperty]
     private int _enabledMetricCount;
 
-    public OverlayViewModel(ISettingsService settings, IOverlayService overlay, INotificationService notifications, IDialogService dialogs, ILogger<OverlayViewModel> logger)
+    public OverlayViewModel(ISettingsService settings, IOverlayService overlay, INotificationService notifications, IDialogService dialogs, ILogger<OverlayViewModel> logger,
+        GameProfileSwitcher switcher, IGameProfileService gameProfiles, IForegroundAppTracker tracker, IFrameRateMonitor frames, IFanControlService fans)
         : base(settings)
     {
         _overlay = overlay;
@@ -158,6 +162,7 @@ public sealed partial class OverlayViewModel : ViewModelBase
         settings.Changed += (_, s) => DispatcherHelper.PostToUi(() => OnExternalSettingsChanged(s));
         _isOverlayVisible = overlay.IsVisible;
         _isEditMode = overlay.IsEditMode;
+        InitGaming(switcher, gameProfiles, tracker, frames, fans);
     }
 
     /// <summary>The shared live overlay state, rendered by the preview on the page.</summary>
@@ -193,7 +198,7 @@ public sealed partial class OverlayViewModel : ViewModelBase
 
     public Brush AccentPreview => OverlayWindowViewModel.ParseBrush(AccentColor, Color.FromRgb(0x4C, 0xC2, 0xFF));
 
-    public override Task InitializeAsync(CancellationToken cancellationToken)
+    public override async Task InitializeAsync(CancellationToken cancellationToken)
     {
         LoadFromSettings();
         if (_pageVisible)
@@ -201,7 +206,7 @@ public sealed partial class OverlayViewModel : ViewModelBase
             StartPreview();
         }
 
-        return Task.CompletedTask;
+        await LoadGamingAsync(cancellationToken);
     }
 
     /// <summary>Page Loaded: the live preview polls sensors only while this page is on screen.</summary>
@@ -212,6 +217,8 @@ public sealed partial class OverlayViewModel : ViewModelBase
         {
             StartPreview();
         }
+
+        StartFrameStatus();
     }
 
     /// <summary>
@@ -222,6 +229,7 @@ public sealed partial class OverlayViewModel : ViewModelBase
     {
         _pageVisible = false;
         StopPreview();
+        StopFrameStatus();
     }
 
     private void StartPreview()
@@ -246,10 +254,10 @@ public sealed partial class OverlayViewModel : ViewModelBase
         Preview.Stop();
     }
 
-    public override Task RefreshAsync(CancellationToken cancellationToken)
+    public override async Task RefreshAsync(CancellationToken cancellationToken)
     {
         LoadFromSettings();
-        return Task.CompletedTask;
+        await LoadGamingAsync(cancellationToken);
     }
 
     // ----- Overlay on/off and edit mode -----

@@ -5,6 +5,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using Microsoft.Extensions.Logging;
 using PcChecker.App.Services;
 using PcChecker.Core.Common;
+using PcChecker.Core.Gaming;
 using PcChecker.Core.Power;
 using PcChecker.Core.Sensors;
 using PcChecker.Core.Settings;
@@ -120,11 +121,11 @@ public sealed partial class OverlayWindowViewModel : ObservableObject, IDisposab
     [ObservableProperty]
     private int _updateIntervalMs = 1000;
 
-    public OverlayWindowViewModel(ISensorService sensors, IPowerService power, ILogger<OverlayWindowViewModel> logger)
+    public OverlayWindowViewModel(ISensorService sensors, IPowerService power, ILogger<OverlayWindowViewModel> logger, IFrameRateMonitor? frames = null)
     {
         _sensors = sensors;
         _logger = logger;
-        _resolver = new OverlayMetricResolver(sensors, power);
+        _resolver = new OverlayMetricResolver(sensors, power, frames);
         _timer = new DispatcherTimer(DispatcherPriority.Background) { Interval = TimeSpan.FromMilliseconds(1000) };
         _timer.Tick += (_, _) => Tick();
     }
@@ -176,6 +177,7 @@ public sealed partial class OverlayWindowViewModel : ObservableObject, IDisposab
         }
 
         HasItems = Items.Count > 0;
+        UpdateFrameCounter();
         Tick();
     }
 
@@ -199,6 +201,7 @@ public sealed partial class OverlayWindowViewModel : ObservableObject, IDisposab
         if (!_timer.IsEnabled)
         {
             _timer.Start();
+            UpdateFrameCounter();
             Tick();
         }
     }
@@ -210,8 +213,13 @@ public sealed partial class OverlayWindowViewModel : ObservableObject, IDisposab
         if (_consumers == 0)
         {
             _timer.Stop();
+            UpdateFrameCounter();
         }
     }
+
+    /// <summary>The frame counter runs only while the overlay or its preview is live and shows a frame metric.</summary>
+    private void UpdateFrameCounter() =>
+        _resolver.SetFrameCounterWanted(_timer.IsEnabled && Items.Any(i => OverlayMetricFormatter.IsFrameMetric(i.Id)));
 
     /// <summary>Refreshes every metric line now.</summary>
     public void Tick()

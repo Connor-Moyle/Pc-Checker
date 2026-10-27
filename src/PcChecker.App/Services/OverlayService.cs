@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using PcChecker.App.ViewModels;
 using PcChecker.App.Views.Windows;
 using PcChecker.Core.Common;
+using PcChecker.Core.Gaming;
 using PcChecker.Core.Power;
 using PcChecker.Core.Sensors;
 using PcChecker.Core.Settings;
@@ -33,14 +34,15 @@ public sealed class OverlayService : IOverlayService, IDisposable
     private bool _syncingEnabled;
 
     public OverlayService(IServiceProvider services, ISettingsService settings, IHotkeyService hotkeys, INotificationService notifications,
-        ISensorService sensors, IPowerService power, ILogger<OverlayService> logger, ILogger<OverlayWindowViewModel> windowLogger)
+        ISensorService sensors, IPowerService power, ILogger<OverlayService> logger, ILogger<OverlayWindowViewModel> windowLogger,
+        IFrameRateMonitor frames)
     {
         _services = services;
         _settings = settings;
         _hotkeys = hotkeys;
         _notifications = notifications;
         _logger = logger;
-        WindowViewModel = new OverlayWindowViewModel(sensors, power, windowLogger);
+        WindowViewModel = new OverlayWindowViewModel(sensors, power, windowLogger, frames);
         WindowViewModel.ApplySettings(settings.Current.Overlay, settings.Current.Monitoring);
 
         _topmostTimer = new DispatcherTimer(DispatcherPriority.Background) { Interval = TopmostInterval };

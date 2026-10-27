@@ -11,6 +11,7 @@
     <PackageVersion Include="Microsoft.Extensions.Hosting" Version="9.0.4" />
     <PackageVersion Include="Microsoft.Extensions.Logging" Version="9.0.4" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.4" />
+    <PackageVersion Include="Microsoft.Diagnostics.Tracing.TraceEvent" Version="3.2.8" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
     <!-- NAudio 2.2.1: reference the Wasapi/Core sub-packages, not the "NAudio" meta-package. The meta-package pulls in
          NAudio.WinForms, whose Windows Forms framework reference stops the Core tests from running on Linux. -->

@@ -110,12 +110,24 @@ window. Full detail in [OVERLAY.md](OVERLAY.md).
 - **Metrics** list with checkboxes, reorder buttons and editable labels.
 - **Presets**: save, load and delete; built-ins *Minimal*, *Full* and *Temps
   only*.
-- A live preview on a sample "game" background.
+- A live preview on a sample "game" background, naming the game the FPS
+  metrics are measured for.
+- **FPS counter**: metrics *FPS*, *Frame time* and *1% low* for the game in
+  front, counted from the Windows graphics present events like PresentMon
+  (needs administrator rights, which the app has). The card explains why it is
+  unavailable when Windows refuses the tracing session.
+- **Game profiles**: per game (matched by its .exe name) an overlay preset and
+  visibility, a fan profile and a power plan. Applied after the game has been
+  in front for 2 seconds, put back when the game's process exits. Add from the
+  running programs or by browsing for the .exe; edit, remove, switch on/off;
+  global *Switch automatically* and *Only when the game fills the screen*; a
+  status line shows the active profile. Switches are journaled (module
+  *Gaming*).
 
 Limitations: the overlay is a transparent desktop window. It shows over
 borderless and windowed games; exclusive full-screen games hide every desktop
-window. Some anti-cheat systems block overlays. There is no FPS counter yet
-(it is on the roadmap).
+window. Some anti-cheat systems block overlays and can hide a game's frames
+from the FPS counter (it then shows "--").
 
 ---
 

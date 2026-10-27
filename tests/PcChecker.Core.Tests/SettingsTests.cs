@@ -39,7 +39,7 @@ public class SettingsTests : IDisposable
         Assert.Equal("Ctrl+Shift+O", s.Overlay.Hotkey);
         Assert.Equal(0.85, s.Overlay.Opacity);
         Assert.Equal("#CC101010", s.Overlay.BackgroundColor);
-        Assert.Equal(22, s.Overlay.Metrics.Count);
+        Assert.Equal(25, s.Overlay.Metrics.Count);
         Assert.Equal("claude-opus-5-5", s.Claude.Model);
         Assert.Equal(12000, s.Claude.MaxContextChars);
         Assert.Equal(60, s.Cleanup.SkipFilesNewerThanMinutes);

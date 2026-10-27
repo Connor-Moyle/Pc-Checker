@@ -21,6 +21,7 @@
     <PackageReference Include="NAudio.Core" />
     <PackageReference Include="NAudio.Wasapi" />
     <PackageReference Include="System.Diagnostics.PerformanceCounter" />
+    <PackageReference Include="Microsoft.Diagnostics.Tracing.TraceEvent" />
   </ItemGroup>
 
 </Project>

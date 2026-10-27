@@ -15,6 +15,12 @@ public static class OverlayMetricFormatter
     public static bool IsTemperature(string metricId) => metricId is OverlayMetricIds.CpuTemp or OverlayMetricIds.GpuTemp
         or OverlayMetricIds.GpuHotspot or OverlayMetricIds.DiskTemp;
 
+    /// <summary>True for the frame-rate metrics (FPS, 1% low), which are shown as bare whole numbers.</summary>
+    public static bool IsFrameRate(string metricId) => metricId is OverlayMetricIds.Fps or OverlayMetricIds.FpsLow1;
+
+    /// <summary>True for the metrics measured by the frame counter (FPS, frame time, 1% low).</summary>
+    public static bool IsFrameMetric(string metricId) => metricId is OverlayMetricIds.Fps or OverlayMetricIds.FrameTime or OverlayMetricIds.FpsLow1;
+
     /// <summary>The unit the resolver is expected to deliver the value in.</summary>
     public static string Unit(string metricId) => metricId switch
     {
@@ -26,6 +32,8 @@ public static class OverlayMetricFormatter
         OverlayMetricIds.GpuVram => "MB",
         OverlayMetricIds.RamUsed => "GB",
         OverlayMetricIds.NetDown or OverlayMetricIds.NetUp => "MB/s",
+        OverlayMetricIds.Fps or OverlayMetricIds.FpsLow1 => "FPS",
+        OverlayMetricIds.FrameTime => "ms",
         _ => string.Empty,
     };
 
@@ -39,6 +47,12 @@ public static class OverlayMetricFormatter
 
         double v = value.Value;
         string unit = unitOverride ?? Unit(metricId);
+
+        if (IsFrameRate(metricId))
+        {
+            // The label already says "FPS" / "1% low": the value is just the whole number ("144").
+            return Number(Math.Max(0, v), 0);
+        }
 
         if (metricId == OverlayMetricIds.GpuVram && unit == "MB")
         {
@@ -73,6 +87,8 @@ public static class OverlayMetricFormatter
             "W" => value >= 100 ? 0 : 1,
             "GB" => 1,
             "MB" => 0,
+            "FPS" => 0,
+            "ms" => 1,
             _ => 1,
         };
     }

@@ -29,7 +29,8 @@ public static class OverlayPresetCatalog
         new()
         {
             Name = Full,
-            Metrics = WithEnabled(OverlayMetricIds.CpuTemp, OverlayMetricIds.CpuLoad, OverlayMetricIds.CpuClock, OverlayMetricIds.CpuPower,
+            Metrics = WithEnabled(OverlayMetricIds.Fps, OverlayMetricIds.FrameTime, OverlayMetricIds.FpsLow1,
+                OverlayMetricIds.CpuTemp, OverlayMetricIds.CpuLoad, OverlayMetricIds.CpuClock, OverlayMetricIds.CpuPower,
                 OverlayMetricIds.GpuTemp, OverlayMetricIds.GpuHotspot, OverlayMetricIds.GpuLoad, OverlayMetricIds.GpuClock, OverlayMetricIds.GpuMemClock,
                 OverlayMetricIds.GpuVram, OverlayMetricIds.GpuPower, OverlayMetricIds.GpuFan, OverlayMetricIds.RamUsed, OverlayMetricIds.RamPercent,
                 OverlayMetricIds.DiskTemp, OverlayMetricIds.DiskActivity, OverlayMetricIds.NetDown, OverlayMetricIds.NetUp, OverlayMetricIds.SystemPower,
