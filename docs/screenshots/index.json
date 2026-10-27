@@ -1,5 +1,5 @@
 {
-  "generated": "2026-10-27T11:35:36.8885742+00:00",
+  "generated": "2026-10-27T12:20:47.6977804+00:00",
   "width": 1440,
   "height": 900,
   "pages": {
@@ -7,8 +7,8 @@
     "Home / Check-up": "checkup.png",
     "Monitor / Temperatures": "temperatures.png",
     "Monitor / Power": "power.png",
-    "Monitor / Processes": "processes.png",
     "Monitor / History": "history.png",
+    "Task manager / Processes": "processes.png",
     "Hardware / Overview": "hardware.png",
     "Hardware / Health": "health.png",
     "Hardware / Storage": "storage.png",
