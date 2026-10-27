@@ -122,6 +122,47 @@ public static class NetworkTuningCaptureStore
         }
     }
 
+    /// <summary>
+    /// Adds the values in <paramref name="current"/> whose names <paramref name="existing"/> does not have yet (an
+    /// adapter, server or key that appeared after the first capture), keeping every value already captured: those
+    /// hold what the PC looked like before PC Checker touched it. Returns <paramref name="existing"/> itself when
+    /// nothing is new.
+    /// </summary>
+    public static IReadOnlyDictionary<string, string?> Merge(IReadOnlyDictionary<string, string?> existing, IReadOnlyDictionary<string, string?> current)
+    {
+        ArgumentNullException.ThrowIfNull(existing);
+        ArgumentNullException.ThrowIfNull(current);
+        var added = current.Where(c => !existing.ContainsKey(c.Key)).ToList();
+        if (added.Count == 0)
+        {
+            return existing;
+        }
+
+        var merged = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (key, value) in existing)
+        {
+            merged[key] = value;
+        }
+
+        foreach (var (key, value) in added)
+        {
+            merged[key] = value;
+        }
+
+        return merged;
+    }
+
+    /// <summary>
+    /// True when every captured value still reads the same in <paramref name="current"/>, so a failed change wrote
+    /// nothing. A value that can no longer be read counts as changed, so the capture is kept when in doubt.
+    /// </summary>
+    public static bool Unchanged(IReadOnlyDictionary<string, string?> captured, IReadOnlyDictionary<string, string?> current)
+    {
+        ArgumentNullException.ThrowIfNull(captured);
+        ArgumentNullException.ThrowIfNull(current);
+        return captured.All(c => current.TryGetValue(c.Key, out var now) && string.Equals(now, c.Value, StringComparison.Ordinal));
+    }
+
     /// <summary>"RoamAggressiveness=3, *EEE=&lt;not set&gt;" for the journal's Before field.</summary>
     public static string Describe(IReadOnlyDictionary<string, string?> values) =>
         string.Join(", ", values.OrderBy(v => v.Key, StringComparer.OrdinalIgnoreCase).Select(v => $"{v.Key}={v.Value ?? "<not set>"}"));

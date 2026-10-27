@@ -216,16 +216,28 @@ public sealed partial class WindowsNetworkTuningService : INetworkTuningService
 
     // ---------------------------------------------------------------- captures and journal
 
-    /// <summary>Stores <paramref name="values"/> for <paramref name="entry"/> unless an earlier capture exists; returns the capture in effect.</summary>
+    /// <summary>
+    /// Stores <paramref name="values"/> for <paramref name="entry"/>; when an earlier capture exists only values it does
+    /// not hold yet are added. Returns the capture in effect.
+    /// </summary>
     private IReadOnlyDictionary<string, string?> Capture(string entry, IReadOnlyDictionary<string, string?> values)
     {
         lock (_captureLock)
         {
             EnsureCapturesLoaded();
-            // Keep the first capture: that is what the PC looked like before PC Checker touched it.
+            // Keep the values captured first: that is what the PC looked like before PC Checker touched it. Values
+            // for adapters, servers or keys that were not there then (a dock, a second Wi-Fi card) are added, so a
+            // later Apply that also changes them can be reverted too.
             if (_captured.TryGetValue(entry, out var existing))
             {
-                return existing;
+                var merged = NetworkTuningCaptureStore.Merge(existing, values);
+                if (!ReferenceEquals(merged, existing))
+                {
+                    _captured[entry] = merged;
+                    SaveCaptures();
+                }
+
+                return merged;
             }
 
             _captured[entry] = values;

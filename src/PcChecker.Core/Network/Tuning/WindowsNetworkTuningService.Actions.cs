@@ -153,8 +153,9 @@ public sealed partial class WindowsNetworkTuningService
         bool firstCapture = false;
         if (apply)
         {
-            // Like the adapter-setting path: a failed first apply must not leave a capture behind, or a later
-            // Apply would keep these stale values and Revert would restore them over a hand-made change.
+            // Like the adapter-setting path: a failed first apply that changed nothing must not leave a capture
+            // behind, or a later Apply would keep these stale values and Revert would restore them over a hand-made
+            // change. One that changed part of the settings keeps it, so Revert can undo that part.
             firstCapture = Captured(action.Id) is null;
             previous = Capture(action.Id, await ReadCurrentAsync(action.Id, cancellationToken).ConfigureAwait(false));
             before = previous.Count == 0 ? null : NetworkTuningCaptureStore.Describe(previous);
@@ -182,12 +183,29 @@ public sealed partial class WindowsNetworkTuningService
                 Forget(action.Id);
             }
         }
-        else if (apply && firstCapture)
+        else if (apply && firstCapture && previous is not null && await NothingChangedAsync(action.Id, previous).ConfigureAwait(false))
         {
+            // Only when the failed Apply changed nothing: if part of it went through, the capture is what Revert
+            // needs to put that part back.
             Forget(action.Id);
         }
 
         return result;
+    }
+
+    /// <summary>True when the values an action changes still read exactly as captured; false when unsure.</summary>
+    private async Task<bool> NothingChangedAsync(string actionId, IReadOnlyDictionary<string, string?> captured)
+    {
+        try
+        {
+            var now = await ReadCurrentAsync(actionId, CancellationToken.None).ConfigureAwait(false);
+            return NetworkTuningCaptureStore.Unchanged(captured, now);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Could not re-read {Action} after a failed change; keeping its capture.", actionId);
+            return false;
+        }
     }
 
     private async Task<OperationResult> ExecuteAsync(TuningAction action, bool apply, DnsProvider provider, IReadOnlyDictionary<string, string?>? previous, CancellationToken ct)

@@ -376,6 +376,29 @@ public class NetworkTuningCaptureStoreTests
     }
 
     [Fact]
+    public void A_later_capture_adds_new_adapters_and_keeps_the_first_values()
+    {
+        var first = new Dictionary<string, string?> { ["{WIFI}|NameServer"] = string.Empty };
+        var later = new Dictionary<string, string?> { ["{WIFI}|NameServer"] = "1.1.1.1,1.0.0.1", ["{ETH}|NameServer"] = "10.0.0.53" };
+
+        var merged = NetworkTuningCaptureStore.Merge(first, later);
+
+        Assert.Equal(string.Empty, merged["{WIFI}|NameServer"]);
+        Assert.Equal("10.0.0.53", merged["{eth}|NameServer"]);
+        Assert.Equal(2, merged.Count);
+        Assert.Same(first, NetworkTuningCaptureStore.Merge(first, new Dictionary<string, string?> { ["{WIFI}|NameServer"] = "8.8.8.8" }));
+    }
+
+    [Fact]
+    public void Unchanged_only_when_every_captured_value_reads_the_same()
+    {
+        var captured = new Dictionary<string, string?> { ["AC"] = "2", ["DC"] = null };
+        Assert.True(NetworkTuningCaptureStore.Unchanged(captured, new Dictionary<string, string?> { ["AC"] = "2", ["DC"] = null, ["extra"] = "x" }));
+        Assert.False(NetworkTuningCaptureStore.Unchanged(captured, new Dictionary<string, string?> { ["AC"] = "0", ["DC"] = null }));
+        Assert.False(NetworkTuningCaptureStore.Unchanged(captured, new Dictionary<string, string?> { ["AC"] = "2" }));
+    }
+
+    [Fact]
     public void Bad_or_missing_files_give_an_empty_map()
     {
         Assert.Empty(NetworkTuningCaptureStore.Deserialize("not json"));
