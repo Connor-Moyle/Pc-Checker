@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using PcChecker.App.Localization;
 using PcChecker.Core.Common;
+using PcChecker.Core.Drivers.Platform;
 using PcChecker.Core.Drivers.Sources;
 
 namespace PcChecker.App.ViewModels;
@@ -127,6 +128,11 @@ public sealed partial class DriversViewModel
             if (result.Success)
             {
                 await ScanAsyncCore(null, CancellationToken.None);
+                if (device.Key == ChipsetDriverProvider.AmdKey)
+                {
+                    // The "Your PC" card reads the chipset version from Apps; read it again after the install.
+                    await LoadPlatformAsync(online: false, force: true, CancellationToken.None);
+                }
             }
         }, Loc.F("Installing {0}…", offer.Title));
 
@@ -187,6 +193,9 @@ public sealed partial class DriversViewModel
             UseAmd = s.Amd;
             UseIntel = s.Intel;
             UsePcMakerTools = s.PcMakerTools;
+            UseChipset = s.Chipset;
+            UseDeviceMakers = s.DeviceMakers;
+            UseMakerCatalogs = s.MakerCatalogs;
             NvidiaBranchIndex = (int)s.NvidiaBranch;
             NvidiaInstallModeIndex = (int)s.NvidiaInstallMode;
             VendorDownloadsIndex = (int)s.VendorDownloads;

@@ -172,12 +172,14 @@ public sealed partial class OfferOptionRow : ObservableObject
 
     public bool ShowNewest { get; }
 
-    public string SourceText => Offer.Source switch
+    public string SourceText => Offer.SourceName ?? Offer.Source switch
     {
         DriverSourceKind.WindowsUpdate => "Windows Update",
         DriverSourceKind.Nvidia => "NVIDIA",
         DriverSourceKind.Amd => "AMD",
         DriverSourceKind.Intel => "Intel",
+        DriverSourceKind.Chipset => Loc.T("Chipset maker"),
+        DriverSourceKind.DeviceMakers => Loc.T("Device maker"),
         _ => Loc.T("PC maker"),
     };
 

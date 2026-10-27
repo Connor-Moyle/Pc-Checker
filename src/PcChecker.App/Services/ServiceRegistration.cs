@@ -17,6 +17,7 @@ using PcChecker.Core.Debloat;
 using PcChecker.Core.DiskSpace;
 using PcChecker.Core.Displays;
 using PcChecker.Core.Drivers;
+using PcChecker.Core.Drivers.Platform;
 using PcChecker.Core.Drivers.Sources;
 using PcChecker.Core.Fans;
 using PcChecker.Core.Gaming;
@@ -102,6 +103,7 @@ public static class ServiceRegistration
         Add<IDriverService, WindowsDriverService, DemoDriverService>(services, demo);
         Add<IDriverCleanupService, WindowsDriverCleanupService, DemoDriverCleanupService>(services, demo);
         Add<IDriverSourceService, WindowsDriverSourceService, DemoDriverSourceService>(services, demo);
+        Add<IPcPlatformService, WindowsPcPlatformService, DemoPcPlatformService>(services, demo);
         Add<IWindowsUpdateService, WindowsUpdateService, DemoWindowsUpdateService>(services, demo);
         Add<IUpdateRollbackService, WindowsUpdateRollbackService, DemoUpdateRollbackService>(services, demo);
         Add<ISoftwareInventoryService, WindowsSoftwareInventoryService, DemoSoftwareInventoryService>(services, demo);
