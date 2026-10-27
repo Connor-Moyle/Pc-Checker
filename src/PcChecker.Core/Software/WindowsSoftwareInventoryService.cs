@@ -81,6 +81,10 @@ public sealed class WindowsSoftwareInventoryService : ISoftwareInventoryService
         var storeApps = await StoreAppReader.ReadAsync(storeWarnings, cancellationToken).ConfigureAwait(false);
         programs.AddRange(storeApps);
         warnings.AddRange(storeWarnings);
+        if (ElevatedUserScope.Note is { } scopeNote)
+        {
+            warnings.Add(scopeNote);
+        }
 
         progress?.Report(new ProgressUpdate("Looking for bundled installs", 90));
         var inventory = await Task.Run(() => SoftwareInventoryAssembler.Assemble(programs, warnings), cancellationToken).ConfigureAwait(false);

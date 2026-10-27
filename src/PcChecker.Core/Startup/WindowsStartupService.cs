@@ -56,12 +56,12 @@ public sealed partial class WindowsStartupService : IStartupService, IRestartCan
         var options = new ChangeOptions(CreateBefore: false, CreateAfter: false, Module, item.Name, Reversible: true,
             UndoHint: $"Set '{item.Name}' back to {(enabled ? "disabled" : "enabled")} on the Startup page ({item.Location}).");
 
-        return _guard.RunGuardedAsync($"{verb} startup item '{item.Name}'", options, ct => item.Kind switch
+        return _guard.RunGuardedAsync($"{verb} startup item '{item.Name}'", options, async ct => AnnotatePerUser(item, await (item.Kind switch
         {
             StartupKinds.Task => SetTaskEnabledAsync(item, enabled, ct),
             StartupKinds.Folder => Task.FromResult(SetFolderItemEnabled(item, enabled)),
             _ => Task.FromResult(SetRegistryItemEnabled(item, enabled)),
-        }, null, cancellationToken);
+        }).ConfigureAwait(false)), null, cancellationToken);
     }
 
     public Task<OperationResult> RemoveStartupItemAsync(StartupItem item, CancellationToken cancellationToken)
@@ -80,12 +80,24 @@ public sealed partial class WindowsStartupService : IStartupService, IRestartCan
         var options = new ChangeOptions(null, null, Module, item.Name, Reversible: true,
             UndoHint: $"A copy was saved under {BackupDirectory}. Registry values: re-add on the Startup page (Add…). Shortcuts: move the file back to {item.Location}. Tasks: import the saved XML in Task Scheduler.");
 
-        return _guard.RunGuardedAsync($"Remove startup item '{item.Name}'", options, ct => item.Kind switch
+        return _guard.RunGuardedAsync($"Remove startup item '{item.Name}'", options, async ct => AnnotatePerUser(item, await (item.Kind switch
         {
             StartupKinds.Task => RemoveTaskAsync(item, ct),
             StartupKinds.Folder => Task.FromResult(RemoveFolderItem(item)),
             _ => Task.FromResult(RemoveRegistryItem(item)),
-        }, null, cancellationToken);
+        }).ConfigureAwait(false)), null, cancellationToken);
+    }
+
+    /// <summary>
+    /// HKCU entries and the user Startup folder belong to the account the app runs as; when that is an administrator
+    /// other than the signed-in user, the result says so (see <see cref="ElevatedUserScope"/>).
+    /// </summary>
+    private static OperationResult AnnotatePerUser(StartupItem item, OperationResult result)
+    {
+        bool perUser = item.Kind == StartupKinds.Folder
+            ? StartupEnumerator.ApprovedKeyForFolder(item.Location).Hive == RegistryHive.CurrentUser
+            : item.Kind != StartupKinds.Task && StartupEnumerator.FindRegistrySource(item.Location)?.Hive == RegistryHive.CurrentUser;
+        return perUser ? ElevatedUserScope.Annotate(result) : result;
     }
 
     public Task<OperationResult> AddStartupItemAsync(string name, string command, CancellationToken cancellationToken)
@@ -115,7 +127,7 @@ public sealed partial class WindowsStartupService : IStartupService, IRestartCan
 
                 run.SetValue(name.Trim(), command.Trim(), RegistryValueKind.String);
                 ClearApprovedFlag(RegistryHive.CurrentUser, StartupEnumerator.StartupApprovedSubKey + @"\Run", name.Trim());
-                return Task.FromResult(OperationResult.Ok($"{name.Trim()} will start when you sign in."));
+                return Task.FromResult(ElevatedUserScope.Annotate(OperationResult.Ok($"{name.Trim()} will start when you sign in.")));
             }
             catch (Exception ex)
             {

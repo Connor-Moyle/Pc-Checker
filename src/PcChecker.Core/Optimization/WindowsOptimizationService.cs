@@ -34,6 +34,13 @@ public sealed partial class WindowsOptimizationService : IOptimizationService, I
         "dism.restorehealth", "sfc.scannow", "network.reset",
     ];
 
+    /// <summary>Actions that change HKCU settings, which belong to the account the app runs as (see <see cref="ElevatedUserScope"/>).</summary>
+    private static readonly HashSet<string> PerUserActionIds = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "visuals.performance", "visuals.balanced", "transparency.disable", "animations.disable",
+        "gamemode.enable", "gamebar.disable", "backgroundapps.disable", "storagesense.enable", "notifications.focus",
+    };
+
     private readonly IChangeGuard _guard;
     private readonly IStartupService _startup;
     private readonly IReadOnlyList<IOptimizationActionProvider> _providers;
@@ -175,6 +182,10 @@ public sealed partial class WindowsOptimizationService : IOptimizationService, I
         var options = ChangeOptions.For(Module, actionId, action.Reversible, action.Reversible ? "Use Revert on the Optimize page." : null);
         var result = await _guard.RunGuardedAsync(description, options,
             ct => revert ? handler.Revert!(ct) : handler.Apply(ct), null, cancellationToken).ConfigureAwait(false);
+        if (PerUserActionIds.Contains(actionId))
+        {
+            result = ElevatedUserScope.Annotate(result);
+        }
 
         if (result.Success && action.RequiresRestart && !result.RebootRequired)
         {

@@ -3,6 +3,37 @@ using Xunit;
 
 namespace PcChecker.Core.Tests;
 
+public class ElevatedUserScopeTests
+{
+    [Theory]
+    [InlineData(@"PC\Admin", @"PC\Kid", true)]
+    [InlineData(@"PC\Alex", @"PC\alex", false)]
+    [InlineData(@"CONTOSO\alex", @"contoso.local\Alex", false)]
+    [InlineData(@"PC\Admin", null, false)]
+    [InlineData(null, @"PC\Kid", false)]
+    public void Detects_when_the_elevated_account_is_not_the_signed_in_user(string? process, string? session, bool differs)
+    {
+        Assert.Equal(differs, ElevatedUserScope.Differs(process, session));
+        Assert.Equal(differs, ElevatedUserScope.Describe(process, session) is not null);
+    }
+
+    [Fact]
+    public void Description_names_both_accounts()
+    {
+        var text = ElevatedUserScope.Describe(@"PC\Admin", @"PC\Kid")!;
+        Assert.Contains(@"PC\Admin", text);
+        Assert.Contains(@"PC\Kid", text);
+        Assert.Contains("HKCU", text);
+    }
+
+    [Fact]
+    public void Failed_results_are_never_annotated()
+    {
+        var failed = OperationResult.Fail("nope");
+        Assert.Same(failed, ElevatedUserScope.Annotate(failed));
+    }
+}
+
 public class VersionTextTests
 {
     [Theory]

@@ -163,8 +163,8 @@ public sealed class WindowsUninstallService : IUninstallService
             return OperationResult.Fail($"Removing {program.Name} failed: {detail}");
         }
 
-        return OperationResult.Ok(allUsers
-            ? $"{program.Name} was removed for all users on this PC."
-            : $"{program.Name} was removed from your account; other user accounts on this PC keep it.");
+        return allUsers
+            ? OperationResult.Ok($"{program.Name} was removed for all users on this PC.")
+            : ElevatedUserScope.Annotate(OperationResult.Ok($"{program.Name} was removed from your account; other user accounts on this PC keep it."));
     }
 }
