@@ -63,6 +63,7 @@ public static class DriveFactsBuilder
         var verdict = DriveHealthRules.Judge(new DriveHealthRules.Input(media.Media, joined.Role, access, reading, windowsHealth, warnC, critC));
         return new PhysicalDrive
         {
+            Key = KeyFor(joined),
             Number = joined.Number,
             PhysicalDeviceId = joined.PhysicalDeviceId,
             Model = joined.Model ?? "Unknown drive",
@@ -95,6 +96,12 @@ public static class DriveFactsBuilder
             Verdict = verdict,
         };
     }
+
+    /// <summary>
+    /// The drive's <see cref="PhysicalDrive.Key"/>, from what Windows reports (not the serial read over SAT), so the
+    /// Storage page, single-drive refreshes and the reading cache all use the same key.
+    /// </summary>
+    public static string KeyFor(JoinedDrive joined) => PhysicalDrive.KeyOf(joined.Serial, joined.Model, joined.SizeBytes, joined.Number);
 
     /// <summary>Builds a SMART reading from the raw ATA value and threshold sectors; null when they hold no attributes.</summary>
     public static SmartReading? FromAtaSectors(byte[]? values, byte[]? thresholds, string? model, DateTimeOffset at, string source)
