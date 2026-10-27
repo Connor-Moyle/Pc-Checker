@@ -140,9 +140,13 @@ public sealed class JsonSettingsService : ISettingsService
         }
     }
 
-    /// <summary>Ensures nested objects are never null even if the file set them to null.</summary>
-    private static AppSettings Repair(AppSettings s)
+    /// <summary>
+    /// Ensures nested objects are never null even if the file set them to null. Also used for settings read from a
+    /// setup backup file.
+    /// </summary>
+    public static AppSettings Repair(AppSettings s)
     {
+        ArgumentNullException.ThrowIfNull(s);
         s.General ??= new GeneralSettings();
         s.General.RecentSearchItems ??= [];
         s.Updates ??= new UpdateSettings();
@@ -173,6 +177,11 @@ public sealed class JsonSettingsService : ISettingsService
         s.Latency.PingTargets ??= ["gateway", "1.1.1.1", "8.8.8.8"];
         s.Startup ??= new StartupSettings();
         s.History ??= new History.HistorySettings();
+        s.Network ??= new Network.NetworkSettings();
+        s.Network.PacketLossTargets ??= ["gateway", "1.1.1.1", "8.8.8.8"];
+        s.Gaming ??= new Gaming.GamingSettings();
+        s.Gaming.Profiles ??= [];
+        Scheduling.ScheduleRules.EnsureSettings(s);
         return s;
     }
 }

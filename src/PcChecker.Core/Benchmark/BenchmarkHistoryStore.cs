@@ -19,6 +19,18 @@ public interface IBenchmarkHistoryStore
 
     /// <summary>Removes the run with <paramref name="id"/> from the history and returns the updated history.</summary>
     Task<IReadOnlyList<BenchmarkRun>> DeleteAsync(Guid id, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Adds the runs the history does not have yet (matched by id), for a setup import, and returns the ids it added.
+    /// Raises <see cref="Changed"/>.
+    /// </summary>
+    Task<IReadOnlyList<Guid>> MergeAsync(IEnumerable<BenchmarkRun> runs, CancellationToken cancellationToken);
+
+    /// <summary>Removes the runs with these ids (undoing a setup import) and returns the updated history. Raises <see cref="Changed"/>.</summary>
+    Task<IReadOnlyList<BenchmarkRun>> RemoveAsync(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken);
+
+    /// <summary>Raised after <see cref="MergeAsync"/> or <see cref="RemoveAsync"/> with the new history, so an open Benchmark page can reload.</summary>
+    event EventHandler<IReadOnlyList<BenchmarkRun>>? Changed;
 }
 
 /// <summary>
@@ -53,6 +65,8 @@ public sealed class JsonBenchmarkHistoryStore : IBenchmarkHistoryStore
     }
 
     public string Location { get; }
+
+    public event EventHandler<IReadOnlyList<BenchmarkRun>>? Changed;
 
     public async Task<IReadOnlyList<BenchmarkRun>> LoadAsync(CancellationToken cancellationToken)
     {
@@ -96,6 +110,56 @@ public sealed class JsonBenchmarkHistoryStore : IBenchmarkHistoryStore
         {
             _gate.Release();
         }
+    }
+
+    public async Task<IReadOnlyList<Guid>> MergeAsync(IEnumerable<BenchmarkRun> runs, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(runs);
+        IReadOnlyList<BenchmarkRun> saved;
+        List<Guid> added;
+        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            var existing = await ReadAsync(throwOnIoError: true, cancellationToken).ConfigureAwait(false);
+            var known = existing.Select(r => r.Id).ToHashSet();
+            var incoming = runs.Where(r => IsUsable(r) && !known.Contains(r.Id)).ToList();
+            saved = BenchmarkHistoryRules.Normalize(existing.Concat(incoming));
+            added = incoming.Select(r => r.Id).Where(id => saved.Any(r => r.Id == id)).Distinct().ToList();
+            if (added.Count > 0)
+            {
+                await WriteAsync(saved).ConfigureAwait(false);
+            }
+        }
+        finally
+        {
+            _gate.Release();
+        }
+
+        if (added.Count > 0)
+        {
+            Changed?.Invoke(this, saved);
+        }
+
+        return added;
+    }
+
+    public async Task<IReadOnlyList<BenchmarkRun>> RemoveAsync(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(ids);
+        IReadOnlyList<BenchmarkRun> runs;
+        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            runs = (await ReadAsync(throwOnIoError: true, cancellationToken).ConfigureAwait(false)).Where(r => !ids.Contains(r.Id)).ToList();
+            await WriteAsync(runs).ConfigureAwait(false);
+        }
+        finally
+        {
+            _gate.Release();
+        }
+
+        Changed?.Invoke(this, runs);
+        return runs;
     }
 
     /// <summary>
@@ -185,6 +249,8 @@ public sealed class DemoBenchmarkHistoryStore : IBenchmarkHistoryStore
 
     public string Location => "Demo mode: sample runs, not saved";
 
+    public event EventHandler<IReadOnlyList<BenchmarkRun>>? Changed;
+
     public async Task<IReadOnlyList<BenchmarkRun>> LoadAsync(CancellationToken cancellationToken)
     {
         await Task.Delay(60, cancellationToken).ConfigureAwait(false);
@@ -211,5 +277,39 @@ public sealed class DemoBenchmarkHistoryStore : IBenchmarkHistoryStore
             _runs = _runs.Where(r => r.Id != id).ToList();
             return Task.FromResult(_runs);
         }
+    }
+
+    public Task<IReadOnlyList<Guid>> MergeAsync(IEnumerable<BenchmarkRun> runs, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(runs);
+        IReadOnlyList<BenchmarkRun> saved;
+        List<Guid> added;
+        lock (_lock)
+        {
+            var known = _runs.Select(r => r.Id).ToHashSet();
+            var incoming = runs.Where(r => !known.Contains(r.Id)).ToList();
+            _runs = saved = BenchmarkHistoryRules.Normalize(_runs.Concat(incoming));
+            added = incoming.Select(r => r.Id).Where(id => saved.Any(r => r.Id == id)).Distinct().ToList();
+        }
+
+        if (added.Count > 0)
+        {
+            Changed?.Invoke(this, saved);
+        }
+
+        return Task.FromResult<IReadOnlyList<Guid>>(added);
+    }
+
+    public Task<IReadOnlyList<BenchmarkRun>> RemoveAsync(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(ids);
+        IReadOnlyList<BenchmarkRun> saved;
+        lock (_lock)
+        {
+            _runs = saved = _runs.Where(r => !ids.Contains(r.Id)).ToList();
+        }
+
+        Changed?.Invoke(this, saved);
+        return Task.FromResult(saved);
     }
 }
