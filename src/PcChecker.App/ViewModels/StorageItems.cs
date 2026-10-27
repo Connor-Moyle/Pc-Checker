@@ -68,7 +68,30 @@ public sealed class StorageDeviceItem
 
     public bool IsAsleep => Drive?.Power == DrivePowerState.Asleep;
 
-    public string AsleepText => Drive is { } d ? DriveSleepRules.Describe(d.Power, d.Smart?.ReadAt, DateTimeOffset.Now) : string.Empty;
+    public string AsleepText => Drive is { } d ? PowerText(d.Power, d.Smart?.ReadAt) : string.Empty;
+
+    /// <summary>"Asleep, last reading at 14:05" and the other power wordings of <see cref="DriveSleepRules.Describe"/>, translated.</summary>
+    public static string PowerText(DrivePowerState power, DateTimeOffset? lastReading)
+    {
+        switch (power)
+        {
+            case DrivePowerState.Active:
+                return Loc.T("Active");
+            case DrivePowerState.Asleep:
+                var culture = CultureInfo.CurrentCulture;
+                var local = lastReading?.ToLocalTime();
+                string time = local?.ToString("t", culture) ?? string.Empty;
+                return DriveSleepRules.DayOf(lastReading, DateTimeOffset.Now) switch
+                {
+                    DriveSleepRules.ReadingDay.Today => Loc.F("Asleep, last reading at {0}", time),
+                    DriveSleepRules.ReadingDay.Yesterday => Loc.F("Asleep, last reading yesterday at {0}", time),
+                    DriveSleepRules.ReadingDay.Earlier => Loc.F("Asleep, last reading on {0} at {1}", local?.ToString("d", culture) ?? string.Empty, time),
+                    _ => Loc.T("Asleep, not read yet"),
+                };
+            default:
+                return Loc.T("Not reported");
+        }
+    }
 
     public bool IsOffline => Drive?.IsOffline ?? false;
 

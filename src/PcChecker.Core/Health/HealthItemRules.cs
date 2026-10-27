@@ -14,8 +14,37 @@ public static class HealthItemRules
     public const int UpdateStaleDays = 45;
     public const int ErrorFloodPerDay = 25;
 
+    /// <summary>
+    /// The drive inventory's Good / Caution / Bad verdict (the one the Storage page shows) as a Health verdict, so both
+    /// pages judge a drive the same way.
+    /// </summary>
+    public static SmartRules.Verdict FromDriveVerdict(Storage.DriveHealthVerdict verdict)
+    {
+        ArgumentNullException.ThrowIfNull(verdict);
+        var status = verdict.Verdict switch
+        {
+            Storage.DriveVerdict.Good => HealthStatus.Good,
+            Storage.DriveVerdict.Caution => HealthStatus.Warning,
+            Storage.DriveVerdict.Bad => HealthStatus.Critical,
+            _ => HealthStatus.Unknown,
+        };
+        var reasons = new List<string>();
+        if (verdict.Verdict != Storage.DriveVerdict.Good)
+        {
+            reasons.Add(verdict.Reason);
+            reasons.AddRange(verdict.Findings.Where(f => f != verdict.Reason));
+        }
+
+        return new SmartRules.Verdict(status, verdict.Label + ": " + verdict.Reason, reasons);
+    }
+
     /// <summary>Disk item from the drive facts and its SMART verdict.</summary>
-    public static HealthItem Disk(DiskHealth disk, SmartRules.Verdict verdict)
+    public static HealthItem Disk(DiskHealth disk, SmartRules.Verdict verdict) => Disk(disk, verdict, null);
+
+    /// <summary>
+    /// Disk item; with the drive inventory's verdict the title uses its per-drive wording ("Samsung 870 EVO: Caution").
+    /// </summary>
+    public static HealthItem Disk(DiskHealth disk, SmartRules.Verdict verdict, Storage.DriveHealthVerdict? driveVerdict)
     {
         ArgumentNullException.ThrowIfNull(disk);
         ArgumentNullException.ThrowIfNull(verdict);
@@ -50,7 +79,7 @@ public static class HealthItemRules
             metrics["Uncorrectable errors"] = u.ToString("N0");
         }
 
-        string title = verdict.Status switch
+        string title = driveVerdict is { Verdict: not Storage.DriveVerdict.Unknown } dv ? $"{disk.Model}: {dv.Label}" : verdict.Status switch
         {
             HealthStatus.Critical => $"{disk.Model} shows signs of failure",
             HealthStatus.Warning => $"{disk.Model} has early warning signs",

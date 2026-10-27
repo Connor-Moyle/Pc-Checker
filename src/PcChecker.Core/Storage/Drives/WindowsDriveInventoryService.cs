@@ -20,7 +20,10 @@ public sealed class WindowsDriveInventoryService : IDriveInventoryService
     private readonly ISettingsService? _settings;
     private readonly DriveReadingCache _cache;
     private readonly SemaphoreSlim _gate = new(1, 1);
+    private static readonly TimeSpan ReuseWindow = TimeSpan.FromSeconds(15);
+
     private IReadOnlyList<PhysicalDrive> _last = [];
+    private DateTimeOffset _lastAt = DateTimeOffset.MinValue;
 
     public WindowsDriveInventoryService(ILogger<WindowsDriveInventoryService> logger, ISettingsService? settings = null)
     {
@@ -38,13 +41,23 @@ public sealed class WindowsDriveInventoryService : IDriveInventoryService
             return [];
         }
 
+        var requested = DateTimeOffset.UtcNow;
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
+            // The Health check, the Storage page and the surface scan often ask within moments of each other; a routine
+            // request that waited for (or just followed) a finished refresh gets that result instead of a second pass of
+            // WMI queries and SMART reads.
+            if (mode == DriveReadMode.Routine && _last.Count > 0 && _lastAt >= requested - ReuseWindow)
+            {
+                return _last;
+            }
+
             var joined = await JoinAsync(cancellationToken).ConfigureAwait(false);
             var drives = await Task.Run(() => joined.Select(j => Finish(j, mode, cancellationToken)).ToList(), cancellationToken).ConfigureAwait(false);
             _cache.Save();
             _last = drives;
+            _lastAt = DateTimeOffset.UtcNow;
             _logger.LogInformation("Drive inventory: {Count} drives ({Asleep} asleep).", drives.Count, drives.Count(d => d.Power == DrivePowerState.Asleep));
             return drives;
         }
@@ -65,17 +78,19 @@ public sealed class WindowsDriveInventoryService : IDriveInventoryService
         try
         {
             var joined = await JoinAsync(cancellationToken).ConfigureAwait(false);
+            var previous = _last.GroupBy(d => d.Key).ToDictionary(g => g.Key, g => g.First());
             PhysicalDrive? refreshed = null;
             var drives = await Task.Run(() => joined.Select(j =>
             {
-                // Only the chosen drive gets the requested mode; the others stay routine so they are not woken.
-                var routine = Finish(j, DriveReadMode.Routine, cancellationToken);
-                if (routine.Key != key)
+                // Only the chosen drive is read (with the requested mode); the others keep their last result, so they
+                // are neither woken nor sent another round of SMART commands.
+                string driveKey = KeyFor(j);
+                if (driveKey != key)
                 {
-                    return routine;
+                    return previous.TryGetValue(driveKey, out var kept) ? kept : Finish(j, DriveReadMode.Routine, cancellationToken);
                 }
 
-                refreshed = mode == DriveReadMode.Routine ? routine : Finish(j, mode, cancellationToken);
+                refreshed = Finish(j, mode, cancellationToken);
                 return refreshed;
             }).ToList(), cancellationToken).ConfigureAwait(false);
             _cache.Save();
@@ -109,7 +124,27 @@ public sealed class WindowsDriveInventoryService : IDriveInventoryService
             pools = await ReadPoolsAsync(ct).ConfigureAwait(false);
         }
 
-        return DriveInventoryJoin.Join(disks, physical, win32, partitions, pools);
+        var joined = DriveInventoryJoin.Join(disks, physical, win32, partitions, pools);
+        if (joined.Any(d => d.IsDynamic && d.Volumes.Count == 0))
+        {
+            // Dynamic (LDM) volumes have no letter in MSFT_Partition; the volume extents say which disks they live on.
+            var extents = await Task.Run(() => DriveLetters().Select(l => (l, DriveNative.VolumeDiskNumbers(l))).ToList(), ct).ConfigureAwait(false);
+            DriveInventoryJoin.AddVolumeLetters(joined, extents);
+        }
+
+        return joined;
+    }
+
+    private static IEnumerable<string> DriveLetters()
+    {
+        try
+        {
+            return DriveInfo.GetDrives().Where(d => d.DriveType is DriveType.Fixed or DriveType.Removable).Select(d => d.Name.TrimEnd('\\')).ToList();
+        }
+        catch
+        {
+            return [];
+        }
     }
 
     private PhysicalDrive Finish(JoinedDrive joined, DriveReadMode mode, CancellationToken ct)
@@ -146,7 +181,20 @@ public sealed class WindowsDriveInventoryService : IDriveInventoryService
             _logger.LogDebug(ex, "Query handle for disk {Number} failed.", joined.Number);
         }
 
-        string? pcie = joined.Bus == "NVMe" ? DriveNative.PcieLink(joined.PnpDeviceId) : null;
+        // GetDevicePowerState only knows Windows' own idle spin-down. A drive that spun itself down (firmware standby or
+        // APM timers, common on external disks) is found with ATA CHECK POWER MODE, which never spins it up.
+        // A USB stick or card reader gets no ATA commands at all (unless Windows measured a seek penalty: then it is a disk).
+        bool usbFlash = joined.IsUsbFlash && seekPenalty != true;
+        if (mode == DriveReadMode.Routine && power != DrivePowerState.Asleep && seekPenalty != false && !joined.LooksNvme && !usbFlash
+            && joined.Role == DriveRole.Disk && joined.BusTypeCode is not (DriveMediaRules.BusSd or DriveMediaRules.BusMmc))
+        {
+            if (CheckAtaPowerMode(joined) == DrivePowerState.Asleep)
+            {
+                power = DrivePowerState.Asleep;
+            }
+        }
+
+        string? pcie = joined.LooksNvme ? DriveNative.PcieLink(joined.PnpDeviceId) : null;
         string key = KeyFor(joined);
 
         if (!DriveSleepRules.ShouldReadSmart(power, mode))
@@ -158,7 +206,7 @@ public sealed class WindowsDriveInventoryService : IDriveInventoryService
             return DriveFactsBuilder.Build(joined, probe, SmartAccess.SkippedAsleep, last, systemRoot, warn, crit, note);
         }
 
-        var (access, reading, identity, smartNote) = ReadSmart(joined, ct);
+        var (access, reading, identity, smartNote) = ReadSmart(joined, usbFlash, ct);
         if (reading is not null)
         {
             _cache.Put(key, reading);
@@ -172,8 +220,37 @@ public sealed class WindowsDriveInventoryService : IDriveInventoryService
         return DriveFactsBuilder.Build(joined, new DriveProbe(seekPenalty, power, identity, pcie), access, reading, systemRoot, warn, crit, smartNote);
     }
 
-    private (SmartAccess Access, SmartReading? Reading, AtaIdentity? Identity, string? Note) ReadSmart(JoinedDrive joined, CancellationToken ct)
+    private DrivePowerState CheckAtaPowerMode(JoinedDrive joined)
     {
+        try
+        {
+            using var handle = DriveNative.OpenReadWrite(joined.Number, out _);
+            if (handle is null)
+            {
+                return DrivePowerState.Unknown;
+            }
+
+            var tf = AtaCommands.CheckPowerMode();
+            byte? count = joined.IsUsb
+                ? AtaCommands.CountFromSatSense(DriveNative.ScsiPassThroughSense(handle, AtaCommands.SatCdb16NonData(tf)) ?? [])
+                : DriveNative.AtaPassThroughNoDataCount(handle, tf);
+            return AtaCommands.PowerFromCheckPowerMode(count);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "CHECK POWER MODE failed for disk {Number}.", joined.Number);
+            return DrivePowerState.Unknown;
+        }
+    }
+
+    private (SmartAccess Access, SmartReading? Reading, AtaIdentity? Identity, string? Note) ReadSmart(JoinedDrive joined, bool usbFlash, CancellationToken ct)
+    {
+        if (usbFlash)
+        {
+            // No ATA commands: flash sticks and card readers have no SMART, and some hang on pass-through commands.
+            return (SmartAccess.NotSupported, null, null, "USB flash drives and card readers do not report SMART health.");
+        }
+
         using var handle = DriveNative.OpenReadWrite(joined.Number, out var open);
         if (handle is null)
         {
@@ -194,6 +271,17 @@ public sealed class WindowsDriveInventoryService : IDriveInventoryService
                 return reading is null
                     ? (SmartAccess.NotSupported, null, null, "The NVMe driver did not return the health log. Vendor drivers (for example some Intel and Samsung drivers) can hide it.")
                     : (SmartAccess.Read, reading, null, null);
+            }
+
+            if (joined.BusTypeCode == DriveMediaRules.BusRaid)
+            {
+                // Intel RST / VMD reports BusType RAID also for a single NVMe drive and newer drivers pass the health log
+                // through, so it is tried first; the ATA paths below follow for SATA drives behind the RAID driver.
+                var reading = DriveFactsBuilder.FromNvmeLog(DriveNative.NvmeHealthLog(handle), now, "NVMe health log (RAID driver)");
+                if (reading is not null)
+                {
+                    return (SmartAccess.Read, reading, null, null);
+                }
             }
 
             if (joined.BusTypeCode is DriveMediaRules.BusSd or DriveMediaRules.BusMmc)
@@ -237,9 +325,15 @@ public sealed class WindowsDriveInventoryService : IDriveInventoryService
             _logger.LogDebug(ex, "SMART read failed for disk {Number}.", joined.Number);
         }
 
-        if (joined.Role == DriveRole.RaidArray || joined.BusTypeCode == DriveMediaRules.BusRaid)
+        if (joined.Role == DriveRole.RaidArray)
         {
             return (SmartAccess.HiddenByRaid, null, null, null);
+        }
+
+        if (joined.IsRaidPassThrough || joined.BusTypeCode == DriveMediaRules.BusRaid)
+        {
+            return (SmartAccess.HiddenByRaid, null, null,
+                "The Intel RST or AMD RAID driver controls this drive and did not pass its SMART data through. The drive is in no array; the RAID software (Intel RST or AMD RAIDXpert) or the standard Windows driver shows its health.");
         }
 
         return (SmartAccess.NotSupported, null, null, null);
@@ -247,21 +341,23 @@ public sealed class WindowsDriveInventoryService : IDriveInventoryService
 
     private (SmartAccess, SmartReading?, AtaIdentity?, string?) ReadViaSat(Microsoft.Win32.SafeHandles.SafeFileHandle handle, JoinedDrive joined, DateTimeOffset now, CancellationToken ct)
     {
-        foreach (var (name, build) in new (string, Func<AtaCommands.TaskFile, byte[]>)[]
+        // UASP bridges often accept IOCTL_ATA_PASS_THROUGH; the classic USB mass storage bridges need SAT (16) or (12).
+        foreach (var (name, read) in new (string, Func<AtaCommands.TaskFile, byte[]?>)[]
                  {
-                     ("SAT (16)", AtaCommands.SatCdb16),
-                     ("SAT (12)", AtaCommands.SatCdb12),
+                     ("ATA pass-through", tf => DriveNative.AtaPassThrough(handle, tf)),
+                     ("SAT (16)", tf => DriveNative.ScsiPassThrough(handle, AtaCommands.SatCdb16(tf))),
+                     ("SAT (12)", tf => DriveNative.ScsiPassThrough(handle, AtaCommands.SatCdb12(tf))),
                  })
         {
             ct.ThrowIfCancellationRequested();
-            var values = DriveNative.ScsiPassThrough(handle, build(AtaCommands.SmartRead(AtaCommands.SmartReadData)));
+            var values = read(AtaCommands.SmartRead(AtaCommands.SmartReadData));
             if (values is null || !AtaCommands.LooksLikeSmartData(values))
             {
                 continue;
             }
 
-            var thresholds = DriveNative.ScsiPassThrough(handle, build(AtaCommands.SmartRead(AtaCommands.SmartReadThresholds)));
-            var identity = AtaCommands.ParseIdentify(DriveNative.ScsiPassThrough(handle, build(AtaCommands.Identify())) ?? []);
+            var thresholds = read(AtaCommands.SmartRead(AtaCommands.SmartReadThresholds));
+            var identity = AtaCommands.ParseIdentify(read(AtaCommands.Identify()) ?? []);
             var reading = DriveFactsBuilder.FromAtaSectors(values, thresholds, identity?.Model is { Length: > 0 } m ? m : joined.Model, now, "USB " + name);
             if (reading is not null)
             {
@@ -332,7 +428,8 @@ public sealed class WindowsDriveInventoryService : IDriveInventoryService
             ? new ManagementObjectSearcher(wql)
             : new ManagementObjectSearcher(new ManagementScope(scope), new ObjectQuery(wql));
         searcher.Options.Timeout = TimeSpan.FromSeconds(30);
-        foreach (ManagementBaseObject row in searcher.Get())
+        using var results = searcher.Get();
+        foreach (ManagementBaseObject row in results)
         {
             ct.ThrowIfCancellationRequested();
             using (row)

@@ -262,8 +262,9 @@ public class HardwareFormattingTests
         Assert.Equal("32.0 GB", o.Memory);
         Assert.Contains("2 of 4 slots used", o.MemoryDetail);
         Assert.Contains("DDR5", o.MemoryDetail);
-        Assert.Contains("1 SSD", o.StorageDetail);
-        Assert.Contains("1 HDD", o.StorageDetail);
+        // NVMe + SATA SSD; the internal and USB hard disks and the two pool drives; the storage space.
+        Assert.Contains("2 SSD", o.StorageDetail);
+        Assert.Contains("4 HDD", o.StorageDetail);
         Assert.Equal(DemoData.OsName, o.Os);
         Assert.Equal(4, HardwareSummary.MemorySlots(Demo));
         Assert.Null(HardwareSummary.MemorySlots(new HardwareInventory()));

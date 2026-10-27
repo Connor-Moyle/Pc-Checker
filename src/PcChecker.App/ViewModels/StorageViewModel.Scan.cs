@@ -2,6 +2,7 @@ using System.Diagnostics;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
+using PcChecker.App.Localization;
 using PcChecker.Core.Common;
 using PcChecker.Core.Storage;
 
@@ -251,21 +252,21 @@ public sealed partial class StorageViewModel
         var device = SelectedDevice;
         if (device is null)
         {
-            ScanEstimateText = "Select a drive to see how long a scan would take.";
+            ScanEstimateText = Loc.T("Select a drive to see how long a scan would take.");
             return;
         }
 
         if (!device.CanUseTools)
         {
-            ScanEstimateText = "Windows hides drives inside a storage pool, so they cannot be scanned on their own. Scan the storage space instead.";
+            ScanEstimateText = Loc.T("Windows hides drives inside a storage pool, so they cannot be scanned on their own. Scan the storage space instead.");
             return;
         }
 
         var estimate = EstimateScan(device, SelectedScanMode);
-        string time = estimate < TimeSpan.FromMinutes(1) ? "under a minute" : "about " + SurfaceScanMath.FormatDuration(estimate);
+        string time = estimate < TimeSpan.FromMinutes(1) ? Loc.T("under a minute") : Loc.F("about {0}", SurfaceScanMath.FormatDuration(estimate));
         ScanEstimateText = SelectedScanMode == ScanMode.Quick
-            ? $"Quick scan of {device.Model}: {time}."
-            : $"Full scan of {device.Model} ({device.SizeText}): {time} at typical speed.";
+            ? Loc.F("Quick scan of {0}: {1}.", device.Model, time)
+            : Loc.F("Full scan of {0} ({1}): {2} at typical speed.", device.Model, device.SizeText, time);
     }
 
     private TimeSpan EstimateScan(StorageDeviceItem device, ScanMode mode)

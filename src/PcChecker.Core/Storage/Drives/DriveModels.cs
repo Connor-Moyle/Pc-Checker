@@ -18,6 +18,9 @@ public enum DriveMedia
 
     /// <summary>An SD or MMC memory card.</summary>
     FlashCard,
+
+    /// <summary>A USB flash stick.</summary>
+    FlashDrive,
 }
 
 /// <summary>Where a drive sits in the storage stack.</summary>

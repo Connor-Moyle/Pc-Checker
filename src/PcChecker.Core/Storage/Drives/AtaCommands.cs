@@ -33,6 +33,81 @@ public static class AtaCommands
 
     public static TaskFile Identify() => new(0, 1, 0, 0, 0, 0xA0, IdentifyCommand);
 
+    /// <summary>ATA CHECK POWER MODE (E5h): reports standby / idle / active in the count register without spinning the drive up.</summary>
+    public const byte CheckPowerModeCommand = 0xE5;
+
+    public static TaskFile CheckPowerMode() => new(0, 0, 0, 0, 0, 0xA0, CheckPowerModeCommand);
+
+    /// <summary>
+    /// SAT ATA PASS-THROUGH (16) for a non-data command (protocol 3) with CK_COND set, so the bridge returns the ATA
+    /// registers in the sense data.
+    /// </summary>
+    public static byte[] SatCdb16NonData(TaskFile tf) =>
+    [
+        0x85,
+        3 << 1,       // protocol: non-data
+        0x20,         // CK_COND: return the registers, no transfer
+        0, tf.Features,
+        0, tf.SectorCount,
+        0, tf.LbaLow,
+        0, tf.LbaMid,
+        0, tf.LbaHigh,
+        tf.Device,
+        tf.Command,
+        0,
+    ];
+
+    /// <summary>
+    /// The ATA count register from SAT sense data ("ATA pass-through information available", ASC/ASCQ 00h/1Dh): the
+    /// ATA Status Return descriptor (09h) in descriptor format, or the INFORMATION field in fixed format. Null when the
+    /// bridge did not return the registers.
+    /// </summary>
+    public static byte? CountFromSatSense(ReadOnlySpan<byte> sense)
+    {
+        if (sense.Length < 8)
+        {
+            return null;
+        }
+
+        int code = sense[0] & 0x7F;
+        if (code is 0x72 or 0x73)
+        {
+            if (sense[2] != 0x00 || sense[3] != 0x1D)
+            {
+                return null;
+            }
+
+            int end = Math.Min(sense.Length, 8 + sense[7]);
+            for (int i = 8; i + 1 < end;)
+            {
+                int length = sense[i + 1];
+                if (sense[i] == 0x09 && length >= 12 && i + 13 < sense.Length)
+                {
+                    return sense[i + 5];
+                }
+
+                i += 2 + length;
+            }
+
+            return null;
+        }
+
+        if (code is 0x70 or 0x71 && sense.Length >= 14 && sense[12] == 0x00 && sense[13] == 0x1D)
+        {
+            return sense[6]; // INFORMATION: ERROR, STATUS, DEVICE, COUNT
+        }
+
+        return null;
+    }
+
+    /// <summary>CHECK POWER MODE count: 00h/01h standby (spun down), 40h/41h/80h–83h/FFh idle or active.</summary>
+    public static DrivePowerState PowerFromCheckPowerMode(byte? count) => count switch
+    {
+        0x00 or 0x01 => DrivePowerState.Asleep,
+        0x40 or 0x41 or 0x80 or 0x81 or 0x82 or 0x83 or 0xFF => DrivePowerState.Active,
+        _ => DrivePowerState.Unknown,
+    };
+
     /// <summary>
     /// SAT ATA PASS-THROUGH (12), opcode A1h: PIO data-in (protocol 4), transfer direction from the device, length in
     /// sectors taken from the sector count field.

@@ -22,6 +22,7 @@ internal static class DriveNative
     private const uint SmartRcvDriveData = 0x0007C088;
     private const uint IoctlAtaPassThrough = 0x0004D02C;
     private const uint IoctlScsiPassThrough = 0x0004D004;
+    private const uint IoctlVolumeGetVolumeDiskExtents = 0x00560000;
 
     private const int StorageDeviceSeekPenaltyProperty = 7;
     private const int StorageAdapterProtocolSpecificProperty = 49;
@@ -143,6 +144,74 @@ internal static class DriveNative
         return buffer.AsSpan(dataOffset, SectorBytes).ToArray();
     }
 
+    /// <summary>
+    /// IOCTL_ATA_PASS_THROUGH for a non-data command; returns the ATA count register the drive sent back, or null.
+    /// Used for CHECK POWER MODE, which never spins a drive up.
+    /// </summary>
+    public static byte? AtaPassThroughNoDataCount(SafeFileHandle handle, AtaCommands.TaskFile tf)
+    {
+        bool x64 = IntPtr.Size == 8;
+        int structSize = x64 ? 48 : 40;
+        var buffer = new byte[structSize];
+        BinaryPrimitives.WriteUInt16LittleEndian(buffer, (ushort)structSize);
+        BinaryPrimitives.WriteUInt16LittleEndian(buffer.AsSpan(2), 0x0001); // DRDY required, no data
+        BinaryPrimitives.WriteUInt32LittleEndian(buffer.AsSpan(12), 5); // seconds
+        int taskFile = x64 ? 40 : 32;
+        buffer[taskFile] = tf.Features;
+        buffer[taskFile + 1] = tf.SectorCount;
+        buffer[taskFile + 2] = tf.LbaLow;
+        buffer[taskFile + 3] = tf.LbaMid;
+        buffer[taskFile + 4] = tf.LbaHigh;
+        buffer[taskFile + 5] = tf.Device;
+        buffer[taskFile + 6] = tf.Command;
+        if (!DeviceIoControl(handle, IoctlAtaPassThrough, buffer, buffer.Length, buffer, buffer.Length, out int returned, IntPtr.Zero) || returned < structSize)
+        {
+            return null;
+        }
+
+        if ((buffer[taskFile + 6] & 0x01) != 0)
+        {
+            return null; // ERR
+        }
+
+        return buffer[taskFile + 1];
+    }
+
+    /// <summary>IOCTL_SCSI_PASS_THROUGH for a non-data SAT CDB with CK_COND; returns the sense data, or null.</summary>
+    public static byte[]? ScsiPassThroughSense(SafeFileHandle handle, byte[] cdb)
+    {
+        bool x64 = IntPtr.Size == 8;
+        int structSize = x64 ? 56 : 44;
+        int senseOffset = structSize;
+        const int senseLength = 32;
+        var buffer = new byte[senseOffset + senseLength];
+        BinaryPrimitives.WriteUInt16LittleEndian(buffer, (ushort)structSize);
+        buffer[6] = (byte)cdb.Length;
+        buffer[7] = senseLength;
+        buffer[8] = 2; // SCSI_IOCTL_DATA_UNSPECIFIED
+        BinaryPrimitives.WriteUInt32LittleEndian(buffer.AsSpan(16), 5); // seconds
+        int cdbOffset;
+        if (x64)
+        {
+            BinaryPrimitives.WriteUInt32LittleEndian(buffer.AsSpan(32), (uint)senseOffset);
+            cdbOffset = 36;
+        }
+        else
+        {
+            BinaryPrimitives.WriteUInt32LittleEndian(buffer.AsSpan(24), (uint)senseOffset);
+            cdbOffset = 28;
+        }
+
+        cdb.CopyTo(buffer, cdbOffset);
+        if (!DeviceIoControl(handle, IoctlScsiPassThrough, buffer, buffer.Length, buffer, buffer.Length, out int returned, IntPtr.Zero) || returned < structSize)
+        {
+            return null;
+        }
+
+        int senseReturned = Math.Min(buffer[7], (byte)senseLength);
+        return senseReturned == 0 ? null : buffer.AsSpan(senseOffset, senseReturned).ToArray();
+    }
+
     /// <summary>IOCTL_SCSI_PASS_THROUGH with a SAT ATA PASS-THROUGH CDB, the path USB bridges understand (when they do).</summary>
     public static byte[]? ScsiPassThrough(SafeFileHandle handle, byte[] cdb)
     {
@@ -228,6 +297,51 @@ internal static class DriveNative
         return null;
     }
 
+    /// <summary>
+    /// The disk numbers a volume ("D:") lies on, from IOCTL_VOLUME_GET_VOLUME_DISK_EXTENTS. Works for dynamic (LDM)
+    /// volumes, whose letters MSFT_Partition does not report, and never sends a command to the drive.
+    /// </summary>
+    public static IReadOnlyList<int> VolumeDiskNumbers(string letter)
+    {
+        if (!OperatingSystem.IsWindows() || string.IsNullOrEmpty(letter) || !char.IsLetter(letter[0]))
+        {
+            return [];
+        }
+
+        try
+        {
+            using var handle = CreateFileW($@"\\.\{char.ToUpperInvariant(letter[0])}:", 0, ShareReadWrite, IntPtr.Zero, OpenExisting, 0, IntPtr.Zero);
+            if (handle.IsInvalid)
+            {
+                return [];
+            }
+
+            const int extentSize = 24;
+            var output = new byte[8 + (extentSize * 32)];
+            if (!DeviceIoControl(handle, IoctlVolumeGetVolumeDiskExtents, [], 0, output, output.Length, out int returned, IntPtr.Zero) || returned < 8)
+            {
+                return [];
+            }
+
+            int count = BinaryPrimitives.ReadInt32LittleEndian(output);
+            var disks = new List<int>();
+            for (int i = 0; i < count && 8 + ((i + 1) * extentSize) <= returned; i++)
+            {
+                int disk = BinaryPrimitives.ReadInt32LittleEndian(output.AsSpan(8 + (i * extentSize)));
+                if (!disks.Contains(disk))
+                {
+                    disks.Add(disk);
+                }
+            }
+
+            return disks;
+        }
+        catch
+        {
+            return [];
+        }
+    }
+
     /// <summary>"PCIe 4.0 x4" for the PCI device above a disk's PnP node (the NVMe controller), or null.</summary>
     public static string? PcieLink(string? pnpDeviceId)
     {
@@ -245,10 +359,10 @@ internal static class DriveNative
 
             for (int level = 0; level < 4; level++)
             {
-                if (ReadUInt32(node, 9) is { } speed)
+                if (ReadUInt32(node, DriveText.PciCurrentLinkSpeed) is { } speed)
                 {
-                    return DriveText.PcieLink((int)speed, ReadUInt32(node, 10) is { } w ? (int)w : null,
-                        ReadUInt32(node, 7) is { } ms ? (int)ms : null, ReadUInt32(node, 8) is { } mw ? (int)mw : null);
+                    return DriveText.PcieLink((int)speed, ReadUInt32(node, DriveText.PciCurrentLinkWidth) is { } w ? (int)w : null,
+                        ReadUInt32(node, DriveText.PciMaxLinkSpeed) is { } ms ? (int)ms : null, ReadUInt32(node, DriveText.PciMaxLinkWidth) is { } mw ? (int)mw : null);
                 }
 
                 if (CM_Get_Parent(out uint parent, node, 0) != 0)

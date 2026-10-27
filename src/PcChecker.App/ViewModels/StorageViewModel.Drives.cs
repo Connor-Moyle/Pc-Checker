@@ -268,7 +268,7 @@ public sealed partial class StorageViewModel
             rows.Add(new(Loc.T("Storage pool"), drive.PoolName ?? Loc.T("Yes"), Loc.T("Windows hides drives inside a storage pool; the storage space made from them has the drive letter.")));
         }
 
-        rows.Add(new(Loc.T("Power state"), DriveSleepRules.Describe(drive.Power, drive.Smart?.ReadAt, DateTimeOffset.Now),
+        rows.Add(new(Loc.T("Power state"), StorageDeviceItem.PowerText(drive.Power, drive.Smart?.ReadAt),
             drive.Power == DrivePowerState.Asleep ? Loc.T("PC Checker does not wake sleeping drives for routine checks.") : null));
 
         if (drive.Smart?.Values is { } v)

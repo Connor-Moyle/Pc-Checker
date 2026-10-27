@@ -91,10 +91,33 @@ public sealed class DemoHardwareInventoryService : IHardwareInventoryService
                 ("MediaType", "Fixed hard disk media"), ("Partitions", "1"), ("BytesPerSector", "512"), ("Status", "OK"), ("Index", "1"),
                 ("PhysicalDisk.MediaType", "3"), ("PhysicalDisk.BusType", "11"), ("PhysicalDisk.HealthStatus", "1"), ("PhysicalDisk.SpindleSpeed", "7200"), ("PhysicalDisk.OperationalStatus", "Predictive Failure"))));
 
+        // The same drives as the Storage page demo: a SATA SSD, a sleeping USB hard disk, a two-way mirror storage space
+        // and the two pool drives Windows hides from Win32_DiskDrive.
+        AddDemoDisk(inventory, Storage.DemoDriveInventoryService.SataSsdModel, "Crucial", 2, "2235E6A1B2C3", "M3CR046", "IDE", "SSD", "SATA",
+            Storage.DemoDriveInventoryService.SataSsdBytes, "Healthy", null, @"SCSI\DISK&VEN_&PROD_CT1000MX500SSD1\4&DEMO0003&0&020000", "E:", "4", "11");
+        AddDemoDisk(inventory, Storage.DemoDriveInventoryService.UsbModel, "Western Digital", 3, "WX61DA9L5472", "1026", "USB", "HDD", "USB",
+            Storage.DemoDriveInventoryService.UsbBytes, "Healthy", 5400, @"USBSTOR\DISK&VEN_WD&PROD_ELEMENTS_25A3&REV_1026\DEMO0004&0", "F:", "3", "7");
+        AddDemoDisk(inventory, Storage.DemoDriveInventoryService.SpaceModel, "Microsoft", 4, null, null, "SCSI", "Storage space", "Storage Spaces",
+            Storage.DemoDriveInventoryService.SpaceBytes, "Healthy", null, @"STORAGE\DISK\{DEMO-SPACE}", "G:", null, "16");
+        foreach (var serial in new[] { "ZFL5A1B2", "ZFL5C3D4" })
+        {
+            inventory.PhysicalDisks.Add(new PhysicalDiskInfo(Storage.DemoDriveInventoryService.PoolMemberModel, "Seagate", null, null, Storage.DemoDriveInventoryService.PoolMemberModel,
+                serial, "0001", null, "HDD", "SATA", Storage.DemoDriveInventoryService.PoolMemberBytes, "Healthy", 7200, null, [],
+                Props(("FriendlyName", Storage.DemoDriveInventoryService.PoolMemberModel), ("SerialNumber", serial), ("MediaType", "3"), ("BusType", "11"), ("SpindleSpeed", "7200"),
+                    ("CannotPoolReason", "In a pool"), ("Usage", "Auto-Select"))));
+        }
+
         inventory.LogicalDrives.Add(new LogicalDriveInfo("C:", "C:", "Windows", "NTFS", "Local disk", DemoData.NvmeBytes - 800_000_000, 742_000_000_000, "A1B2C3D4", false,
             Props(("DeviceID", "C:"), ("VolumeName", "Windows"), ("FileSystem", "NTFS"), ("DriveType", "3"), ("Size", (DemoData.NvmeBytes - 800_000_000).ToString()), ("FreeSpace", "742000000000"), ("SupportsFileBasedCompression", "Yes"), ("QuotasDisabled", "Yes"))));
         inventory.LogicalDrives.Add(new LogicalDriveInfo("D:", "D:", "Games & Media", "NTFS", "Local disk", DemoData.HddBytes - 16_000_000, 1_210_000_000_000, "E5F6A7B8", false,
             Props(("DeviceID", "D:"), ("VolumeName", "Games & Media"), ("FileSystem", "NTFS"), ("DriveType", "3"), ("FreeSpace", "1210000000000"))));
+
+        inventory.LogicalDrives.Add(new LogicalDriveInfo("E:", "E:", "Projects", "NTFS", "Local disk", Storage.DemoDriveInventoryService.SataSsdBytes - 16_000_000, 512_000_000_000, "C9D0E1F2", false,
+            Props(("DeviceID", "E:"), ("VolumeName", "Projects"), ("FileSystem", "NTFS"), ("DriveType", "3"), ("FreeSpace", "512000000000"))));
+        inventory.LogicalDrives.Add(new LogicalDriveInfo("F:", "F:", "Backup", "NTFS", "Local disk", Storage.DemoDriveInventoryService.UsbBytes - 16_000_000, 2_400_000_000_000, "1A2B3C4D", false,
+            Props(("DeviceID", "F:"), ("VolumeName", "Backup"), ("FileSystem", "NTFS"), ("DriveType", "3"), ("FreeSpace", "2400000000000"))));
+        inventory.LogicalDrives.Add(new LogicalDriveInfo("G:", "G:", "Photos (mirror)", "ReFS", "Local disk", Storage.DemoDriveInventoryService.SpaceBytes - 16_000_000, 1_150_000_000_000, "5E6F7A8B", false,
+            Props(("DeviceID", "G:"), ("VolumeName", "Photos (mirror)"), ("FileSystem", "ReFS"), ("DriveType", "3"), ("FreeSpace", "1150000000000"))));
 
         inventory.NetworkAdapters.Add(new NetworkAdapterInfo("Intel Ethernet Controller I226-V", "Intel", "7", "OK", "A8-5E-45-DE-00-01", "Ethernet", 2_500_000_000, true, "Ethernet", "Connected",
             ["192.168.1.42", "fe80::1c2d:3e4f:5a6b:7c8d"], ["192.168.1.1"], ["192.168.1.1", "1.1.1.1"], true, @"PCI\VEN_8086&DEV_125C&SUBSYS_87D21043&REV_04\DEMO0001",
@@ -173,6 +196,21 @@ public sealed class DemoHardwareInventoryService : IHardwareInventoryService
     private static PnpDeviceInfo Pnp(string name, string? manufacturer, string deviceId, string pnpClass, string? service, int problem) =>
         new(name, manufacturer, deviceId, problem == 0 ? "OK" : "Error", pnpClass, null, service, name, problem, true, [deviceId.Split('\\').Length > 1 ? string.Join('\\', deviceId.Split('\\').Take(2)) : deviceId],
             Props(("Name", name), ("DeviceID", deviceId), ("PNPClass", pnpClass), ("ConfigManagerErrorCode", problem.ToString()), ("Present", "Yes"), ("Status", problem == 0 ? "OK" : "Error")));
+
+    private static void AddDemoDisk(HardwareInventory inventory, string model, string vendor, int index, string? serial, string? firmware, string interfaceType, string media,
+        string bus, long size, string health, int? rpm, string pnp, string letter, string? physicalMediaType, string busCode)
+    {
+        var partition = new PartitionInfo($"Disk #{index}, Partition #0 ({letter})", $"Disk #{index}, Partition #0", size - 16_000_000, 16777216, 0, "GPT: Basic Data", false, false, true,
+            Props(("DeviceID", $"Disk #{index}, Partition #0"), ("DriveLetter", letter), ("Type", "GPT: Basic Data")));
+        var props = Props(("Model", model), ("SerialNumber", serial ?? string.Empty), ("FirmwareRevision", firmware ?? string.Empty), ("Size", size.ToString()),
+            ("InterfaceType", interfaceType), ("Partitions", "1"), ("Status", "OK"), ("Index", index.ToString()), ("PhysicalDisk.BusType", busCode));
+        if (physicalMediaType is not null)
+        {
+            props["PhysicalDisk.MediaType"] = physicalMediaType;
+        }
+
+        inventory.PhysicalDisks.Add(new PhysicalDiskInfo(model, vendor, $@"\\.\PHYSICALDRIVE{index}", "OK", model, serial, firmware, interfaceType, media, bus, size, health, rpm, pnp, [partition], props));
+    }
 
     private static Dictionary<string, string> Props(params (string Key, string Value)[] pairs)
     {

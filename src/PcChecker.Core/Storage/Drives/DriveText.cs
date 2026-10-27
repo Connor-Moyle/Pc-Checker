@@ -5,6 +5,18 @@ namespace PcChecker.Core.Storage;
 /// <summary>Display text for drive facts: capacity in decimal and binary units, link speeds, partition styles.</summary>
 public static class DriveText
 {
+    /// <summary>DEVPKEY_PciDevice_CurrentLinkSpeed (pciprop.h). Ids 6–8 are payload and read-request sizes, not link facts.</summary>
+    public const uint PciCurrentLinkSpeed = 9;
+
+    /// <summary>DEVPKEY_PciDevice_CurrentLinkWidth.</summary>
+    public const uint PciCurrentLinkWidth = 10;
+
+    /// <summary>DEVPKEY_PciDevice_MaxLinkSpeed.</summary>
+    public const uint PciMaxLinkSpeed = 11;
+
+    /// <summary>DEVPKEY_PciDevice_MaxLinkWidth.</summary>
+    public const uint PciMaxLinkWidth = 12;
+
     private static readonly string[] DecimalUnits = ["B", "KB", "MB", "GB", "TB", "PB"];
     private static readonly string[] BinaryUnits = ["B", "KiB", "MiB", "GiB", "TiB", "PiB"];
 

@@ -71,6 +71,7 @@ public sealed partial class WindowsHealthService
                 PhysicalDiskHealth = drive.WindowsHealth,
                 Asleep = drive.Power == Storage.DrivePowerState.Asleep,
                 Note = drive.SmartAccess == Storage.SmartAccess.Read ? null : drive.SmartNote,
+                DriveVerdict = drive.Verdict,
             };
 
             if (drive.Smart is { } smart)
@@ -388,12 +389,16 @@ public sealed partial class WindowsHealthService
             string? smartText = b.PredictFailure ? "Predicting failure" : b.PhysicalDiskHealth ?? (b.SmartSupported ? "OK" : null);
             var draft = new DiskHealth(b.Model, b.Serial, b.Firmware, b.SizeBytes, b.MediaType, HealthStatus.Unknown, smartText,
                 b.TemperatureC, b.PowerOnHours, b.Reallocated, b.Pending, b.Uncorrectable, b.WearPercent, b.HostWritesGb, b.Attributes);
-            var verdict = SmartRules.Evaluate(draft, monitoring.DiskWarnC, monitoring.DiskCritC);
-            bool anyData = b.SmartSupported || b.PhysicalDiskHealth is not null || b.TemperatureC is not null || b.Attributes.Count > 0 || b.WearPercent is not null;
+            // A drive from the inventory keeps the verdict the Storage page shows (DriveHealthRules), so both pages agree.
+            var inventoryVerdict = b.DriveVerdict is { Verdict: not Storage.DriveVerdict.Unknown } dv ? dv : null;
+            var verdict = inventoryVerdict is not null
+                ? HealthItemRules.FromDriveVerdict(inventoryVerdict)
+                : SmartRules.Evaluate(draft, monitoring.DiskWarnC, monitoring.DiskCritC);
+            bool anyData = inventoryVerdict is not null || b.SmartSupported || b.PhysicalDiskHealth is not null || b.TemperatureC is not null || b.Attributes.Count > 0 || b.WearPercent is not null;
             var status = anyData ? verdict.Status : HealthStatus.Unknown;
             var disk = draft with { Status = status };
             ctx.Disks.Add(disk);
-            var item = HealthItemRules.Disk(disk, anyData ? verdict : new SmartRules.Verdict(HealthStatus.Unknown, b.Note ?? "No health data was available for this drive.", []));
+            var item = HealthItemRules.Disk(disk, anyData ? verdict : new SmartRules.Verdict(HealthStatus.Unknown, b.Note ?? "No health data was available for this drive.", []), inventoryVerdict);
             if (b.Note is { } note && anyData)
             {
                 // "Asleep, last reading at 14:05…", "The USB enclosure does not pass SMART through…"
@@ -460,6 +465,7 @@ public sealed partial class WindowsHealthService
         public string? PnpId { get; set; }
         public bool Asleep { get; set; }
         public string? Note { get; set; }
+        public Storage.DriveHealthVerdict? DriveVerdict { get; set; }
         public string MediaType { get; set; } = "Unknown";
         public string? BusType { get; set; }
         public string? PhysicalDiskHealth { get; set; }

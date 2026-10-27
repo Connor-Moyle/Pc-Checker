@@ -30,7 +30,8 @@ public class DemoServicesTests
         Assert.Contains("13700K", Assert.Single(inv.Processors).Name);
         Assert.Contains("RTX 4070", Assert.Single(inv.Graphics).Name);
         Assert.Equal(2, inv.MemoryModules.Count);
-        Assert.Equal(2, inv.PhysicalDisks.Count);
+        // The same drives as the Storage page demo: NVMe, HDD, SATA SSD, USB HDD, storage space and its two pool members.
+        Assert.Equal(7, inv.PhysicalDisks.Count);
         Assert.Equal(32L * 1024 * 1024 * 1024, inv.TotalMemoryBytes);
         Assert.True(inv.AllItems().Count() > 15);
     }

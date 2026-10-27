@@ -98,13 +98,14 @@ public static class DriveMediaRules
     /// <summary>ATA IDENTIFY word 217: 1 = non-rotating, 0x0401–0xFFFE = RPM.</summary>
     public static int? RpmFromAta(int? word217) => word217 is >= 0x0401 and <= 0xFFFE and <= 20000 ? word217 : null;
 
-    /// <summary>"HDD", "SSD", "SCM", "Memory card" or "Unknown".</summary>
+    /// <summary>"HDD", "SSD", "SCM", "Memory card", "Flash drive" or "Unknown".</summary>
     public static string Label(DriveMedia media) => media switch
     {
         DriveMedia.Hdd => "HDD",
         DriveMedia.Ssd => "SSD",
         DriveMedia.Scm => "SCM",
         DriveMedia.FlashCard => "Memory card",
+        DriveMedia.FlashDrive => "Flash drive",
         _ => "Unknown",
     };
 
@@ -115,6 +116,7 @@ public static class DriveMediaRules
         DriveMedia.Ssd => "Solid state drive",
         DriveMedia.Scm => "Storage class memory",
         DriveMedia.FlashCard => "Memory card",
+        DriveMedia.FlashDrive => "USB flash drive",
         _ => "Not reported",
     };
 

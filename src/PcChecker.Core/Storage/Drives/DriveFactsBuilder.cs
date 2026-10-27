@@ -25,8 +25,19 @@ public static class DriveFactsBuilder
         ArgumentNullException.ThrowIfNull(joined);
         ArgumentNullException.ThrowIfNull(probe);
         int? bus = joined.BusTypeCode is { } code && code != 0 ? code : BusCodeFromText(joined.BusText);
+        if (joined.IsRaidPassThrough && joined.LooksNvme)
+        {
+            bus = DriveMediaRules.BusNvme; // an NVMe drive behind Intel RST / VMD reports BusType RAID
+        }
+
         var media = DriveMediaRules.Decide(joined.MediaTypeCode, bus, probe.SeekPenalty, joined.SpindleSpeed, joined.Model, probe.Identity?.RotationRate);
         bool usb = joined.IsUsb;
+        if (usb && joined.IsUsbFlash && media.Media != DriveMedia.Hdd)
+        {
+            media = DriveInventoryJoin.LooksLikeCardReader(joined.Model, joined.PnpDeviceId)
+                ? new DriveMediaRules.Decision(DriveMedia.FlashCard, null, "USB card reader")
+                : new DriveMediaRules.Decision(DriveMedia.FlashDrive, null, "USB flash drive");
+        }
 
         string? link = probe.PcieLink;
         if (link is null && probe.Identity is { } id && !usb)
@@ -60,7 +71,7 @@ public static class DriveFactsBuilder
             SizeBytes = joined.SizeBytes,
             Media = media.Media,
             Rpm = media.Media == DriveMedia.Hdd ? media.Rpm : null,
-            BusType = joined.Bus,
+            BusType = joined.IsRaidPassThrough && joined.LooksNvme ? "NVMe" : joined.Bus,
             LinkSpeed = link,
             PartitionStyle = joined.Role == DriveRole.PoolMember ? "Used by the storage pool" : DriveText.PartitionStyle(joined.PartitionStyleCode, joined.IsDynamic),
             IsDynamic = joined.IsDynamic,

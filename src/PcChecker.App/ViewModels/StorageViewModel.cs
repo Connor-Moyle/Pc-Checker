@@ -277,6 +277,7 @@ public sealed partial class StorageViewModel : ViewModelBase
         int asleep = physical.Count(d => d.Drive?.Power == DrivePowerState.Asleep);
         long total = physical.Sum(d => d.SizeBytes);
         string health = crit > 0 ? Loc.F("{0} with a Bad verdict", crit)
+            : warn == 1 ? Loc.T("1 needs caution")
             : warn > 0 ? Loc.F("{0} need caution", warn)
             : Loc.T("no problems reported");
         string sleeping = asleep > 0 ? " " + Loc.F("{0} asleep (not woken).", asleep) : string.Empty;

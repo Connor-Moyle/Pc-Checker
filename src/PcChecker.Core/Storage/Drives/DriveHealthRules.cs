@@ -233,6 +233,28 @@ public static class DriveSleepRules
     public static bool ShouldReadSmart(DrivePowerState power, DriveReadMode mode) =>
         mode == DriveReadMode.WakeIfAsleep || power != DrivePowerState.Asleep;
 
+    /// <summary>When the last reading of a sleeping drive was taken, relative to today.</summary>
+    public enum ReadingDay
+    {
+        None,
+        Today,
+        Yesterday,
+        Earlier,
+    }
+
+    /// <summary>Which wording <see cref="Describe"/> uses, so the app can build the same sentence from translated text.</summary>
+    public static ReadingDay DayOf(DateTimeOffset? lastReading, DateTimeOffset now)
+    {
+        if (lastReading is not { } at)
+        {
+            return ReadingDay.None;
+        }
+
+        var local = at.ToLocalTime().Date;
+        var today = now.ToLocalTime().Date;
+        return local == today ? ReadingDay.Today : local == today.AddDays(-1) ? ReadingDay.Yesterday : ReadingDay.Earlier;
+    }
+
     /// <summary>"Asleep, last reading at 14:05", "Asleep, last reading on 3 Oct at 09:12" or "Asleep, not read yet".</summary>
     public static string Describe(DrivePowerState power, DateTimeOffset? lastReading, DateTimeOffset now, CultureInfo? culture = null)
     {

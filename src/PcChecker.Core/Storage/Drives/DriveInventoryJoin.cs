@@ -91,6 +91,24 @@ public sealed class JoinedDrive
     /// <summary>"NVMe", "SATA", "USB"… from the bus code, else from the Win32 interface type.</summary>
     public string Bus => BusTypeCode is { } code && code != 0 ? StorageCodes.BusType(code) : BusText ?? "Unknown";
 
+    /// <summary>
+    /// A single drive that reports BusType RAID only because Intel RST / VMD or AMD RAID drives the controller (it is
+    /// not part of an array). It is read like the drive it is.
+    /// </summary>
+    public bool IsRaidPassThrough { get; set; }
+
+    /// <summary>An NVMe drive, also one behind Intel RST / VMD that reports BusType RAID.</summary>
+    public bool LooksNvme => BusTypeCode == DriveMediaRules.BusNvme
+        || string.Equals(Bus, "NVMe", StringComparison.OrdinalIgnoreCase)
+        || (IsRaidPassThrough && DriveInventoryJoin.MentionsNvme(Model, PnpDeviceId));
+
+    /// <summary>A USB flash stick or card reader rather than a USB-bridged SATA/NVMe drive (see <see cref="DriveInventoryJoin.LooksLikeUsbFlash"/>).</summary>
+    public bool IsUsbFlash => IsUsb && (DriveInventoryJoin.LooksLikeUsbFlash(Model, PnpDeviceId, MediaTypeCode)
+        || (MediaTypeCode != 3 && string.Equals(Win32MediaText, "Removable Media", StringComparison.OrdinalIgnoreCase)));
+
+    /// <summary>Win32_DiskDrive.MediaType: sticks and card readers say "Removable Media", enclosures "External hard disk media".</summary>
+    public string? Win32MediaText { get; set; }
+
     public bool IsUsb => BusTypeCode == DriveMediaRules.BusUsb || string.Equals(BusText, "USB", StringComparison.OrdinalIgnoreCase)
         || (PnpDeviceId?.StartsWith("USBSTOR", StringComparison.OrdinalIgnoreCase) ?? false)
         || (PnpDeviceId?.Contains("UASPSTOR", StringComparison.OrdinalIgnoreCase) ?? false);
@@ -163,6 +181,7 @@ public static class DriveInventoryJoin
                 drive.Firmware ??= Text(w.Firmware);
                 drive.PnpDeviceId ??= Text(w.PnpDeviceId);
                 drive.InterfaceType ??= Text(w.InterfaceType);
+                drive.Win32MediaText ??= Text(w.MediaTypeText);
                 if (drive.SizeBytes <= 0)
                 {
                     drive.SizeBytes = Math.Max(0, w.Size);
@@ -186,6 +205,7 @@ public static class DriveInventoryJoin
                 SizeBytes = w.Size,
                 PnpDeviceId = Text(w.PnpDeviceId),
                 InterfaceType = Text(w.InterfaceType),
+                Win32MediaText = Text(w.MediaTypeText),
                 BusText = bus,
                 Role = bus.Equals("RAID", StringComparison.OrdinalIgnoreCase) ? DriveRole.RaidArray : DriveRole.Disk,
             };
@@ -272,6 +292,17 @@ public static class DriveInventoryJoin
         var all = byNumber.Values.Concat(unnumbered).ToList();
         ApplyPools(all, poolList);
 
+        // Intel RST / VMD and AMD RAID report BusType RAID for every drive they control, also a single drive that is in
+        // no array. Only a volume the RAID driver builds ("Intel Raid 0 Volume", "AMD-RAID Array 1") is an array.
+        foreach (var drive in all.Where(d => d.Role == DriveRole.RaidArray))
+        {
+            if (Text(drive.Model) is not null && !LooksLikeRaidArray(drive.Model, drive.PnpDeviceId))
+            {
+                drive.Role = DriveRole.Disk;
+                drive.IsRaidPassThrough = true;
+            }
+        }
+
         foreach (var drive in all)
         {
             drive.Serial = PickSerial(drive.PhysicalSerial, drive.DiskSerial, drive.Win32Serial);
@@ -279,6 +310,36 @@ public static class DriveInventoryJoin
         }
 
         return all;
+    }
+
+    /// <summary>
+    /// Adds drive letters from volume extents (letter → disk numbers) to disks that have none from MSFT_Partition, as
+    /// dynamic (LDM) disks do. A spanned or mirrored dynamic volume lists its letter on every disk it uses.
+    /// </summary>
+    public static void AddVolumeLetters(IEnumerable<JoinedDrive> drives, IEnumerable<(string Letter, IReadOnlyList<int> Disks)> extents)
+    {
+        var withoutLetters = drives.Where(d => d.Number >= 0 && d.Volumes.Count == 0).ToDictionary(d => d.Number);
+        if (withoutLetters.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var (letter, disks) in extents)
+        {
+            if (StorageCodes.NormalizeDriveLetter(letter) is not { } normalized)
+            {
+                continue;
+            }
+
+            foreach (int disk in disks)
+            {
+                if (withoutLetters.TryGetValue(disk, out var drive) && !drive.Volumes.Contains(normalized))
+                {
+                    drive.Volumes.Add(normalized);
+                    drive.Volumes.Sort(StringComparer.OrdinalIgnoreCase);
+                }
+            }
+        }
     }
 
     /// <summary>
@@ -406,6 +467,78 @@ public static class DriveInventoryJoin
         }
 
         return Text(key.DeviceId) is { } id && id == Text(deviceId);
+    }
+
+    /// <summary>
+    /// True for a volume a RAID driver or controller builds from several drives: "Intel Raid 0 Volume", "AMD-RAID Array 1",
+    /// "HP LOGICAL VOLUME", "DELL PERC H730 SCSI Disk Device", "LSI MegaRAID…". A drive's own model ("Samsung SSD 980
+    /// PRO", "NVMe WDC PC SN730") is not.
+    /// </summary>
+    public static bool LooksLikeRaidArray(string? model, string? pnpDeviceId)
+    {
+        foreach (var text in new[] { model, pnpDeviceId?.Replace('_', ' ') })
+        {
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                continue;
+            }
+
+            if (text.Contains("RAID", StringComparison.OrdinalIgnoreCase) || text.Contains("PERC", StringComparison.OrdinalIgnoreCase)
+                || text.Contains("LOGICAL VOLUME", StringComparison.OrdinalIgnoreCase) || text.Contains("Logical Disk", StringComparison.OrdinalIgnoreCase)
+                || text.Contains("Array", StringComparison.OrdinalIgnoreCase) || text.Contains("Volume", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>The model or PnP id names NVMe ("NVMe Samsung SSD 980", "SCSI\DISK&amp;VEN_NVME&amp;PROD_…").</summary>
+    public static bool MentionsNvme(string? model, string? pnpDeviceId) =>
+        (model?.Contains("NVMe", StringComparison.OrdinalIgnoreCase) ?? false)
+        || (pnpDeviceId?.Contains("NVME", StringComparison.OrdinalIgnoreCase) ?? false);
+
+    /// <summary>
+    /// A USB flash stick or SD/microSD card reader, not a USB enclosure with a SATA or NVMe drive inside. These have no
+    /// SMART to read, and ATA commands sent through them can hang cheap controllers. Decided by the names readers and
+    /// sticks report ("Generic- SD/MMC", "Mass Storage Device", "Flash Disk", "USB DISK 3.0") and a removable-media
+    /// marker in the PnP id; a drive that reported a hard-disk media type (3) is never treated as a stick.
+    /// </summary>
+    public static bool LooksLikeUsbFlash(string? model, string? pnpDeviceId, int? mediaType = null)
+    {
+        if (mediaType == 3)
+        {
+            return false;
+        }
+
+        string[] markers = ["SD/MMC", "SDXC", "SDHC", "MicroSD", "Card Reader", "CardReader", "Flash Disk", "Flash Drive", "FlashDrive", "USB Flash", "Mass Storage",
+            "USB DISK", "USB Stick", "Pen Drive", "DataTraveler", "Cruzer", "Ultra USB", "Ultra Fit", "Ultra Flair", "Ultra Luxe", "Ultra Dual", "JumpDrive", "Flash Voyager",
+            "TransMemory", "STORE N GO", "USB 2.0 FD", "USB 3.0 FD", "Card_Reader", "Multi-Card", "MultiCard"];
+        foreach (var text in new[] { model, pnpDeviceId?.Replace('_', ' ') })
+        {
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                continue;
+            }
+
+            foreach (var marker in markers)
+            {
+                if (text.Contains(marker, StringComparison.OrdinalIgnoreCase) || text.Contains(marker.Replace(' ', '_'), StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>An SD / microSD / multi-card reader (as opposed to a flash stick).</summary>
+    public static bool LooksLikeCardReader(string? model, string? pnpDeviceId)
+    {
+        string[] markers = ["SD/MMC", "SDXC", "SDHC", "MicroSD", "Card Reader", "CardReader", "Card_Reader", "Multi-Card", "MultiCard", "MMC"];
+        return new[] { model, pnpDeviceId }.Any(text => text is not null && markers.Any(m => text.Contains(m, StringComparison.OrdinalIgnoreCase)));
     }
 
     private static DriveRole RoleFromBus(int? bus) => bus switch
