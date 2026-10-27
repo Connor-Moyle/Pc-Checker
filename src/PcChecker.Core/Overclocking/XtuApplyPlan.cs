@@ -11,7 +11,10 @@ public static class XtuApplyPlan
 {
     public const string Default = "default";
 
-    /// <summary>The writes that take the CPU from <paramref name="previous"/> (what is live now) to <paramref name="profile"/>.</summary>
+    /// <summary>
+    /// The writes that take the CPU from <paramref name="previous"/> (what is live now) to <paramref name="profile"/>,
+    /// including returning to default any value the previous profile set and the new one leaves empty.
+    /// </summary>
     public static IReadOnlyList<XtuApplyStep> Build(OverclockProfile profile, OverclockProfile previous)
     {
         ArgumentNullException.ThrowIfNull(profile);
@@ -27,6 +30,11 @@ public static class XtuApplyPlan
             if (wanted is { } w)
             {
                 steps.Add(new XtuApplyStep(setting, names, format(w), before is { } b ? format(b) : Default));
+            }
+            else if (before is { } b)
+            {
+                // The previous profile set this and the new one does not: return it to the XTU default.
+                steps.Add(new XtuApplyStep(setting, names, Default, format(b)));
             }
         }
     }

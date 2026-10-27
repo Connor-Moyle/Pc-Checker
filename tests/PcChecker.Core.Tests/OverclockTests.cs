@@ -175,6 +175,19 @@ public class XtuApplyPlanTests
     }
 
     [Fact]
+    public void Values_the_new_profile_leaves_empty_go_back_to_default()
+    {
+        var previous = new OverclockProfile { CpuAllCoreRatio = 54, CpuVoltageOffsetMv = -50 };
+        var gpuOnly = new OverclockProfile { GpuCoreOffsetMhz = 100 };
+
+        var steps = XtuApplyPlan.Build(gpuOnly, previous);
+
+        Assert.Equal(2, steps.Count);
+        Assert.Equal(("core ratio", XtuApplyPlan.Default, "54"), (steps[0].Setting, steps[0].Value, steps[0].RollbackValue));
+        Assert.Equal(("voltage offset", XtuApplyPlan.Default, "-0.050"), (steps[1].Setting, steps[1].Value, steps[1].RollbackValue));
+    }
+
+    [Fact]
     public void Stock_profile_over_stock_writes_nothing() =>
         Assert.Empty(XtuApplyPlan.Build(OverclockProfile.Stock(), OverclockProfile.Stock()));
 }

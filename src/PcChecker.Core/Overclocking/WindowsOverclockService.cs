@@ -262,7 +262,10 @@ public sealed partial class WindowsOverclockService : IOverclockService, IDispos
                 }
             }
 
-            bool touchesCpu = profile.CpuAllCoreRatio is not null || profile.CpuVoltageOffsetMv is not null || profile.CpuPowerLimitW is not null;
+            // A profile without CPU values still has to undo the XTU values an earlier profile left live.
+            bool previousXtuValues = _cpuTool.Method == CpuControlMethod.IntelXtuCli
+                && (_applied.CpuAllCoreRatio is not null || _applied.CpuVoltageOffsetMv is not null || _applied.CpuPowerLimitW is not null);
+            bool touchesCpu = profile.CpuAllCoreRatio is not null || profile.CpuVoltageOffsetMv is not null || profile.CpuPowerLimitW is not null || previousXtuValues;
             bool cpuOk = true;
             bool cpuStray = false;
             if (touchesCpu)
@@ -348,6 +351,11 @@ public sealed partial class WindowsOverclockService : IOverclockService, IDispos
                 // The CPU half failed and anything it wrote was put back: the previous CPU values are still live.
                 applied.CpuAllCoreRatio = previousApplied.CpuAllCoreRatio;
                 applied.CpuVoltageOffsetMv = previousApplied.CpuVoltageOffsetMv;
+                applied.CpuPowerLimitW = previousApplied.CpuPowerLimitW;
+            }
+            else if (_cpuTool.Method == CpuControlMethod.RyzenAdj && profile.CpuPowerLimitW is null)
+            {
+                // ryzenadj cannot undo a power limit, so one set by an earlier profile stays live until the next reboot.
                 applied.CpuPowerLimitW = previousApplied.CpuPowerLimitW;
             }
 
