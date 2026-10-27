@@ -466,13 +466,32 @@ public class SchedulingTests
     [Fact]
     public void Unattended_cleanup_only_touches_safe_categories_and_never_the_recycle_bin()
     {
-        var defaults = ScheduleRules.UnattendedCleanupCategories(CleanupCatalog.All, []);
+        var defaults = ScheduleRules.UnattendedCleanupCategories(CleanupCatalog.All, null);
         Assert.NotEmpty(defaults);
         Assert.DoesNotContain("recycle.bin", defaults);
         Assert.All(defaults, id => Assert.Equal(RiskLevel.Safe, CleanupCatalog.Find(id)!.Risk));
 
         var chosen = ScheduleRules.UnattendedCleanupCategories(CleanupCatalog.All, ["user.temp", "prefetch", "recycle.bin", "windows.old", "crash.dumps"]);
         Assert.Equal(["user.temp"], chosen);
+    }
+
+    [Fact]
+    public void Unattended_cleanup_cleans_nothing_when_the_user_unticked_everything()
+    {
+        // "Select none" on the Cleanup page is a choice, not "never chose": the defaults must not come back.
+        Assert.Empty(ScheduleRules.UnattendedCleanupCategories(CleanupCatalog.All, []));
+
+        var settings = new CleanupSettings();
+        Assert.Null(settings.SavedSelection());
+        Assert.NotEmpty(ScheduleRules.UnattendedCleanupCategories(CleanupCatalog.All, settings.SavedSelection()));
+
+        settings.SelectionCustomized = true;
+        Assert.NotNull(settings.SavedSelection());
+        Assert.Empty(ScheduleRules.UnattendedCleanupCategories(CleanupCatalog.All, settings.SavedSelection()));
+
+        // Settings saved before the flag existed: a non-empty list still counts as the user's choice.
+        var old = new CleanupSettings { EnabledCategoryIds = ["user.temp"] };
+        Assert.Equal(["user.temp"], ScheduleRules.UnattendedCleanupCategories(CleanupCatalog.All, old.SavedSelection()));
     }
 
     [Fact]

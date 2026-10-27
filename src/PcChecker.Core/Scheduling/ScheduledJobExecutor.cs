@@ -177,7 +177,7 @@ public sealed class ScheduledJobExecutor
         IProgress<ProgressUpdate>? progress, CancellationToken token)
     {
         var settings = _settings.Current;
-        var ids = ScheduleRules.UnattendedCleanupCategories(_scanner.Categories, settings.Cleanup.EnabledCategoryIds);
+        var ids = ScheduleRules.UnattendedCleanupCategories(_scanner.Categories, settings.Cleanup.SavedSelection());
         if (ids.Count == 0)
         {
             return new ScheduledJobResult(ScheduledJobKind.Cleanup, started, DateTimeOffset.Now, true, false, "Cleanup: nothing selected",

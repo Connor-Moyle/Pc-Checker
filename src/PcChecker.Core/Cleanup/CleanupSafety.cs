@@ -126,6 +126,37 @@ public static class CleanupSafety
     }
 
     /// <summary>
+    /// Every folder above <paramref name="root"/>, from the first one below the drive (<c>C:\Users</c>) down to the
+    /// root's parent, outermost first. None of them may be a junction or symlink: one there (for example a junction a
+    /// standard user made inside their own profile) would send the scan and the delete to some other folder. Empty for
+    /// a path that is not a local drive path.
+    /// </summary>
+    public static IReadOnlyList<string> FoldersAboveRoot(string root)
+    {
+        if (string.IsNullOrWhiteSpace(root))
+        {
+            return [];
+        }
+
+        var r = Normalize(root);
+        if (r.Length < 3 || !char.IsAsciiLetter(r[0]) || r[1] != ':' || r[2] != '\\')
+        {
+            return [];
+        }
+
+        var segments = r[3..].Split('\\', StringSplitOptions.RemoveEmptyEntries);
+        var folders = new List<string>();
+        var current = r[..2];
+        for (int i = 0; i < segments.Length - 1; i++)
+        {
+            current += "\\" + segments[i];
+            folders.Add(current);
+        }
+
+        return folders;
+    }
+
+    /// <summary>
     /// A path as GetFinalPathNameByHandle returns it (<c>\\?\C:\…</c> or <c>\\?\UNC\server\share\…</c>) in the plain
     /// form used everywhere else (<c>C:\…</c>, <c>\\server\share\…</c>). Other text is returned unchanged.
     /// </summary>

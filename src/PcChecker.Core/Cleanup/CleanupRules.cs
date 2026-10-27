@@ -155,7 +155,12 @@ public static partial class CleanupRules
 
         var rootList = roots.Select(Normalize).Where(r => r.Length > 0).ToList();
         var dir = Normalize(directory);
-        var root = rootList.FirstOrDefault(r => dir.StartsWith(r + "\\", StringComparison.OrdinalIgnoreCase));
+        // Depth counts from the deepest root holding the folder: C:\Windows\LiveKernelReports\WATCHDOG is a first-level
+        // folder of C:\Windows\LiveKernelReports even when C:\Windows is a root of the same category.
+        var root = rootList
+            .Where(r => dir.StartsWith(r + "\\", StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(r => r.Length)
+            .FirstOrDefault();
         if (root is null)
         {
             return false;
@@ -210,15 +215,18 @@ public static partial class CleanupRules
         (results ?? []).Select((r, i) => (r, i)).OrderByDescending(t => t.r.TotalBytes).ThenBy(t => t.i).Select(t => t.r).ToList();
 
     /// <summary>
-    /// Which categories are ticked: the saved selection when there is one (unknown ids dropped), else the catalog
-    /// defaults. Advanced categories are never selected outside advanced mode.
+    /// Which categories are ticked: the saved selection when there is one (unknown ids dropped; an empty one means the
+    /// user ticked nothing), else (null, or only ids no longer in the catalog) the catalog defaults. Advanced categories
+    /// are never selected outside advanced mode.
     /// </summary>
     public static IReadOnlyList<string> ResolveSelection(IEnumerable<string>? savedIds, IReadOnlyList<CleanupCategory> catalog, bool advancedMode)
     {
         ArgumentNullException.ThrowIfNull(catalog);
         var known = catalog.ToDictionary(c => c.Id, StringComparer.OrdinalIgnoreCase);
-        var saved = (savedIds ?? []).Where(known.ContainsKey).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-        var chosen = saved.Count > 0 ? saved : catalog.Where(c => c.EnabledByDefault).Select(c => c.Id).ToList();
+        var raw = savedIds?.ToList();
+        var saved = (raw ?? []).Where(known.ContainsKey).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        bool useDefaults = raw is null || (saved.Count == 0 && raw.Count > 0);
+        var chosen = useDefaults ? catalog.Where(c => c.EnabledByDefault).Select(c => c.Id).ToList() : saved;
         return chosen.Where(id => advancedMode || known[id].Risk != RiskLevel.Advanced).ToList();
     }
 

@@ -142,7 +142,7 @@ public sealed partial class CheckupService : ICheckupService
     /// <summary>The Safe categories a scheduled cleanup would use (the user's picks on the Cleanup page, or the defaults).</summary>
     private async Task ScanCleanupAsync(ScanState scan, IProgress<ProgressUpdate> progress, CancellationToken ct)
     {
-        var ids = ScheduleRules.UnattendedCleanupCategories(_scanner.Categories, _settings.Current.Cleanup.EnabledCategoryIds);
+        var ids = ScheduleRules.UnattendedCleanupCategories(_scanner.Categories, _settings.Current.Cleanup.SavedSelection());
         scan.CleanupCategoryIds = ids;
         scan.Cleanup = ids.Count == 0 ? CleanupScanResult.Empty() : await _scanner.ScanAsync(ids, progress, ct).ConfigureAwait(false);
     }

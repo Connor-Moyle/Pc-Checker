@@ -83,6 +83,20 @@ public class CleanupSafetyTests
         Assert.Empty(CleanupSafety.FoldersFromRoot(@"C:\Windows\Temp\..\System32\x.dll", @"C:\Windows\Temp"));
     }
 
+    [Fact]
+    public void FoldersAboveRoot_lists_every_folder_between_the_drive_and_the_root()
+    {
+        // A junction at Packages\Evil\AC would redirect the root, so every one of these folders is checked.
+        Assert.Equal(
+            [@"C:\Users", @"C:\Users\Bob", @"C:\Users\Bob\AppData", @"C:\Users\Bob\AppData\Local", @"C:\Users\Bob\AppData\Local\Packages",
+             @"C:\Users\Bob\AppData\Local\Packages\Evil", @"C:\Users\Bob\AppData\Local\Packages\Evil\AC"],
+            CleanupSafety.FoldersAboveRoot(@"C:\Users\Bob\AppData\Local\Packages\Evil\AC\Temp\"));
+        Assert.Equal([@"D:\SteamLibrary"], CleanupSafety.FoldersAboveRoot("D:/SteamLibrary/shadercache"));
+        Assert.Empty(CleanupSafety.FoldersAboveRoot(@"C:\Windows"));
+        Assert.Empty(CleanupSafety.FoldersAboveRoot(@"\\server\share\Temp"));
+        Assert.Empty(CleanupSafety.FoldersAboveRoot("  "));
+    }
+
     [Theory]
     [InlineData(@"\\?\C:\Windows\Temp\a.tmp", @"C:\Windows\Temp\a.tmp")]
     [InlineData(@"\\?\UNC\server\share\a.tmp", @"\\server\share\a.tmp")]
@@ -365,6 +379,11 @@ public class CleanupRulesTests
         Assert.False(CleanupRules.MayPrune(@"C:\Windows\System32", roots, "windows.logs"));
         Assert.False(CleanupRules.MayPrune(null, roots, "windows.logs"));
 
+        // With nested roots the depth counts from the deepest one: LiveKernelReports\WATCHDOG is first-level there.
+        string[] dumpRoots = [@"C:\Windows\Minidump", @"C:\Windows", @"C:\Windows\LiveKernelReports"];
+        Assert.False(CleanupRules.MayPrune(@"C:\Windows\LiveKernelReports\WATCHDOG", dumpRoots, "crash.dumps"));
+        Assert.True(CleanupRules.MayPrune(@"C:\Windows\LiveKernelReports\WATCHDOG\old", dumpRoots, "crash.dumps"));
+
         // Scratch folders may lose any emptied sub-folder.
         Assert.True(CleanupRules.MayPrune(@"C:\Users\a\AppData\Local\Temp\setup", [@"C:\Users\a\AppData\Local\Temp"], "user.temp"));
         Assert.True(CleanupRules.MayPrune(@"C:\Windows\Temp\x", [@"C:\Windows\Temp"], "windows.temp"));
@@ -460,6 +479,15 @@ public class CleanupRulesTests
         var saved = CleanupRules.ResolveSelection(["prefetch", "windows.old", "does.not.exist"], CleanupCatalog.All, false);
         Assert.Equal(["prefetch"], saved);
         Assert.Contains("windows.old", CleanupRules.ResolveSelection(["prefetch", "windows.old"], CleanupCatalog.All, true));
+    }
+
+    [Fact]
+    public void An_empty_saved_selection_stays_empty()
+    {
+        Assert.Empty(CleanupRules.ResolveSelection([], CleanupCatalog.All, false));
+
+        // Only ids that no longer exist (a renamed category) fall back to the defaults.
+        Assert.Contains("user.temp", CleanupRules.ResolveSelection(["does.not.exist"], CleanupCatalog.All, false));
     }
 
     [Fact]

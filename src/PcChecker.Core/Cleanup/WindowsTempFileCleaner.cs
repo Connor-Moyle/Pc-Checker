@@ -394,8 +394,8 @@ public sealed class WindowsTempFileCleaner : ITempFileCleaner
     }
 
     /// <summary>
-    /// Deletes one file from the scan after checking it again as it is now: every folder from the root down must still
-    /// be a plain folder, the file is opened without following a reparse point, the opened file must really live inside
+    /// Deletes one file from the scan after checking it again as it is now: every folder above the root and from the root
+    /// down must still be a plain folder, the file is opened without following a reparse point, the opened file must really live inside
     /// the root, and its current timestamp must be older than the skip limit. The file is then deleted through that same
     /// handle, so nothing can be swapped in between the checks and the delete. <paramref name="removedBytes"/> is the
     /// size at delete time.
@@ -427,13 +427,20 @@ public sealed class WindowsTempFileCleaner : ITempFileCleaner
 
             if (!finalRoots.TryGetValue(root, out var finalRoot))
             {
-                finalRoot = CleanupNativeMethods.FinalDirectoryPath(root);
+                // A junction above the root would make the root (and so the final-path check) point somewhere else;
+                // such a root is remembered as an empty final path.
+                finalRoot = CleanupEnvironment.HasLinkAboveRoot(root) ? string.Empty : CleanupNativeMethods.FinalDirectoryPath(root);
                 finalRoots[root] = finalRoot;
             }
 
             if (finalRoot is null)
             {
                 return DeleteOutcome.Failed;
+            }
+
+            if (finalRoot.Length == 0)
+            {
+                return DeleteOutcome.Outside;
             }
 
             using var handle = CleanupNativeMethods.OpenForDelete(file.Path, out bool missing);

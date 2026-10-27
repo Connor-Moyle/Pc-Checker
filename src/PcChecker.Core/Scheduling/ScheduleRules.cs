@@ -236,7 +236,8 @@ public static class ScheduleRules
     /// <summary>
     /// Categories a scheduled or tray cleanup may clean: Safe risk only, never the Recycle Bin, never report-only,
     /// privacy or other "never scheduled" categories (see <see cref="CleanupRules.IsSchedulable"/>),
-    /// limited to what the user enabled on the Cleanup page (or the catalogue defaults when they never chose).
+    /// limited to what the user enabled on the Cleanup page (or the catalogue defaults when they never chose, which
+    /// <paramref name="userEnabledIds"/> = null means; an empty list means they ticked nothing).
     /// </summary>
     public static IReadOnlyList<string> UnattendedCleanupCategories(IEnumerable<CleanupCategory> categories, IEnumerable<string>? userEnabledIds)
     {
@@ -245,7 +246,7 @@ public static class ScheduleRules
         return categories
             .Where(c => c.Risk == RiskLevel.Safe && CleanupRules.IsSchedulable(c))
             .Where(c => !NeverCleanedUnattended.Contains(c.Id, StringComparer.OrdinalIgnoreCase) && !CleanupRules.IsReportOnly(c.Id) && !CleanupRules.IsOneWay(c.Id))
-            .Where(c => enabled.Count == 0 ? c.EnabledByDefault : enabled.Contains(c.Id))
+            .Where(c => userEnabledIds is null ? c.EnabledByDefault : enabled.Contains(c.Id))
             .Select(c => c.Id)
             .ToList();
     }

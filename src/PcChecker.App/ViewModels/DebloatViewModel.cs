@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
+using PcChecker.App.Localization;
 using PcChecker.App.Services;
 using PcChecker.Core.Debloat;
 using PcChecker.Core.Settings;
@@ -28,11 +29,11 @@ public sealed partial class DebloatViewModel : ViewModelBase
     [ObservableProperty] [NotifyPropertyChangedFor(nameof(RevertButtonText))] private int _revertibleCount;
 
     /// <summary>Footer button text (Button.Content is an object, so a binding StringFormat would be ignored).</summary>
-    public string ApplyButtonText => $"Apply selected ({ApplicableCount})";
+    public string ApplyButtonText => Loc.F("Apply selected ({0})", ApplicableCount);
 
-    public string RevertButtonText => $"Revert selected ({RevertibleCount})";
-    [ObservableProperty] private string _selectionText = "Nothing selected";
-    [ObservableProperty] private string _stateSummary = "Checking the current state of each tweak…";
+    public string RevertButtonText => Loc.F("Revert selected ({0})", RevertibleCount);
+    [ObservableProperty] private string _selectionText = Loc.T("Nothing selected");
+    [ObservableProperty] private string _stateSummary = Loc.T("Checking the current state of each tweak…");
     [ObservableProperty] private bool _isLoadingStates;
     [ObservableProperty] private bool _isIntroOpen = true;
     [ObservableProperty] private bool _hasResults;
@@ -227,14 +228,14 @@ public sealed partial class DebloatViewModel : ViewModelBase
         ApplicableCount = selected.Count(r => r.CanApply);
         RevertibleCount = selected.Count(r => r.CanRevert);
         SelectionText = selected.Count == 0
-            ? "Nothing selected. Pick a preset or tick the tweaks you want."
-            : $"{selected.Count} selected · {ApplicableCount} to apply · {RevertibleCount} can be reverted";
+            ? Loc.T("Nothing selected. Pick a preset or tick the tweaks you want.")
+            : Loc.F("{0} selected · {1} to apply · {2} can be reverted", selected.Count, ApplicableCount, RevertibleCount);
 
         int applied = visible.Count(r => r.Status == TweakStatus.Applied);
         int available = visible.Count(r => r.Status != TweakStatus.NotApplicable);
         int partial = visible.Count(r => r.Status == TweakStatus.Partial);
-        StateSummary = $"{applied} of {available} tweaks applied" + (partial > 0 ? $" · {partial} partly applied" : string.Empty)
-            + $" · {visible.Count(r => r.Status == TweakStatus.NotApplicable)} not available on this Windows";
+        StateSummary = Loc.F("{0} of {1} tweaks applied", applied, available) + (partial > 0 ? " · " + Loc.F("{0} partly applied", partial) : string.Empty)
+            + " · " + Loc.F("{0} not available on this Windows", visible.Count(r => r.Status == TweakStatus.NotApplicable));
         foreach (var group in Groups)
         {
             group.UpdateSummary();
