@@ -38,8 +38,10 @@ Update, and the Latency page's ping and DNS tests when you run them with
 
 ### Which Windows versions work?
 
-Windows 11 and Windows 10 22H2, 64-bit. Older versions and Windows on Arm are
-not supported.
+Windows 11 and Windows 10 22H2, 64-bit. Windows on Arm laptops (Snapdragon)
+use `PcChecker-arm64.exe`; sensors, fan control and GPU tuning are limited
+there because the hardware drivers they rely on are x64-only. Older Windows
+versions are not supported.
 
 ### Will it break my PC?
 
@@ -179,6 +181,14 @@ On external monitors, yes, if the monitor answers DDC/CI (most do; some need
 it enabled in the monitor's own menu, and some ignore it). On laptops the app
 uses the panel's own brightness control. If the sliders are hidden, the
 tooltip says why.
+
+### Can I use PC Checker in my language?
+
+Yes, in German, Spanish, French, Italian and Brazilian Portuguese as well as
+English. Choose it in **Settings → Appearance → Language** and restart the
+app. Pages, buttons, tooltips and dialogs are translated; scan results and log
+lines are still in English. See [TRANSLATING.md](TRANSLATING.md) to improve a
+translation.
 
 ### Where are the settings and logs?
 

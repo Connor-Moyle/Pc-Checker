@@ -31,6 +31,9 @@ public sealed record CommandLineOptions(
     /// <summary>The version this run replaced, when started by the self-updater.</summary>
     public string? UpdatedFrom { get; init; }
 
+    /// <summary><c>--language &lt;code&gt;</c>: interface language for this run only, overriding Settings (also in screenshot runs).</summary>
+    public string? Language { get; init; }
+
     /// <summary><c>--tray</c>: start hidden with only the tray icon (used by "Start with Windows").</summary>
     public bool StartInTray { get; init; }
 
@@ -47,6 +50,7 @@ public sealed record CommandLineOptions(
         string? screenshots = null;
         int? waitPid = null;
         string? updatedFrom = null;
+        string? language = null;
         bool tray = false;
         ScheduledJobKind? scheduled = null;
         var unknown = new List<string>();
@@ -135,6 +139,10 @@ public sealed record CommandLineOptions(
                 case "updated-from":
                     updatedFrom = inlineValue ?? (i + 1 < list.Count && !IsSwitch(list[i + 1]) ? list[++i].Trim() : null);
                     break;
+                case "language":
+                case "lang":
+                    language = inlineValue ?? (i + 1 < list.Count && !IsSwitch(list[i + 1]) ? list[++i].Trim() : null);
+                    break;
                 default:
                     unknown.Add(raw);
                     break;
@@ -147,6 +155,7 @@ public sealed record CommandLineOptions(
         {
             WaitForProcessId = waitPid,
             UpdatedFrom = string.IsNullOrWhiteSpace(updatedFrom) ? null : updatedFrom,
+            Language = string.IsNullOrWhiteSpace(language) ? null : language,
             StartInTray = tray,
             ScheduledJob = scheduled,
         };

@@ -133,3 +133,21 @@ jobs:
           name: screenshots
           path: screenshots/
           if-no-files-found: error
+
+      # A German run proves the translations load and every page still opens in another language.
+      - name: Run the screenshot runner in German
+        shell: pwsh
+        run: |
+          $exe = Join-Path $PWD 'publish\win-x64\PcChecker.exe'
+          $out = Join-Path $PWD 'screenshots-de'
+          $p = Start-Process -FilePath $exe -ArgumentList @('--screenshots', $out, '--demo', '--language', 'de') -PassThru -Wait
+          Write-Host "Exit code: $($p.ExitCode)"
+          if ($p.ExitCode -ne 0) { throw "The German screenshot run failed with exit code $($p.ExitCode)." }
+
+      - name: Upload German screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots-de
+          path: screenshots-de/
+          if-no-files-found: warn
