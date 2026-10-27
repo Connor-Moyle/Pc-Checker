@@ -447,6 +447,26 @@ public class HealthCodesTests
     }
 
     [Fact]
+    public void Newest_successful_update_install_skips_failures_removals_and_defender_definitions()
+    {
+        var cumulative = new DateTime(2026, 10, 15, 2, 0, 0, DateTimeKind.Utc);
+        var newest = WindowsHealthService.NewestSuccessfulInstall(
+        [
+            new(1, 2, new DateTime(2026, 9, 10, 2, 0, 0), "2026-09 Cumulative Update for Windows 11 (KB5050001)"),
+            new(1, 3, cumulative, "2026-10 Cumulative Update for Windows 11 (KB5050002)"),
+            new(1, 4, new DateTime(2026, 10, 20, 2, 0, 0), "2026-10 Preview Update (KB5050003)"),
+            new(2, 2, new DateTime(2026, 10, 21, 2, 0, 0), "Removed update (KB5050004)"),
+            new(1, 2, new DateTime(2026, 10, 26, 2, 0, 0), "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.400.1.0)"),
+            new(1, 2, new DateTime(2026, 10, 25, 2, 0, 0), "Update for Microsoft Defender Antivirus antimalware platform - KB4052623 (Version 4.18.1)"),
+        ]);
+        Assert.Equal(new DateTimeOffset(cumulative), newest);
+
+        Assert.Null(WindowsHealthService.NewestSuccessfulInstall([]));
+        Assert.Null(WindowsHealthService.NewestSuccessfulInstall(null));
+        Assert.Null(WindowsHealthService.NewestSuccessfulInstall([new(1, 4, cumulative, "Failed (KB1)")]));
+    }
+
+    [Fact]
     public void Model_and_serial_normalisation_ignore_punctuation_and_case()
     {
         Assert.Equal("SAMSUNGSSD990PRO2TB", WindowsHealthService.NormalizeModel("Samsung SSD 990 PRO 2TB"));
