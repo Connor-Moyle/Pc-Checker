@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using PcChecker.Core.Common;
 using PcChecker.Core.Restore;
 using PcChecker.Core.Sensors;
+using PcChecker.Core.Sensors.PawnIo;
 using PcChecker.Core.Settings;
 
 namespace PcChecker.Core.Fans;
@@ -14,7 +15,7 @@ namespace PcChecker.Core.Fans;
 /// and the public async methods always run that access on a thread-pool thread: the host lock is shared with the
 /// sensor poll loop, so taking it (and calling <c>IHardware.Update()</c>) on the caller's UI thread would freeze the window.
 /// </summary>
-public sealed partial class LibreHardwareFanControlService : IFanControlService, IFanControlAdvanced, IDisposable
+public sealed partial class LibreHardwareFanControlService : IFanControlService, IFanControlAdvanced, IFanDiagnostics, IDisposable
 {
     private const string ModuleName = "Fans";
     private readonly IHardwareMonitorHost _host;
@@ -29,6 +30,16 @@ public sealed partial class LibreHardwareFanControlService : IFanControlService,
     private readonly Dictionary<string, ISensor> _lhmTemperatures = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<FanControlAlert> _alerts = [];
     private readonly List<string> _capabilityNotes = [];
+    private readonly IPawnIoService? _pawnIo;
+
+    /// <summary>What the last discovery saw, for the diagnostics. Guarded by <see cref="_gate"/>.</summary>
+    private List<FanHardwareNode> _lastNodes = [];
+    private List<FanSensorInfo> _lastSensors = [];
+    private List<FanPair> _lastPairs = [];
+    private MotherboardSensorCounts _lastCounts = MotherboardSensorCounts.None;
+
+    /// <summary>The host generation the current entries belong to; a different one means they point into a closed monitor.</summary>
+    private int _discoveredGeneration = -1;
 
     /// <summary>
     /// Fans a previous session left without firmware control that still need a PC restart (or could not be found yet).
@@ -52,8 +63,9 @@ public sealed partial class LibreHardwareFanControlService : IFanControlService,
     private bool _disposed;
 
     public LibreHardwareFanControlService(IHardwareMonitorHost host, ISensorService sensors, ISettingsService settings,
-        IChangeGuard guard, ILogger<LibreHardwareFanControlService> logger)
+        IChangeGuard guard, ILogger<LibreHardwareFanControlService> logger, IPawnIoService? pawnIo = null)
     {
+        _pawnIo = pawnIo;
         _host = host;
         _sensors = sensors;
         _settings = settings;
@@ -280,7 +292,7 @@ public sealed partial class LibreHardwareFanControlService : IFanControlService,
 
     private async Task DiscoverAsync(CancellationToken cancellationToken, bool force = false)
     {
-        if (_discovered && !force)
+        if (_discovered && !force && _discoveredGeneration == _host.Generation)
         {
             return;
         }
@@ -288,7 +300,7 @@ public sealed partial class LibreHardwareFanControlService : IFanControlService,
         await _discoveryGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            if (_discovered && !force)
+            if (_discovered && !force && _discoveredGeneration == _host.Generation)
             {
                 return;
             }
@@ -311,15 +323,18 @@ public sealed partial class LibreHardwareFanControlService : IFanControlService,
             var discovered = new List<(FanSensorInfo Info, ISensor Sensor)>();
             var hardwareWithFans = new List<IHardware>();
             var temps = new Dictionary<string, ISensor>(StringComparer.OrdinalIgnoreCase);
+            var nodes = new List<FanHardwareNode>();
+            int generation = _host.Generation;
 
             // Both awaits above complete synchronously once the host is open, so without this hop the walk (and its
             // hardware.Update() calls under the host lock shared with the sensor poll loop) would run on the caller's
             // UI thread. Everything after it continues on the thread pool (ConfigureAwait(false)).
             await Task.Run(() => _host.WithComputer(computer =>
             {
+                generation = _host.Generation;
                 foreach (var hardware in computer.Hardware)
                 {
-                    Walk(hardware, discovered, hardwareWithFans, temps);
+                    Walk(hardware, 0, discovered, hardwareWithFans, temps, nodes);
                 }
             }), cancellationToken).ConfigureAwait(false);
 
@@ -327,9 +342,20 @@ public sealed partial class LibreHardwareFanControlService : IFanControlService,
             var unpaired = FanPairing.Unpaired(discovered.Select(d => d.Info), pairs);
             var sensorsById = discovered.ToDictionary(d => d.Info.Id, d => d.Sensor, StringComparer.OrdinalIgnoreCase);
 
+            int lostControl = 0;
             lock (_gate)
             {
                 var previous = _entries.ToDictionary(e => e.Id, StringComparer.OrdinalIgnoreCase);
+
+                // The monitor was closed and opened again since the last discovery ("Reload sensors", or "Retry" on the
+                // Temperatures page): closing it handed every fan back to the firmware, so the old software state is gone.
+                bool reopened = _discoveredGeneration >= 0 && generation != _discoveredGeneration;
+                if (reopened)
+                {
+                    lostControl = previous.Values.Count(e => e.Mode != FanMode.Auto);
+                    previous.Clear();
+                }
+
                 _entries.Clear();
                 foreach (var pair in pairs)
                 {
@@ -341,7 +367,11 @@ public sealed partial class LibreHardwareFanControlService : IFanControlService,
 
                     var entry = new FanEntry(pair.Control.Id, FanPairing.FriendlyName(pair.Control, pair.Rpm), pair.Control.Hardware,
                         pair.Control.HardwareName, pair.Control.HardwareId, controlSensor, control,
-                        pair.Rpm is null ? null : sensorsById[pair.Rpm.Id]);
+                        pair.Rpm is null ? null : sensorsById[pair.Rpm.Id])
+                    {
+                        LastRpm = pair.Rpm?.Value,
+                        LastPercent = pair.Control.Value,
+                    };
                     if (previous.TryGetValue(entry.Id, out var old))
                     {
                         entry.Mode = old.Mode;
@@ -349,8 +379,6 @@ public sealed partial class LibreHardwareFanControlService : IFanControlService,
                         entry.Curve = old.Curve;
                         entry.LastApplied = old.LastApplied;
                         entry.Forced = old.Forced;
-                        entry.LastRpm = old.LastRpm;
-                        entry.LastPercent = old.LastPercent;
                     }
 
                     _entries.Add(entry);
@@ -359,7 +387,8 @@ public sealed partial class LibreHardwareFanControlService : IFanControlService,
                 _rpmOnly.Clear();
                 foreach (var rpm in unpaired)
                 {
-                    _rpmOnly.Add(new RpmOnlyEntry(rpm.Id, rpm.Name, rpm.Hardware, rpm.HardwareName, sensorsById[rpm.Id]));
+                    // Seeded with the reading taken during discovery, so a read-only fan shows its speed straight away.
+                    _rpmOnly.Add(new RpmOnlyEntry(rpm.Id, FanPairing.FriendlyName(rpm), rpm.Hardware, rpm.HardwareName, sensorsById[rpm.Id]) { LastRpm = rpm.Value });
                 }
 
                 _fanHardware.Clear();
@@ -370,6 +399,11 @@ public sealed partial class LibreHardwareFanControlService : IFanControlService,
                     _lhmTemperatures[id] = sensor;
                 }
 
+                _lastNodes = nodes;
+                _lastSensors = discovered.Select(d => d.Info).ToList();
+                _lastPairs = pairs.ToList();
+                _lastCounts = CountMotherboard(nodes, _lastSensors);
+                _discoveredGeneration = generation;
                 _builtInProfiles = null;
                 BuildCapabilityNotes();
                 IsAvailable = _entries.Count > 0;
@@ -377,9 +411,18 @@ public sealed partial class LibreHardwareFanControlService : IFanControlService,
             }
 
             _discovered = true;
+            if (lostControl > 0)
+            {
+                ActiveProfile = null;
+                UpdateSessionFile();
+                RaiseAlert(FanAlertKind.ControlLost, string.Empty, "All fans",
+                    $"The hardware monitor was restarted, so {lostControl} fan(s) went back to automatic control. Apply your profile or curves again if you want them.", Severity.Low);
+            }
+
             _logger.LogInformation("Fan discovery: {Controls} controllable fan(s), {RpmOnly} read-only, {Temps} temperature source(s).",
                 _entries.Count, _rpmOnly.Count, _lhmTemperatures.Count);
-            if (_entries.Count > 0)
+            // Read-only fans need the loop too: it is what refreshes their speed.
+            if (_entries.Count > 0 || _rpmOnly.Count > 0)
             {
                 EnsureTimer();
             }
@@ -414,31 +457,42 @@ public sealed partial class LibreHardwareFanControlService : IFanControlService,
         }
     }
 
-    private void Walk(IHardware hardware, List<(FanSensorInfo, ISensor)> sink, List<IHardware> withFans, Dictionary<string, ISensor> temps)
+    private void Walk(IHardware hardware, int depth, List<(FanSensorInfo, ISensor)> sink, List<IHardware> withFans, Dictionary<string, ISensor> temps,
+        List<FanHardwareNode> nodes)
     {
-        try
+        var kind = MapKind(hardware);
+        bool updated = false;
+        if (kind is HardwareKind.Motherboard or HardwareKind.Gpu or HardwareKind.Cooler or HardwareKind.Psu or HardwareKind.Cpu)
         {
-            var kind = MapKind(hardware);
-            bool updated = false;
-            if (kind is HardwareKind.Motherboard or HardwareKind.Gpu or HardwareKind.Cooler or HardwareKind.Psu or HardwareKind.Cpu)
+            // A failed update must not hide the sub-hardware: the motherboard node itself has no sensors, its Super I/O chip
+            // and embedded controller (where the fan headers live) are sub-hardware with their own Update().
+            try
             {
                 hardware.Update();
                 updated = true;
             }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "Updating {Name} during fan discovery failed.", hardware.Name);
+            }
+        }
 
+        try
+        {
             string hardwareId = hardware.Identifier.ToString();
-            bool hasFan = false;
+            int fans = 0, controls = 0, sensors = 0;
             foreach (var sensor in hardware.Sensors)
             {
+                sensors++;
                 if (sensor.SensorType == SensorType.Control && sensor.Control is not null)
                 {
                     sink.Add((new FanSensorInfo(sensor.Identifier.ToString(), hardwareId, hardware.Name, kind, SensorKind.Control, sensor.Name, sensor.Index, sensor.Value), sensor));
-                    hasFan = true;
+                    controls++;
                 }
                 else if (sensor.SensorType == SensorType.Fan)
                 {
                     sink.Add((new FanSensorInfo(sensor.Identifier.ToString(), hardwareId, hardware.Name, kind, SensorKind.Fan, sensor.Name, sensor.Index, sensor.Value), sensor));
-                    hasFan = true;
+                    fans++;
                 }
                 else if (sensor.SensorType == SensorType.Temperature && updated)
                 {
@@ -446,20 +500,48 @@ public sealed partial class LibreHardwareFanControlService : IFanControlService,
                 }
             }
 
-            if (hasFan)
+            if (fans + controls > 0)
             {
                 withFans.Add(hardware);
             }
 
-            foreach (var sub in hardware.SubHardware)
+            if (kind is HardwareKind.Motherboard or HardwareKind.Gpu or HardwareKind.Cooler or HardwareKind.Psu || fans + controls > 0)
             {
-                Walk(sub, sink, withFans, temps);
+                nodes.Add(new FanHardwareNode(string.IsNullOrWhiteSpace(hardware.Name) ? hardware.HardwareType.ToString() : hardware.Name,
+                    hardware.HardwareType.ToString(), kind, depth, sensors, fans, controls));
             }
         }
         catch (Exception ex)
         {
-            _logger.LogDebug(ex, "Skipping hardware {Name} during fan discovery.", hardware.Name);
+            _logger.LogDebug(ex, "Skipping the sensors of {Name} during fan discovery.", hardware.Name);
         }
+
+        IHardware[] subHardware;
+        try
+        {
+            subHardware = hardware.SubHardware;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Could not list the sub-hardware of {Name}.", hardware.Name);
+            return;
+        }
+
+        foreach (var sub in subHardware)
+        {
+            Walk(sub, depth + 1, sink, withFans, temps, nodes);
+        }
+    }
+
+    /// <summary>Counts what the motherboard's chips report. Pure.</summary>
+    internal static MotherboardSensorCounts CountMotherboard(IReadOnlyList<FanHardwareNode> nodes, IReadOnlyList<FanSensorInfo> sensors)
+    {
+        var chips = nodes.Where(n => n.Kind == HardwareKind.Motherboard && n.Depth > 0).ToList();
+        return new MotherboardSensorCounts(
+            sensors.Count(s => s.Hardware == HardwareKind.Motherboard && s.Kind == SensorKind.Fan),
+            sensors.Count(s => s.Hardware == HardwareKind.Motherboard && s.Kind == SensorKind.Control),
+            chips.Sum(c => c.SensorCount),
+            chips.Count > 0);
     }
 
     private static HardwareKind MapKind(IHardware? hardware) => hardware?.HardwareType.ToString() switch

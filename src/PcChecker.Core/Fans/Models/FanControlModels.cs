@@ -82,3 +82,54 @@ public interface IFanControlAdvanced
     /// <summary>Runs at app exit: returns fans to automatic control when the setting asks for it and stops the loop.</summary>
     Task ShutdownAsync();
 }
+
+/// <summary>Motherboard fan readings the monitor sees: RPM sensors, controls, all sensors on the board's chips, and whether a chip was found.</summary>
+public sealed record MotherboardSensorCounts(int Fans, int Controls, int Sensors, bool ChipFound)
+{
+    public static MotherboardSensorCounts None { get; } = new(0, 0, 0, false);
+}
+
+/// <summary>The outcome of "Reload sensors": the motherboard counts before and after re-opening the hardware monitor.</summary>
+public sealed record SensorReloadResult(bool Success, string Message, MotherboardSensorCounts Before, MotherboardSensorCounts After);
+
+/// <summary>
+/// Diagnostics and recovery for the Fans page: the "Why is a fan missing?" report and a safe "Reload sensors" that
+/// returns every fan to automatic, re-opens the hardware monitor (picking up a PawnIO driver installed meanwhile) and
+/// detects the fans again.
+/// </summary>
+public interface IFanDiagnostics
+{
+    /// <summary>Builds the diagnostic report. May wait on the hardware monitor lock: call it off the UI thread.</summary>
+    Task<FanDiagnosticReport> GetDiagnosticsAsync(CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Returns all fans to automatic, closes and re-opens the hardware monitor and detects the fans again. Refused while
+    /// a fan cannot be handed back (held until the PC restarts after a crash) or did not return to automatic.
+    /// </summary>
+    Task<SensorReloadResult> ReloadSensorsAsync(CancellationToken cancellationToken);
+}
+
+/// <summary>Plain-English text for a sensor reload. Pure.</summary>
+public static class SensorReloadText
+{
+    public static string Describe(MotherboardSensorCounts before, MotherboardSensorCounts after)
+    {
+        ArgumentNullException.ThrowIfNull(before);
+        ArgumentNullException.ThrowIfNull(after);
+        if (!after.ChipFound)
+        {
+            return "Sensors reloaded, but still no motherboard fan controller chip was found. Open \"Why is a fan missing?\" on the Fans page for the reason.";
+        }
+
+        int newFans = Math.Max(0, after.Fans - before.Fans);
+        int newControls = Math.Max(0, after.Controls - before.Controls);
+        if (newFans == 0 && newControls == 0)
+        {
+            return $"Sensors reloaded: {Count(after.Fans, "motherboard fan")} and {Count(after.Controls, "fan control")} found ({Count(after.Sensors, "motherboard sensor")} in total).";
+        }
+
+        return $"Sensors reloaded: {Count(newFans, "motherboard fan")} and {Count(newControls, "fan control")} appeared ({Count(after.Sensors, "motherboard sensor")} in total).";
+    }
+
+    private static string Count(int n, string noun) => n == 1 ? $"1 {noun}" : $"{n} {noun}s";
+}

@@ -377,6 +377,15 @@ public sealed partial class LibreHardwareFanControlService
         {
             _capabilityNotes.Add("No fan sensors were found by the hardware monitor.");
         }
+
+        // Graphics card fans come through the graphics driver and show up even when the motherboard chip cannot be read,
+        // so say plainly when the CPU and case fan headers are missing instead of listing only what was found.
+        if (!_entries.Any(e => e.Kind == HardwareKind.Motherboard) && !_rpmOnly.Any(r => r.Kind == HardwareKind.Motherboard))
+        {
+            _capabilityNotes.Add(_host.DriverProblem is { } problem
+                ? "Motherboard fan headers (CPU and case fans): not readable. " + problem
+                : "Motherboard fan headers (CPU and case fans): none found. Open \"Why is a fan missing?\" below for the reason.");
+        }
     }
 
     private string DescribeUnavailable()

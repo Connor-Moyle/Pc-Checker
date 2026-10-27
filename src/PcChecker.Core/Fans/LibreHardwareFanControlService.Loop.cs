@@ -436,6 +436,13 @@ public sealed partial class LibreHardwareFanControlService
 
     private void TickCore()
     {
+        if (_discovered && _discoveredGeneration != _host.Generation)
+        {
+            // The monitor was re-opened: every sensor and control object kept here belongs to the closed one.
+            RequestRediscovery();
+            return;
+        }
+
         List<FanEntry> entries;
         List<RpmOnlyEntry> rpmOnly;
         List<IHardware> hardware;

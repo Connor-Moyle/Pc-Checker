@@ -1,15 +1,16 @@
 using PcChecker.Core.Common;
 using PcChecker.Core.Sensors;
+using PcChecker.Core.Sensors.PawnIo;
 using PcChecker.Core.Settings;
 
 namespace PcChecker.Core.Fans;
 
 /// <summary>
-/// Demo fans for the sample desktop: CPU cooler, two case fans on the motherboard chip and the GPU fans. All
-/// controllable. Pure .NET: speeds follow the chosen mode with a little wobble, curves follow the demo sensors
+/// Demo fans for the sample desktop: CPU cooler, two case fans on the motherboard chip and the GPU fans (controllable),
+/// a read-only CPU_OPT header and an empty header that reads 0 RPM (hidden until "Show empty headers" is on). Pure .NET: speeds follow the chosen mode with a little wobble, curves follow the demo sensors
 /// when a sensor service is supplied (58 °C otherwise), and the same alerts/safety path as the real service exists.
 /// </summary>
-public sealed class DemoFanControlService : IFanControlService, IFanControlAdvanced, IDisposable
+public sealed class DemoFanControlService : IFanControlService, IFanControlAdvanced, IFanDiagnostics, IDisposable
 {
     private const string CpuSensor = "cpu.package";
     private const string GpuSensor = "gpu.core";
@@ -27,6 +28,8 @@ public sealed class DemoFanControlService : IFanControlService, IFanControlAdvan
         ["fan.cpu"] = new("CPU cooler", HardwareKind.Motherboard, "Nuvoton NCT6798D", 1800, 42),
         ["fan.case.front"] = new("Case fan (front)", HardwareKind.Motherboard, "Nuvoton NCT6798D", 1500, 35),
         ["fan.case.rear"] = new("Case fan (rear)", HardwareKind.Motherboard, "Nuvoton NCT6798D", 1500, 38),
+        ["fan.cpu.opt"] = new("CPU_OPT header (pump)", HardwareKind.Motherboard, "Nuvoton NCT6798D", 3200, 72) { Controllable = false },
+        ["fan.header.6"] = new("Fan 6 (motherboard header)", HardwareKind.Motherboard, "Nuvoton NCT6798D", 1500, 40) { Empty = true },
         ["fan.gpu"] = new("GPU fans", HardwareKind.Gpu, DemoData.GpuName, 2600, 46),
     };
 
@@ -67,7 +70,8 @@ public sealed class DemoFanControlService : IFanControlService, IFanControlAdvan
 
     public IReadOnlyList<string> CapabilityNotes { get; } =
     [
-        "Motherboard fan headers (CPU and case fans): Nuvoton NCT6798D on " + DemoData.MotherboardName + " — 3 controllable",
+        "Motherboard fan headers (CPU and case fans): Nuvoton NCT6798D on " + DemoData.MotherboardName + " — 4 controllable",
+        "Read-only: Nuvoton NCT6798D reports 1 fan speed(s) but exposes no control",
         "GPU fans: " + DemoData.GpuName + " via the NVIDIA driver — 1 controllable",
     ];
 
@@ -114,7 +118,7 @@ public sealed class DemoFanControlService : IFanControlService, IFanControlAdvan
         double clamped = FanSafetyRules.ClampManual(percent, MinimumPercent, allowBelowMinimum);
         lock (_gate)
         {
-            if (!_state.TryGetValue(fanId, out var s))
+            if (!_state.TryGetValue(fanId, out var s) || !s.Controllable)
             {
                 return OperationResult.Fail($"Unknown fan \"{fanId}\".");
             }
@@ -134,7 +138,7 @@ public sealed class DemoFanControlService : IFanControlService, IFanControlAdvan
         await DemoData.DelayAsync(cancellationToken, 50, 200).ConfigureAwait(false);
         lock (_gate)
         {
-            if (!_state.TryGetValue(fanId, out var s))
+            if (!_state.TryGetValue(fanId, out var s) || !s.Controllable)
             {
                 return OperationResult.Fail($"Unknown fan \"{fanId}\".");
             }
@@ -160,7 +164,7 @@ public sealed class DemoFanControlService : IFanControlService, IFanControlAdvan
 
         lock (_gate)
         {
-            if (!_state.TryGetValue(fanId, out var s))
+            if (!_state.TryGetValue(fanId, out var s) || !s.Controllable)
             {
                 return OperationResult.Fail($"Unknown fan \"{fanId}\".");
             }
@@ -186,7 +190,7 @@ public sealed class DemoFanControlService : IFanControlService, IFanControlAdvan
         {
             foreach (var (id, assignment) in profile.Fans)
             {
-                if (!_state.TryGetValue(id, out var s))
+                if (!_state.TryGetValue(id, out var s) || !s.Controllable)
                 {
                     continue;
                 }
@@ -276,10 +280,71 @@ public sealed class DemoFanControlService : IFanControlService, IFanControlAdvan
     {
         lock (_gate)
         {
-            return _state.Select(kv => new RawFanControl(kv.Key + ".control", kv.Value.HardwareName, kv.Value.Name,
+            return _state.Where(kv => kv.Value.Controllable).Select(kv => new RawFanControl(kv.Key + ".control", kv.Value.HardwareName, kv.Value.Name,
                 kv.Value.Mode == FanMode.Auto ? "Default" : "Software", kv.Value.Mode == FanMode.Auto ? null : kv.Value.Percent,
                 0, 100, kv.Value.Percent, kv.Key + ".rpm")).ToList();
         }
+    }
+
+    public async Task<FanDiagnosticReport> GetDiagnosticsAsync(CancellationToken cancellationToken)
+    {
+        await DemoData.DelayAsync(cancellationToken, 50, 200).ConfigureAwait(false);
+        return FanDiagnostics.Build(BuildDiagnosticInput(), DateTimeOffset.Now);
+    }
+
+    public async Task<SensorReloadResult> ReloadSensorsAsync(CancellationToken cancellationToken)
+    {
+        await RevertAllToAutoAsync(cancellationToken).ConfigureAwait(false);
+        await DemoData.DelayAsync(cancellationToken).ConfigureAwait(false);
+        var counts = CountMotherboard();
+        var message = SensorReloadText.Describe(counts, counts) + " (demo)";
+        return new SensorReloadResult(true, message, counts, counts);
+    }
+
+    /// <summary>What the demo desktop's hardware monitor would report: the board, its Nuvoton chip, the graphics card and every fan sensor.</summary>
+    internal FanDiagnosticInput BuildDiagnosticInput()
+    {
+        const string chipId = "/lpc/nct6798d/0";
+        const string gpuId = "/gpu-nvidia/0";
+        var sensors = new List<FanSensorInfo>();
+        var fans = Build();
+        int index = 0;
+        foreach (var fan in fans)
+        {
+            bool gpu = fan.Hardware == HardwareKind.Gpu;
+            string hw = gpu ? gpuId : chipId;
+            int i = gpu ? 0 : index++;
+            sensors.Add(new FanSensorInfo(hw + "/fan/" + i, hw, fan.HardwareName, fan.Hardware, SensorKind.Fan, gpu ? "GPU Fan 1" : "Fan #" + (i + 1), i, fan.Rpm));
+            if (fan.Controllable)
+            {
+                sensors.Add(new FanSensorInfo(hw + "/control/" + i, hw, fan.HardwareName, fan.Hardware, SensorKind.Control, gpu ? "GPU Fan 1" : "Fan #" + (i + 1), i, fan.Percent));
+            }
+        }
+
+        // A spare PWM output with no speed input (the pump header on many boards is wired like this).
+        sensors.Add(new FanSensorInfo(chipId + "/control/6", chipId, "Nuvoton NCT6798D", HardwareKind.Motherboard, SensorKind.Control, "Fan #7", 6, 60));
+
+        var pairs = FanPairing.Pair(sensors);
+        int boardFans = sensors.Count(s => s.Hardware == HardwareKind.Motherboard && s.Kind == SensorKind.Fan);
+        int boardControls = sensors.Count(s => s.Hardware == HardwareKind.Motherboard && s.Kind == SensorKind.Control);
+        var nodes = new List<FanHardwareNode>
+        {
+            new(DemoData.MotherboardName, "Motherboard", HardwareKind.Motherboard, 0, 0, 0, 0),
+            new("Nuvoton NCT6798D", "SuperIO", HardwareKind.Motherboard, 1, 38, boardFans, boardControls),
+            new(DemoData.GpuName, "GpuNvidia", HardwareKind.Gpu, 0, 24, 1, 1),
+        };
+        return new FanDiagnosticInput(new DemoPawnIoService().GetStatus(), true, null, nodes, sensors, pairs,
+            [new ConflictingApp("HWiNFO", "HWiNFO64")], false);
+    }
+
+    private MotherboardSensorCounts CountMotherboard()
+    {
+        var input = BuildDiagnosticInput();
+        return new MotherboardSensorCounts(
+            input.Sensors.Count(s => s.Hardware == HardwareKind.Motherboard && s.Kind == SensorKind.Fan),
+            input.Sensors.Count(s => s.Hardware == HardwareKind.Motherboard && s.Kind == SensorKind.Control),
+            input.Hardware.Where(h => h.Kind == HardwareKind.Motherboard && h.Depth > 0).Sum(h => h.SensorCount),
+            true);
     }
 
     public Task<IReadOnlyList<string>> RunStartupAsync(CancellationToken cancellationToken) =>
@@ -383,8 +448,10 @@ public sealed class DemoFanControlService : IFanControlService, IFanControlAdvan
             return _state.Select(kv =>
             {
                 var s = kv.Value;
-                double rpm = Math.Round(DemoData.Jitter(_random, s.MaxRpm * s.Percent / 100, 25));
-                return new FanDevice(kv.Key, s.Name, s.Kind, s.HardwareName, rpm, Math.Round(s.Percent), true, 0, 100, s.Mode, kv.Key + ".control", kv.Key + ".rpm");
+                double rpm = s.Empty ? 0 : Math.Round(DemoData.Jitter(_random, s.MaxRpm * s.Percent / 100, 25));
+                return s.Controllable
+                    ? new FanDevice(kv.Key, s.Name, s.Kind, s.HardwareName, rpm, Math.Round(s.Percent), true, 0, 100, s.Mode, kv.Key + ".control", kv.Key + ".rpm")
+                    : new FanDevice(kv.Key, s.Name, s.Kind, s.HardwareName, rpm, null, false, 0, 100, FanMode.Auto, null, kv.Key + ".rpm");
             }).ToList();
         }
     }
@@ -399,5 +466,7 @@ public sealed class DemoFanControlService : IFanControlService, IFanControlAdvan
         public FanMode Mode { get; set; } = FanMode.Auto;
         public double Percent { get; set; } = autoPercent;
         public FanCurve? Curve { get; set; }
+        public bool Controllable { get; init; } = true;
+        public bool Empty { get; init; }
     }
 }

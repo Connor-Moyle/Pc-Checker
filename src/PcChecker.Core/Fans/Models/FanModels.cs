@@ -22,7 +22,24 @@ public sealed record FanDevice(
     double MaxPercent,
     FanMode Mode,
     string? ControlSensorId,
-    string? RpmSensorId);
+    string? RpmSensorId)
+{
+    /// <summary>What PC Checker can do with this fan (see <see cref="FanListRules.Classify"/>).</summary>
+    public FanCapability Capability => FanListRules.Classify(this);
+}
+
+/// <summary>What PC Checker can do with a fan.</summary>
+public enum FanCapability
+{
+    /// <summary>A control paired with its RPM sensor: speed and control.</summary>
+    Controllable,
+
+    /// <summary>A control no RPM sensor could be matched to with confidence: it can be driven, but its speed is not shown.</summary>
+    ControlWithoutRpm,
+
+    /// <summary>An RPM sensor without a control: the speed is shown, nothing can be changed.</summary>
+    ReadOnly,
+}
 
 /// <summary>One point on a fan curve: at <paramref name="TemperatureC"/> run the fan at <paramref name="Percent"/>.</summary>
 public sealed record FanCurvePoint(double TemperatureC, double Percent);
@@ -64,4 +81,7 @@ public sealed class FanSettings
     public bool RevertToAutoOnExit { get; set; } = true;
     public double MinimumPercent { get; set; } = 20;
     public bool ApplyOnStartup { get; set; }
+
+    /// <summary>Also list motherboard headers that read 0 RPM (usually nothing plugged in). Off by default.</summary>
+    public bool ShowEmptyHeaders { get; set; }
 }

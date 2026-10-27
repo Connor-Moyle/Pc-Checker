@@ -148,7 +148,7 @@ public class FansTests : IDisposable
     }
 
     [Fact]
-    public void Pairing_falls_back_to_names_then_order_and_never_crosses_hardware()
+    public void Pairing_falls_back_to_unique_names_never_guesses_by_order_and_never_crosses_hardware()
     {
         var sensors = new[]
         {
@@ -165,11 +165,44 @@ public class FansTests : IDisposable
         var byControl = pairs.ToDictionary(p => p.Control.Id);
         Assert.Equal("/lpc/nct/fan/7", byControl["/lpc/nct/control/3"].Rpm!.Id);
         Assert.Equal("same hardware and name", byControl["/lpc/nct/control/3"].Reason);
-        Assert.Equal("/lpc/nct/fan/9", byControl["/lpc/nct/control/5"].Rpm!.Id);
-        Assert.Equal("same hardware, by order", byControl["/lpc/nct/control/5"].Reason);
+
+        // Index 5 vs 9 and "#4" vs "#9": no confident match, so no pair (the old "by order" guess is gone).
+        Assert.Null(byControl["/lpc/nct/control/5"].Rpm);
+        Assert.Equal(FanPairing.NoConfidentMatch, byControl["/lpc/nct/control/5"].Reason);
         Assert.Null(byControl["/lpc/nct/control/6"].Rpm);
         Assert.Equal("/gpu/nvidia/0/fan/0", byControl["/gpu/nvidia/0/control/0"].Rpm!.Id);
-        Assert.Empty(FanPairing.Unpaired(sensors, pairs));
+        Assert.Equal("/lpc/nct/fan/9", Assert.Single(FanPairing.Unpaired(sensors, pairs)).Id);
+    }
+
+    [Fact]
+    public void Pairing_by_index_matches_the_chip_channel_even_when_the_names_differ()
+    {
+        // LibreHardwareMonitor names some boards' fans "System Fan"/"CPU Fan" and their controls "Fan 1"/"Fan 2"; both
+        // use the chip channel as index, which is what really links them.
+        var sensors = new[]
+        {
+            Rpm("/lpc/ite", 0, "System Fan"), Rpm("/lpc/ite", 1, "CPU Fan"), Rpm("/lpc/ite", 2, "Auxiliary Fan"),
+            Control("/lpc/ite", 0, "Fan 1"), Control("/lpc/ite", 1, "Fan 2"),
+        };
+        var pairs = FanPairing.Pair(sensors);
+        Assert.Equal(["System Fan", "CPU Fan"], pairs.Select(p => p.Rpm!.Name));
+        Assert.Equal("Auxiliary Fan", Assert.Single(FanPairing.Unpaired(sensors, pairs)).Name);
+    }
+
+    [Fact]
+    public void Pairing_refuses_ambiguous_indexes_and_names()
+    {
+        // Two RPM sensors on the same index, and two controls sharing the name key: nothing is certain, nothing is paired.
+        var sensors = new[]
+        {
+            Control("/lpc/nct", 0, "Fan Control #1"), Rpm("/lpc/nct", 0, "Fan #1"),
+            new FanSensorInfo("/lpc/nct/fan/0b", "/lpc/nct", "Nuvoton NCT6798D", HardwareKind.Motherboard, SensorKind.Fan, "Fan #1", 0, 700),
+            Control("/lpc/nct", 4, "Pump"), Control("/lpc/nct", 5, "Pump"), Rpm("/lpc/nct", 8, "Pump"),
+        };
+        var pairs = FanPairing.Pair(sensors);
+        Assert.All(pairs, p => Assert.Null(p.Rpm));
+        Assert.All(pairs, p => Assert.Equal(FanPairing.NoConfidentMatch, p.Reason));
+        Assert.Equal(3, FanPairing.Unpaired(sensors, pairs).Count);
     }
 
     [Fact]
@@ -179,7 +212,10 @@ public class FansTests : IDisposable
         var pairs = FanPairing.Pair(sensors);
         var unpaired = Assert.Single(FanPairing.Unpaired(sensors, pairs));
         Assert.Equal("/lpc/nct/fan/4", unpaired.Id);
-        Assert.Equal("CPU fan (header 1)", FanPairing.FriendlyName(pairs[0].Control, pairs[0].Rpm));
+
+        // Which numbered header is the CPU fan differs from board to board: never guessed.
+        Assert.Equal("Fan 1 (motherboard header)", FanPairing.FriendlyName(pairs[0].Control, pairs[0].Rpm));
+        Assert.Equal("Fan 5 (motherboard header)", FanPairing.FriendlyName(unpaired));
         Assert.Equal("Fan 3 (motherboard header)", FanPairing.FriendlyName(Control("/lpc/nct", 2, "Fan Control #3"), null));
         Assert.Equal("GPU fan 1", FanPairing.FriendlyName(Control("/gpu/nvidia/0", 0, "GPU Fan 1", "RTX", HardwareKind.Gpu), null));
         Assert.Equal("Pump", FanPairing.FriendlyName(Control("/cooler/0", 0, "Pump Control", "Corsair", HardwareKind.Cooler), null));
@@ -398,7 +434,7 @@ public class FansTests : IDisposable
         var fans = await demo.GetFansAsync(CancellationToken.None);
         Assert.All(fans, f => Assert.Equal(FanMode.Auto, f.Mode));
         Assert.NotEmpty(demo.CapabilityNotes);
-        Assert.Equal(4, demo.GetRawControls().Count);
+        Assert.Equal(5, demo.GetRawControls().Count); // the read-only CPU_OPT header has no control
         Assert.Contains(demo.GetTemperatureSources(), s => s.Id == "cpu.package");
 
         var below = await demo.SetManualAsync("fan.cpu", 5, false, CancellationToken.None);

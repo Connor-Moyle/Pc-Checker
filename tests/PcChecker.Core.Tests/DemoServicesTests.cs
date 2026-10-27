@@ -87,7 +87,7 @@ public class DemoServicesTests
     {
         var fans = new DemoFanControlService();
         Assert.True(fans.IsAvailable);
-        Assert.Equal(4, (await fans.GetFansAsync(CancellationToken.None)).Count);
+        Assert.Equal(6, (await fans.GetFansAsync(CancellationToken.None)).Count); // incl. a read-only header and an empty one
         Assert.True((await fans.SetManualAsync("fan.cpu", 70, CancellationToken.None)).Success);
         Assert.True((await fans.ApplyProfileAsync(fans.BuiltInProfiles[0], CancellationToken.None)).Success);
         Assert.NotNull(fans.ActiveProfile);
