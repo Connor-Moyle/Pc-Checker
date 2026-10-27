@@ -7,6 +7,13 @@ All notable changes to PC Checker are recorded here. The format follows
 ## [Unreleased]
 
 ### Added
+- Nothing yet.
+
+## [0.3.0] - 2026-10-27
+
+Six languages and a safety review of everything that changes your PC.
+
+### Added
 - **Languages**: German, Spanish, French, Italian and Brazilian Portuguese as
   well as English. Choose one in Settings → Appearance → Language, or follow
   the Windows display language; it applies after a restart. Pages, tabs,
@@ -223,7 +230,8 @@ Initial release.
   itself from GitHub Releases with Stable and Beta channels and verifies every
   download against its published SHA-256.
 
-[Unreleased]: https://github.com/Connor-Moyle/Pc-Checker/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/Connor-Moyle/Pc-Checker/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/Connor-Moyle/Pc-Checker/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/Connor-Moyle/Pc-Checker/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/Connor-Moyle/Pc-Checker/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/Connor-Moyle/Pc-Checker/releases/tag/v0.1.0
