@@ -3,6 +3,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using Microsoft.Win32;
 using PcChecker.Core.Common;
+using PcChecker.Core.Storage;
 
 namespace PcChecker.Core.Latency;
 
@@ -399,8 +400,9 @@ public static class LatencyProbes
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
                     CreateNoWindow = true,
-                    StandardOutputEncoding = Encoding.UTF8,
-                    StandardErrorEncoding = Encoding.UTF8,
+                    // Console tools (bcdedit, sc, shutdown, powercfg) write in the OEM code page; null keeps the process default.
+                    StandardOutputEncoding = StorageCommandRunner.OemEncoding(),
+                    StandardErrorEncoding = StorageCommandRunner.OemEncoding(),
                 },
             };
             process.Start();

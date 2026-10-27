@@ -517,6 +517,25 @@ public class StorageTests
         Assert.True((await demo.GetDiskErrorEventsAsync(60, CancellationToken.None)).Count > events.Count);
     }
 
+    // ---- OEM console encoding --------------------------------------------------------------------------------
+
+    [Fact]
+    public void Oem_encoding_matches_the_culture_oem_code_page_and_decodes_non_ascii_output()
+    {
+        var oem = StorageCommandRunner.OemEncoding();
+        Assert.NotNull(oem);
+        Assert.Equal(System.Globalization.CultureInfo.CurrentCulture.TextInfo.OEMCodePage, oem!.CodePage);
+
+        // A high byte from a console tool (e.g. 0x81 is 'ü' in code page 437/850) is garbled to U+FFFD by UTF-8
+        // but decodes to a real character in a single-byte OEM page.
+        byte[] consoleBytes = { 0x81 };
+        Assert.Equal("\uFFFD", System.Text.Encoding.UTF8.GetString(consoleBytes));
+        if (oem.IsSingleByte)
+        {
+            Assert.DoesNotContain('\uFFFD', oem.GetString(consoleBytes));
+        }
+    }
+
     /// <summary>Progress that invokes synchronously (no SynchronizationContext games in tests).</summary>
     private sealed class SyncProgress<T> : IProgress<T>
     {

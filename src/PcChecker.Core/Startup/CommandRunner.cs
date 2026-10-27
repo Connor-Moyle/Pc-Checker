@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Text;
 using PcChecker.Core.Common;
+using PcChecker.Core.Storage;
 
 namespace PcChecker.Core.Startup;
 
@@ -40,8 +41,9 @@ public static class CommandRunner
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             CreateNoWindow = true,
-            StandardOutputEncoding = Encoding.UTF8,
-            StandardErrorEncoding = Encoding.UTF8,
+            // Console tools (bcdedit, sc, shutdown, powercfg) write in the OEM code page; null keeps the process default.
+            StandardOutputEncoding = StorageCommandRunner.OemEncoding(),
+            StandardErrorEncoding = StorageCommandRunner.OemEncoding(),
         };
 
         using var process = new Process { StartInfo = psi };
