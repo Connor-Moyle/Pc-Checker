@@ -58,8 +58,65 @@ public sealed class DemoTempFileScanner : ITempFileScanner
         ["amd.shader.cache"] = new(0, 0, User + @"\AppData\Local\AMD\DxCache", [], []),
         ["intel.shader.cache"] = new(0, 0, User + @"\AppData\Local\Intel\ShaderCache", [], []),
         ["windows.old"] = new(41_212, 8_100_000_000, @"C:\Windows.old",
+            ["Windows\\System32\\DriverStore\\FileRepository\\nv_dispi.inf_amd64_{0:x8}\\nvlddmkm.sys", "Windows\\WinSxS\\amd64_microsoft-windows-{0:x8}\\wow64.dll", "Users\\Connor\\AppData\\Local\\Temp\\{0:x8}.tmp"],
+            []),
+        ["windows.upgrade.leftovers"] = new(2_318, 4_300_000_000, @"C:\$WINDOWS.~BT",
+            ["Sources\\install.esd", "Sources\\SafeOS\\winre.wim", "Sources\\Panther\\setupact.log", "..\\ESD\\Windows\\sources\\{0:x8}.cab"],
+            ["Windows was upgraded 6 days ago. For 10 days after an upgrade these files are needed to go back to the previous version."]),
+        ["windows.store.app.temp"] = new(640, 210_000_000, User + @"\AppData\Local\Packages",
+            ["Microsoft.WindowsStore_8wekyb3d8bbwe\\AC\\INetCache\\{0:X8}\\banner[{0}].jpg", "Microsoft.XboxGamingOverlay_8wekyb3d8bbwe\\AC\\Temp\\{0:x8}.tmp", "Microsoft.Windows.Photos_8wekyb3d8bbwe\\TempState\\{0:x8}.jpg"],
+            []),
+        ["driver.leftovers.amd"] = new(1_942, 2_650_000_000, @"C:\AMD",
+            ["AMD-Software-Installer\\Packages\\Drivers\\Display\\WT6A_INF\\{0:x8}.dll", "Radeon-Software-Adrenalin-24.{0}\\Packages\\{0:x8}.cab", "AMD-Software-Installer\\Bin64\\cncmd.exe"],
+            ["Kept C:\\AMD\\Chipset_Software: the AMD chipset driver needs it to uninstall."]),
+        ["amd.software.cache"] = new(318, 96_000_000, User + @"\AppData\Local\AMD",
+            ["CN\\gmdb.log", "CN\\NewsFeed\\{0:x8}.log", "RadeonSoftware\\Cache\\{0:x8}", "RadeonSoftware\\QtWebEngine\\Default\\Cache\\data_{0}"],
+            []),
+        ["driver.leftovers.nvidia"] = new(712, 1_240_000_000, @"C:\NVIDIA\DisplayDriver",
+            ["566.36\\Win11_Win10-DCH_64\\International\\Display.Driver\\nvlddmkm.sy_", "566.36\\Win11_Win10-DCH_64\\International\\PhysX\\PhysX_{0}.msi", "572.16\\Win11_Win10-DCH_64\\International\\setup.exe"],
+            []),
+        ["driver.downloads.nvidia"] = new(3, 1_870_000_000, @"C:\ProgramData\NVIDIA Corporation\Downloader",
+            ["{0:x8}\\566.36-desktop-win10-win11-64bit-international-dch-whql.exe", "{0:x8}\\572.16-desktop-win10-win11-64bit-international-dch-whql.exe"],
+            []),
+        ["nvidia.app.cache"] = new(144, 58_000_000, @"C:\ProgramData\NVIDIA Corporation",
+            ["umdlogs\\{0:x8}.log", "CrashDumps\\nvcontainer.exe.{0}.dmp", "NvTelemetry\\NvTelemetryContainer.log"],
+            []),
+        ["browser.operagx.cache"] = new(2_410, 920_000_000, User + @"\AppData\Local\Opera Software\Opera GX Stable\Cache\Cache_Data",
+            ["f_{0:x6}", "data_{0}", "index"],
+            []),
+        ["app.discord.cache"] = new(0, 0, User + @"\AppData\Roaming\discord\Cache\Cache_Data",
             [],
-            ["Measured only. Remove it with Storage settings or Windows Disk Cleanup."]),
+            ["Skipped: Discord is running. Quit it from the system tray and scan again to clean this."]),
+        ["app.spotify.cache"] = new(1_208, 3_100_000_000, User + @"\AppData\Local\Spotify\Data",
+            ["{0:x2}\\{0:x8}.file", "{0:x2}\\{0:x8}.cnt"],
+            []),
+        ["app.teams.cache"] = new(860, 470_000_000, User + @"\AppData\Local\Packages\MSTeams_8wekyb3d8bbwe\LocalCache\Microsoft\MSTeams\EBWebView\WV2Profile_tfw",
+            ["Cache\\Cache_Data\\f_{0:x6}", "Code Cache\\js\\{0:x8}_0", "Service Worker\\CacheStorage\\{0:x8}\\{0:x8}_0"],
+            []),
+        ["game.steam.cache"] = new(1_390, 1_420_000_000, @"C:\Program Files (x86)\Steam",
+            ["appcache\\httpcache\\{0:x2}\\{0:x8}", "logs\\content_log.txt", "dumps\\steamwebhelper_{0}.dmp"],
+            []),
+        ["game.steam.shadercache"] = new(4_820, 5_600_000_000, @"D:\SteamLibrary\steamapps\shadercache",
+            ["1172470\\DX12\\{0:x8}.bin", "1086940\\fozpipelinesv6\\steamapp_pipeline_cache.foz", "730\\nvidiav1\\GLCache\\{0:x8}.bin"],
+            []),
+        ["game.epic.cache"] = new(522, 380_000_000, User + @"\AppData\Local\EpicGamesLauncher\Saved",
+            ["webcache_4430\\Cache\\Cache_Data\\f_{0:x6}", "Logs\\EpicGamesLauncher-backup-{0}.log", "Crashes\\UECC-Windows-{0:X8}\\minidump.dmp"],
+            []),
+        ["game.battlenet.cache"] = new(96, 120_000_000, @"C:\ProgramData\Battle.net\Agent",
+            ["Agent.9{0}\\Logs\\Agent-{0}.log", "data\\cache\\{0:x2}\\{0:x8}"],
+            []),
+        ["app.vscode.cache"] = new(780, 310_000_000, User + @"\AppData\Roaming\Code",
+            ["CachedData\\{0:x8}\\chrome\\js\\{0:x8}_0", "CachedExtensionVSIXs\\ms-python.python-2024.{0}.0", "logs\\{0}\\main.log"],
+            []),
+        ["dev.nuget.packages"] = new(18_340, 6_200_000_000, User + @"\.nuget\packages",
+            ["microsoft.netcore.app.runtime.win-x64\\8.0.{0}\\runtimes\\win-x64\\lib\\net8.0\\System.Private.CoreLib.dll", "communitytoolkit.mvvm\\8.2.{0}\\lib\\net6.0\\CommunityToolkit.Mvvm.dll"],
+            []),
+        ["dev.npm.cache"] = new(9_120, 1_900_000_000, User + @"\AppData\Local\npm-cache\_cacache",
+            ["content-v2\\sha512\\{0:x2}\\{0:x8}", "index-v5\\{0:x2}\\{0:x8}"],
+            []),
+        ["privacy.recent.items"] = new(212, 300_000, User + @"\AppData\Roaming\Microsoft\Windows\Recent",
+            ["report-{0}.docx.lnk", "screenshot-{0}.png.lnk", "Downloads.lnk"],
+            []),
         ["font.cache"] = new(4, 61_000_000, User + @"\AppData\Local\Microsoft\Windows\Fonts\Cache",
             ["FontCache-S-1-5-21-{0}.dat", "FontCache-System.dat", "~FontCache-{0}.tmp"],
             []),
@@ -96,10 +153,21 @@ public sealed class DemoTempFileScanner : ITempFileScanner
     {
         if (!Samples.TryGetValue(category.Id, out var sample))
         {
+            if (category.Kind == CleanupKind.Command)
+            {
+                var estimate = DemoCleanupCommandService.Sample(category);
+                return new CategoryScanResult(category, 0, estimate.Bytes, [], estimate.Notes.Select(CleanupRules.Note).ToList()) { SizeKnown = estimate.SizeKnown };
+            }
+
             return new CategoryScanResult(category, 0, 0, [], []);
         }
 
         var notes = sample.Notes.Select(CleanupRules.Note).ToList();
+        var blocked = sample.Notes.FirstOrDefault(n => n.StartsWith("Skipped:", StringComparison.Ordinal));
+        if (blocked is not null)
+        {
+            return new CategoryScanResult(category, 0, 0, [], notes) { BlockedReason = blocked };
+        }
         if (sample.Names.Length == 0 || sample.Files == 0)
         {
             return new CategoryScanResult(category, sample.Files, sample.Bytes, [], notes);

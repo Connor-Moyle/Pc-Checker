@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using PcChecker.Core.Common;
 using PcChecker.Core.Logging;
+using PcChecker.Core.Optimization;
 using PcChecker.Core.Restore;
 using PcChecker.Core.Settings;
 
@@ -9,10 +10,13 @@ namespace PcChecker.Core.Cleanup;
 /// <summary>
 /// Windows implementation of <see cref="ITempFileCleaner"/>. Every real run goes through <see cref="IChangeGuard"/>;
 /// files are deleted one by one inside the category roots only, locked files are counted as skipped, empty folders are
-/// pruned bottom-up, the Recycle Bin is emptied through the shell and the Windows Update services are paused while
-/// their download cache is removed. The scan can be minutes or hours old, so each file is checked again at delete time:
-/// no folder between the root and the file may have become a junction or symlink, the handle that deletes the file
-/// must still resolve inside the root, and its current last write time decides whether it is too recent to remove.
+/// pruned bottom-up, the Recycle Bin is emptied through the shell and the Windows Update and Font Cache services are
+/// paused while their files are removed. The scan can be minutes or hours old, so each file is checked again at delete
+/// time: it must still match one of the category's folders and patterns and not be excluded, no folder between the root
+/// and the file may have become a junction or symlink, the handle that deletes the file must still resolve inside the
+/// root, and its current last write time decides whether it is too recent to remove. Categories whose app is running or
+/// whose preconditions fail (a pending restart, an install) are skipped, never failed. Command categories (DISM, Disk
+/// Cleanup handlers, restore points, the clipboard) each run as their own guarded change.
 /// </summary>
 public sealed class WindowsTempFileCleaner : ITempFileCleaner
 {
@@ -22,13 +26,15 @@ public sealed class WindowsTempFileCleaner : ITempFileCleaner
     private readonly IChangeGuard _guard;
     private readonly ISettingsService _settings;
     private readonly ILogService _logService;
+    private readonly ICleanupCommandService _commands;
     private readonly ILogger<WindowsTempFileCleaner> _logger;
 
-    public WindowsTempFileCleaner(IChangeGuard guard, ISettingsService settings, ILogService logService, ILogger<WindowsTempFileCleaner> logger)
+    public WindowsTempFileCleaner(IChangeGuard guard, ISettingsService settings, ILogService logService, ICleanupCommandService commands, ILogger<WindowsTempFileCleaner> logger)
     {
         _guard = guard;
         _settings = settings;
         _logService = logService;
+        _commands = commands;
         _logger = logger;
     }
 
@@ -52,28 +58,36 @@ public sealed class WindowsTempFileCleaner : ITempFileCleaner
             return await Task.Run(() => DryRun(selected, progress, cancellationToken), cancellationToken).ConfigureAwait(false);
         }
 
-        var categoryNames = string.Join(", ", selected.Select(c => c.Category.Name));
-        var options = new ChangeOptions(
-            CreateBefore: CleanupRules.IsSafeOnly(selected.Select(c => c.Category)) ? false : null,
-            CreateAfter: false,
-            Module: Module,
-            Target: categoryNames,
-            Reversible: false,
-            UndoHint: "Deleted temporary files cannot be restored; Windows and programs recreate them as needed.");
+        var fileCategories = selected.Where(c => c.Category.Kind != CleanupKind.Command).ToList();
+        var commandCategories = selected.Where(c => c.Category.Kind == CleanupKind.Command).ToList();
+        var parts = new List<CleanupRunResult>();
 
-        var guarded = await _guard.RunGuardedAsync(
-            $"Clean temporary files ({selected.Count} categories)",
-            options,
-            ct => Task.Run(() => OperationResult<CleanupRunResult>.Ok(CleanCore(selected, progress, ct), "Cleanup finished."), ct),
-            progress,
-            cancellationToken).ConfigureAwait(false);
-
-        if (guarded.Value is { } result)
+        if (fileCategories.Count > 0)
         {
-            return result;
+            var categoryNames = string.Join(", ", fileCategories.Select(c => c.Category.Name));
+            var options = new ChangeOptions(
+                CreateBefore: CleanupRules.IsSafeOnly(fileCategories.Select(c => c.Category)) ? false : null,
+                CreateAfter: false,
+                Module: Module,
+                Target: categoryNames,
+                Reversible: false,
+                UndoHint: "Deleted temporary files cannot be restored; Windows and programs recreate them as needed.");
+
+            var guarded = await _guard.RunGuardedAsync(
+                $"Clean temporary files ({fileCategories.Count} categories)",
+                options,
+                ct => Task.Run(() => OperationResult<CleanupRunResult>.Ok(CleanCore(fileCategories, progress, ct), "Cleanup finished."), ct),
+                progress,
+                cancellationToken).ConfigureAwait(false);
+            parts.Add(guarded.Value ?? new CleanupRunResult(0, 0, [], [guarded.Message], false));
         }
 
-        return new CleanupRunResult(0, 0, [], [guarded.Message], false);
+        if (commandCategories.Count > 0)
+        {
+            parts.Add(await RunCommandsAsync(commandCategories, progress, cancellationToken).ConfigureAwait(false));
+        }
+
+        return Merge(parts, dryRun: false);
     }
 
     public Task<OperationResult> EmptyRecycleBinAsync(CancellationToken cancellationToken)
@@ -87,11 +101,18 @@ public sealed class WindowsTempFileCleaner : ITempFileCleaner
         return _guard.RunGuardedAsync("Empty the Recycle Bin", options, _ => Task.Run(CleanupNativeMethods.EmptyRecycleBin), null, cancellationToken);
     }
 
+    private static CleanupRunResult Merge(IReadOnlyList<CleanupRunResult> parts, bool dryRun) =>
+        new(parts.Sum(p => p.DeletedFiles), parts.Sum(p => p.FreedBytes), parts.SelectMany(p => p.Skipped).ToList(), parts.SelectMany(p => p.Errors).ToList(), dryRun)
+        {
+            Messages = parts.SelectMany(p => p.Messages).ToList(),
+        };
+
     private static CleanupRunResult DryRun(List<CategoryScanResult> selected, IProgress<ProgressUpdate>? progress, CancellationToken cancellationToken)
     {
         int files = 0;
         long bytes = 0;
         var skipped = new List<string>();
+        var messages = new List<string>();
         for (int i = 0; i < selected.Count; i++)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -103,18 +124,107 @@ public sealed class WindowsTempFileCleaner : ITempFileCleaner
                 continue;
             }
 
+            if (category.BlockedReason is { } blocked)
+            {
+                skipped.Add($"{category.Category.Name}: {CleanupRules.NoteText(blocked)}");
+                continue;
+            }
+
+            if (category.Category.Kind == CleanupKind.Command)
+            {
+                messages.Add(category.SizeKnown
+                    ? $"{category.Category.Name}: Windows would remove about {ByteSize.Format(category.TotalBytes)}."
+                    : $"{category.Category.Name}: Windows would run this; the size is only known afterwards.");
+                bytes += category.TotalBytes;
+                continue;
+            }
+
             files += category.FileCount;
             bytes += category.TotalBytes;
         }
 
         progress?.Report(new ProgressUpdate("Done", 100));
-        return new CleanupRunResult(files, bytes, skipped, [], true);
+        return new CleanupRunResult(files, bytes, skipped, [], true) { Messages = messages };
+    }
+
+    /// <summary>
+    /// Runs the command categories one by one, each as its own guarded change (confirmation already given, restore
+    /// point per the settings unless the category is Safe, one Action Journal entry each). Disk Cleanup handlers of
+    /// several categories share one cleanmgr run. A category whose preconditions fail now is skipped.
+    /// </summary>
+    private async Task<CleanupRunResult> RunCommandsAsync(List<CategoryScanResult> categories, IProgress<ProgressUpdate>? progress, CancellationToken cancellationToken)
+    {
+        var env = CleanupEnvironment.Capture([SafeLogDirectory(), SafeSettingsDirectory()]);
+        var conditions = env.ReadConditions();
+        var running = CleanupEnvironment.RunningProcesses();
+        var skipped = new List<string>();
+        var errors = new List<string>();
+        var messages = new List<string>();
+        long freed = 0;
+
+        var runnable = new List<CategoryScanResult>();
+        foreach (var item in categories)
+        {
+            var reason = CleanupRules.AppRunningReason(item.Category.Id, running) ?? CleanupRules.BlockedReason(item.Category, conditions);
+            if (reason is not null)
+            {
+                skipped.Add($"{item.Category.Name}: {reason}");
+            }
+            else
+            {
+                runnable.Add(item);
+            }
+        }
+
+        // One cleanmgr /sagerun for every selected Disk Cleanup handler.
+        var handlerItems = runnable.Where(c => c.Category.Command == CleanupCommand.DiskCleanupHandlers).ToList();
+        var batches = runnable.Where(c => c.Category.Command != CleanupCommand.DiskCleanupHandlers)
+            .Select(c => (Category: c.Category, Items: new List<CategoryScanResult> { c }))
+            .ToList();
+        if (handlerItems.Count > 0)
+        {
+            var combined = new CleanupCategory("diskcleanup.batch", "Windows Disk Cleanup items",
+                string.Join(", ", handlerItems.Select(h => h.Category.Name)), handlerItems.Max(h => h.Category.Risk), [], ["*"], false, false)
+            {
+                Kind = CleanupKind.Command,
+                Command = CleanupCommand.DiskCleanupHandlers,
+                DiskCleanupHandlers = handlerItems.SelectMany(h => h.Category.DiskCleanupHandlers).Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
+                Requires = CleanupRequirement.Elevated,
+            };
+            batches.Insert(0, (combined, handlerItems));
+        }
+
+        foreach (var (category, items) in batches)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var names = string.Join(", ", items.Select(i => i.Category.Name));
+            var options = new ChangeOptions(
+                CreateBefore: category.Risk == RiskLevel.Safe ? false : null,
+                CreateAfter: false,
+                Module: Module,
+                Target: names,
+                Reversible: false,
+                UndoHint: "Windows removed these files itself; they cannot be restored.");
+            var result = await _guard.RunGuardedAsync(category.Name, options, ct => _commands.RunAsync(category, progress, ct), progress, cancellationToken).ConfigureAwait(false);
+            if (result.Success)
+            {
+                messages.Add(result.Message);
+                freed += items.Where(i => i.SizeKnown).Sum(i => i.TotalBytes);
+            }
+            else
+            {
+                errors.Add($"{names}: {result.Message}");
+            }
+        }
+
+        return new CleanupRunResult(0, freed, skipped, errors, false) { Messages = messages };
     }
 
     private CleanupRunResult CleanCore(List<CategoryScanResult> selected, IProgress<ProgressUpdate>? progress, CancellationToken cancellationToken)
     {
         var env = CleanupEnvironment.Capture([SafeLogDirectory(), SafeSettingsDirectory()]);
-        var runningBrowsers = CleanupEnvironment.RunningBrowserProcesses();
+        var running = CleanupEnvironment.RunningProcesses();
+        var conditions = env.ReadConditions();
         int skipNewerThanMinutes = Math.Max(0, _settings.Current.Cleanup.SkipFilesNewerThanMinutes);
         var now = DateTime.Now;
         var finalRoots = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
@@ -123,7 +233,13 @@ public sealed class WindowsTempFileCleaner : ITempFileCleaner
         long freed = 0;
         var skipped = new List<string>();
         var errors = new List<string>();
-        var services = CleanupRules.ServicesToStop(selected.Select(c => c.Category.Id));
+
+        // Only categories that may run now pause services.
+        var runnable = selected
+            .Where(c => CleanupRules.AppRunningReason(c.Category.Id, running) is null && CleanupRules.BlockedReason(c.Category, conditions) is null)
+            .Select(c => c.Category.Id)
+            .ToList();
+        var services = CleanupRules.ServicesToStop(runnable);
         var stoppedServices = new List<string>();
 
         try
@@ -152,6 +268,13 @@ public sealed class WindowsTempFileCleaner : ITempFileCleaner
                     continue;
                 }
 
+                var reason = CleanupRules.AppRunningReason(id, running) ?? CleanupRules.BlockedReason(category.Category, conditions);
+                if (reason is not null)
+                {
+                    skipped.Add($"{category.Category.Name}: {reason}");
+                    continue;
+                }
+
                 if (CleanupRules.IsRecycleBin(id))
                 {
                     var bin = CleanupNativeMethods.EmptyRecycleBin();
@@ -168,14 +291,9 @@ public sealed class WindowsTempFileCleaner : ITempFileCleaner
                     continue;
                 }
 
-                var browserReason = CleanupRules.BrowserRunningReason(id, runningBrowsers);
-                if (browserReason is not null)
-                {
-                    skipped.Add($"{category.Category.Name}: {browserReason}");
-                    continue;
-                }
-
-                var roots = env.Resolve(category.Category).Roots;
+                var resolved = env.Resolve(category.Category);
+                var roots = resolved.Roots;
+                int effectiveSkip = CleanupRules.EffectiveSkipMinutes(category.Category, skipNewerThanMinutes);
                 var touchedDirectories = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
                 foreach (var file in category.Files)
@@ -186,19 +304,21 @@ public sealed class WindowsTempFileCleaner : ITempFileCleaner
                         progress?.Report(new ProgressUpdate("Cleaning " + category.Category.Name, 100.0 * processed / totalFiles, $"{ByteSize.Format(freed)} freed"));
                     }
 
-                    if (!CleanupSafety.IsPathAllowed(file.Path, roots) || env.IsProtected(file.Path))
+                    if (!CleanupSafety.IsPathAllowed(file.Path, roots) || env.IsProtected(file.Path)
+                        || !CleanupRules.MatchesEntry(file.Path, resolved.Entries)
+                        || CleanupSafety.IsExcluded(file.Path, resolved.ExcludedPaths, category.Category.ExcludePatterns))
                     {
                         skipped.Add(file.Path + " (outside the allowed folders)");
                         continue;
                     }
 
-                    if (CleanupSafety.ShouldSkip(file, now, skipNewerThanMinutes))
+                    if (CleanupSafety.ShouldSkip(file, now, effectiveSkip))
                     {
                         skipped.Add(file.Path + " (recently modified or protected name)");
                         continue;
                     }
 
-                    switch (TryDelete(file, roots, env, finalRoots, skipNewerThanMinutes, out long removedBytes))
+                    switch (TryDelete(file, roots, env, resolved, category.Category, finalRoots, effectiveSkip, out long removedBytes))
                     {
                         case DeleteOutcome.Deleted:
                             deleted++;
@@ -226,7 +346,7 @@ public sealed class WindowsTempFileCleaner : ITempFileCleaner
                     }
                 }
 
-                PruneEmptyDirectories(touchedDirectories, roots, id);
+                PruneEmptyDirectories(touchedDirectories, roots, resolved.ExcludedPaths, id);
             }
         }
         finally
@@ -264,7 +384,7 @@ public sealed class WindowsTempFileCleaner : ITempFileCleaner
     /// handle, so nothing can be swapped in between the checks and the delete. <paramref name="removedBytes"/> is the
     /// size at delete time.
     /// </summary>
-    private DeleteOutcome TryDelete(CleanupFile file, IReadOnlyList<string> roots, CleanupEnvironment env, Dictionary<string, string?> finalRoots,
+    private DeleteOutcome TryDelete(CleanupFile file, IReadOnlyList<string> roots, CleanupEnvironment env, ResolvedRoots resolved, CleanupCategory category, Dictionary<string, string?> finalRoots,
         int skipNewerThanMinutes, out long removedBytes)
     {
         removedBytes = 0;
@@ -318,7 +438,7 @@ public sealed class WindowsTempFileCleaner : ITempFileCleaner
                 return DeleteOutcome.Locked;
             }
 
-            if (!CleanupSafety.IsPathAllowed(finalPath, [finalRoot]) || env.IsProtected(finalPath))
+            if (!CleanupSafety.IsPathAllowed(finalPath, [finalRoot]) || env.IsProtected(finalPath) || CleanupSafety.IsExcluded(finalPath, resolved.ExcludedPaths, category.ExcludePatterns))
             {
                 return DeleteOutcome.Outside;
             }
@@ -365,11 +485,11 @@ public sealed class WindowsTempFileCleaner : ITempFileCleaner
         }
     }
 
-    private static void PruneEmptyDirectories(IEnumerable<string> directories, IReadOnlyList<string> roots, string categoryId)
+    private static void PruneEmptyDirectories(IEnumerable<string> directories, IReadOnlyList<string> roots, IReadOnlyList<string> excludedPaths, string categoryId)
     {
         foreach (var dir in CleanupRules.OrderForPruning(directories))
         {
-            if (!CleanupSafety.IsPathAllowed(dir, roots) || !CleanupRules.MayPrune(dir, roots, categoryId))
+            if (!CleanupSafety.IsPathAllowed(dir, roots) || !CleanupRules.MayPrune(dir, roots, categoryId) || CleanupSafety.IsExcluded(dir, excludedPaths, null))
             {
                 continue;
             }

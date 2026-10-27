@@ -48,18 +48,73 @@ follows, so you know what to expect and contributors know what to build.
 
 ## Cleanup rules
 
-- Files are only ever deleted inside the roots of the categories you chose.
-  A path outside those roots is refused even if it is listed.
+- Categories come from a fixed, reviewed catalog in the app; nothing is
+  imported from outside.
+- Files are only ever deleted inside the folders of the categories you chose,
+  and only when they still match that folder's file pattern and depth at
+  delete time. A path outside those folders is refused even if it is listed.
+  Network paths and whole drives are never cleanup folders.
+- Each category can exclude folders and file names, checked at scan time and
+  again at delete time: Spotify's downloaded songs, Steam downloads that are
+  queued or paused, Ubisoft ownership and settings data, Epic's install
+  manifests, every `C:\AMD` folder an installed program's uninstaller still
+  needs, `Prefetch\Layout.ini`, and browser passwords, payment data,
+  bookmarks and Firefox `places.sqlite` in every browser category.
 - Reparse points (junctions, symbolic links) are never followed.
 - Files modified in the last 60 minutes (configurable) are skipped; they may
-  belong to a running program.
-- `desktop.ini`, locked files and the app's own log folder are skipped.
-- Browser caches are skipped while that browser is running.
+  belong to a running program. Prefetch entries are only removed after 30
+  days unused.
+- These file names are never deleted anywhere: `desktop.ini`, `thumbs.db`,
+  `ntuser.dat`, `ntuser.dat.log`, `pagefile.sys`, `hiberfil.sys` and
+  `swapfile.sys`. Locked files and the app's own log and settings folders are
+  skipped.
+- Browser, app and launcher caches are skipped while that program runs
+  (matched by process name and install folder). A scheduled cleanup skips
+  such a category instead of failing.
+- Categories that need administrator rights, no pending restart, no install
+  in progress or Windows Update idle are skipped with the reason until that
+  is true.
 - **Dry run** shows exactly what would be removed before anything is.
 - Categories are labelled Safe, Moderate or Advanced. Moderate and Advanced
-  ones (prefetch, crash dumps, Windows logs, Windows.old) explain the
-  trade-off. Windows.old is only reported; removing it goes through Windows'
-  own Storage settings or Disk Cleanup.
+  ones explain the trade-off on their card and in the confirmation (for
+  example "You will be signed out of all websites" for cookies, or that
+  `/ResetBase` makes installed updates permanent).
+- Windows.old, Windows upgrade leftovers, the component store and Disk
+  Cleanup items are never deleted file by file: DISM or Windows' own Disk
+  Cleanup handlers remove them, each as its own guarded change. The Disk
+  Cleanup selection flags are removed again after the run.
+- Older restore points: every point except the newest is deleted, one at a
+  time, each one written to the Action Journal. The newest restore point
+  always stays, so guarantee 2 holds.
+- Scheduled and tray cleanups only ever take Safe categories, never privacy,
+  developer, Windows tool or other categories marked as never scheduled.
+
+### Cleanup: deliberately not offered
+
+| Not offered | Why |
+| --- | --- |
+| pnpm store | Projects are hard-linked into it; deleting files frees nothing and can break projects. Use `pnpm store prune`. |
+| Deep scans for `node_modules`, `venv`, `*.bak`, `*.old`, `~*` across drives | These match user and project data and would break the "only inside category folders" rule. Use the Disk space page. |
+| Importing winapp2.ini or CleanerML files | Community entries are unreviewed (whole-folder and registry deletes, passwords, sync data) and winapp2.ini is CC-BY-SA. They were used only as a reference for our own categories. |
+| Deleting Microsoft Defender history, quarantine, definition backups or MPLogs directly | Tamper Protection blocks it, quarantine may hold files you need back, and history matters for security. The *Microsoft Defender temporary files* Disk Cleanup item is the supported route. |
+| Clearing Windows event logs | PC Checker's Health, Logs and Assistant read them, they are size-capped, and they are the evidence for crash and driver-timeout troubleshooting. |
+| Registry privacy traces (RunMRU, TypedPaths, UserAssist, ShellBags…) | Registry, not files: they need the Registry page's backup flow and free no space. Possible later as a Privacy add-on. |
+| Browser saved passwords, autofill and payment data | Irreversible unless synced and frees no space; remove them in the browser's settings. They are excluded from every browser category. |
+| Deleting Firefox `places.sqlite` for history | It also holds bookmarks; Firefox history needs a database-level clean (planned). |
+| Orphaned `.msi` and `.msp` files in `C:\Windows\Installer` | Mistakes break uninstall, repair and patching of Office, Visual Studio and drivers; Microsoft does not support it. |
+| `C:\ProgramData\Package Cache` and the Visual Studio layout cache | Installers need them to uninstall, repair or modify. |
+| `NVIDIA Corporation\Installer2` | NVIDIA's installer uses it to remove and upgrade components; use a clean install instead. |
+| OEM driver folders (`C:\SWSetup`, `C:\Drivers`, `C:\DELL`…) | PC-maker recovery and support tools reinstall drivers from them. See them on the Disk space page. |
+| Game redistributables (`_CommonRedist`, `__Installer`) | Games may need them on first launch or update; little space. |
+| Hibernation file | Already on the Optimize page (*More → Hibernation file*). |
+| Device Driver Packages (Disk Cleanup) | The Drivers page removes old packages with a backup (*More → Old driver packages*). |
+| DNS cache | Already on the Network page; frees no disk space. |
+| Storage Sense's Downloads and OneDrive options | Downloads is your data, and making OneDrive files online-only needs the cloud files API. *More → Cleanup recommendations* opens Windows' own page. |
+| Windows Search index and `WebCacheV01.dat` | Locked by system services; rebuild the index in Indexing Options instead. |
+| Windows diagnostic data | The DiagTrack service holds the files; *More → Delete diagnostic data* opens Windows' own button. |
+| `$NtUninstallKB*$` and `$hf_mig$` | Windows XP leftovers that do not exist on Windows 10 or 11. `/ResetBase` is the modern equivalent. |
+| Free-space wipes, MFT, USN journal and page file wiping | No space gained, SSD wear and NTFS internals outside a PC health tool's scope. |
+| Reserved storage and CompactOS | Not cleanup: reserved storage protects updates, and CompactOS trades CPU time for space. |
 
 ## Disk space rules
 

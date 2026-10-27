@@ -93,6 +93,7 @@ public static class ServiceRegistration
         Add<IUninstallService, WindowsUninstallService, DemoUninstallService>(services, demo);
         Add<IPerformanceAnalyzer, WindowsPerformanceAnalyzer, DemoPerformanceAnalyzer>(services, demo);
         Add<IOptimizationService, WindowsOptimizationService, DemoOptimizationService>(services, demo);
+        Add<ICleanupCommandService, WindowsCleanupCommandService, DemoCleanupCommandService>(services, demo);
         Add<ITempFileScanner, WindowsTempFileScanner, DemoTempFileScanner>(services, demo);
         Add<ITempFileCleaner, WindowsTempFileCleaner, DemoTempFileCleaner>(services, demo);
         Add<IDiskSpaceService, WindowsDiskSpaceService, DemoDiskSpaceService>(services, demo);

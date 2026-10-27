@@ -3,7 +3,8 @@ namespace PcChecker.Core.Cleanup;
 /// <summary>Pure safety rules: only delete inside the category roots, skip fresh/special files, never follow reparse points.</summary>
 public static class CleanupSafety
 {
-    private static readonly string[] NeverDeleteNames = ["desktop.ini", "thumbs.db", "ntuser.dat", "ntuser.dat.log", "pagefile.sys", "hiberfil.sys", "swapfile.sys"];
+    /// <summary>File names no category ever deletes, wherever they are (docs/SAFETY.md lists them).</summary>
+    public static IReadOnlyList<string> NeverDeleteNames { get; } = ["desktop.ini", "thumbs.db", "ntuser.dat", "ntuser.dat.log", "pagefile.sys", "hiberfil.sys", "swapfile.sys"];
 
     /// <summary>True when <paramref name="fullPath"/> lies strictly inside one of the allowed roots.</summary>
     public static bool IsPathAllowed(string fullPath, IEnumerable<string> allowedRoots)
@@ -58,6 +59,26 @@ public static class CleanupSafety
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// True when a category's exclusions protect <paramref name="fullPath"/>: it lies in (or is) an excluded folder, or
+    /// its file name matches an excluded pattern. Checked by the scanner and again by the cleaner at delete time.
+    /// </summary>
+    public static bool IsExcluded(string fullPath, IEnumerable<string>? excludedDirectories, IEnumerable<string>? excludePatterns)
+    {
+        if (string.IsNullOrWhiteSpace(fullPath))
+        {
+            return true;
+        }
+
+        var name = FileNameOf(Normalize(fullPath));
+        if ((excludePatterns ?? []).Any(p => !string.IsNullOrWhiteSpace(p) && MatchesPattern(name, p)))
+        {
+            return true;
+        }
+
+        return (excludedDirectories ?? []).Any(d => CleanupRules.IsUnderDirectory(fullPath, d));
     }
 
     /// <summary>Reparse points (junctions, symlinks) must never be traversed or deleted through.</summary>

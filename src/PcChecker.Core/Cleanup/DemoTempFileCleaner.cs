@@ -18,6 +18,7 @@ public sealed class DemoTempFileCleaner : ITempFileCleaner
         int deleted = 0;
         long freed = 0;
         var skipped = new List<string>();
+        var messages = new List<string>();
         var random = DemoData.CreateRandom(11);
 
         for (int i = 0; i < selected.Count; i++)
@@ -30,6 +31,21 @@ public sealed class DemoTempFileCleaner : ITempFileCleaner
             if (CleanupRules.IsReportOnly(category.Category.Id))
             {
                 skipped.Add($"{category.Category.Name}: measured only; remove it with Storage settings or Disk Cleanup.");
+                continue;
+            }
+
+            if (category.BlockedReason is { } blocked)
+            {
+                skipped.Add($"{category.Category.Name}: {blocked}");
+                continue;
+            }
+
+            if (category.Category.Kind == CleanupKind.Command)
+            {
+                messages.Add(dryRun
+                    ? $"{category.Category.Name}: Windows would run this."
+                    : DemoCleanupCommandService.Message(category.Category));
+                freed += category.SizeKnown ? category.TotalBytes : 0;
                 continue;
             }
 
@@ -52,7 +68,7 @@ public sealed class DemoTempFileCleaner : ITempFileCleaner
         }
 
         progress?.Report(new ProgressUpdate("Done", 100, $"{ByteSize.Format(freed)} freed"));
-        return new CleanupRunResult(deleted, freed, skipped, [], dryRun);
+        return new CleanupRunResult(deleted, freed, skipped, [], dryRun) { Messages = messages };
     }
 
     public async Task<OperationResult> EmptyRecycleBinAsync(CancellationToken cancellationToken)
