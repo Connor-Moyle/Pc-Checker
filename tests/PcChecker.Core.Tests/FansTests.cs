@@ -505,6 +505,130 @@ public class FansTests : IDisposable
         Assert.DoesNotContain(callerThread, host.CallingThreads);
     }
 
+    [Fact]
+    public async Task A_fan_that_refuses_to_go_back_to_automatic_stays_watched_and_is_retried()
+    {
+        var fake = new FakeGpuFanHost { RefuseDefault = true };
+        using var sensors = new DemoSensorService();
+        using var svc = new LibreHardwareFanControlService(fake, sensors, new FakeSettingsService(_dir), new PassThroughGuard(),
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<LibreHardwareFanControlService>.Instance);
+        var fan = Assert.Single(await svc.GetFansAsync(CancellationToken.None));
+        Assert.True((await svc.SetManualAsync(fan.Id, 60, CancellationToken.None)).Success);
+
+        Assert.False((await svc.SetAutoAsync(fan.Id, CancellationToken.None)).Success);
+        Assert.Equal([fan.Id], svc.SoftwareControlledFanIds);
+        Assert.Equal(FanMode.Manual, Assert.Single(await svc.GetFansAsync(CancellationToken.None)).Mode);
+
+        Assert.False((await svc.RevertAllToAutoAsync(CancellationToken.None)).Success);
+        Assert.Equal(2, fake.DefaultCalls); // "Revert all" tried it again
+
+        fake.RefuseDefault = false;
+        Assert.True((await svc.RevertAllToAutoAsync(CancellationToken.None)).Success);
+        Assert.Empty(svc.SoftwareControlledFanIds);
+        Assert.Equal(3, fake.DefaultCalls);
+    }
+
+    /// <summary>A hardware monitor with one graphics card fan control, built from interface fakes.</summary>
+    private sealed class FakeGpuFanHost : IHardwareMonitorHost
+    {
+        private readonly object _lock = new();
+        private readonly LibreHardwareMonitor.Hardware.IComputer _computer;
+
+        public FakeGpuFanHost()
+        {
+            var id = new LibreHardwareMonitor.Hardware.Identifier("gpu-nvidia", "0");
+            LibreHardwareMonitor.Hardware.IHardware? hardware = null;
+            var control = Fake.Create<LibreHardwareMonitor.Hardware.IControl>(
+                ("get_MinSoftwareValue", _ => 0f),
+                ("get_MaxSoftwareValue", _ => 100f),
+                ("SetSoftware", args =>
+                {
+                    Percent = (float)args![0]!;
+                    return null;
+                }),
+                ("SetDefault", _ =>
+                {
+                    DefaultCalls++;
+                    return RefuseDefault ? throw new InvalidOperationException("The driver refused.") : null;
+                }));
+            var sensor = Fake.Create<LibreHardwareMonitor.Hardware.ISensor>(
+                ("get_SensorType", _ => LibreHardwareMonitor.Hardware.SensorType.Control),
+                ("get_Control", _ => control),
+                ("get_Identifier", _ => new LibreHardwareMonitor.Hardware.Identifier("gpu-nvidia", "0", "control", "0")),
+                ("get_Name", _ => "GPU Fan"),
+                ("get_Value", _ => (float?)Percent),
+                ("get_Hardware", _ => hardware));
+            hardware = Fake.Create<LibreHardwareMonitor.Hardware.IHardware>(
+                ("get_HardwareType", _ => LibreHardwareMonitor.Hardware.HardwareType.GpuNvidia),
+                ("get_Name", _ => "NVIDIA GeForce RTX 4070"),
+                ("get_Identifier", _ => id),
+                ("get_Sensors", _ => new[] { sensor }),
+                ("get_SubHardware", _ => Array.Empty<LibreHardwareMonitor.Hardware.IHardware>()));
+            _computer = Fake.Create<LibreHardwareMonitor.Hardware.IComputer>(
+                ("get_Hardware", _ => new List<LibreHardwareMonitor.Hardware.IHardware> { hardware }));
+        }
+
+        public bool RefuseDefault { get; set; }
+        public int DefaultCalls { get; private set; }
+        public float Percent { get; private set; } = 40;
+        public bool IsOpen => true;
+        public string? OpenError => null;
+        public int Generation => 1;
+
+        public Task EnsureOpenAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+
+        public T? WithComputer<T>(Func<LibreHardwareMonitor.Hardware.IComputer, T> func)
+        {
+            lock (_lock)
+            {
+                return func(_computer);
+            }
+        }
+
+        public void WithComputer(Action<LibreHardwareMonitor.Hardware.IComputer> action)
+        {
+            lock (_lock)
+            {
+                action(_computer);
+            }
+        }
+    }
+
+    /// <summary>An interface fake: named members answer from a handler, everything else returns its default value.</summary>
+    public class Fake : System.Reflection.DispatchProxy
+    {
+        private readonly Dictionary<string, Func<object?[]?, object?>> _members = new(StringComparer.Ordinal);
+
+        public static T Create<T>(params (string Member, Func<object?[]?, object?> Handler)[] members)
+            where T : class
+        {
+            var proxy = Create<T, Fake>();
+            var fake = (Fake)(object)proxy;
+            foreach (var (member, handler) in members)
+            {
+                fake._members[member] = handler;
+            }
+
+            return proxy;
+        }
+
+        protected override object? Invoke(System.Reflection.MethodInfo? targetMethod, object?[]? args)
+        {
+            if (targetMethod is null)
+            {
+                return null;
+            }
+
+            if (_members.TryGetValue(targetMethod.Name, out var handler))
+            {
+                return handler(args);
+            }
+
+            var type = targetMethod.ReturnType;
+            return type.IsValueType && type != typeof(void) && Nullable.GetUnderlyingType(type) is null ? Activator.CreateInstance(type) : null;
+        }
+    }
+
     private sealed class RecordingHost : IHardwareMonitorHost
     {
         private readonly object _lock = new();

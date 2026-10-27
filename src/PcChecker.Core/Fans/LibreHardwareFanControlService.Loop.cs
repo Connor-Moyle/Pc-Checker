@@ -122,17 +122,23 @@ public sealed partial class LibreHardwareFanControlService
             }
         });
 
-        lock (_gate)
+        // A fan that refused the hand-back keeps its software state, so the safety net and the curve loop keep watching
+        // it and a later "Revert all" tries it again. With the monitor closed (no result) the fans are already back
+        // under firmware control.
+        if (result is null or { Success: true })
         {
-            entry.Mode = FanMode.Auto;
-            entry.ManualPercent = null;
-            entry.Curve = null;
-            entry.LastApplied = null;
-            entry.Forced = false;
-            entry.MissingTemperatureTicks = 0;
-            if (result is { Success: true })
+            lock (_gate)
             {
-                _needsRestart.Remove(entry.Id);
+                entry.Mode = FanMode.Auto;
+                entry.ManualPercent = null;
+                entry.Curve = null;
+                entry.LastApplied = null;
+                entry.Forced = false;
+                entry.MissingTemperatureTicks = 0;
+                if (result is { Success: true })
+                {
+                    _needsRestart.Remove(entry.Id);
+                }
             }
         }
 
