@@ -50,7 +50,7 @@ def collect():
             found.update(m.group(1) for m in CATALOG.finditer(source))
     for extra in ("Cancel", "OK", "Continue"):
         found.add(extra)
-    return sorted(found, key=str.casefold)
+    return sorted(found, key=lambda s: (s.casefold(), s))
 
 
 def main() -> int:

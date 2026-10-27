@@ -1205,8 +1205,8 @@ Repeat rate
 Replaces serial-number-like values with [redacted] before they are written anywhere. Useful before sharing a diagnostics export.
 Report only
 Report only: PC Checker never changes this entry.
-reports
 Reports
+reports
 Reports per second; 1000 Hz is the gaming standard.
 Reset
 Reset labels
@@ -1745,8 +1745,8 @@ Warn when many programs start with Windows
 Warning (°C)
 Warnings
 Warnings on the Memory and Startup pages
-wear
 WEAR
+wear
 Wear compares what the battery holds today with its capacity when new.
 Wh
 What debloating does
