@@ -105,8 +105,9 @@ window. Some anti-cheat systems also block overlays. See
 
 ### How do I undo something?
 
-Open the Logs page → **Actions**. Every change has an undo hint and, where
-the app can do it, a *Revert*. Fans have *Revert all to auto*, Overclock has
+Open the Logs page → **Action journal**. Selecting a change shows how to
+undo it; the Logs page itself does not revert anything. Reverts are done on
+the page that made the change: Fans have *Revert all to auto*, Overclock has
 *Reset to defaults*, Keyboard & Mouse has the *Windows default* profile and
 Memory has the *Balanced* profile. For anything else, open System Restore
 (linked from the Logs and Settings pages) and pick the point PC Checker
