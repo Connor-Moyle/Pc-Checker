@@ -63,6 +63,62 @@ public static class CleanupSafety
     /// <summary>Reparse points (junctions, symlinks) must never be traversed or deleted through.</summary>
     public static bool IsReparsePoint(FileAttributes attributes) => (attributes & FileAttributes.ReparsePoint) != 0;
 
+    /// <summary>The deepest of <paramref name="allowedRoots"/> that <paramref name="fullPath"/> lies strictly inside, or null.</summary>
+    public static string? RootOf(string fullPath, IEnumerable<string> allowedRoots)
+    {
+        ArgumentNullException.ThrowIfNull(allowedRoots);
+        string? best = null;
+        foreach (var root in allowedRoots)
+        {
+            if (!string.IsNullOrWhiteSpace(root) && IsPathAllowed(fullPath, [root]) && (best is null || Normalize(root).Length > best.Length))
+            {
+                best = Normalize(root);
+            }
+        }
+
+        return best;
+    }
+
+    /// <summary>
+    /// The root itself and every folder between it and <paramref name="fullPath"/> (the path's own last segment
+    /// excluded), outermost first. Empty when the path is not strictly inside the root. Each of these must still be a
+    /// plain folder, not a junction or symlink, when a file below them is deleted.
+    /// </summary>
+    public static IReadOnlyList<string> FoldersFromRoot(string fullPath, string root)
+    {
+        if (string.IsNullOrWhiteSpace(root) || !IsPathAllowed(fullPath, [root]))
+        {
+            return [];
+        }
+
+        var r = Normalize(root);
+        var folders = new List<string> { r };
+        var relative = Normalize(fullPath)[(r.Length + 1)..].Split('\\', StringSplitOptions.RemoveEmptyEntries);
+        var current = r;
+        for (int i = 0; i < relative.Length - 1; i++)
+        {
+            current += "\\" + relative[i];
+            folders.Add(current);
+        }
+
+        return folders;
+    }
+
+    /// <summary>
+    /// A path as GetFinalPathNameByHandle returns it (<c>\\?\C:\…</c> or <c>\\?\UNC\server\share\…</c>) in the plain
+    /// form used everywhere else (<c>C:\…</c>, <c>\\server\share\…</c>). Other text is returned unchanged.
+    /// </summary>
+    public static string StripExtendedPrefix(string path)
+    {
+        ArgumentNullException.ThrowIfNull(path);
+        if (path.StartsWith(@"\\?\UNC\", StringComparison.OrdinalIgnoreCase))
+        {
+            return @"\\" + path[8..];
+        }
+
+        return path.StartsWith(@"\\?\", StringComparison.Ordinal) ? path[4..] : path;
+    }
+
     /// <summary>Simple wildcard match supporting '*' and '?' (case-insensitive).</summary>
     public static bool MatchesPattern(string fileName, string pattern)
     {

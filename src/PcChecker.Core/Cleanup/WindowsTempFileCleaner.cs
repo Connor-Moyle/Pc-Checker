@@ -10,7 +10,9 @@ namespace PcChecker.Core.Cleanup;
 /// Windows implementation of <see cref="ITempFileCleaner"/>. Every real run goes through <see cref="IChangeGuard"/>;
 /// files are deleted one by one inside the category roots only, locked files are counted as skipped, empty folders are
 /// pruned bottom-up, the Recycle Bin is emptied through the shell and the Windows Update services are paused while
-/// their download cache is removed.
+/// their download cache is removed. The scan can be minutes or hours old, so each file is checked again at delete time:
+/// no folder between the root and the file may have become a junction or symlink, the handle that deletes the file
+/// must still resolve inside the root, and its current last write time decides whether it is too recent to remove.
 /// </summary>
 public sealed class WindowsTempFileCleaner : ITempFileCleaner
 {
@@ -115,6 +117,7 @@ public sealed class WindowsTempFileCleaner : ITempFileCleaner
         var runningBrowsers = CleanupEnvironment.RunningBrowserProcesses();
         int skipNewerThanMinutes = Math.Max(0, _settings.Current.Cleanup.SkipFilesNewerThanMinutes);
         var now = DateTime.Now;
+        var finalRoots = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
 
         int deleted = 0;
         long freed = 0;
@@ -195,11 +198,11 @@ public sealed class WindowsTempFileCleaner : ITempFileCleaner
                         continue;
                     }
 
-                    switch (TryDelete(file))
+                    switch (TryDelete(file, roots, env, finalRoots, skipNewerThanMinutes, out long removedBytes))
                     {
                         case DeleteOutcome.Deleted:
                             deleted++;
-                            freed += file.SizeBytes;
+                            freed += removedBytes;
                             foreach (var dir in CleanupRules.ParentDirectoriesInsideRoots(file.Path, roots))
                             {
                                 touchedDirectories.Add(dir);
@@ -207,6 +210,12 @@ public sealed class WindowsTempFileCleaner : ITempFileCleaner
 
                             break;
                         case DeleteOutcome.Missing:
+                            break;
+                        case DeleteOutcome.Recent:
+                            skipped.Add(file.Path + " (recently modified or protected name)");
+                            break;
+                        case DeleteOutcome.Outside:
+                            skipped.Add(file.Path + " (outside the allowed folders)");
                             break;
                         case DeleteOutcome.Locked:
                             skipped.Add(file.Path + " (in use)");
@@ -240,29 +249,97 @@ public sealed class WindowsTempFileCleaner : ITempFileCleaner
         Missing,
         Locked,
         Failed,
+
+        /// <summary>Changed since the scan and now newer than the "skip recently modified files" limit.</summary>
+        Recent,
+
+        /// <summary>A folder on the way became a junction or symlink, or the file now resolves outside its root.</summary>
+        Outside,
     }
 
-    private DeleteOutcome TryDelete(CleanupFile file)
+    /// <summary>
+    /// Deletes one file from the scan after checking it again as it is now: every folder from the root down must still
+    /// be a plain folder, the file is opened without following a reparse point, the opened file must really live inside
+    /// the root, and its current timestamp must be older than the skip limit. The file is then deleted through that same
+    /// handle, so nothing can be swapped in between the checks and the delete. <paramref name="removedBytes"/> is the
+    /// size at delete time.
+    /// </summary>
+    private DeleteOutcome TryDelete(CleanupFile file, IReadOnlyList<string> roots, CleanupEnvironment env, Dictionary<string, string?> finalRoots,
+        int skipNewerThanMinutes, out long removedBytes)
     {
+        removedBytes = 0;
         try
         {
-            if (!File.Exists(file.Path))
+            var root = CleanupSafety.RootOf(file.Path, roots);
+            if (root is null)
             {
-                return DeleteOutcome.Missing;
+                return DeleteOutcome.Outside;
             }
 
-            var attributes = File.GetAttributes(file.Path);
-            if (CleanupSafety.IsReparsePoint(attributes))
+            foreach (var folder in CleanupSafety.FoldersFromRoot(file.Path, root))
+            {
+                if (!Directory.Exists(folder))
+                {
+                    return DeleteOutcome.Missing;
+                }
+
+                if (CleanupSafety.IsReparsePoint(File.GetAttributes(folder)))
+                {
+                    return DeleteOutcome.Outside;
+                }
+            }
+
+            if (!finalRoots.TryGetValue(root, out var finalRoot))
+            {
+                finalRoot = CleanupNativeMethods.FinalDirectoryPath(root);
+                finalRoots[root] = finalRoot;
+            }
+
+            if (finalRoot is null)
+            {
+                return DeleteOutcome.Failed;
+            }
+
+            using var handle = CleanupNativeMethods.OpenForDelete(file.Path, out bool missing);
+            if (handle is null)
+            {
+                return missing ? DeleteOutcome.Missing : DeleteOutcome.Locked;
+            }
+
+            var facts = CleanupNativeMethods.Describe(handle);
+            var finalPath = CleanupNativeMethods.FinalPath(handle);
+            if (facts is not { } current || finalPath is null)
+            {
+                return DeleteOutcome.Failed;
+            }
+
+            if (CleanupSafety.IsReparsePoint(current.Attributes) || (current.Attributes & FileAttributes.Directory) != 0)
             {
                 return DeleteOutcome.Locked;
             }
 
-            if ((attributes & (FileAttributes.ReadOnly | FileAttributes.System | FileAttributes.Hidden)) != 0)
+            if (!CleanupSafety.IsPathAllowed(finalPath, [finalRoot]) || env.IsProtected(finalPath))
             {
-                File.SetAttributes(file.Path, FileAttributes.Normal);
+                return DeleteOutcome.Outside;
             }
 
-            File.Delete(file.Path);
+            if (CleanupSafety.ShouldSkip(new CleanupFile(file.Path, current.Size, current.LastWriteUtc), DateTime.UtcNow, skipNewerThanMinutes))
+            {
+                return DeleteOutcome.Recent;
+            }
+
+            if ((current.Attributes & (FileAttributes.ReadOnly | FileAttributes.System | FileAttributes.Hidden)) != 0
+                && !CleanupNativeMethods.ClearAttributes(handle))
+            {
+                return DeleteOutcome.Locked;
+            }
+
+            if (!CleanupNativeMethods.MarkForDeletion(handle))
+            {
+                return DeleteOutcome.Locked;
+            }
+
+            removedBytes = Math.Max(0, current.Size);
             return DeleteOutcome.Deleted;
         }
         catch (FileNotFoundException)
@@ -299,8 +376,11 @@ public sealed class WindowsTempFileCleaner : ITempFileCleaner
 
             try
             {
-                if (Directory.Exists(dir)
+                var root = CleanupSafety.RootOf(dir, roots);
+                if (root is not null
+                    && Directory.Exists(dir)
                     && !CleanupSafety.IsReparsePoint(File.GetAttributes(dir))
+                    && CleanupSafety.FoldersFromRoot(dir, root).All(f => !CleanupSafety.IsReparsePoint(File.GetAttributes(f)))
                     && !Directory.EnumerateFileSystemEntries(dir).Any())
                 {
                     Directory.Delete(dir, false);

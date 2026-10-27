@@ -61,6 +61,47 @@ public class CleanupSafetyTests
         Assert.True(CleanupSafety.IsReparsePoint(FileAttributes.Directory | FileAttributes.ReparsePoint));
         Assert.False(CleanupSafety.IsReparsePoint(FileAttributes.Directory));
     }
+
+    [Fact]
+    public void RootOf_picks_the_deepest_root_containing_the_path()
+    {
+        string[] roots = [@"C:\Windows\Temp", @"C:\Windows\Temp\Sub\", @"C:\Users\me\AppData\Local\Temp"];
+        Assert.Equal(@"C:\Windows\Temp\Sub", CleanupSafety.RootOf(@"C:\Windows\Temp\Sub\a\b.tmp", roots));
+        Assert.Equal(@"C:\Windows\Temp", CleanupSafety.RootOf(@"c:\windows\temp\b.tmp", roots));
+        Assert.Null(CleanupSafety.RootOf(@"C:\Windows\Temp", roots));
+        Assert.Null(CleanupSafety.RootOf(@"C:\Windows\System32\x.dll", roots));
+    }
+
+    [Fact]
+    public void FoldersFromRoot_lists_the_root_and_every_folder_down_to_the_file()
+    {
+        Assert.Equal(
+            [@"C:\Windows\Temp", @"C:\Windows\Temp\a", @"C:\Windows\Temp\a\b"],
+            CleanupSafety.FoldersFromRoot(@"C:\Windows\Temp\a\b\file.tmp", @"C:\Windows\Temp\"));
+        Assert.Equal([@"C:\Windows\Temp"], CleanupSafety.FoldersFromRoot(@"C:\Windows\Temp\file.tmp", @"C:\Windows\Temp"));
+        Assert.Empty(CleanupSafety.FoldersFromRoot(@"C:\Windows\System32\x.dll", @"C:\Windows\Temp"));
+        Assert.Empty(CleanupSafety.FoldersFromRoot(@"C:\Windows\Temp\..\System32\x.dll", @"C:\Windows\Temp"));
+    }
+
+    [Theory]
+    [InlineData(@"\\?\C:\Windows\Temp\a.tmp", @"C:\Windows\Temp\a.tmp")]
+    [InlineData(@"\\?\UNC\server\share\a.tmp", @"\\server\share\a.tmp")]
+    [InlineData(@"C:\Windows\Temp\a.tmp", @"C:\Windows\Temp\a.tmp")]
+    public void Final_paths_lose_the_extended_prefix(string final, string expected)
+    {
+        Assert.Equal(expected, CleanupSafety.StripExtendedPrefix(final));
+    }
+
+    [Fact]
+    public void A_final_path_resolved_outside_the_root_is_refused()
+    {
+        // A folder in the recorded path became a junction to System32: the string path still looks fine, the final
+        // path of the opened file does not.
+        Assert.True(CleanupSafety.IsPathAllowed(@"C:\Windows\Temp\x\kernel32.dll", [@"C:\Windows\Temp"]));
+        Assert.False(CleanupSafety.IsPathAllowed(
+            CleanupSafety.StripExtendedPrefix(@"\\?\C:\Windows\System32\kernel32.dll"),
+            [CleanupSafety.StripExtendedPrefix(@"\\?\C:\Windows\Temp")]));
+    }
 }
 
 public class CleanupCatalogTests
