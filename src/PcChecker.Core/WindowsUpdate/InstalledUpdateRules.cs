@@ -15,6 +15,21 @@ public static partial class InstalledUpdateRules
     /// <summary>The DISM package name of the Windows cumulative update (LCU).</summary>
     public const string RollupFixPackage = "Package_for_RollupFix";
 
+    /// <summary>The start of the DISM package name of a servicing stack update (SSU) that came in a combined package.</summary>
+    public const string ServicingStackPackagePrefix = "Package_for_ServicingStack";
+
+    // Enablement package releases: the title shows the enabled build, but the RollupFix package keeps the base build
+    // the release is serviced from (Windows 10 21H2/22H2 on 19041, Windows 11 23H2 on 22621, 25H2 on 26100).
+    private static readonly Dictionary<int, int> ServicingBaseBuilds = new()
+    {
+        [19042] = 19041,
+        [19043] = 19041,
+        [19044] = 19041,
+        [19045] = 19041,
+        [22631] = 22621,
+        [26200] = 26100,
+    };
+
     // "Servicing stack" in the Windows display languages PC Checker ships in (titles are localized).
     private static readonly string[] ServicingStackWords =
         ["Servicing Stack", "Wartungsstapel", "pile de maintenance", "pila de servicio", "pila de mantenimiento", "stack di manutenzione", "pilha de manutenção", "pilha de serviço"];
@@ -49,11 +64,14 @@ public static partial class InstalledUpdateRules
             var date = ParseQuickFixDate(qfe.InstalledOn) is { } d ? new DateTimeOffset(d, TimeSpan.Zero) : AsDate(record?.DateUtc);
             var type = Classify(title, qfe.Description, record?.CategoryIds);
             bool windowsCumulative = type == InstalledUpdateType.Cumulative && IsWindowsCumulativeTitle(title);
+            var standalone = windowsCumulative ? null : StandalonePackage(packageList, kb);
             rows.Add(new InstalledUpdate(kb, string.IsNullOrWhiteSpace(title) ? FallbackTitle(kb, qfe.Description) : title, date, type)
             {
                 UpdateId = string.IsNullOrWhiteSpace(record?.UpdateId) ? null : record!.UpdateId,
                 IsWindowsCumulative = windowsCumulative,
-                PackageName = windowsCumulative ? null : StandalonePackage(packageList, kb)?.Identity,
+                PackageName = standalone?.Identity,
+                IsLikelyServicingStack = type is not (InstalledUpdateType.ServicingStack or InstalledUpdateType.Cumulative)
+                    && standalone is null && HasServicingStackPackage(packageList) && !IsDotNetTitle(title),
             });
         }
 
@@ -72,6 +90,12 @@ public static partial class InstalledUpdateRules
         {
             return new UninstallPlan(UninstallMethod.NotRemovable, null,
                 "Servicing stack updates are a permanent part of Windows and cannot be removed. Windows needs them to install every later update.");
+        }
+
+        if (update.IsLikelyServicingStack)
+        {
+            return new UninstallPlan(UninstallMethod.NotRemovable, null,
+                "Windows lists no separate package for this update, so it most likely came as a servicing stack update (a permanent part of Windows) or inside a combined update that wusa cannot remove. If you are sure it can be removed, use Settings → Windows Update → Update history → Uninstall updates.");
         }
 
         if (KbNumber(update.Kb) is null)
@@ -102,8 +126,11 @@ public static partial class InstalledUpdateRules
 
     /// <summary>
     /// The <c>Package_for_RollupFix</c> package for a Windows cumulative update: the installed one whose version
-    /// matches the build in the title ("… (KB5058411) (26100.4061)"). Without a build in the title, the installed
-    /// package with the highest version (Windows keeps one installed; older ones are superseded). Null when none fits.
+    /// matches the build in the title ("… (KB5058411) (26100.4061)"). Releases that ship as an enablement package show
+    /// the enabled build in the title ("(26200.6584)") while the package keeps the base build ("26100.6584"), so the
+    /// builds are compared through <see cref="ServicingBaseBuild"/>; the revision (UBR) must always be equal. Without a
+    /// build in the title, the installed package with the highest version (Windows keeps one installed; older ones are
+    /// superseded). Null when none fits.
     /// </summary>
     public static DismPackage? SelectCumulativePackage(IEnumerable<DismPackage> packages, string? title)
     {
@@ -115,11 +142,17 @@ public static partial class InstalledUpdateRules
 
         if (ParseBuild(title) is { } build)
         {
-            return installed.FirstOrDefault(p => p.Version is { } v && v.Major == build.Major && v.Minor == build.Minor);
+            return installed.FirstOrDefault(p => p.Version is { } v && SameServicingBuild(v, build) && v.Minor == build.Minor);
         }
 
         return installed[0];
     }
+
+    /// <summary>
+    /// The build a release is serviced from: 26200 (25H2) → 26100, 22631 (23H2) → 22621, 19042 to 19045 → 19041.
+    /// Every other build is its own base.
+    /// </summary>
+    public static int ServicingBaseBuild(int build) => ServicingBaseBuilds.TryGetValue(build, out int baseBuild) ? baseBuild : build;
 
     /// <summary>The OS build in a cumulative update title, such as "(26100.4061)", or null.</summary>
     public static Version? ParseBuild(string? title)
@@ -265,7 +298,9 @@ public static partial class InstalledUpdateRules
             }
             else
             {
-                bool replaced = installed.Any(p => p.Version is { } v && (v.Major > build.Major || (v.Major == build.Major && v.Minor > build.Minor)));
+                int titleBase = ServicingBaseBuild(build.Major);
+                bool replaced = installed.Any(p => p.Version is { } v
+                    && (ServicingBaseBuild(v.Major) > titleBase || (ServicingBaseBuild(v.Major) == titleBase && v.Minor > build.Minor)));
                 rows[index] = row with { IsSuperseded = replaced };
             }
         }
@@ -290,6 +325,13 @@ public static partial class InstalledUpdateRules
             .Where(p => p.Name.Equals(RollupFixPackage, StringComparison.OrdinalIgnoreCase) && p.State == DismPackageState.Installed)
             .OrderByDescending(p => p.Version ?? new Version(0, 0))
             .ToList();
+
+    private static bool SameServicingBuild(Version package, Version title) => ServicingBaseBuild(package.Major) == ServicingBaseBuild(title.Major);
+
+    private static bool HasServicingStackPackage(IEnumerable<DismPackage> packages) =>
+        packages.Any(p => p.State == DismPackageState.Installed && p.Name.StartsWith(ServicingStackPackagePrefix, StringComparison.OrdinalIgnoreCase));
+
+    private static bool IsDotNetTitle(string? title) => title?.Contains(".NET", StringComparison.OrdinalIgnoreCase) == true;
 
     private static DismPackage? StandalonePackage(IEnumerable<DismPackage> packages, string kb) =>
         packages.FirstOrDefault(p => p.State == DismPackageState.Installed

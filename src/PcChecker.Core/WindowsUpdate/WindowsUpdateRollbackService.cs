@@ -22,7 +22,11 @@ public sealed class WindowsUpdateRollbackService : IUpdateRollbackService
     private const string QuickFixQuery = "SELECT HotFixID, Description, InstalledOn FROM Win32_QuickFixEngineering";
     private const string CurrentVersionKey = @"SOFTWARE\Microsoft\Windows NT\CurrentVersion";
     private static readonly TimeSpan ReadTimeout = TimeSpan.FromMinutes(3);
-    private static readonly TimeSpan ChangeTimeout = TimeSpan.FromMinutes(60);
+
+    // Removing an update or starting to go back is never cut short: CommandRunner kills the whole process tree when a
+    // timeout runs out, and killing wusa or DISM halfway could leave Windows in between. On a slow disk this can take
+    // well over an hour, so these runs wait for the tool to finish however long it takes.
+    private static readonly TimeSpan ChangeTimeout = Timeout.InfiniteTimeSpan;
 
     private readonly ILogger<WindowsUpdateRollbackService> _logger;
     private readonly IChangeGuard _guard;

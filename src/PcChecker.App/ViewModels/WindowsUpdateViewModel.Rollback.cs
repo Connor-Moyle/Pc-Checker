@@ -115,11 +115,11 @@ public sealed partial class WindowsUpdateViewModel
 
         if (!row.CanUninstall)
         {
-            await _dialogs.ShowMessageAsync("This update cannot be removed", row.Explanation);
+            await _dialogs.ShowMessageAsync(Loc.T("This update cannot be removed"), row.Explanation);
             return;
         }
 
-        if (!await _dialogs.ConfirmAsync(Loc.F("Uninstall {0}?", row.Kb), UninstallConfirmation(row), "Uninstall", isDanger: true))
+        if (!await _dialogs.ConfirmAsync(Loc.F("Uninstall {0}?", row.Kb), UninstallConfirmation(row), Loc.T("Uninstall"), isDanger: true))
         {
             return;
         }
@@ -141,10 +141,9 @@ public sealed partial class WindowsUpdateViewModel
         }, Loc.F("Removing {0}… This can take several minutes.", row.Kb), cancellable: false);
 
         if (result is { Success: true }
-            && await _dialogs.ConfirmAsync("Hide this update too?",
-                $"Windows Update may install {row.Kb} again the next time it checks. Hide it so it stays off this PC until you show it again (Roll back → Hidden updates)?\n\n"
-                + "If Windows Update does not list it until after the restart, hide it then from the Updates tab.",
-                "Hide"))
+            && await _dialogs.ConfirmAsync(Loc.T("Hide this update too?"),
+                Loc.F("Windows Update may install {0} again the next time it checks. Hide it so it stays off this PC until you show it again (Roll back → Hidden updates)?\n\nIf Windows Update does not list it until after the restart, hide it then from the Updates tab.", row.Kb),
+                Loc.T("Hide")))
         {
             await RunHideAsync(new UpdateHideTarget(row.Update.UpdateId, row.Kb, row.Title));
         }
@@ -160,9 +159,9 @@ public sealed partial class WindowsUpdateViewModel
             return;
         }
 
-        if (!await _dialogs.ConfirmAsync("Hide this update?",
-                $"Windows Update will not offer or install {row.Kb} while it is hidden. This only matters once the update is removed; show it again any time under Hidden updates.",
-                "Hide"))
+        if (!await _dialogs.ConfirmAsync(Loc.T("Hide this update?"),
+                Loc.F("Windows Update will not offer or install {0} while it is hidden. This only matters once the update is removed; show it again any time under Hidden updates.", row.Kb),
+                Loc.T("Hide")))
         {
             return;
         }
@@ -178,10 +177,9 @@ public sealed partial class WindowsUpdateViewModel
             return;
         }
 
-        if (!await _dialogs.ConfirmAsync("Hide this update?",
-                $"Windows Update will not offer or install \"{row.Title}\" until you show it again (Roll back → Hidden updates).\n\n"
-                + "Any fixes in it stay missing while it is hidden, so only hide an update that causes a problem. This is the same as Microsoft's \"Show or hide updates\" tool.",
-                "Hide"))
+        if (!await _dialogs.ConfirmAsync(Loc.T("Hide this update?"),
+                Loc.F("Windows Update will not offer or install \"{0}\" until you show it again (Roll back → Hidden updates).\n\nAny fixes in it stay missing while it is hidden, so only hide an update that causes a problem. This is the same as Microsoft's \"Show or hide updates\" tool.", row.Title),
+                Loc.T("Hide")))
         {
             return;
         }
@@ -203,8 +201,8 @@ public sealed partial class WindowsUpdateViewModel
             return;
         }
 
-        if (!await _dialogs.ConfirmAsync("Show this update again?",
-                $"Windows Update will offer \"{row.Title}\" again and may install it the next time it checks.", "Show again"))
+        if (!await _dialogs.ConfirmAsync(Loc.T("Show this update again?"),
+                Loc.F("Windows Update will offer \"{0}\" again and may install it the next time it checks.", row.Title), Loc.T("Show again")))
         {
             return;
         }
@@ -226,15 +224,14 @@ public sealed partial class WindowsUpdateViewModel
             return;
         }
 
-        if (!await _dialogs.ConfirmAsync("Go back to the previous version of Windows?", GoBackWarning(window), "Continue", isDanger: true))
+        if (!await _dialogs.ConfirmAsync(Loc.T("Go back to the previous version of Windows?"), GoBackWarning(window), Loc.T("Continue"), isDanger: true))
         {
             return;
         }
 
-        if (!await _dialogs.ConfirmAsync("Have you backed up your files?",
-                "Last check. PC Checker now prepares Windows to go back. Windows does it while the PC restarts, which takes a while and cannot be stopped once it starts.\n\n"
-                + "Save and close everything, and make sure the PC stays plugged in.",
-                "I have backed up, go back", isDanger: true))
+        if (!await _dialogs.ConfirmAsync(Loc.T("Have you backed up your files?"),
+                Loc.T("Last check. PC Checker now prepares Windows to go back. Windows does it while the PC restarts, which takes a while and cannot be stopped once it starts.\n\nSave and close everything, and make sure the PC stays plugged in."),
+                Loc.T("I have backed up, go back"), isDanger: true))
         {
             return;
         }
@@ -265,11 +262,10 @@ public sealed partial class WindowsUpdateViewModel
             ? upgraded.AddDays(option.Days).ToLocalTime().ToString("D", CultureInfo.CurrentCulture)
             : null;
         var message = (until is null
-                ? $"Going back stays possible for {option.Days} days after the upgrade."
-                : $"Going back stays possible until {until}.")
-            + "\n\nThe previous version stays in the Windows.old folder until then and keeps using that disk space. "
-            + "Storage Sense, Disk Cleanup or removing Windows.old ends the option sooner.";
-        if (!await _dialogs.ConfirmAsync("Keep the option to go back longer?", message, "Extend"))
+                ? Loc.F("Going back stays possible for {0} days after the upgrade.", option.Days)
+                : Loc.F("Going back stays possible until {0}.", until))
+            + "\n\n" + Loc.T("The previous version stays in the Windows.old folder until then and keeps using that disk space. Storage Sense, Disk Cleanup or removing Windows.old ends the option sooner.");
+        if (!await _dialogs.ConfirmAsync(Loc.T("Keep the option to go back longer?"), message, Loc.T("Extend")))
         {
             return;
         }
@@ -389,37 +385,40 @@ public sealed partial class WindowsUpdateViewModel
         RollbackRestartPending = true;
     }
 
+    // Each part is one whole translatable string; the parts are joined only after translation.
     private static string UninstallConfirmation(InstalledUpdateRow row)
     {
-        var text = new StringBuilder($"PC Checker will remove \"{row.Title}\" ({row.Plan.Method switch { UninstallMethod.DismPackage => "with DISM", _ => "with wusa" }}). A restore point is created first.\n\n");
+        var text = new StringBuilder(row.Plan.Method == UninstallMethod.DismPackage
+            ? Loc.F("PC Checker will remove \"{0}\" with DISM. A restore point is created first.", row.Title)
+            : Loc.F("PC Checker will remove \"{0}\" with wusa. A restore point is created first.", row.Title));
+        text.Append("\n\n");
         if (row.Update.Type is InstalledUpdateType.Cumulative or InstalledUpdateType.Security)
         {
-            text.Append("This takes away the security fixes in it, so only remove it if it causes a problem.\n\n");
+            text.Append(Loc.T("This takes away the security fixes in it, so only remove it if it causes a problem.")).Append("\n\n");
         }
 
         if (row.Plan.Method == UninstallMethod.DismPackage)
         {
-            text.Append("This is the monthly cumulative update; the servicing stack update that came with it stays, because Windows cannot remove that part.\n\n");
+            text.Append(Loc.T("This is the monthly cumulative update; the servicing stack update that came with it stays, because Windows cannot remove that part.")).Append("\n\n");
         }
 
-        text.Append("It can take several minutes and cannot be stopped once it starts. Windows usually needs a restart to finish. "
-            + "Windows Update may install it again later; you can hide it afterwards so it does not.");
+        text.Append(Loc.T("It can take several minutes and cannot be stopped once it starts. Windows usually needs a restart to finish. Windows Update may install it again later; you can hide it afterwards so it does not."));
         return text.ToString();
     }
 
     private static string GoBackWarning(RollbackWindow window)
     {
-        var text = new StringBuilder("Windows replaces this version with the one it had before the last feature update. It takes a while and restarts the PC, possibly more than once.\n\n");
-        text.Append("• Back up your files first. They are normally kept, but going back replaces Windows itself.\n");
-        text.Append("• Apps you installed and settings you changed since the upgrade may be gone and need reinstalling.\n");
-        text.Append("• You need the password you used to sign in to the previous version.\n");
-        text.Append("• This cannot be undone here. You can install the newer version again later from Windows Update.\n");
+        var text = new StringBuilder(Loc.T("Windows replaces this version with the one it had before the last feature update. It takes a while and restarts the PC, possibly more than once."));
+        text.Append("\n\n• ").Append(Loc.T("Back up your files first. They are normally kept, but going back replaces Windows itself."));
+        text.Append("\n• ").Append(Loc.T("Apps you installed and settings you changed since the upgrade may be gone and need reinstalling."));
+        text.Append("\n• ").Append(Loc.T("You need the password you used to sign in to the previous version."));
+        text.Append("\n• ").Append(Loc.T("This cannot be undone here. You can install the newer version again later from Windows Update."));
         if (window.DaysLeft is { } left)
         {
-            text.Append(left == 1 ? "\nGoing back is possible for 1 more day." : $"\nGoing back is possible for {left} more days.");
+            text.Append("\n\n").Append(left == 1 ? Loc.T("Going back is possible for 1 more day.") : Loc.F("Going back is possible for {0} more days.", left));
         }
 
-        text.Append("\n\nYou will be asked once more before anything starts.");
+        text.Append("\n\n").Append(Loc.T("You will be asked once more before anything starts."));
         return text.ToString();
     }
 

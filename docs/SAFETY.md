@@ -307,13 +307,16 @@ damage hardware. PC Checker reduces the risk; it cannot remove it.
   Journal. Removing an update creates a restore point first and does not
   start if that fails.
 - Servicing stack updates are never removed: Windows marks them permanent and
-  needs them for every later update. A cumulative update that a newer one
+  needs them for every later update. When the title cannot tell (another
+  display language, no update history), an update with no DISM package of its
+  own next to an installed servicing stack package is refused as well. A cumulative update that a newer one
   replaced is not offered for removal either.
 - wusa and DISM are run from the Windows system folder with fixed arguments;
   the KB must be digits and the DISM package must have the shape of a package
   identity, so nothing else reaches the command line. Both run with
   `/quiet`/`/Quiet` and `/norestart`/`/NoRestart`: PC Checker never restarts
-  without the restart confirmation, and a removal is not cancelled half-way.
+  without the restart confirmation, and a removal is not cancelled half-way:
+  there is no time limit that would stop wusa or DISM while they work.
 - Outcomes are decided from exit codes, not the tools' translated text.
 - *Go back* asks twice (back up first; apps installed since the upgrade may
   need reinstalling; it cannot be undone from PC Checker). It creates no

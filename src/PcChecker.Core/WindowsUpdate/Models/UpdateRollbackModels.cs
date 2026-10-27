@@ -77,6 +77,13 @@ public sealed record InstalledUpdate(
 
     /// <summary>A newer cumulative update has replaced this one, so it cannot be removed on its own any more.</summary>
     public bool IsSuperseded { get; init; }
+
+    /// <summary>
+    /// The title did not say it is a servicing stack update, but Windows lists no separate package for this KB while a
+    /// servicing stack package is installed, so it most likely is one (or part of a combined update wusa cannot remove).
+    /// Decided from the DISM package list, so it works in every display language and without the update history.
+    /// </summary>
+    public bool IsLikelyServicingStack { get; init; }
 }
 
 /// <summary>How to remove one installed update, or why it cannot be removed. From <see cref="InstalledUpdateRules.PlanUninstall"/>.</summary>

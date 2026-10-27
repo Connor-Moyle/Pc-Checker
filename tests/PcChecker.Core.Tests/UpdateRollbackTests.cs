@@ -343,6 +343,88 @@ public class InstalledUpdateRulesTests
         Assert.Equal(expected, InstalledUpdateRules.NormalizeKb(text));
     }
 
+    [Theory]
+    [InlineData("2025-10 Cumulative Update for Windows 11 Version 25H2 for x64-based Systems (KB5066835) (26200.6899)", "26100.6899.1.7")]
+    [InlineData("2025-10 Cumulative Update for Windows 11 Version 23H2 for x64-based Systems (KB5066793) (22631.6060)", "22621.6060.1.9")]
+    [InlineData("2025-10 Cumulative Update for Windows 10 Version 22H2 for x64-based Systems (KB5066791) (19045.6456)", "19041.6456.1.4")]
+    [InlineData("2025-10 Cumulative Update for Windows 11 Version 24H2 for x64-based Systems (KB5066835) (26100.6899)", "26100.6899.1.7")]
+    public void Enablement_package_releases_find_the_package_on_their_base_build(string title, string packageVersion)
+    {
+        var identity = "Package_for_RollupFix~31bf3856ad364e35~amd64~~" + packageVersion;
+        DismPackage[] packages = [new(identity, DismPackageState.Installed, "Security Update")];
+
+        Assert.Equal(identity, InstalledUpdateRules.SelectCumulativePackage(packages, title)?.Identity);
+
+        var kb = UpdateClassifier.ExtractKb(title)!;
+        var row = InstalledUpdateRules.Merge([new QuickFixRecord(kb, "Security Update", "10/14/2025")], [History(title, null)], packages).Single();
+        Assert.Equal(identity, row.PackageName);
+        Assert.False(row.IsSuperseded);
+        Assert.Equal(UninstallMethod.DismPackage, InstalledUpdateRules.PlanUninstall(row).Method);
+    }
+
+    [Fact]
+    public void Enablement_package_releases_still_need_the_same_revision_and_see_newer_packages_as_replacements()
+    {
+        DismPackage[] packages = [new("Package_for_RollupFix~31bf3856ad364e35~amd64~~26100.6899.1.7", DismPackageState.Installed, null)];
+        const string September = "2025-09 Cumulative Update for Windows 11 Version 25H2 for x64-based Systems (KB5065426) (26200.6584)";
+
+        Assert.Null(InstalledUpdateRules.SelectCumulativePackage(packages, September));
+        Assert.Null(InstalledUpdateRules.SelectCumulativePackage(packages, "2025-10 Cumulative Update for Windows 11 (KB5066835) (22631.6899)"));
+
+        var row = InstalledUpdateRules.Merge([new QuickFixRecord("KB5065426", "Security Update", "9/9/2025")], [History(September, null)], packages).Single();
+        Assert.True(row.IsSuperseded);
+        Assert.Null(row.PackageName);
+
+        Assert.Equal(26100, InstalledUpdateRules.ServicingBaseBuild(26200));
+        Assert.Equal(22621, InstalledUpdateRules.ServicingBaseBuild(22631));
+        Assert.Equal(19041, InstalledUpdateRules.ServicingBaseBuild(19045));
+        Assert.Equal(22000, InstalledUpdateRules.ServicingBaseBuild(22000));
+    }
+
+    [Fact]
+    public void An_update_without_its_own_package_next_to_a_servicing_stack_package_is_refused_in_any_language()
+    {
+        DismPackage[] packages =
+        [
+            new(Rollup, DismPackageState.Installed, "Security Update"),
+            new("Package_for_ServicingStack_4058~31bf3856ad364e35~amd64~~26100.4058.1.0", DismPackageState.Installed, "Update"),
+            new("Package_for_KB5062660~31bf3856ad364e35~amd64~~26100.4061.1.1", DismPackageState.Installed, "Update"),
+            new("Package_for_DotNetRollup_481~31bf3856ad364e35~amd64~~10.0.9294.1", DismPackageState.Installed, "Update"),
+        ];
+        var qfe = new[]
+        {
+            new QuickFixRecord("KB5059502", "Update", "5/14/2025"),
+            new QuickFixRecord("KB5059503", "Update", "5/14/2025"),
+            new QuickFixRecord("KB5062660", "Update", "5/14/2025"),
+            new QuickFixRecord("KB5054979", "Update", "5/14/2025"),
+        };
+        var history = new[]
+        {
+            // A Japanese title: no known "servicing stack" words.
+            History("2025-05 x64 ベース システム用 Windows 11 Version 24H2 のサービス スタック更新プログラム (KB5059503)", null),
+            History("2025-05 Cumulative Update for .NET Framework 3.5 and 4.8.1 for Windows 11, version 24H2 for x64 (KB5054979)", null),
+        };
+
+        var rows = InstalledUpdateRules.Merge(qfe, history, packages);
+
+        // No history at all (KB5059502) and a title in another language (KB5059503): both refused before anything runs.
+        foreach (var kb in new[] { "KB5059502", "KB5059503" })
+        {
+            var row = rows.Single(r => r.Kb == kb);
+            Assert.True(row.IsLikelyServicingStack);
+            var plan = InstalledUpdateRules.PlanUninstall(row);
+            Assert.False(plan.CanUninstall);
+            Assert.Contains("servicing stack", plan.Explanation);
+        }
+
+        // An update with its own package, and a .NET update, still go to wusa.
+        Assert.Equal(UninstallMethod.Wusa, InstalledUpdateRules.PlanUninstall(rows.Single(r => r.Kb == "KB5062660")).Method);
+        Assert.Equal(UninstallMethod.Wusa, InstalledUpdateRules.PlanUninstall(rows.Single(r => r.Kb == "KB5054979")).Method);
+
+        // Without the DISM list (DISM failed), nothing is guessed.
+        Assert.DoesNotContain(InstalledUpdateRules.Merge(qfe, history, []), r => r.IsLikelyServicingStack);
+    }
+
     private static UpdateHistoryRecord History(string title, string? id) =>
         new(title, UpdateHistoryMapper.OperationInstallation, WuaResultCodes.Succeeded, 0, new DateTime(2025, 5, 14, 3, 0, 0, DateTimeKind.Utc), [], id, null);
 }

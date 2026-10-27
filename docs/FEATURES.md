@@ -692,9 +692,15 @@ updates; driver updates stay on the Drivers page.
       updates Windows 10 and 11 ship. The package is the installed RollupFix
       whose version matches the build in the update's title (for example
       `(26100.4061)`), or the newest installed one when the title has no
-      build. Cumulative updates that a newer one replaced cannot be removed;
+      build. Releases that ship as an enablement package are matched on the
+      build they are serviced from (25H2 `26200` on `26100`, 23H2 `22631` on
+      `22621`, Windows 10 22H2 `19045` on `19041`) with the same revision.
+      Cumulative updates that a newer one replaced cannot be removed;
     - servicing stack updates are refused with the reason: Windows marks them
-      permanent and needs them for every later update.
+      permanent and needs them for every later update. They are recognised by
+      their title, and, in any display language or without an update history,
+      by the DISM package list: an update with no package of its own while a
+      `Package_for_ServicingStack` package is installed is refused too.
     *Uninstall* explains what is lost, creates a restore point (the removal
     does not start if it fails), runs the tool from the system folder and
     reports the result. It never restarts; a restart bar offers *Restart now*
