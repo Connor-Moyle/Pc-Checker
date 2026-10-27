@@ -67,14 +67,18 @@ follows, so you know what to expect and contributors know what to build.
   mounted folders are never followed.
 - Selected items are moved to the Recycle Bin one by one, never deleted
   outright, and only on drives inside the PC. If an item is too big for the
-  Recycle Bin, Windows asks before deleting it for good.
+  Recycle Bin or the Recycle Bin is turned off, Windows asks (in front of PC
+  Checker) before deleting it for good.
 - Never offered: the Windows folder, Program Files, ProgramData, Windows.old,
-  the folder that holds the user profiles, each profile, everything directly
-  in a profile (Documents, Downloads, AppData…), the AppData Local, LocalLow
-  and Roaming folders, restore points (System Volume Information), the
-  Recycle Bin, boot and recovery folders, the page, swap and hibernation
-  files, files marked System and PC Checker's own folders, and any folder
-  that contains one of them.
+  Windows and program folders at the root of any drive, inetpub, the folder
+  that holds the user profiles, each profile, everything directly in a
+  profile (Documents, Downloads, AppData…), the AppData Local, LocalLow and
+  Roaming folders, the Microsoft folders in AppData (encryption keys, saved
+  credentials, app aliases) and the Store apps' Packages folder, personal
+  folders moved to another drive (the folder itself), restore points (System
+  Volume Information), the Recycle Bin, boot and recovery folders, the page,
+  swap and hibernation files, files marked System and PC Checker's own
+  folders, and any folder that contains one of them.
 - Each item is checked again right before it moves: it must still exist, not
   be a link and not sit inside a linked folder.
 - Every move is journaled. No restore point is created: the Recycle Bin is

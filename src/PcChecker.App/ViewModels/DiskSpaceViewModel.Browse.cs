@@ -48,7 +48,8 @@ public sealed partial class DiskSpaceViewModel
     public bool HasTypes => Types.Count > 0;
 
     public string OldFilesHint =>
-        $"Files of {ByteSize.Format((long)(OldFileMinMegabytes * ByteSize.Megabyte))} or more that nobody opened or changed for {Math.Round(OldFileMonths)} months.";
+        Localization.Loc.F("Files of {0} or more that nobody opened or changed for {1} months.",
+            ByteSize.Format((long)(OldFileMinMegabytes * ByteSize.Megabyte)), Math.Round(OldFileMonths));
 
     partial void OnLooseFilesChanged(DiskLooseFilesRow? value) => OnPropertyChanged(nameof(HasLooseFiles));
 
@@ -107,10 +108,11 @@ public sealed partial class DiskSpaceViewModel
 
         int hidden = children.Count - MaxFolderRows;
         MoreFoldersText = hidden > 0
-            ? $"…and {DiskSpaceFormat.Count(hidden, "smaller folder", "smaller folders")} ({ByteSize.Format(children.Skip(MaxFolderRows).Sum(c => c.TotalBytes))})"
+            ? DiskSpaceText.Count(hidden, Localization.Loc.T("…and {0} smaller folder"), Localization.Loc.T("…and {0} smaller folders"))
+                + $" ({ByteSize.Format(children.Skip(MaxFolderRows).Sum(c => c.TotalBytes))})"
             : null;
         LooseFiles = folder.OwnFiles > 0 ? new DiskLooseFilesRow(folder) : null;
-        CurrentFolderText = $"{ByteSize.Format(folder.TotalBytes)} · {DiskSpaceFormat.Count(folder.TotalFiles, "file", "files")}";
+        CurrentFolderText = $"{ByteSize.Format(folder.TotalBytes)} · {DiskSpaceText.Files(folder.TotalFiles)}";
         OnPropertyChanged(nameof(IsFolderEmpty));
     }
 

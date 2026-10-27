@@ -10,7 +10,8 @@ public class DiskSpaceTests
         [@"C:\Program Files", @"C:\Program Files (x86)", @"C:\ProgramData"],
         @"C:\Users",
         @"C:\Users\Alex",
-        [@"C:\Tools\PcChecker", @"C:\Users\Alex\AppData\Local\PcChecker"]);
+        [@"C:\Tools\PcChecker", @"C:\Users\Alex\AppData\Local\PcChecker"],
+        [@"D:\Documents", @"C:\Users\Alex\Desktop"]);
 
     private static DiskFileEntry Entry(string path, long size, int ageDays = 10, FileTypeCategory category = FileTypeCategory.Other) =>
         new(path, size, new DateTime(2026, 1, 1).AddDays(-ageDays), null, category);
@@ -164,6 +165,15 @@ public class DiskSpaceTests
     [InlineData(@"D:\System Volume Information")]
     [InlineData(@"D:\$Recycle.Bin\S-1-5-21\file.mp4")]
     [InlineData(@"C:\Recovery\WindowsRE\winre.wim")]
+    [InlineData(@"C:\Users\Alex\AppData\Roaming\Microsoft\Protect\S-1-5-21\key")]
+    [InlineData(@"C:\Users\Alex\AppData\Local\Microsoft\WindowsApps\python.exe")]
+    [InlineData(@"C:\Users\Alex\AppData\Local\Microsoft")]
+    [InlineData(@"C:\Users\Alex\AppData\Local\Packages\Microsoft.WindowsStore_8wekyb3d8bbwe")]
+    [InlineData(@"C:\inetpub")]
+    [InlineData(@"D:\Program Files\Some App\app.exe")]
+    [InlineData(@"E:\Windows\System32")]
+    [InlineData(@"D:\Documents")]
+    [InlineData(@"D:\")]
     [InlineData(@"C:\Windows.old\Users\Alex\Documents")]
     [InlineData(@"\\server\share\big.iso")]
     [InlineData(@"relative\path.txt")]
@@ -181,6 +191,9 @@ public class DiskSpaceTests
     [InlineData(@"C:\Games\Old game")]
     [InlineData(@"D:\Media\Movies\film.mkv")]
     [InlineData(@"D:\Media\Recovery\notes.txt")]
+    [InlineData(@"D:\Documents\Old projects\backup.zip")]
+    [InlineData(@"C:\Users\Alex\AppData\Local\MicrosoftEdgeBackup\old.bin")]
+    [InlineData(@"D:\Windows backups\image.vhdx")]
     public void Ordinary_user_content_can_be_offered(string path) =>
         Assert.Null(DiskSpaceProtection.WhyProtected(path, Locations));
 
@@ -404,6 +417,8 @@ public class DiskSpaceTests
         Assert.Equal("5 months ago", DiskSpaceFormat.Age(new DateTime(2026, 1, 10), now));
         Assert.Equal("1 year ago", DiskSpaceFormat.Age(new DateTime(2025, 5, 1), now));
         Assert.Equal("3 years ago", DiskSpaceFormat.Age(new DateTime(2023, 1, 1), now));
+        Assert.Equal((AgeUnit.Months, 5), DiskSpaceFormat.AgeOf(new DateTime(2026, 1, 10), now));
+        Assert.Equal((AgeUnit.Today, 0), DiskSpaceFormat.AgeOf(now, now));
         Assert.Equal("12 s", DiskSpaceFormat.Duration(TimeSpan.FromSeconds(12.7)));
         Assert.Equal("2 min 5 s", DiskSpaceFormat.Duration(TimeSpan.FromSeconds(125)));
         Assert.Equal("312 GB free of 1.82 TB", DiskSpaceFormat.FreeOf(312L * 1024 * 1024 * 1024, 2_000_000_000_000));
@@ -531,7 +546,7 @@ public class DiskSpaceTests
         Assert.All(dupes.Groups, g => Assert.True(g.Files.Count >= 2));
 
         var iso = scan.LargestFiles.Concat(scan.OldFiles).First(f => f.Name.EndsWith(".iso", StringComparison.OrdinalIgnoreCase));
-        var recycle = await svc.RecycleAsync([new RecycleRequest(iso.Path, false, iso.SizeBytes), new RecycleRequest(@"C:\Windows", true, 1)], null, CancellationToken.None);
+        var recycle = await svc.RecycleAsync([new RecycleRequest(iso.Path, false, iso.SizeBytes), new RecycleRequest(@"C:\Windows", true, 1)], 0, null, CancellationToken.None);
         Assert.NotNull(recycle.Value);
         Assert.Equal(1, recycle.Value!.Recycled);
         Assert.Equal(1, recycle.Value.Failed);

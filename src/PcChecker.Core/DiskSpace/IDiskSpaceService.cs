@@ -28,8 +28,10 @@ public interface IDiskSpaceService
     /// <summary>
     /// Moves the items to the Recycle Bin one by one after checking each again (protected location, link, local fixed
     /// drive). Nested items are dropped when their folder is also listed. The value has one result per item.
+    /// <paramref name="ownerWindow"/> (the app's main window handle, or 0) owns any prompt Windows shows, such as the
+    /// warning that an item is too big for the Recycle Bin, so it opens in front of the app.
     /// </summary>
-    Task<OperationResult<RecycleResult>> RecycleAsync(IReadOnlyList<RecycleRequest> items, IProgress<ProgressUpdate>? progress,
+    Task<OperationResult<RecycleResult>> RecycleAsync(IReadOnlyList<RecycleRequest> items, nint ownerWindow, IProgress<ProgressUpdate>? progress,
         CancellationToken cancellationToken);
 
     /// <summary>Opens File Explorer at a folder, or at a file's folder with the file selected.</summary>

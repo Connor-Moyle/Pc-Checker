@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Windows.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
+using PcChecker.App.Localization;
 using PcChecker.Core.Common;
 using PcChecker.Core.DiskSpace;
 
@@ -21,16 +22,16 @@ public sealed partial class DiskDriveRow : ObservableObject
 
     public string Title => string.IsNullOrWhiteSpace(Drive.Label) ? Drive.Letter : $"{Drive.Letter} {Drive.Label}";
 
-    public string FreeText => DiskSpaceFormat.FreeOf(Drive.FreeBytes, Drive.TotalBytes);
+    public string FreeText => DiskSpaceText.FreeOf(Drive.FreeBytes, Drive.TotalBytes);
 
-    public string UsedText => $"{ByteSize.Format(Drive.UsedBytes)} used · {DiskSpaceFormat.PercentText(Drive.UsedBytes, Drive.TotalBytes)}";
+    public string UsedText => Loc.F("{0} used · {1}", ByteSize.Format(Drive.UsedBytes), DiskSpaceFormat.PercentText(Drive.UsedBytes, Drive.TotalBytes));
 
     public double UsedPercent => DiskSpaceFormat.Percent(Drive.UsedBytes, Drive.TotalBytes);
 
     /// <summary>Orange above 90 % full, otherwise the accent colour.</summary>
     public Brush BarBrush => UsedPercent >= 90 ? DiskSpaceBrushes.Warning : DiskSpaceBrushes.Normal;
 
-    public string Detail => Drive.IsSystemDrive ? $"Windows drive · {Drive.FileSystem}" : Drive.FileSystem;
+    public string Detail => Drive.IsSystemDrive ? Loc.F("Windows drive · {0}", Drive.FileSystem) : Drive.FileSystem;
 }
 
 /// <summary>
@@ -66,7 +67,7 @@ public abstract partial class DiskItemRow : ObservableObject
 
     public bool CanSelect => ProtectedReason is null;
 
-    public string CheckTooltip => ProtectedReason is null ? "Include this when moving items to the Recycle Bin" : "Kept: " + ProtectedReason;
+    public string CheckTooltip => ProtectedReason is null ? Loc.T("Include this when moving items to the Recycle Bin") : Loc.F("Kept: {0}", ProtectedReason);
 
     partial void OnIsSelectedChanged(bool value)
     {
@@ -103,8 +104,10 @@ public sealed class DiskFolderRow : DiskItemRow
     {
         get
         {
-            var text = $"{DiskSpaceFormat.Count(Node.TotalFiles, "file", "files")} · {DiskSpaceFormat.Count(Node.TotalFolders, "folder", "folders")}";
-            return Node.InaccessibleFolders > 0 ? text + $" · {DiskSpaceFormat.Count(Node.InaccessibleFolders, "folder", "folders")} not readable" : text;
+            var text = $"{DiskSpaceText.Files(Node.TotalFiles)} · {DiskSpaceText.Folders(Node.TotalFolders)}";
+            return Node.InaccessibleFolders > 0
+                ? text + " · " + DiskSpaceText.Count(Node.InaccessibleFolders, Loc.T("{0} folder not readable"), Loc.T("{0} folders not readable"))
+                : text;
         }
     }
 
@@ -129,7 +132,7 @@ public sealed class DiskLooseFilesRow
         SizeText = ByteSize.Format(folder.OwnBytes);
         Percent = DiskSpaceFormat.Percent(folder.OwnBytes, folder.TotalBytes);
         PercentText = DiskSpaceFormat.PercentText(folder.OwnBytes, folder.TotalBytes);
-        Title = DiskSpaceFormat.Count(folder.OwnFiles, "file in this folder", "files in this folder");
+        Title = DiskSpaceText.Count(folder.OwnFiles, Loc.T("{0} file in this folder"), Loc.T("{0} files in this folder"));
     }
 
     public string Title { get; }
@@ -158,11 +161,11 @@ public sealed class DiskFileRow : DiskItemRow
 
     public string Folder => Entry.Folder;
 
-    public string CategoryText => DiskSpaceFormat.CategoryName(Entry.Category);
+    public string CategoryText => DiskSpaceText.CategoryName(Entry.Category);
 
     public string ModifiedText => Entry.LastWrite.ToString("d", System.Globalization.CultureInfo.CurrentCulture);
 
-    public string LastUsedText => "Last used " + DiskSpaceFormat.Age(Entry.LastUsed, DateTime.Now);
+    public string LastUsedText => DiskSpaceText.LastUsed(Entry.LastUsed, DateTime.Now);
 }
 
 /// <summary>One line of the breakdown by type.</summary>
@@ -171,12 +174,12 @@ public sealed class DiskTypeRow
     public DiskTypeRow(FileTypeTotal total, long allBytes)
     {
         Category = total.Category;
-        Name = DiskSpaceFormat.CategoryName(total.Category);
-        Hint = DiskSpaceFormat.CategoryHint(total.Category);
+        Name = DiskSpaceText.CategoryName(total.Category);
+        Hint = DiskSpaceText.CategoryHint(total.Category);
         SizeText = ByteSize.Format(total.Bytes);
         Percent = DiskSpaceFormat.Percent(total.Bytes, allBytes);
         PercentText = DiskSpaceFormat.PercentText(total.Bytes, allBytes);
-        FilesText = DiskSpaceFormat.Count(total.Files, "file", "files");
+        FilesText = DiskSpaceText.Files(total.Files);
         Brush = DiskSpaceBrushes.For(total.Category);
     }
 
@@ -204,9 +207,9 @@ public sealed class DiskDuplicateGroupRow
     {
         Group = group;
         Files = new ObservableCollection<DiskFileRow>(files);
-        Title = files.FirstOrDefault()?.Name ?? "Identical files";
-        Detail = $"{Files.Count} copies of {ByteSize.Format(group.SizeBytes)}";
-        WastedText = ByteSize.Format(group.WastedBytes) + " could be freed";
+        Title = Files.FirstOrDefault()?.Name ?? Loc.T("Identical files");
+        Detail = Loc.F("{0} copies of {1}", Files.Count, ByteSize.Format(group.SizeBytes));
+        WastedText = Loc.F("{0} could be freed", ByteSize.Format(group.WastedBytes));
     }
 
     public DuplicateGroup Group { get; }

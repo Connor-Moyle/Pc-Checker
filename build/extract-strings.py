@@ -30,6 +30,11 @@ def wanted(text: str) -> bool:
     return True
 
 
+def unescape_csharp(text: str) -> str:
+    """Undoes C# escapes (\\n, \\", \\\\) without touching other characters such as an ellipsis."""
+    return re.sub(r"\\(.)", lambda m: {"n": "\n", "t": "\t", "r": "\r", "0": "\0"}.get(m.group(1), m.group(1)), text)
+
+
 def collect():
     found = set()
     for path in APP.rglob("*.xaml"):
@@ -45,7 +50,7 @@ def collect():
             continue
         source = path.read_text(encoding="utf-8")
         for match in CODE.finditer(source):
-            found.add(bytes(match.group(1), "utf-8").decode("unicode_escape"))
+            found.add(unescape_csharp(match.group(1)))
         if path.name == "NavigationCatalog.cs":
             found.update(m.group(1) for m in CATALOG.finditer(source))
     for extra in ("Cancel", "OK", "Continue"):

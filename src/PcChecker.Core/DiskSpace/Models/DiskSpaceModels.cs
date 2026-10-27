@@ -130,7 +130,8 @@ public sealed record ProtectedLocations(
     IReadOnlyList<string> ProgramDirectories,
     string? UsersRoot,
     string? UserProfile,
-    IReadOnlyList<string> AppDirectories)
+    IReadOnlyList<string> AppDirectories,
+    IReadOnlyList<string>? KnownFolders = null)
 {
     public static ProtectedLocations None { get; } = new(null, [], null, null, []);
 }

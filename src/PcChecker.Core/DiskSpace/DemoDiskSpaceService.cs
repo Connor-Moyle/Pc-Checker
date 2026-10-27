@@ -17,7 +17,8 @@ public sealed class DemoDiskSpaceService : IDiskSpaceService
         [@"C:\Program Files", @"C:\Program Files (x86)", @"C:\ProgramData"],
         @"C:\Users",
         @"C:\Users\Alex",
-        [@"C:\Program Files\PC Checker", @"C:\Users\Alex\AppData\Local\PcChecker"]);
+        [@"C:\Program Files\PC Checker", @"C:\Users\Alex\AppData\Local\PcChecker"],
+        [@"C:\Users\Alex\Desktop", @"C:\Users\Alex\Documents", @"C:\Users\Alex\Downloads"]);
 
     private static readonly DriveSpaceInfo SystemDrive = new(@"C:\", "Windows", "NTFS", DemoData.NvmeBytes - 800_000_000, 742_000_000_000, true);
     private static readonly DriveSpaceInfo DataDrive = new(@"D:\", "Games & Media", "NTFS", DemoData.HddBytes - 16_000_000, 1_210_000_000_000, false);
@@ -87,7 +88,7 @@ public sealed class DemoDiskSpaceService : IDiskSpaceService
 
     public string? WhyProtected(string path) => DiskSpaceProtection.WhyProtected(path, Locations);
 
-    public async Task<OperationResult<RecycleResult>> RecycleAsync(IReadOnlyList<RecycleRequest> items, IProgress<ProgressUpdate>? progress,
+    public async Task<OperationResult<RecycleResult>> RecycleAsync(IReadOnlyList<RecycleRequest> items, nint ownerWindow, IProgress<ProgressUpdate>? progress,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(items);

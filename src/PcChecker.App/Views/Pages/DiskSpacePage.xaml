@@ -416,6 +416,9 @@
                       </DataTemplate>
                     </ItemsControl.ItemTemplate>
                   </ItemsControl>
+                  <ui:Button Content="{Binding MoreDuplicatesText}" Command="{Binding ShowMoreDuplicatesCommand}" Icon="{ui:SymbolIcon ChevronDown24}"
+                             HorizontalAlignment="Left" Margin="0,4,0,0"
+                             Visibility="{Binding HasMoreDuplicates, Converter={StaticResource BoolToVisibility}}" />
                 </StackPanel>
               </ui:Card>
             </TabItem>

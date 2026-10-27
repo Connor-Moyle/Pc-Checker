@@ -68,25 +68,44 @@ internal static class DiskSpaceNativeMethods
     [DllImport("shell32.dll")]
     private static extern void ILFree(IntPtr pidl);
 
+    [DllImport("shell32.dll")]
+    private static extern int SHGetKnownFolderPath([MarshalAs(UnmanagedType.LPStruct)] Guid folderId, uint flags, IntPtr token, out IntPtr path);
+
+    [DllImport("ole32.dll")]
+    private static extern void CoTaskMemFree(IntPtr memory);
+
+    /// <summary>FOLDERID_Downloads: Environment.SpecialFolder has no entry for it.</summary>
+    private static readonly Guid DownloadsFolderId = new("374DE290-123F-4565-9164-39C4925E467B");
+
+    /// <summary>SHFileOperation takes classic paths only: anything this long fails with a generic error.</summary>
+    private const int MaxShellPath = 259;
+
     [DllImport("kernel32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool GetFileInformationByHandle(SafeFileHandle file, out ByHandleFileInformation information);
 
     /// <summary>
-    /// Moves one file or folder to the Recycle Bin without prompts. If Windows cannot recycle it (too big for the bin),
-    /// the shell asks before deleting it for good (FOF_WANTNUKEWARNING), so nothing is ever destroyed silently.
+    /// Moves one file or folder to the Recycle Bin without prompts. If Windows cannot recycle it (too big for the bin,
+    /// or the bin is turned off), the shell asks before deleting it for good (FOF_WANTNUKEWARNING), so nothing is ever
+    /// destroyed silently. <paramref name="ownerWindow"/> owns that question so it opens in front of the app.
     /// </summary>
-    public static OperationResult MoveToRecycleBin(string path)
+    public static OperationResult MoveToRecycleBin(string path, nint ownerWindow)
     {
         if (!PlatformGuard.IsWindows)
         {
             return OperationResult.Fail("The Recycle Bin is only available on Windows.");
         }
 
+        if (path.Length > MaxShellPath)
+        {
+            return OperationResult.Fail("The path is too long for the Recycle Bin. Move or rename it in File Explorer, then try again.");
+        }
+
         try
         {
             var operation = new ShFileOpStruct
             {
+                Hwnd = ownerWindow,
                 Func = FoDelete,
                 From = path + "\0", // the marshaller adds the second terminating null
                 Flags = (ushort)(FofAllowUndo | FofNoConfirmation | FofSilent | FofNoErrorUi | FofNoConnectedElements | FofWantNukeWarning),
@@ -138,6 +157,32 @@ internal static class DiskSpaceNativeMethods
         }
     }
 
+    /// <summary>The user's Downloads folder, wherever it was moved to, or null.</summary>
+    public static string? DownloadsFolder()
+    {
+        if (!PlatformGuard.IsWindows)
+        {
+            return null;
+        }
+
+        IntPtr path = IntPtr.Zero;
+        try
+        {
+            return SHGetKnownFolderPath(DownloadsFolderId, 0, IntPtr.Zero, out path) == 0 ? Marshal.PtrToStringUni(path) : null;
+        }
+        catch
+        {
+            return null;
+        }
+        finally
+        {
+            if (path != IntPtr.Zero)
+            {
+                CoTaskMemFree(path);
+            }
+        }
+    }
+
     /// <summary>"volume:fileid" for an open file; hard links to the same data give the same key. Null when unknown.</summary>
     public static string? FileIdentity(SafeFileHandle handle)
     {
@@ -168,7 +213,8 @@ internal static class DiskSpaceNativeMethods
         0x02 or 0x7C or 0x402 => "It no longer exists.",
         0x05 or 0x78 => "Access was denied. It may be in use, or need administrator rights.",
         0x20 or 0x21 => "It is in use by another program. Close the program and try again.",
-        0x4C7 => "Cancelled; it was kept.",
+        0x75 or 0x4C7 => "Cancelled; it was kept.",
+        0x79 or 0x81 => "The path is too long for the Recycle Bin. Move or rename it in File Explorer, then try again.",
         _ => $"Windows could not move it to the Recycle Bin (code 0x{code:X}).",
     };
 }

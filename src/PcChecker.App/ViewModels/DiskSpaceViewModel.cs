@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
+using PcChecker.App.Localization;
 using PcChecker.App.Services;
 using PcChecker.Core.Common;
 using PcChecker.Core.DiskSpace;
@@ -16,15 +17,13 @@ namespace PcChecker.App.ViewModels;
 /// </summary>
 public sealed partial class DiskSpaceViewModel : ViewModelBase
 {
-    private const string DefaultSubtitle = "See what fills your drives, find duplicates, and clear out what you no longer need.";
-
     private readonly IDiskSpaceService _service;
     private readonly IDialogService _dialogs;
     private readonly INotificationService _notifications;
     private readonly ILogger<DiskSpaceViewModel> _logger;
 
     [ObservableProperty]
-    private string _subtitle = DefaultSubtitle;
+    private string _subtitle = Loc.T("See what fills your drives, find duplicates, and clear out what you no longer need.");
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowEmptyState))]
@@ -132,7 +131,7 @@ public sealed partial class DiskSpaceViewModel : ViewModelBase
     [RelayCommand]
     private async Task ChooseFolderAsync()
     {
-        var folder = await _dialogs.PickFolderAsync(Localization.Loc.T("Choose a folder to measure"));
+        var folder = await _dialogs.PickFolderAsync(Loc.T("Choose a folder to measure"));
         if (!string.IsNullOrWhiteSpace(folder))
         {
             await RunScanAsync(folder, CancellationToken.None);
@@ -140,7 +139,7 @@ public sealed partial class DiskSpaceViewModel : ViewModelBase
     }
 
     [RelayCommand]
-    private Task RefreshDrivesAsync() => RunBusyAsync(LoadDrivesAsync, "Reading drives…");
+    private Task RefreshDrivesAsync() => RunBusyAsync(LoadDrivesAsync, Loc.T("Reading drives…"));
 
     [RelayCommand]
     private void OpenRecycleBin() => Open("shell:RecycleBinFolder");
@@ -167,7 +166,7 @@ public sealed partial class DiskSpaceViewModel : ViewModelBase
         var result = await _service.ScanAsync(target, ScanOptions(), progress, linked.Token);
         ClearResult();
         ApplyScan(result);
-    }, "Reading " + target + "…");
+    }, Loc.F("Reading {0}…", target));
 
     private DiskScanOptions ScanOptions() => new()
     {
@@ -190,7 +189,7 @@ public sealed partial class DiskSpaceViewModel : ViewModelBase
         UpdateSummary(stale: false);
         NavigateTo(result.Root);
         FillFileLists();
-        Subtitle = $"Measured {result.RootPath} at {result.Captured:t} in {DiskSpaceFormat.Duration(result.Stats.Duration)}.";
+        Subtitle = Loc.F("Measured {0} at {1:t} in {2}.", result.RootPath, result.Captured, DiskSpaceText.Duration(result.Stats.Duration));
         HasScanned = true;
     }
 
@@ -203,36 +202,49 @@ public sealed partial class DiskSpaceViewModel : ViewModelBase
 
         var root = scan.Root;
         ScannedText = scan.Drive is { } drive ? drive.Letter : root.Name;
-        ScannedSubtitle = stale ? "Totals updated after removal" : scan.RootPath;
+        ScannedSubtitle = stale ? Loc.T("Totals updated after removal") : scan.RootPath;
         UsedText = ByteSize.Format(root.TotalBytes);
         UsedSubtitle = scan.Drive is { } d
-            ? $"{DiskSpaceFormat.PercentText(d.UsedBytes, d.TotalBytes)} of {ByteSize.Format(d.TotalBytes)} is in use · {ByteSize.Format(d.FreeBytes)} free"
-            : "In this folder and below";
+            ? Loc.F("{0} of {1} is in use · {2} free", DiskSpaceFormat.PercentText(d.UsedBytes, d.TotalBytes), ByteSize.Format(d.TotalBytes), ByteSize.Format(d.FreeBytes))
+            : Loc.T("In this folder and below");
         var largest = DiskSpaceAggregation.LargestChild(root);
         LargestFolderText = largest is null ? "—" : ByteSize.Format(largest.TotalBytes);
-        LargestFolderSubtitle = largest is null ? "No sub-folders" : largest.Name;
+        LargestFolderSubtitle = largest is null ? Loc.T("No sub-folders") : largest.Name;
         FilesText = root.TotalFiles.ToString("#,0", System.Globalization.CultureInfo.CurrentCulture);
-        FilesSubtitle = $"in {DiskSpaceFormat.Count(root.TotalFolders, "folder", "folders")}";
+        FilesSubtitle = DiskSpaceText.Count(root.TotalFolders, Loc.T("in {0} folder"), Loc.T("in {0} folders"));
 
         var notes = new List<string>();
         if (root.InaccessibleFolders > 0)
         {
-            notes.Add($"{DiskSpaceFormat.Count(root.InaccessibleFolders, "folder", "folders")} could not be read (Windows keeps some folders private), so the totals may be a little low.");
+            notes.Add(DiskSpaceText.Count(root.InaccessibleFolders,
+                Loc.T("{0} folder could not be read (Windows keeps some folders private), so the totals may be a little low."),
+                Loc.T("{0} folders could not be read (Windows keeps some folders private), so the totals may be a little low.")));
         }
 
         if (scan.Drive is { } dr && dr.UsedBytes > root.TotalBytes + ByteSize.Gigabyte)
         {
-            notes.Add($"Windows reports {ByteSize.Format(dr.UsedBytes - root.TotalBytes)} more in use than the files add up to: restore points, the file system's own records and unreadable folders.");
+            notes.Add(Loc.F("Windows reports {0} more in use than the files add up to: restore points, the file system's own records and unreadable folders.",
+                ByteSize.Format(dr.UsedBytes - root.TotalBytes)));
+        }
+        else if (scan.Drive is { } over && root.TotalBytes > over.UsedBytes + ByteSize.Gigabyte)
+        {
+            // Sizes are file lengths: hard-linked Windows files are counted once per path and compressed or sparse
+            // files (CompactOS, WSL disks) at their full size, so the total can exceed what the drive really uses.
+            notes.Add(Loc.F("The files add up to {0} more than Windows reports in use: files that share their data (hard links in the Windows folder) are counted once per path, and compressed or sparse files at their full size.",
+                ByteSize.Format(root.TotalBytes - over.UsedBytes)));
         }
 
         if (scan.Stats.SkippedLinks > 0)
         {
-            notes.Add($"{DiskSpaceFormat.Count(scan.Stats.SkippedLinks, "link was", "links were")} not followed, so nothing is counted twice.");
+            notes.Add(DiskSpaceText.Count(scan.Stats.SkippedLinks,
+                Loc.T("{0} link was not followed, so nothing is counted twice."), Loc.T("{0} links were not followed, so nothing is counted twice.")));
         }
 
         if (scan.Stats.CloudOnlyFiles > 0)
         {
-            notes.Add($"{DiskSpaceFormat.Count(scan.Stats.CloudOnlyFiles, "online-only file", "online-only files")} (OneDrive and similar) take no space here and are not counted.");
+            notes.Add(DiskSpaceText.Count(scan.Stats.CloudOnlyFiles,
+                Loc.T("{0} online-only file (OneDrive and similar) takes no space here and is not counted."),
+                Loc.T("{0} online-only files (OneDrive and similar) take no space here and are not counted.")));
         }
 
         ScanNote = notes.Count == 0 ? null : string.Join("\n", notes);

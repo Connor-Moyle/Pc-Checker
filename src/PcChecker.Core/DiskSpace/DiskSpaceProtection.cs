@@ -11,13 +11,25 @@ public static class DiskSpaceProtection
     private static readonly string[] SystemFolderNamesAnywhere =
         ["System Volume Information", "$Recycle.Bin", "$WinREAgent", "$Windows.~BT", "$Windows.~WS", "$SysReset", "$GetCurrent", "$Extend"];
 
-    private static readonly string[] SystemFolderNamesAtRoot = ["Recovery", "Boot", "Config.Msi", "Documents and Settings", "EFI"];
+    private static readonly string[] SystemFolderNamesAtRoot = ["Recovery", "Boot", "Config.Msi", "Documents and Settings", "EFI", "inetpub"];
+
+    // Windows and program folders at the root of any drive (a second Windows install, programs installed to D:).
+    private static readonly string[] ProgramFolderNamesAtRoot = ["Windows", "Program Files", "Program Files (x86)", "ProgramData", "WindowsApps"];
 
     private static readonly string[] SystemFileNames =
         ["pagefile.sys", "hiberfil.sys", "swapfile.sys", "DumpStack.log", "DumpStack.log.tmp", "bootmgr", "BOOTNXT", "BOOTSECT.BAK"];
 
     // Folders directly inside a profile's AppData: deleting one wipes the settings of every program.
     private static readonly string[] AppDataFolders = ["Local", "LocalLow", "Roaming"];
+
+    // Folders inside AppData that Windows itself uses (encryption keys, saved credentials, Store apps and their
+    // command aliases); refused with everything inside them.
+    private static readonly string[][] WindowsAppDataFolders =
+    [
+        ["AppData", "Local", "Microsoft"],
+        ["AppData", "Roaming", "Microsoft"],
+        ["AppData", "Local", "Packages"],
+    ];
 
     /// <summary>
     /// A plain-English reason why <paramref name="path"/> must not be deleted, or null when it may be offered.
@@ -58,7 +70,8 @@ public static class DiskSpaceProtection
             return "Part of Windows.";
         }
 
-        if (locations.ProgramDirectories.Any(d => Touches(p, d)))
+        if (locations.ProgramDirectories.Any(d => Touches(p, d))
+            || ProgramFolderNamesAtRoot.Contains(segments[0], StringComparer.OrdinalIgnoreCase))
         {
             return "Installed programs and their shared data live here. Uninstall programs from the Apps page instead.";
         }
@@ -72,6 +85,13 @@ public static class DiskSpaceProtection
         if (profileReason is not null)
         {
             return profileReason;
+        }
+
+        // Documents, Desktop, Downloads and the other personal folders can be moved to another drive; the folder itself
+        // (and any folder that holds it) stays, what is inside may go.
+        if (locations.KnownFolders?.Any(k => !string.IsNullOrWhiteSpace(k) && DiskSpacePaths.IsSameOrInside(k, p)) == true)
+        {
+            return "Windows uses this as one of your personal folders. Open it and remove what is inside instead.";
         }
 
         return null;
@@ -127,7 +147,31 @@ public static class DiskSpaceProtection
             return "Programs keep their settings here. Open it and remove what is inside instead.";
         }
 
+        if (WindowsAppDataFolders.Any(folder => StartsWith(relative, 1, folder)))
+        {
+            return "Windows keeps its own settings, keys and Store apps here.";
+        }
+
         return null;
+    }
+
+    /// <summary>True when <paramref name="segments"/> from <paramref name="start"/> on begin with <paramref name="prefix"/>.</summary>
+    private static bool StartsWith(IReadOnlyList<string> segments, int start, string[] prefix)
+    {
+        if (segments.Count - start < prefix.Length)
+        {
+            return false;
+        }
+
+        for (int i = 0; i < prefix.Length; i++)
+        {
+            if (!segments[start + i].Equals(prefix[i], StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private static string? ParentOrNull(string? path) => string.IsNullOrWhiteSpace(path) ? null : DiskSpacePaths.ParentOf(path);

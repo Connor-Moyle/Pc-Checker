@@ -85,8 +85,8 @@ public sealed class WindowsDiskSpaceService : IDiskSpaceService
 
     public string? WhyProtected(string path) => DiskSpaceProtection.WhyProtected(path, _locations.Value);
 
-    public async Task<OperationResult<RecycleResult>> RecycleAsync(IReadOnlyList<RecycleRequest> items, IProgress<ProgressUpdate>? progress,
-        CancellationToken cancellationToken)
+    public async Task<OperationResult<RecycleResult>> RecycleAsync(IReadOnlyList<RecycleRequest> items, nint ownerWindow,
+        IProgress<ProgressUpdate>? progress, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(items);
         var plan = DiskSpaceRules.CollapseNested(items, i => i.Path);
@@ -112,7 +112,7 @@ public sealed class WindowsDiskSpaceService : IDiskSpaceService
         return await _guard.RunGuardedAsync(
             $"Move {DiskSpaceFormat.Count(plan.Count, "item", "items")} ({ByteSize.Format(bytes)}) to the Recycle Bin",
             options,
-            ct => RunOnStaThread(() => RecycleCore(plan, progress, ct)),
+            ct => RunOnStaThread(() => RecycleCore(plan, ownerWindow, progress, ct)),
             progress,
             cancellationToken).ConfigureAwait(false);
     }
@@ -132,7 +132,8 @@ public sealed class WindowsDiskSpaceService : IDiskSpaceService
         return File.Exists(path) ? DiskSpaceNativeMethods.ShowFileInExplorer(path) : OperationResult.Fail($"{path} no longer exists.");
     }
 
-    private OperationResult<RecycleResult> RecycleCore(IReadOnlyList<RecycleRequest> plan, IProgress<ProgressUpdate>? progress, CancellationToken ct)
+    private OperationResult<RecycleResult> RecycleCore(IReadOnlyList<RecycleRequest> plan, nint ownerWindow, IProgress<ProgressUpdate>? progress,
+        CancellationToken ct)
     {
         var results = new List<RecycleItemResult>();
         for (int i = 0; i < plan.Count; i++)
@@ -152,7 +153,7 @@ public sealed class WindowsDiskSpaceService : IDiskSpaceService
                 continue;
             }
 
-            var outcome = DiskSpaceNativeMethods.MoveToRecycleBin(DiskSpacePaths.Normalize(item.Path));
+            var outcome = DiskSpaceNativeMethods.MoveToRecycleBin(DiskSpacePaths.Normalize(item.Path), ownerWindow);
             bool gone = !File.Exists(item.Path) && !Directory.Exists(item.Path);
             bool ok = outcome.Success && gone;
             results.Add(new RecycleItemResult(item, ok, ok ? outcome.Message : outcome.Success ? "Windows reported success but it is still there." : outcome.Message));
@@ -359,14 +360,33 @@ public sealed class WindowsDiskSpaceService : IDiskSpaceService
         var localAppData = Folder(Environment.SpecialFolder.LocalApplicationData);
         AddApp(localAppData is null ? null : Path.Combine(localAppData, "PcChecker"));
 
+        // Personal folders, wherever they were moved to (Documents on D:, Desktop in OneDrive…).
+        var knownFolders = new[]
+            {
+                Folder(Environment.SpecialFolder.DesktopDirectory),
+                Folder(Environment.SpecialFolder.MyDocuments),
+                Folder(Environment.SpecialFolder.MyPictures),
+                Folder(Environment.SpecialFolder.MyMusic),
+                Folder(Environment.SpecialFolder.MyVideos),
+                DiskSpaceNativeMethods.DownloadsFolder(),
+                Environment.GetEnvironmentVariable("OneDrive"),
+                Environment.GetEnvironmentVariable("OneDriveConsumer"),
+                Environment.GetEnvironmentVariable("OneDriveCommercial"),
+            }
+            .Where(p => !string.IsNullOrWhiteSpace(p) && DiskSpacePaths.IsLocalAbsolute(p))
+            .Select(p => DiskSpacePaths.Normalize(p!))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
         var locations = new ProtectedLocations(
             Folder(Environment.SpecialFolder.Windows),
             programs,
             profile is null ? null : DiskSpacePaths.ParentOf(profile),
             profile,
-            appDirectories);
-        _logger.LogDebug("Disk space protected locations: Windows {Windows}; programs {Programs}; users {Users}; app {App}.",
-            locations.WindowsDirectory, string.Join(", ", programs), locations.UsersRoot, string.Join(", ", appDirectories));
+            appDirectories,
+            knownFolders);
+        _logger.LogDebug("Disk space protected locations: Windows {Windows}; programs {Programs}; users {Users}; app {App}; personal {Known}.",
+            locations.WindowsDirectory, string.Join(", ", programs), locations.UsersRoot, string.Join(", ", appDirectories), string.Join(", ", knownFolders));
         return locations;
     }
 }

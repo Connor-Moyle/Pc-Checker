@@ -1,9 +1,11 @@
 using System.Collections.ObjectModel;
 using System.Text;
 using System.Windows;
+using System.Windows.Interop;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
+using PcChecker.App.Localization;
 using PcChecker.Core.Common;
 using PcChecker.Core.DiskSpace;
 
@@ -12,8 +14,8 @@ namespace PcChecker.App.ViewModels;
 /// <summary>Duplicates, selection, moving to the Recycle Bin, and the per-item Explorer and copy actions.</summary>
 public sealed partial class DiskSpaceViewModel
 {
-    /// <summary>Duplicate groups shown at once (most wasted space first).</summary>
-    private const int MaxDuplicateGroups = 300;
+    /// <summary>Duplicate groups added to the page at a time (most wasted space first); Show more adds the next ones.</summary>
+    private const int DuplicatePageSize = 40;
 
     private DuplicateScanResult? _duplicates;
     private bool _bulkSelecting;
@@ -32,7 +34,11 @@ public sealed partial class DiskSpaceViewModel
     private int _selectedCount;
 
     [ObservableProperty]
-    private string _selectedText = "Nothing selected";
+    private string _selectedText = Loc.T("Nothing selected");
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasMoreDuplicates))]
+    private string? _moreDuplicatesText;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowSuccessResult))]
@@ -50,6 +56,8 @@ public sealed partial class DiskSpaceViewModel
     public ObservableCollection<string> ResultLines { get; } = [];
 
     public bool HasDuplicates => DuplicateGroups.Count > 0;
+
+    public bool HasMoreDuplicates => !string.IsNullOrEmpty(MoreDuplicatesText);
 
     public bool ShowDuplicatesEmpty => !DuplicatesSearched;
 
@@ -73,9 +81,20 @@ public sealed partial class DiskSpaceViewModel
         long minBytes = ScanOptions().DuplicateMinBytes;
         var candidates = await Task.Run(() => DuplicateFinder.ActionableCandidates(scan.DuplicateCandidates, minBytes, IsProtected), ct);
         var result = await _service.FindDuplicatesAsync(candidates, minBytes, progress, ct);
+        ClearDuplicates();
         ApplyDuplicates(result with { Groups = result.Groups.Where(g => g.Files.Any(f => !IsProtected(f.Path))).ToList() });
         SelectedTabIndex = DuplicatesTabIndex;
-    }, "Looking for duplicate files…");
+    }, Loc.T("Looking for duplicate files…"));
+
+    /// <summary>Adds the next page of duplicate groups.</summary>
+    [RelayCommand]
+    private void ShowMoreDuplicates()
+    {
+        if (_duplicates is { } duplicates)
+        {
+            ShowDuplicateGroups(duplicates.Groups, DuplicateGroups.Count + DuplicatePageSize);
+        }
+    }
 
     /// <summary>Ticks every copy except the newest in each group.</summary>
     [RelayCommand]
@@ -105,7 +124,7 @@ public sealed partial class DiskSpaceViewModel
             return;
         }
 
-        if (!await _dialogs.ConfirmAsync("Move to the Recycle Bin?", ConfirmationText(plan), "Move to Recycle Bin", isDanger: true))
+        if (!await _dialogs.ConfirmAsync(Loc.T("Move to the Recycle Bin?"), ConfirmationText(plan), Loc.T("Move to Recycle Bin"), isDanger: true))
         {
             return;
         }
@@ -113,7 +132,7 @@ public sealed partial class DiskSpaceViewModel
         await RunBusyAsync(async ct =>
         {
             var progress = new Progress<ProgressUpdate>(p => BusyText = p.Stage + (p.Detail is null ? string.Empty : "\n" + p.Detail));
-            var result = await _service.RecycleAsync(plan, progress, ct);
+            var result = await _service.RecycleAsync(plan, OwnerWindow(), progress, ct);
             ShowResult(result);
             if (result.Value is { } value && value.Recycled > 0 && _scan is { } scan)
             {
@@ -132,7 +151,7 @@ public sealed partial class DiskSpaceViewModel
                 UpdateSelection();
                 await LoadDrivesAsync(CancellationToken.None);
             }
-        }, "Moving to the Recycle Bin…", cancellable: false);
+        }, Loc.T("Moving to the Recycle Bin…"), cancellable: false);
     }
 
     [RelayCommand]
@@ -151,7 +170,7 @@ public sealed partial class DiskSpaceViewModel
         }
         else if (AppOptions.Current.IsDemo)
         {
-            _notifications.Info("Demo mode", result.Message);
+            _notifications.Info(Loc.T("Demo mode"), result.Message);
         }
     }
 
@@ -167,12 +186,12 @@ public sealed partial class DiskSpaceViewModel
         try
         {
             Clipboard.SetText(path);
-            _notifications.Success("Copied", path);
+            _notifications.Success(Loc.T("Copied"), path);
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Clipboard copy failed.");
-            ErrorMessage = "The clipboard is busy; try again in a moment.";
+            ErrorMessage = Loc.T("The clipboard is busy; try again in a moment.");
         }
     }
 
@@ -202,6 +221,19 @@ public sealed partial class DiskSpaceViewModel
 
     private bool IsProtected(string path) => _service.WhyProtected(path) is not null;
 
+    /// <summary>The main window's handle, so a prompt from Windows (item too big for the Recycle Bin) opens in front of it.</summary>
+    private static nint OwnerWindow()
+    {
+        try
+        {
+            return Application.Current?.MainWindow is { } window ? new WindowInteropHelper(window).Handle : 0;
+        }
+        catch (InvalidOperationException)
+        {
+            return 0;
+        }
+    }
+
     private static (string? Path, bool IsFolder) PathOf(object? item) => item switch
     {
         DiskItemRow row => (row.Path, row.IsFolder),
@@ -212,36 +244,57 @@ public sealed partial class DiskSpaceViewModel
 
     private void ApplyDuplicates(DuplicateScanResult result)
     {
+        // Keep at least as many groups on screen as before (after a removal), so the list does not jump back.
+        int shown = Math.Max(DuplicatePageSize, DuplicateGroups.Count);
         _duplicates = result;
-        DuplicateGroups.Clear();
-        foreach (var group in result.Groups.Take(MaxDuplicateGroups))
-        {
-            DuplicateGroups.Add(new DiskDuplicateGroupRow(group, group.Files.Select(FileRow).ToList()));
-        }
+        ShowDuplicateGroups(result.Groups, shown);
 
         var summary = result.Groups.Count == 0
-            ? $"No identical files of {ByteSize.Format(ScanOptions().DuplicateMinBytes)} or more."
-            : $"{DiskSpaceFormat.Count(result.Groups.Count, "group", "groups")} of identical files · {ByteSize.Format(result.WastedBytes)} could be freed by keeping one copy of each.";
-        if (result.Groups.Count > MaxDuplicateGroups)
-        {
-            summary += $" Showing the {MaxDuplicateGroups} that waste the most.";
-        }
-
+            ? Loc.F("No identical files of {0} or more.", ByteSize.Format(ScanOptions().DuplicateMinBytes))
+            : DiskSpaceText.Count(result.Groups.Count,
+                Loc.T("{0} group of identical files"), Loc.T("{0} groups of identical files"))
+              + " · " + Loc.F("{0} could be freed by keeping one copy of each.", ByteSize.Format(result.WastedBytes));
         if (result.FilesUnreadable > 0)
         {
-            summary += $" {DiskSpaceFormat.Count(result.FilesUnreadable, "file was", "files were")} in use or unreadable and left out.";
+            summary += " " + DiskSpaceText.Count(result.FilesUnreadable,
+                Loc.T("{0} file was in use or unreadable and left out."), Loc.T("{0} files were in use or unreadable and left out."));
         }
 
         DuplicatesSummary = summary;
         DuplicatesSearched = true;
-        OnPropertyChanged(nameof(HasDuplicates));
         OnPropertyChanged(nameof(ShowNoDuplicates));
+    }
+
+    /// <summary>
+    /// Shows the first <paramref name="count"/> groups. Each group is a card with its file rows, so they are added a page
+    /// at a time rather than all at once after a large scan.
+    /// </summary>
+    private void ShowDuplicateGroups(IReadOnlyList<DuplicateGroup> groups, int count)
+    {
+        count = Math.Min(count, groups.Count);
+        if (DuplicateGroups.Count > count || DuplicateGroups.Where((row, i) => !ReferenceEquals(row.Group, groups[i])).Any())
+        {
+            DuplicateGroups.Clear();
+        }
+
+        for (int i = DuplicateGroups.Count; i < count; i++)
+        {
+            DuplicateGroups.Add(new DiskDuplicateGroupRow(groups[i], groups[i].Files.Select(FileRow).ToList()));
+        }
+
+        int hidden = groups.Count - count;
+        MoreDuplicatesText = hidden > 0
+            ? DiskSpaceText.Count(hidden, Loc.T("Show {0} more group"), Loc.T("Show {0} more groups"))
+              + $" ({ByteSize.Format(groups.Skip(count).Sum(g => g.WastedBytes))})"
+            : null;
+        OnPropertyChanged(nameof(HasDuplicates));
     }
 
     private void ClearDuplicates()
     {
         _duplicates = null;
         DuplicateGroups.Clear();
+        MoreDuplicatesText = null;
         DuplicatesSummary = string.Empty;
         DuplicatesSearched = false;
         OnPropertyChanged(nameof(HasDuplicates));
@@ -299,8 +352,9 @@ public sealed partial class DiskSpaceViewModel
         var selected = DiskSpaceRules.CollapseNested(_rows.Values.Where(r => r.IsSelected), r => r.Path);
         SelectedCount = selected.Count;
         SelectedText = selected.Count == 0
-            ? "Nothing selected"
-            : $"{DiskSpaceFormat.Count(selected.Count, "item", "items")} selected · {ByteSize.Format(selected.Sum(r => r.SizeBytes))}";
+            ? Loc.T("Nothing selected")
+            : DiskSpaceText.Count(selected.Count, Loc.T("{0} item selected"), Loc.T("{0} items selected"))
+              + " · " + ByteSize.Format(selected.Sum(r => r.SizeBytes));
     }
 
     private static string ConfirmationText(IReadOnlyList<RecycleRequest> plan)
@@ -308,28 +362,29 @@ public sealed partial class DiskSpaceViewModel
         const int shown = 8;
         long bytes = plan.Sum(p => p.SizeBytes);
         var text = new StringBuilder();
-        text.Append($"{DiskSpaceFormat.Count(plan.Count, "item", "items")} ({ByteSize.Format(bytes)}) will be moved to the Recycle Bin:\n\n");
+        text.Append(Loc.F("{0} ({1}) will be moved to the Recycle Bin:", DiskSpaceText.Items(plan.Count), ByteSize.Format(bytes))).Append("\n\n");
         foreach (var item in plan.OrderByDescending(p => p.SizeBytes).Take(shown))
         {
-            text.Append($"• {DiskSpaceFormat.ShortenPath(item.Path, 70)} ({ByteSize.Format(item.SizeBytes)}){(item.IsFolder ? " — whole folder" : string.Empty)}\n");
+            text.Append($"• {DiskSpaceFormat.ShortenPath(item.Path, 70)} ({ByteSize.Format(item.SizeBytes)})");
+            text.Append(item.IsFolder ? " — " + Loc.T("whole folder") : string.Empty).Append('\n');
         }
 
         if (plan.Count > shown)
         {
-            text.Append($"• and {plan.Count - shown} more\n");
+            text.Append("• ").Append(Loc.F("and {0} more", plan.Count - shown)).Append('\n');
         }
 
         if (plan.Any(p => FileTypeClassifier.ClassifyFolder(p.IsFolder ? p.Path : DiskSpacePaths.ParentOf(p.Path) ?? p.Path) == FolderKind.GameLibrary))
         {
-            text.Append("\nSome items belong to an installed game. Uninstalling it from its launcher (Steam, Xbox, Epic…) is cleaner.\n");
+            text.Append('\n').Append(Loc.T("Some items belong to an installed game. Uninstalling it from its launcher (Steam, Xbox, Epic…) is cleaner.")).Append('\n');
         }
 
         if (plan.Any(p => DiskSpaceRules.IsInCloudFolder(p.Path)))
         {
-            text.Append("\nSome items are in OneDrive. Removing them here also removes them from OneDrive online.\n");
+            text.Append('\n').Append(Loc.T("Some items are in OneDrive. Removing them here also removes them from OneDrive online.")).Append('\n');
         }
 
-        text.Append("\nYou can restore them from the Recycle Bin. The space is only freed when the Recycle Bin is emptied (Cleanup page or the Recycle Bin itself).");
+        text.Append('\n').Append(Loc.T("You can restore them from the Recycle Bin. The space is only freed when the Recycle Bin is emptied (Cleanup page or the Recycle Bin itself)."));
         return text.ToString();
     }
 
@@ -349,15 +404,15 @@ public sealed partial class DiskSpaceViewModel
         ResultMessage = result.Message;
         if (allOk)
         {
-            _notifications.Success("Moved to the Recycle Bin", result.Message);
+            _notifications.Success(Loc.T("Moved to the Recycle Bin"), result.Message);
         }
         else if (result.Success)
         {
-            _notifications.Warning("Some items were kept", result.Message);
+            _notifications.Warning(Loc.T("Some items were kept"), result.Message);
         }
         else
         {
-            _notifications.Error("Nothing was moved", result.Message.Split('\n')[0]);
+            _notifications.Error(Loc.T("Nothing was moved"), result.Message.Split('\n')[0]);
         }
     }
 

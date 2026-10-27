@@ -29,27 +29,38 @@ public static class DiskSpaceFormat
     /// <summary>How long ago a file was last used: "today", "3 days ago", "5 months ago", "2 years ago".</summary>
     public static string Age(DateTime lastUsed, DateTime now)
     {
+        var (unit, count) = AgeOf(lastUsed, now);
+        return unit switch
+        {
+            AgeUnit.Today => "today",
+            AgeUnit.Days => count == 1 ? "yesterday" : $"{count} days ago",
+            AgeUnit.Months => count == 1 ? "1 month ago" : $"{count} months ago",
+            _ => count == 1 ? "1 year ago" : $"{count} years ago",
+        };
+    }
+
+    /// <summary>How long ago a file was last used, as a unit and a count (days under a month, then months, then years).</summary>
+    public static (AgeUnit Unit, int Count) AgeOf(DateTime lastUsed, DateTime now)
+    {
         var span = now - lastUsed;
         if (span.TotalDays < 1)
         {
-            return "today";
+            return (AgeUnit.Today, 0);
         }
 
         int days = (int)span.TotalDays;
         if (days < 31)
         {
-            return days == 1 ? "yesterday" : $"{days} days ago";
+            return (AgeUnit.Days, days);
         }
 
         int months = (now.Year - lastUsed.Year) * 12 + now.Month - lastUsed.Month - (now.Day < lastUsed.Day ? 1 : 0);
         if (months < 12)
         {
-            months = Math.Max(1, months);
-            return months == 1 ? "1 month ago" : $"{months} months ago";
+            return (AgeUnit.Months, Math.Max(1, months));
         }
 
-        int years = months / 12;
-        return years == 1 ? "1 year ago" : $"{years} years ago";
+        return (AgeUnit.Years, months / 12);
     }
 
     /// <summary>"12 s", "3 min 4 s", "1 h 2 min".</summary>
@@ -111,4 +122,13 @@ public static class DiskSpaceFormat
         int tail = maxLength - head - 1;
         return path[..head] + "…" + path[^tail..];
     }
+}
+
+/// <summary>The unit of <see cref="DiskSpaceFormat.AgeOf"/>.</summary>
+public enum AgeUnit
+{
+    Today,
+    Days,
+    Months,
+    Years,
 }
