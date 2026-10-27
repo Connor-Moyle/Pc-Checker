@@ -9,11 +9,24 @@ All notable changes to PC Checker are recorded here. The format follows
 ### Added
 - Nothing yet.
 
+## [0.1.1] - 2026-10-27
+
+A tidier layout, based on feedback that the app felt cluttered.
+
 ### Changed
-- Nothing yet.
+- **Navigation**: the side menu is down from 26 entries to 12. Pages are
+  grouped into sections (Home, Monitor, Hardware, Devices, Cooling & RGB,
+  Apps & Drivers, Clean up, Performance, Gaming, Ask Claude, Logs,
+  Settings). A section with several pages shows them as tabs above the
+  content.
+- **Dashboard**: live readings lead in an even row, health and alerts sit side
+  by side, and secondary actions moved into a *More* menu. The hardware
+  support table is now a collapsed section.
+- Stat tiles line up in equal columns at any window size.
 
 ### Fixed
-- Nothing yet.
+- The side menu no longer runs under the *Advanced mode* switch on smaller
+  windows.
 
 ## [0.1.0] - 2026-10-26
 
@@ -100,5 +113,6 @@ Initial release.
   itself from GitHub Releases with Stable and Beta channels and verifies every
   download against its published SHA-256.
 
-[Unreleased]: https://github.com/Connor-Moyle/Pc-Checker/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/Connor-Moyle/Pc-Checker/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/Connor-Moyle/Pc-Checker/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/Connor-Moyle/Pc-Checker/releases/tag/v0.1.0

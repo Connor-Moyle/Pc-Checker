@@ -75,28 +75,32 @@ The split matters: anything that reads or changes the system goes behind an inte
 * `Program.cs` starts the `App`; a self-updated copy is started with `--wait-pid` so it waits for the old process to close.
 * `App.xaml.cs` enforces a single instance, parses the command line (`AppOptions`), loads settings, configures logging, builds the dependency-injection container through `ServiceRegistration.Register`, applies the theme, wires global exception handlers that log and show a plain-language dialog, and starts the `ScreenshotRunner` when asked.
 * `Services/ServiceRegistration.cs` is the **only** place that maps interfaces to implementations. It takes the `AppMode` and registers `Windows*` or `Demo*` classes accordingly. Module action providers are registered on the lines marked `// providers:`.
-* `Views/Windows/MainWindow.xaml` is the shell: title bar, grouped left navigation, snackbar and dialog hosts. Its `Navigated` handler calls `EnsureInitializedAsync` on the target page's view model.
+* `Views/Windows/MainWindow.xaml` is the shell: title bar, section menu built from `NavigationCatalog`, section tabs, snackbar and dialog hosts. Its `Navigated` handler calls `EnsureInitializedAsync` on the target page's view model.
 * `Views/Pages/*Page.xaml` — one page per feature. A page's code-behind only receives its view model, sets `DataContext` and calls `InitializeComponent()`.
 * `ViewModels/*ViewModel.cs` — one per page, all deriving from `ViewModelBase`.
 * `Controls/` — shared controls used by every page: `SectionHeader`, `StatCard`, `GaugeControl`, `SparklineControl`, `KeyValueList`, `EmptyState`, `BusyOverlay`.
 * `Converters/` — value converters registered in `Resources/Styles.xaml`.
-* `Services/` — UI-side services: `PageService` (resolves pages from DI), `DialogService`, `NotificationService`, `HotkeyService`, `OverlayService`, `DispatcherHelper`, `NavigationCatalog` (page order), `StartupNotices` (messages for the Dashboard), `ScreenshotRunner`.
+* `Services/` — UI-side services: `PageService` (resolves pages from DI), `DialogService`, `NotificationService`, `HotkeyService`, `OverlayService`, `DispatcherHelper`, `NavigationCatalog` (sections and pages), `StartupNotices` (messages for the Dashboard), `ScreenshotRunner`.
 
 ## Navigation
 
-The side navigation is grouped with headers. Every page is always visible; Advanced mode (the toggle in the navigation footer, also in Settings) only reveals advanced sections *inside* pages. Pages that need a consent gate (Overclock) handle it themselves.
+The side menu has one item per section; a section with several pages shows them as tabs above the content. Every page is always visible; Advanced mode (the toggle in the navigation footer, also in Settings) only reveals advanced sections *inside* pages. Pages that need a consent gate (Overclock) handle it themselves.
 
 ```
-OVERVIEW      Dashboard
-MONITORING    Temperatures, Power, Overlay
-HARDWARE      Hardware, Health, Storage, Memory, Displays, Audio, Keyboard & Mouse, Fans, Lighting
-SOFTWARE      Drivers, Software, Startup, Windows Features, Cleanup
-PERFORMANCE   Performance, Optimize, Latency, Overclock
-ASSISTANT     Ask Claude
-Footer        Logs, Settings, Advanced mode toggle
+Home            Dashboard
+Monitor         Temperatures · Power
+Hardware        Overview · Health · Storage · Memory
+Devices         Displays · Audio · Keyboard & Mouse
+Cooling & RGB   Fans · Lighting
+Apps & Drivers  Apps · Drivers · Startup · Windows Features
+Clean up        Cleanup
+Performance     Speed check · Optimize · Overclock
+Gaming          Overlay · Latency
+Ask Claude      Ask Claude
+Footer          Logs · Settings · Advanced mode toggle
 ```
 
-`Services/NavigationCatalog.cs` lists the same pages in the same order; `MainWindow.xaml` and the catalog must be kept in sync when a page is added.
+`Services/NavigationCatalog.cs` is the only list of pages. `MainWindow` builds the menu from its sections and the tab strip from the current section, and the screenshot runner walks its pages. Add a page there and nowhere else. Layout rules for pages are in [UI-GUIDELINES.md](UI-GUIDELINES.md).
 
 ## App modes and the command line
 
@@ -106,7 +110,7 @@ Footer        Logs, Settings, Advanced mode toggle
 |---|---|
 | `--demo` | `AppMode.Demo`: every service is a `Demo*` implementation with sample data. Demo mode uses its own settings file (`%LOCALAPPDATA%\PcChecker\demo\settings.json`). |
 | `--real` | Forces `AppMode.Normal` even when `--demo` or `--screenshots` is present. |
-| `--screenshots <dir>` | Implies demo. After the window shows, `ScreenshotRunner` sizes it to 1440×900, visits every page in navigation order, waits for `EnsureInitializedAsync` and `IsBusy == false` plus 400 ms, renders the window with `RenderTargetBitmap` to `<nn>-<page>.png`, captures the overlay over a dark gradient as `<nn>-overlay.png`, writes `index.json` and exits with code 0 (1 on failure, with the reason on stderr and in the log). CI uses this on Windows to produce real screenshots. |
+| `--screenshots <dir>` | Implies demo. After the window shows, `ScreenshotRunner` sizes it to 1440×900, visits every page in navigation order, waits for `EnsureInitializedAsync` and `IsBusy == false` plus 400 ms, renders the window with `RenderTargetBitmap` to `<page>.png`, captures the overlay over a dark gradient as `overlay.png`, writes `index.json` and exits with code 0 (1 on failure, with the reason on stderr and in the log). CI uses this on Windows to produce real screenshots. |
 | `--minimized` | Starts minimized (same as the setting). |
 
 ## View model lifecycle

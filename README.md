@@ -80,31 +80,32 @@ gaming desktop) every time the app changes. The full set of every page is in
 [`docs/screenshots`](docs/screenshots).
 
 <p align="center">
-  <img src="docs/screenshots/01-dashboard.png" width="100%" alt="PC Checker Dashboard with health score, live temperatures and quick actions">
+  <img src="docs/screenshots/dashboard.png" width="100%" alt="PC Checker Dashboard with health score, live temperatures and quick actions">
 </p>
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/screenshots/02-temperatures.png" alt="Temperatures page"><br><sub>Temperatures</sub></td>
-    <td width="50%"><img src="docs/screenshots/12-fans.png" alt="Fans page"><br><sub>Fans</sub></td>
+    <td width="50%"><img src="docs/screenshots/temperatures.png" alt="Temperatures page"><br><sub>Temperatures</sub></td>
+    <td width="50%"><img src="docs/screenshots/fans.png" alt="Fans page"><br><sub>Fans</sub></td>
   </tr>
   <tr>
-    <td width="50%"><img src="docs/screenshots/22-overclock.png" alt="Overclock page"><br><sub>Overclock</sub></td>
-    <td width="50%"><img src="docs/screenshots/07-storage.png" alt="Storage page"><br><sub>Storage</sub></td>
+    <td width="50%"><img src="docs/screenshots/overclock.png" alt="Overclock page"><br><sub>Overclock</sub></td>
+    <td width="50%"><img src="docs/screenshots/storage.png" alt="Storage page"><br><sub>Storage</sub></td>
   </tr>
   <tr>
-    <td width="50%"><img src="docs/screenshots/21-latency.png" alt="Latency page"><br><sub>Latency</sub></td>
-    <td width="50%"><img src="docs/screenshots/13-lighting.png" alt="Lighting page"><br><sub>Lighting</sub></td>
+    <td width="50%"><img src="docs/screenshots/latency.png" alt="Latency page"><br><sub>Latency</sub></td>
+    <td width="50%"><img src="docs/screenshots/lighting.png" alt="Lighting page"><br><sub>Lighting</sub></td>
   </tr>
   <tr>
-    <td width="50%"><img src="docs/screenshots/06-health.png" alt="Health page"><br><sub>Health</sub></td>
-    <td width="50%"><img src="docs/screenshots/23-assistant.png" alt="Ask Claude page"><br><sub>Ask Claude</sub></td>
+    <td width="50%"><img src="docs/screenshots/health.png" alt="Health page"><br><sub>Health</sub></td>
+    <td width="50%"><img src="docs/screenshots/assistant.png" alt="Ask Claude page"><br><sub>Ask Claude</sub></td>
   </tr>
 </table>
 
 ## Feature tour
 
-The side navigation is grouped so you always know where you are. The full
+The side menu has a dozen sections, and a section with several pages shows
+them as tabs, so you always know where you are. The full
 page-by-page detail, including what every button does and each page's
 limitations, is in [docs/FEATURES.md](docs/FEATURES.md).
 
@@ -112,7 +113,7 @@ limitations, is in [docs/FEATURES.md](docs/FEATURES.md).
 
 | Page | What it does |
 |---|---|
-| **Dashboard** | Health score, live CPU/GPU temperature, memory and power tiles, active alerts, quick actions (full scan, clean up, check drivers, optimize, export report), a controls row for fans, lighting, displays and audio, a hardware-support summary and the last few journal entries. |
+| **Dashboard** | Health score, live CPU/GPU temperature, memory and power tiles, active alerts, quick actions (full scan, clean up, check drivers, optimize), a summary of this PC, the last few journal entries and a collapsible hardware-support table. Export report sits under *More*. |
 
 ### Monitoring
 

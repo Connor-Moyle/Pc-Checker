@@ -63,7 +63,6 @@ public sealed class ScreenshotRunner
             await Task.Delay(600, cancellationToken);
 
             var index = new Dictionary<string, string>();
-            int number = 1;
             foreach (var entry in NavigationCatalog.Pages)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -79,14 +78,13 @@ public sealed class ScreenshotRunner
                 await Task.Delay(400, cancellationToken);
                 await IdleAsync(window.Dispatcher);
 
-                var fileName = $"{number:00}-{entry.FileName}.png";
+                var fileName = $"{entry.FileName}.png";
                 RenderPage(window, Path.Combine(dir, fileName));
-                index[entry.Title] = fileName;
+                index[$"{entry.Section} / {entry.Title}"] = fileName;
                 _logger.LogInformation("Captured {Page} → {File}", entry.Title, fileName);
-                number++;
             }
 
-            var overlayFile = $"{number:00}-overlay.png";
+            var overlayFile = "overlay.png";
             await CaptureOverlayAsync(Path.Combine(dir, overlayFile), cancellationToken);
             index["Overlay"] = overlayFile;
 

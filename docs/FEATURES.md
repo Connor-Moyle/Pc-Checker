@@ -5,16 +5,21 @@ where each page stops. Sections marked **Advanced** only appear when
 *Advanced mode* is on (Settings → General, or the toggle at the bottom of the
 navigation pane).
 
-The navigation is grouped:
+The side menu has one item per section. A section with several pages shows
+them as tabs above the content:
 
 ```
-OVERVIEW      Dashboard
-MONITORING    Temperatures, Power, Overlay
-HARDWARE      Hardware, Health, Storage, Memory, Displays, Audio, Keyboard & Mouse, Fans, Lighting
-SOFTWARE      Drivers, Software, Startup, Windows Features, Cleanup
-PERFORMANCE   Performance, Optimize, Latency, Overclock
-ASSISTANT     Ask Claude
-Footer        Logs, Settings
+Home            Dashboard
+Monitor         Temperatures · Power
+Hardware        Overview · Health · Storage · Memory
+Devices         Displays · Audio · Keyboard & Mouse
+Cooling & RGB   Fans · Lighting
+Apps & Drivers  Apps · Drivers · Startup · Windows Features
+Clean up        Cleanup
+Performance     Speed check · Optimize · Overclock
+Gaming          Overlay · Latency
+Ask Claude      Ask Claude
+Footer          Logs · Settings
 ```
 
 Every page that changes something follows the same pattern: a confirmation
