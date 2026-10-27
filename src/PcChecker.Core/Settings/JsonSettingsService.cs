@@ -120,8 +120,9 @@ public sealed class JsonSettingsService : ISettingsService
             var loaded = JsonSerializer.Deserialize<AppSettings>(json, JsonOptions);
             return loaded is null ? AppSettings.CreateDefault() : Repair(loaded);
         }
-        catch (JsonException)
+        catch (Exception ex) when (ex is JsonException or ArgumentException or InvalidOperationException or NotSupportedException or FormatException)
         {
+            // Unreadable or hand-edited into something the app cannot use: keep a copy and start with defaults.
             BackupCorruptFile();
             return AppSettings.CreateDefault();
         }
@@ -157,8 +158,7 @@ public sealed class JsonSettingsService : ISettingsService
         s.Overlay.Presets ??= [];
         s.Logging ??= new Logging.LoggingSettings();
         // The deserializer creates a case-sensitive dictionary; category names should match regardless of case.
-        s.Logging.CategoryLevels = new Dictionary<string, Logging.LogLevelSetting>(
-            s.Logging.CategoryLevels ?? new Dictionary<string, Logging.LogLevelSetting>(), StringComparer.OrdinalIgnoreCase);
+        s.Logging.CategoryLevels = Logging.LoggingSettings.CaseInsensitive(s.Logging.CategoryLevels);
         s.Claude ??= new ClaudeSettings();
         s.Cleanup ??= new CleanupSettings();
         s.Cleanup.EnabledCategoryIds ??= [];

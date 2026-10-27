@@ -61,6 +61,22 @@ public partial class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        try
+        {
+            Start();
+        }
+        catch (Exception ex)
+        {
+            // A start that fails before the window is up must not leave a windowless process holding the single-instance
+            // lock (every later start would only say "already running").
+            _logger?.LogCritical(ex, "PC Checker could not start.");
+            ShowFriendlyError(ex);
+            Shutdown(1);
+        }
+    }
+
+    private void Start()
+    {
         var options = AppOptions.Current;
 
         // Started by the self-updater: let the previous copy finish closing before taking the single-instance lock.
