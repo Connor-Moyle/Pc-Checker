@@ -106,10 +106,16 @@ public sealed partial class WindowsStartupService
             var result = await CommandRunner.RunAsync("bcdedit.exe", args, TimeSpan.FromSeconds(20), ct).ConfigureAwait(false);
             if (!result.Success)
             {
-                // Deleting a value that is not there is fine.
-                if (!enabled && (result.StdOut + result.StdErr).Contains("not", StringComparison.OrdinalIgnoreCase))
+                // Deleting a value that is not there is fine. bcdedit's message is localized and other failures
+                // ("could not be opened", "access is denied") read alike, so check the entry itself instead.
+                if (!enabled)
                 {
-                    return OperationResult.Ok("Safe Mode was not armed.");
+                    var check = await CommandRunner.RunAsync("bcdedit.exe", "/enum {current}", TimeSpan.FromSeconds(20), ct).ConfigureAwait(false);
+                    var loader = check.Success ? BootConfigParser.ParseBootLoader(check.StdOut) : null;
+                    if (loader is { SafeMode: false } && (loader.Identifier is not null || loader.Description is not null))
+                    {
+                        return OperationResult.Ok("Safe Mode was not armed.");
+                    }
                 }
 
                 return OperationResult.Fail($"bcdedit failed: {result.FirstLine}");
