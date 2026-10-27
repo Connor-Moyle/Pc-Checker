@@ -643,7 +643,9 @@ public class DemoDebloatServiceTests
     {
         var svc = new DemoDebloatService();
         var states = await svc.GetStatesAsync(default);
-        Assert.Equal(DebloatCatalog.All.Count, states.Count);
+        Assert.Equal(DebloatCatalog.Visible(DebloatVendorSoftware.Nvidia).Count, states.Count);
+        Assert.DoesNotContain("amd.uep", states.Keys);
+        Assert.Contains("nvidia.telemetry", states.Keys);
         Assert.Equal(TweakStatus.Applied, states["explorer.extensions"].Status);
         Assert.Equal(TweakStatus.Partial, states["ads.start"].Status);
         Assert.Equal(TweakStatus.NotApplied, states["ai.copilot"].Status);

@@ -74,8 +74,15 @@ public static class DebloatRules
     }
 
     /// <summary>Returns a reason the tweak must not be applied now, or null when it may.</summary>
-    public static string? PreconditionFailure(DebloatTweak tweak, IReadOnlyList<string> printerNames)
+    public static string? PreconditionFailure(DebloatTweak tweak, IReadOnlyList<string> printerNames, DebloatVendorSoftware installed = DebloatVendorSoftware.All)
     {
+        if (!VendorPresent(tweak, installed))
+        {
+            return tweak.Precondition == DebloatPrecondition.AmdSoftwareInstalled
+                ? "AMD Software is not installed on this PC."
+                : "NVIDIA's driver software is not installed on this PC.";
+        }
+
         if (tweak.Precondition != DebloatPrecondition.NoPhysicalPrinters)
         {
             return null;
@@ -85,6 +92,18 @@ public static class DebloatRules
         return physical.Count == 0
             ? null
             : $"{physical.Count} printer{(physical.Count == 1 ? string.Empty : "s")} installed ({string.Join(", ", physical.Take(3))}); left on so printing keeps working.";
+    }
+
+    /// <summary>False for an AMD or NVIDIA software tweak when that vendor's software is not installed.</summary>
+    public static bool VendorPresent(DebloatTweak tweak, DebloatVendorSoftware installed)
+    {
+        ArgumentNullException.ThrowIfNull(tweak);
+        return tweak.Precondition switch
+        {
+            DebloatPrecondition.AmdSoftwareInstalled => installed.HasFlag(DebloatVendorSoftware.Amd),
+            DebloatPrecondition.NvidiaSoftwareInstalled => installed.HasFlag(DebloatVendorSoftware.Nvidia),
+            _ => true,
+        };
     }
 
     /// <summary>The tweaks named by <paramref name="ids"/> plus every tweak with an operation on the same setting.</summary>

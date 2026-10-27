@@ -42,6 +42,37 @@ public sealed class WindowsDebloatService : DebloatServiceBase
         {
             _logger.LogWarning("Debloat: {Warning}", warning);
         }
+
+        Engine.InstalledVendors = InstalledVendorSoftware;
+    }
+
+    private DebloatVendorSoftware? _vendors;
+
+    /// <summary>AMD Software and the NVIDIA app / control panel, found in Program Files.</summary>
+    protected override DebloatVendorSoftware InstalledVendorSoftware => _vendors ??= DetectVendors();
+
+    private static DebloatVendorSoftware DetectVendors()
+    {
+        var found = DebloatVendorSoftware.None;
+        try
+        {
+            if (Overclocking.VendorSoftwareCatalog.AmdAdrenalin.Locate(File.Exists) is not null)
+            {
+                found |= DebloatVendorSoftware.Amd;
+            }
+
+            if (Overclocking.VendorSoftwareCatalog.NvidiaApp.Locate(File.Exists) is not null
+                || Directory.Exists(Environment.ExpandEnvironmentVariables(@"%ProgramFiles%\NVIDIA Corporation\Control Panel Client")))
+            {
+                found |= DebloatVendorSoftware.Nvidia;
+            }
+        }
+        catch (Exception)
+        {
+            // Unknown: offer nothing vendor-specific.
+        }
+
+        return found;
     }
 
     /// <summary>

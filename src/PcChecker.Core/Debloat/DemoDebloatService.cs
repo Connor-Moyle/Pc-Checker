@@ -29,6 +29,9 @@ public sealed class DemoDebloatService : DebloatServiceBase
         }
     }
 
+    /// <summary>The sample gaming PC has an NVIDIA card with the NVIDIA app, so only the NVIDIA tweaks are offered.</summary>
+    protected override DebloatVendorSoftware InstalledVendorSoftware => DebloatVendorSoftware.Nvidia;
+
     /// <summary>The simulated PC (exposed for tests).</summary>
     public InMemoryDebloatSystem SampleSystem => (InMemoryDebloatSystem)Engine.System;
 

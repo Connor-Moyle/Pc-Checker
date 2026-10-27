@@ -18,9 +18,12 @@ public static class DebloatSources
     public const string ReviOS = "ReviOS";
     public const string HardenDebloat = "Windows-Optimize-Harden-Debloat";
 
+    /// <summary>The vendor's own app offers the same switch (AMD Software, NVIDIA app / control panel).</summary>
+    public const string VendorApp = "Vendor app setting";
+
     /// <summary>Every known source, in the order used by docs/DEBLOAT.md.</summary>
     public static IReadOnlyList<string> All { get; } =
     [
-        WinUtil, Win11Debloat, ShutUp10, Sophia, Privatezilla, BloatyNosy, DebloatWindows10, Optimizer, AtlasOS, ReviOS, HardenDebloat,
+        WinUtil, Win11Debloat, ShutUp10, Sophia, Privatezilla, BloatyNosy, DebloatWindows10, Optimizer, AtlasOS, ReviOS, HardenDebloat, VendorApp,
     ];
 }

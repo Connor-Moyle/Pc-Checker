@@ -7,6 +7,31 @@ namespace PcChecker.App.ViewModels;
 /// <summary>Overlay page, part 3: the FPS counter status line, the measured game and why counting is unavailable.</summary>
 public sealed partial class OverlayViewModel
 {
+    private string? _frameGenerationNote;
+    private bool _frameGenerationChecked;
+
+    /// <summary>The AMD Fluid Motion Frames note, when AMD Software is installed.</summary>
+    public string? FrameGenerationNote
+    {
+        get
+        {
+            if (!_frameGenerationChecked)
+            {
+                _frameGenerationChecked = true;
+                try
+                {
+                    _frameGenerationNote = FrameRateNotes.FrameGeneration(PcChecker.Core.Overclocking.VendorSoftwareCatalog.AmdAdrenalin.Locate(System.IO.File.Exists) is not null);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogDebug(ex, "AMD Software could not be detected for the frame generation note.");
+                }
+            }
+
+            return _frameGenerationNote;
+        }
+    }
+
     private void StartFrameStatus()
     {
         UpdateFrameStatus();

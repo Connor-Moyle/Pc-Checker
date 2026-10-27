@@ -42,13 +42,13 @@ public static partial class DebloatCatalog
     /// <summary>Categories in display order.</summary>
     public static IReadOnlyList<string> Categories { get; } =
     [
-        PrivacyCategory, AdsCategory, AiCategory, TaskbarCategory, ExplorerCategory, EdgeCategory, GamingCategory, UpdateCategory, ServicesCategory, AppsCategory,
+        PrivacyCategory, AdsCategory, AiCategory, TaskbarCategory, ExplorerCategory, EdgeCategory, GamingCategory, UpdateCategory, ServicesCategory, VendorCategory, AppsCategory,
     ];
 
     public static IReadOnlyList<DebloatTweak> All { get; } =
     [
         .. PrivacyTweaks(), .. AdsTweaks(), .. AiTweaks(), .. TaskbarTweaks(), .. ExplorerTweaks(), .. EdgeTweaks(),
-        .. GamingTweaks(), .. UpdateTweaks(), .. ServiceTweaks(), .. AppTweaks(),
+        .. GamingTweaks(), .. UpdateTweaks(), .. ServiceTweaks(), .. VendorTweaks(), .. AppTweaks(),
     ];
 
     private static readonly Dictionary<string, DebloatTweak> ById = All.ToDictionary(t => t.Id, StringComparer.OrdinalIgnoreCase);
@@ -56,6 +56,10 @@ public static partial class DebloatCatalog
     public static DebloatTweak? Find(string? id) => id is not null && ById.TryGetValue(id, out var t) ? t : null;
 
     public static IEnumerable<DebloatTweak> ForMode(bool advancedMode) => advancedMode ? All : All.Where(t => !t.AdvancedOnly);
+
+    /// <summary>The tweaks to offer on this PC: AMD and NVIDIA software tweaks only when that software is installed.</summary>
+    public static IReadOnlyList<DebloatTweak> Visible(DebloatVendorSoftware installed) =>
+        All.Where(t => DebloatRules.VendorPresent(t, installed)).ToList();
 
     // ---- builders ----------------------------------------------------------------------------------------------
 

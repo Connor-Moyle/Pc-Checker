@@ -90,6 +90,9 @@ public sealed class DebloatEngine
         return list.ToDictionary(t => t.Id, t => DebloatStateEvaluator.Evaluate(t, _system.Registry, snapshot), StringComparer.OrdinalIgnoreCase);
     }
 
+    /// <summary>Which vendor graphics software is installed; AMD/NVIDIA tweaks are skipped without it.</summary>
+    public DebloatVendorSoftware InstalledVendors { get; set; } = DebloatVendorSoftware.All;
+
     /// <summary>Applies one tweak: gate, capture, then every operation. Never throws except for cancellation.</summary>
     public async Task<TweakRunResult> ApplyAsync(DebloatTweak tweak, CancellationToken cancellationToken)
     {
@@ -104,7 +107,7 @@ public sealed class DebloatEngine
             return Result(tweak, TweakOutcome.Skipped, DebloatRules.UnsupportedReason(tweak, _system.OsBuild) + ".");
         }
 
-        if (DebloatRules.PreconditionFailure(tweak, SafePrinters()) is string blocked)
+        if (DebloatRules.PreconditionFailure(tweak, SafePrinters(), InstalledVendors) is string blocked)
         {
             return Result(tweak, TweakOutcome.Skipped, blocked);
         }

@@ -25,6 +25,12 @@ public static class CleanupRules
             ["browser.edge.cache"] = ("Microsoft Edge", ["msedge"]),
             ["browser.brave.cache"] = ("Brave", ["brave"]),
             ["browser.firefox.cache"] = ("Mozilla Firefox", ["firefox"]),
+
+            // Not browsers, but the same rule: never clean an installer's or app's folder while it is running.
+            ["amd.installer"] = ("An AMD installer", ["AMDSoftwareInstaller", "AMDInstallManager", "ATISetup", "AMDCleanupUtility", "Setup"]),
+            ["amd.logs"] = ("AMD Software", ["RadeonSoftware"]),
+            ["nvidia.installer"] = ("An NVIDIA installer", ["setup", "NVIDIA app installer", "NVIDIA_app_installer"]),
+            ["nvidia.downloader"] = ("An NVIDIA installer", ["setup", "NVIDIA app installer", "NVIDIA_app_installer"]),
         };
 
     /// <summary>Every process name any browser rule cares about (so the scanner checks the process list once).</summary>
@@ -71,7 +77,9 @@ public static class CleanupRules
             (runningProcessNames ?? []).Select(n => n.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ? n[..^4] : n),
             StringComparer.OrdinalIgnoreCase);
         return rule.Processes.Any(running.Contains)
-            ? $"Skipped: {rule.Browser} is running. Close it and scan again to clean its cache."
+            ? (categoryId.StartsWith("browser.", StringComparison.OrdinalIgnoreCase)
+                ? $"Skipped: {rule.Browser} is running. Close it and scan again to clean its cache."
+                : $"Skipped: {rule.Browser} is running. Let it finish (or close it) and scan again.")
             : null;
     }
 
@@ -150,6 +158,7 @@ public static class CleanupRules
         "user.temp", "windows.temp", "windows.update.cache", "delivery.optimization", "windows.error.reports",
         "browser.chrome.cache", "browser.edge.cache", "browser.brave.cache", "browser.firefox.cache",
         "dx.shader.cache", "nvidia.shader.cache", "amd.shader.cache", "intel.shader.cache", "temp.internet.files",
+        "amd.installer", "nvidia.installer", "nvidia.downloader",
     ];
 
     /// <summary>
