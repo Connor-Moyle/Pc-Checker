@@ -167,15 +167,21 @@ public sealed partial class LibreHardwareFanControlService : IFanControlService,
             new ChangeOptions(false, false, ModuleName, entry.Id, true, "Fans → Revert all to automatic"),
             _ => Task.Run(() => UnderControlGate(() =>
             {
-                var result = ApplySoftware(entry, clamped, "manual");
+                // Re-resolved under the control gate: a discovery that finished since the lookup above replaced the entries.
+                if (Find(fanId) is not { } current)
+                {
+                    return NotFound(fanId);
+                }
+
+                var result = ApplySoftware(current, clamped, "manual");
                 if (result.Success)
                 {
                     lock (_gate)
                     {
-                        entry.Mode = FanMode.Manual;
-                        entry.ManualPercent = clamped;
-                        entry.Curve = null;
-                        entry.Forced = false;
+                        current.Mode = FanMode.Manual;
+                        current.ManualPercent = clamped;
+                        current.Curve = null;
+                        current.Forced = false;
                     }
 
                     UpdateSessionFile();
@@ -199,7 +205,12 @@ public sealed partial class LibreHardwareFanControlService : IFanControlService,
             new ChangeOptions(false, false, ModuleName, entry.Id, false, null),
             _ => Task.Run(() => UnderControlGate(() =>
             {
-                var result = ApplyDefault(entry);
+                if (Find(fanId) is not { } current)
+                {
+                    return NotFound(fanId);
+                }
+
+                var result = ApplyDefault(current);
                 UpdateSessionFile();
                 return result;
             })), null, cancellationToken).ConfigureAwait(false);
@@ -223,8 +234,12 @@ public sealed partial class LibreHardwareFanControlService : IFanControlService,
 
         return await _guard.RunGuardedAsync($"Put {entry.Name} on a fan curve",
             new ChangeOptions(false, false, ModuleName, entry.Id, true, "Fans → Revert all to automatic"),
-            _ => Task.Run(() => UnderControlGate(() => ApplyCurveCore(entry, curve, "curve"))), null, cancellationToken).ConfigureAwait(false);
+            _ => Task.Run(() => UnderControlGate(() => Find(fanId) is { } current ? ApplyCurveCore(current, curve, "curve") : NotFound(fanId))),
+            null, cancellationToken).ConfigureAwait(false);
     }
+
+    private static OperationResult NotFound(string fanId) =>
+        OperationResult.Fail($"Fan \"{fanId}\" is no longer reported by the hardware monitor. Click \"Detect fans\" and try again.");
 
     public async Task<OperationResult> ApplyProfileAsync(FanProfile profile, CancellationToken cancellationToken)
     {
@@ -343,85 +358,97 @@ public sealed partial class LibreHardwareFanControlService : IFanControlService,
             var sensorsById = discovered.ToDictionary(d => d.Info.Id, d => d.Sensor, StringComparer.OrdinalIgnoreCase);
 
             int lostControl = 0;
-            lock (_gate)
+
+            // Fan changes and the loop resolve their entries under the control gate; swapping the entries under it too
+            // means no change can write to the hardware through an entry this discovery is about to replace (its new
+            // mode would land on the orphaned object, and the live entry would still say Auto).
+            await _controlGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
             {
-                var previous = _entries.ToDictionary(e => e.Id, StringComparer.OrdinalIgnoreCase);
-
-                // The monitor was closed and opened again since the last discovery ("Reload sensors", or "Retry" on the
-                // Temperatures page): closing it handed every fan back to the firmware, so the old software state is gone.
-                bool reopened = _discoveredGeneration >= 0 && generation != _discoveredGeneration;
-                if (reopened)
+                lock (_gate)
                 {
-                    lostControl = previous.Values.Count(e => e.Mode != FanMode.Auto);
-                    previous.Clear();
-                }
+                    var previous = _entries.ToDictionary(e => e.Id, StringComparer.OrdinalIgnoreCase);
 
-                _entries.Clear();
-                var readOnlyAmd = new List<FanSensorInfo>();
-                foreach (var pair in pairs)
-                {
-                    bool amdGpu = pair.Control.Hardware == HardwareKind.Gpu
-                        && (pair.Control.HardwareName.Contains("Radeon", StringComparison.OrdinalIgnoreCase) || pair.Control.HardwareName.Contains("AMD", StringComparison.OrdinalIgnoreCase));
-                    if (AmdGpuFanRules.HostControlIgnored(pair.Control.HardwareName, amdGpu))
+                    // The monitor was closed and opened again since the last discovery ("Reload sensors", or "Retry" on the
+                    // Temperatures page): closing it handed every fan back to the firmware, so the old software state is gone.
+                    bool reopened = _discoveredGeneration >= 0 && generation != _discoveredGeneration;
+                    if (reopened)
                     {
-                        // RX 5000+ ignore Overdrive5 fan writes: show the fan read-only instead of a control that does nothing.
-                        if (pair.Rpm is not null)
+                        lostControl = previous.Values.Count(e => e.Mode != FanMode.Auto);
+                        previous.Clear();
+                    }
+
+                    _entries.Clear();
+                    var readOnlyAmd = new List<FanSensorInfo>();
+                    foreach (var pair in pairs)
+                    {
+                        bool amdGpu = pair.Control.Hardware == HardwareKind.Gpu
+                            && (pair.Control.HardwareName.Contains("Radeon", StringComparison.OrdinalIgnoreCase) || pair.Control.HardwareName.Contains("AMD", StringComparison.OrdinalIgnoreCase));
+                        if (AmdGpuFanRules.HostControlIgnored(pair.Control.HardwareName, amdGpu))
                         {
-                            readOnlyAmd.Add(pair.Rpm);
+                            // RX 5000+ ignore Overdrive5 fan writes: show the fan read-only instead of a control that does nothing.
+                            if (pair.Rpm is not null)
+                            {
+                                readOnlyAmd.Add(pair.Rpm);
+                            }
+
+                            continue;
                         }
 
-                        continue;
+                        var controlSensor = sensorsById[pair.Control.Id];
+                        if (controlSensor.Control is not { } control)
+                        {
+                            continue;
+                        }
+
+                        var entry = new FanEntry(pair.Control.Id, FanPairing.FriendlyName(pair.Control, pair.Rpm), pair.Control.Hardware,
+                            pair.Control.HardwareName, pair.Control.HardwareId, controlSensor, control,
+                            pair.Rpm is null ? null : sensorsById[pair.Rpm.Id])
+                        {
+                            LastRpm = pair.Rpm?.Value,
+                            LastPercent = pair.Control.Value,
+                        };
+                        if (previous.TryGetValue(entry.Id, out var old))
+                        {
+                            entry.Mode = old.Mode;
+                            entry.ManualPercent = old.ManualPercent;
+                            entry.Curve = old.Curve;
+                            entry.LastApplied = old.LastApplied;
+                            entry.Forced = old.Forced;
+                        }
+
+                        _entries.Add(entry);
                     }
 
-                    var controlSensor = sensorsById[pair.Control.Id];
-                    if (controlSensor.Control is not { } control)
+                    _rpmOnly.Clear();
+                    foreach (var rpm in unpaired.Concat(readOnlyAmd))
                     {
-                        continue;
+                        // Seeded with the reading taken during discovery, so a read-only fan shows its speed straight away.
+                        _rpmOnly.Add(new RpmOnlyEntry(rpm.Id, FanPairing.FriendlyName(rpm), rpm.Hardware, rpm.HardwareName, sensorsById[rpm.Id]) { LastRpm = rpm.Value });
                     }
 
-                    var entry = new FanEntry(pair.Control.Id, FanPairing.FriendlyName(pair.Control, pair.Rpm), pair.Control.Hardware,
-                        pair.Control.HardwareName, pair.Control.HardwareId, controlSensor, control,
-                        pair.Rpm is null ? null : sensorsById[pair.Rpm.Id])
+                    _fanHardware.Clear();
+                    _fanHardware.AddRange(hardwareWithFans.Distinct());
+                    _lhmTemperatures.Clear();
+                    foreach (var (id, sensor) in temps)
                     {
-                        LastRpm = pair.Rpm?.Value,
-                        LastPercent = pair.Control.Value,
-                    };
-                    if (previous.TryGetValue(entry.Id, out var old))
-                    {
-                        entry.Mode = old.Mode;
-                        entry.ManualPercent = old.ManualPercent;
-                        entry.Curve = old.Curve;
-                        entry.LastApplied = old.LastApplied;
-                        entry.Forced = old.Forced;
+                        _lhmTemperatures[id] = sensor;
                     }
 
-                    _entries.Add(entry);
+                    _lastNodes = nodes;
+                    _lastSensors = discovered.Select(d => d.Info).ToList();
+                    _lastPairs = pairs.ToList();
+                    _lastCounts = CountMotherboard(nodes, _lastSensors);
+                    _discoveredGeneration = generation;
+                    _builtInProfiles = null;
+                    BuildCapabilityNotes();
+                    IsAvailable = _entries.Count > 0;
+                    UnavailableReason = IsAvailable ? null : DescribeUnavailable();
                 }
-
-                _rpmOnly.Clear();
-                foreach (var rpm in unpaired.Concat(readOnlyAmd))
-                {
-                    // Seeded with the reading taken during discovery, so a read-only fan shows its speed straight away.
-                    _rpmOnly.Add(new RpmOnlyEntry(rpm.Id, FanPairing.FriendlyName(rpm), rpm.Hardware, rpm.HardwareName, sensorsById[rpm.Id]) { LastRpm = rpm.Value });
-                }
-
-                _fanHardware.Clear();
-                _fanHardware.AddRange(hardwareWithFans.Distinct());
-                _lhmTemperatures.Clear();
-                foreach (var (id, sensor) in temps)
-                {
-                    _lhmTemperatures[id] = sensor;
-                }
-
-                _lastNodes = nodes;
-                _lastSensors = discovered.Select(d => d.Info).ToList();
-                _lastPairs = pairs.ToList();
-                _lastCounts = CountMotherboard(nodes, _lastSensors);
-                _discoveredGeneration = generation;
-                _builtInProfiles = null;
-                BuildCapabilityNotes();
-                IsAvailable = _entries.Count > 0;
-                UnavailableReason = IsAvailable ? null : DescribeUnavailable();
+            }
+            finally
+            {
+                _controlGate.Release();
             }
 
             _discovered = true;
