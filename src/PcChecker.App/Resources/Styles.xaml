@@ -51,4 +51,65 @@
     <Setter Property="Appearance" Value="Tertiary" />
     <Setter Property="FontSize" Value="11" />
   </Style>
+
+  <!-- Section tabs (shell header): a flat row of labels with an accent underline on the open page. -->
+  <Style x:Key="SectionTabStrip" TargetType="ListBox">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
+    <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Disabled" />
+    <Setter Property="KeyboardNavigation.DirectionalNavigation" Value="Cycle" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="ListBox">
+          <ItemsPresenter />
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+    <Setter Property="ItemsPanel">
+      <Setter.Value>
+        <ItemsPanelTemplate>
+          <WrapPanel Orientation="Horizontal" />
+        </ItemsPanelTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+  <Style x:Key="SectionTab" TargetType="ListBoxItem">
+    <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+    <Setter Property="FontSize" Value="14" />
+    <Setter Property="Cursor" Value="Hand" />
+    <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="ListBoxItem">
+          <Grid Background="Transparent" Margin="0,0,24,0">
+            <Grid.RowDefinitions>
+              <RowDefinition Height="*" />
+              <RowDefinition Height="3" />
+            </Grid.RowDefinitions>
+            <Border x:Name="Hover" Grid.Row="0" CornerRadius="4" Margin="-8,2,-8,4" Background="Transparent" />
+            <TextBlock x:Name="Label" Grid.Row="0" Margin="0,8,0,8" Text="{Binding Title}"
+                       Foreground="{TemplateBinding Foreground}" FontSize="{TemplateBinding FontSize}" />
+            <Border x:Name="Underline" Grid.Row="1" CornerRadius="1.5" Background="{DynamicResource AccentFillColorDefaultBrush}"
+                    Visibility="Hidden" />
+          </Grid>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+              <Setter TargetName="Hover" Property="Background" Value="{DynamicResource ControlFillColorSecondaryBrush}" />
+              <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+            </Trigger>
+            <Trigger Property="IsKeyboardFocused" Value="True">
+              <Setter TargetName="Hover" Property="Background" Value="{DynamicResource ControlFillColorSecondaryBrush}" />
+            </Trigger>
+            <Trigger Property="IsSelected" Value="True">
+              <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+              <Setter TargetName="Label" Property="FontWeight" Value="SemiBold" />
+              <Setter TargetName="Underline" Property="Visibility" Value="Visible" />
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
 </ResourceDictionary>

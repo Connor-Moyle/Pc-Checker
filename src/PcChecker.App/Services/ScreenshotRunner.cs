@@ -46,8 +46,16 @@ public sealed class ScreenshotRunner
 
             window.WindowState = WindowState.Normal;
             AllowLargerThanScreen(window);
+            // WPF clamps Width to the screen-sized limit it cached earlier, and MinWidth wins over that limit, so pin
+            // the minimum too. Assigning twice makes Windows send WM_GETMINMAXINFO again with the raised limits.
+            window.MinWidth = WindowWidth;
+            window.MinHeight = WindowHeight;
+            window.Width = WindowWidth - 1;
+            window.Height = WindowHeight - 1;
             window.Width = WindowWidth;
             window.Height = WindowHeight;
+            window.UpdateLayout();
+            _logger.LogInformation("Capture window is {Width} x {Height}.", window.ActualWidth, window.ActualHeight);
 
             // Screenshots use the dark theme, the app's intended look, whatever the capturing machine prefers.
             ViewModels.SettingsViewModel.ApplyTheme(PcChecker.Core.Settings.AppTheme.Dark);
@@ -170,7 +178,7 @@ public sealed class ScreenshotRunner
                 info.MaxTrackSize = new NativePoint { X = Math.Max(info.MaxTrackSize.X, WindowWidth + 64), Y = Math.Max(info.MaxTrackSize.Y, WindowHeight + 64) };
                 info.MaxSize = new NativePoint { X = Math.Max(info.MaxSize.X, WindowWidth + 64), Y = Math.Max(info.MaxSize.Y, WindowHeight + 64) };
                 Marshal.StructureToPtr(info, lParam, false);
-                handled = true;
+                // Leave handled false: WPF's own handler reads these raised values into the limits it lays out with.
             }
 
             return IntPtr.Zero;

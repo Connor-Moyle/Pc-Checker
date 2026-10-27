@@ -24,6 +24,17 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
     private bool _syncingAdvancedMode;
 
+    /// <summary>The section that owns the page on screen. Its pages are the tabs above the content.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(Tabs), nameof(HasTabs))]
+    private Services.NavigationSection? _currentSection;
+
+    /// <summary>The tab for the page on screen. Choosing another tab navigates to its page.</summary>
+    [ObservableProperty]
+    private Services.NavigationEntry? _selectedTab;
+
+    private bool _syncingTabs;
+
     public MainWindowViewModel(ISettingsService settings, INavigationService navigation, IAppUpdateService updates)
         : base(settings)
     {
@@ -42,6 +53,39 @@ public sealed partial class MainWindowViewModel : ViewModelBase
                 _syncingAdvancedMode = false;
             }
         });
+    }
+
+    public IReadOnlyList<Services.NavigationEntry> Tabs => CurrentSection?.Pages ?? [];
+
+    public bool HasTabs => CurrentSection?.HasTabs == true;
+
+    /// <summary>Called after every navigation so the tab strip follows the page, however the page was opened.</summary>
+    public void SyncToPage(Type pageType)
+    {
+        var section = Services.NavigationCatalog.SectionOf(pageType);
+        if (section is null)
+        {
+            return;
+        }
+
+        _syncingTabs = true;
+        try
+        {
+            CurrentSection = section;
+            SelectedTab = section.Pages.First(p => p.PageType == pageType);
+        }
+        finally
+        {
+            _syncingTabs = false;
+        }
+    }
+
+    partial void OnSelectedTabChanged(Services.NavigationEntry? value)
+    {
+        if (!_syncingTabs && value is not null)
+        {
+            _navigation.Navigate(value.PageType);
+        }
     }
 
     public bool IsDemoMode => AppOptions.Mode == Core.Common.AppMode.Demo;
