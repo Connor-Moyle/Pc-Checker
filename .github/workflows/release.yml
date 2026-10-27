@@ -13,8 +13,12 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Version to release (for example 0.2.0 or 0.2.0-beta.1). A tag v<version> must exist."
+        description: "Version to release (for example 0.2.0 or 0.2.0-beta.1). The tag v<version> is created on this commit if it does not exist."
         required: true
+      codename:
+        description: "Optional release codename shown in the release title (for example Cold Boot)."
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -43,6 +47,8 @@ jobs:
       - name: Work out the version
         id: version
         shell: pwsh
+        env:
+          RELEASE_CODENAME: ${{ inputs.codename }}
         run: |
           $v = if ('${{ github.event_name }}' -eq 'workflow_dispatch') { '${{ inputs.version }}' } else { '${{ github.ref_name }}' }
           $v = $v.TrimStart('v')
@@ -53,8 +59,8 @@ jobs:
           "tag=v$v" >> $env:GITHUB_OUTPUT
           # Optional codename: the subject line of an annotated tag (git tag -a v1.2.3 -m "Codename").
           git fetch --force --tags origin 2>$null
-          $codename = ''
-          if ((git cat-file -t "v$v" 2>$null) -eq 'tag') { $codename = (git tag -l --format='%(contents:subject)' "v$v").Trim() }
+          $codename = "$env:RELEASE_CODENAME".Trim()
+          if (-not $codename -and (git cat-file -t "v$v" 2>$null) -eq 'tag') { $codename = (git tag -l --format='%(contents:subject)' "v$v").Trim() }
           $title = if ($codename) { "PC Checker $v `"$codename`"" } else { "PC Checker $v" }
           "title=$title" >> $env:GITHUB_OUTPUT
           Write-Host "Releasing $title (prerelease: $pre)"
@@ -107,6 +113,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.tag }}
+          target_commitish: ${{ github.sha }}
           name: ${{ steps.version.outputs.title }}
           body_path: release-notes.md
           generate_release_notes: true
