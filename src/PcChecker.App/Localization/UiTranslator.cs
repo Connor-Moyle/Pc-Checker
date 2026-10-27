@@ -50,16 +50,27 @@ public static class UiTranslator
 
         TranslateTree(window);
 
-        // Re-walk shortly after layout settles: new pages, expanded sections, generated list items.
+        // Re-walk shortly after layout settles: new pages, expanded sections, generated list items. LayoutUpdated fires
+        // for layout in any window, so a hidden window (the main window in the tray) is left alone until it shows again.
         var timer = new DispatcherTimer(TimeSpan.FromMilliseconds(400), DispatcherPriority.Background, (_, _) => { }, window.Dispatcher);
         timer.Tick += (_, _) =>
         {
             timer.Stop();
-            TranslateTree(window);
+            if (window.IsVisible)
+            {
+                TranslateTree(window);
+            }
         };
         window.LayoutUpdated += (_, _) =>
         {
-            if (!timer.IsEnabled)
+            if (window.IsVisible && !timer.IsEnabled)
+            {
+                timer.Start();
+            }
+        };
+        window.IsVisibleChanged += (_, _) =>
+        {
+            if (window.IsVisible && !timer.IsEnabled)
             {
                 timer.Start();
             }
