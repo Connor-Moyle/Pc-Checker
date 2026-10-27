@@ -9,7 +9,7 @@
       xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
       xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
       mc:Ignorable="d"
-      Title="Performance"
+      Title="Speed check"
       ScrollViewer.CanContentScroll="False">
   <Page.Resources>
     <conv:ScoreToBrushConverter x:Key="ScoreToBrush" />
@@ -18,6 +18,9 @@
     <conv:RiskToBrushConverter x:Key="RiskToBrush" />
     <conv:SymbolToIconConverter x:Key="SymbolToIcon" />
     <conv:InverseBoolConverter x:Key="InverseBool" />
+    <Style x:Key="Tile" TargetType="controls:StatCard">
+      <Setter Property="Margin" Value="0" />
+    </Style>
     <Style x:Key="Pill" TargetType="Border">
       <Setter Property="CornerRadius" Value="10" />
       <Setter Property="Padding" Value="8,2" />
@@ -33,7 +36,7 @@
       <RowDefinition Height="*" />
     </Grid.RowDefinitions>
 
-    <controls:SectionHeader Grid.Row="0" Title="Performance" Subtitle="What is slowing this PC down and what to do about it.">
+    <controls:SectionHeader Grid.Row="0" Title="Speed check" Subtitle="What is slowing this PC down and what to do about it.">
       <controls:SectionHeader.Actions>
         <StackPanel Orientation="Horizontal">
           <ui:Button Content="Export" Icon="{ui:SymbolIcon DocumentArrowDown20}" Command="{Binding ExportCommand}" Margin="0,0,8,0"
@@ -48,6 +51,8 @@
       <controls:RestartPromptBar IsOpen="{Binding IsRebootRequired}"
                                  Message="One of the changes you applied finishes after Windows restarts. Save your work and restart when convenient."
                                  Reason="to finish the changes you applied" />
+      <ui:InfoBar Severity="Informational" Title="Notes from the scan" Message="{Binding WarningsText}" IsOpen="{Binding HasWarnings, Mode=OneWay}" IsClosable="True" Margin="0,0,0,12"
+                  Visibility="{Binding WarningsText, Converter={StaticResource NullToVisibility}}" />
     </StackPanel>
 
     <ScrollViewer Grid.Row="2" Style="{StaticResource PageScroll}">
@@ -69,7 +74,8 @@
                 <ColumnDefinition Width="Auto" />
               </Grid.ColumnDefinitions>
               <Border Grid.Column="0" Width="112" Height="112" CornerRadius="56" BorderThickness="6" Margin="0,0,20,0"
-                      BorderBrush="{Binding Score, Converter={StaticResource ScoreToBrush}}">
+                      BorderBrush="{Binding Score, Converter={StaticResource ScoreToBrush}}"
+                      ToolTip="The score starts at 100 and drops for each finding by how much it slows the PC. Fix or ignore findings to see it change.">
                 <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
                   <ui:TextBlock FontSize="34" FontWeight="SemiBold" HorizontalAlignment="Center" Text="{Binding Score}" Foreground="{Binding Score, Converter={StaticResource ScoreToBrush}}" />
                   <ui:TextBlock Style="{StaticResource Caption}" HorizontalAlignment="Center" Text="out of 100" />
@@ -79,36 +85,41 @@
                 <ui:TextBlock FontTypography="Subtitle" Text="{Binding ScoreHeadline}" />
                 <ui:TextBlock Appearance="Secondary" Text="{Binding ScoreDetail}" TextWrapping="Wrap" Margin="0,4,0,0" />
                 <ui:TextBlock Style="{StaticResource Caption}" Text="{Binding CapturedText}" Margin="0,8,0,0" />
-                <ui:TextBlock Style="{StaticResource Caption}" Margin="0,2,0,0" TextWrapping="Wrap"
-                              Text="The score starts at 100 and drops for each finding by how much it slows the PC. Fix or ignore findings to see it change." />
               </StackPanel>
-              <ui:Button Grid.Column="2" VerticalAlignment="Center" Content="Open Optimize" Icon="{ui:SymbolIcon Rocket24}" Command="{Binding OpenOptimizeCommand}"
+              <ui:Button Grid.Column="2" VerticalAlignment="Center" Margin="12,0,0,0" Content="Open Optimize" Icon="{ui:SymbolIcon Rocket24}" Command="{Binding OpenOptimizeCommand}"
                          ToolTip="All one-click tweaks in one place." />
             </Grid>
           </ui:Card>
 
-          <!-- Quick wins -->
-          <ui:TextBlock Style="{StaticResource CardTitle}" Text="Quick wins" Margin="0,4,0,8" />
-          <ItemsControl ItemsSource="{Binding QuickWins}" Margin="0,0,0,12">
+          <!-- Summary: system snapshot -->
+          <controls:AdaptiveGrid MinItemWidth="200" MaxColumns="5" Margin="0,0,0,12">
+            <controls:StatCard Style="{StaticResource Tile}" Title="Last startup" Value="{Binding BootTimeText}" Icon="Power24" Accent="{StaticResource AccentCyanBrush}" Subtitle="From power on to desktop" />
+            <controls:StatCard Style="{StaticResource Tile}" Title="Uptime" Value="{Binding UptimeText}" Icon="Clock24" Accent="{StaticResource AccentGreenBrush}" Subtitle="Since Windows last started" />
+            <controls:StatCard Style="{StaticResource Tile}" Title="Memory in use" Value="{Binding MemoryText}" Icon="Memory16" Accent="{Binding MemoryPercent, Converter={StaticResource UsageToBrush}}" Subtitle="RAM used right now" />
+            <controls:StatCard Style="{StaticResource Tile}" Title="Power plan" Value="{Binding PowerPlanText}" Icon="Flash24" Accent="{StaticResource AccentPurpleBrush}" Subtitle="Active Windows power plan" />
+            <controls:StatCard Style="{StaticResource Tile}" Title="Startup programs" Value="{Binding StartupText}" Icon="Rocket24" Accent="{StaticResource AccentOrangeBrush}" Subtitle="Launch at sign-in" />
+          </controls:AdaptiveGrid>
+          <ItemsControl ItemsSource="{Binding Drives}" Margin="0,0,0,12">
             <ItemsControl.ItemsPanel>
               <ItemsPanelTemplate>
-                <UniformGrid Columns="4" />
+                <controls:AdaptiveGrid MinItemWidth="200" MaxColumns="5" />
               </ItemsPanelTemplate>
             </ItemsControl.ItemsPanel>
             <ItemsControl.ItemTemplate>
               <DataTemplate>
-                <ui:CardAction Icon="{Binding Icon, Converter={StaticResource SymbolToIcon}}" Command="{Binding Command}" Margin="0,0,8,0" Padding="12">
+                <ui:Card Padding="16" VerticalAlignment="Stretch">
                   <StackPanel>
-                    <ui:TextBlock FontTypography="BodyStrong" Text="{Binding Title}" />
-                    <ui:TextBlock Appearance="Secondary" FontSize="12" Text="{Binding Description}" TextWrapping="Wrap" />
+                    <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding Title}" />
+                    <ui:TextBlock FontTypography="BodyStrong" Text="{Binding Summary}" Margin="0,2,0,6" />
+                    <ProgressBar Minimum="0" Maximum="100" Value="{Binding UsedPercent, Mode=OneWay}" Height="6" Foreground="{Binding UsedPercent, Converter={StaticResource UsageToBrush}}" />
                   </StackPanel>
-                </ui:CardAction>
+                </ui:Card>
               </DataTemplate>
             </ItemsControl.ItemTemplate>
           </ItemsControl>
 
           <!-- Findings -->
-          <ui:TextBlock Style="{StaticResource CardTitle}" Text="Findings" Margin="0,4,0,8" />
+          <ui:TextBlock Style="{StaticResource CardTitle}" Text="Findings" />
           <ui:Card Style="{StaticResource CardSpacing}" Visibility="{Binding HasNoFindings, Converter={StaticResource BoolToVisibility}}">
             <StackPanel Orientation="Horizontal">
               <ui:SymbolIcon Symbol="CheckmarkCircle24" Foreground="{StaticResource AccentGreenBrush}" FontSize="24" Margin="0,0,12,0" />
@@ -118,7 +129,7 @@
           <ItemsControl ItemsSource="{Binding Findings}">
             <ItemsControl.ItemTemplate>
               <DataTemplate>
-                <ui:Card Margin="0,0,0,8" Padding="0">
+                <ui:Card Margin="0,0,0,12" Padding="0">
                   <Grid>
                     <Grid.ColumnDefinitions>
                       <ColumnDefinition Width="6" />
@@ -163,30 +174,22 @@
             </ItemsControl.ItemTemplate>
           </ItemsControl>
 
-          <!-- System snapshot -->
-          <ui:TextBlock Style="{StaticResource CardTitle}" Text="System snapshot" Margin="0,8,0,8" />
-          <UniformGrid Columns="5" Margin="0,0,0,4">
-            <controls:StatCard Title="Last startup" Value="{Binding BootTimeText}" Icon="Power24" Accent="{StaticResource AccentCyanBrush}" Subtitle="From power on to desktop" Margin="0,0,8,8" />
-            <controls:StatCard Title="Uptime" Value="{Binding UptimeText}" Icon="Clock24" Accent="{StaticResource AccentGreenBrush}" Subtitle="Since Windows last started" Margin="0,0,8,8" />
-            <controls:StatCard Title="Memory in use" Value="{Binding MemoryText}" Icon="Memory16" Accent="{Binding MemoryPercent, Converter={StaticResource UsageToBrush}}" Subtitle="RAM used right now" Margin="0,0,8,8" />
-            <controls:StatCard Title="Power plan" Value="{Binding PowerPlanText}" Icon="Flash24" Accent="{StaticResource AccentPurpleBrush}" Subtitle="Active Windows power plan" Margin="0,0,8,8" />
-            <controls:StatCard Title="Startup programs" Value="{Binding StartupText}" Icon="Rocket24" Accent="{StaticResource AccentOrangeBrush}" Subtitle="Launch at sign-in" Margin="0,0,0,8" />
-          </UniformGrid>
-          <ItemsControl ItemsSource="{Binding Drives}" Margin="0,0,0,8">
+          <!-- Quick wins -->
+          <ui:TextBlock Style="{StaticResource CardTitle}" Text="Quick wins" />
+          <ItemsControl ItemsSource="{Binding QuickWins}" Margin="0,0,0,12">
             <ItemsControl.ItemsPanel>
               <ItemsPanelTemplate>
-                <UniformGrid Columns="4" />
+                <controls:AdaptiveGrid MinItemWidth="240" MaxColumns="4" />
               </ItemsPanelTemplate>
             </ItemsControl.ItemsPanel>
             <ItemsControl.ItemTemplate>
               <DataTemplate>
-                <ui:Card Margin="0,0,8,8" Padding="12">
+                <ui:CardAction Icon="{Binding Icon, Converter={StaticResource SymbolToIcon}}" Command="{Binding Command}" Padding="12" VerticalAlignment="Stretch">
                   <StackPanel>
-                    <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding Title}" />
-                    <ui:TextBlock FontTypography="BodyStrong" Text="{Binding Summary}" Margin="0,2,0,6" />
-                    <ProgressBar Minimum="0" Maximum="100" Value="{Binding UsedPercent, Mode=OneWay}" Height="6" Foreground="{Binding UsedPercent, Converter={StaticResource UsageToBrush}}" />
+                    <ui:TextBlock FontTypography="BodyStrong" Text="{Binding Title}" />
+                    <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding Description}" TextWrapping="Wrap" />
                   </StackPanel>
-                </ui:Card>
+                </ui:CardAction>
               </DataTemplate>
             </ItemsControl.ItemTemplate>
           </ItemsControl>
@@ -196,7 +199,8 @@
             <ui:CardExpander.Header>
               <StackPanel>
                 <ui:TextBlock FontTypography="BodyStrong" Text="Startup programs" />
-                <ui:TextBlock Style="{StaticResource Muted}" Text="Flip the switch to stop a program launching at sign-in. Nothing is uninstalled; you can turn it back on any time." />
+                <ui:TextBlock Style="{StaticResource Muted}" Text="Stop a program launching at sign-in. Nothing is uninstalled."
+                              ToolTip="Flip the switch to stop a program launching at sign-in. Nothing is uninstalled; you can turn it back on any time." />
               </StackPanel>
             </ui:CardExpander.Header>
             <Grid>
@@ -227,7 +231,8 @@
             <ui:CardExpander.Header>
               <StackPanel>
                 <ui:TextBlock FontTypography="BodyStrong" Text="Busiest processes" />
-                <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding ProcessText, StringFormat='CPU use was sampled for two seconds. Top right now: {0}'}" />
+                <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding ProcessText, StringFormat='Top right now: {0}'}"
+                              ToolTip="CPU use was sampled for two seconds during the scan." />
               </StackPanel>
             </ui:CardExpander.Header>
             <ui:DataGrid ItemsSource="{Binding TopProcesses}" AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True"
@@ -257,7 +262,8 @@
             <ui:CardExpander.Header>
               <StackPanel>
                 <ui:TextBlock FontTypography="BodyStrong" Text="Services (advanced)" />
-                <ui:TextBlock Style="{StaticResource Muted}" Text="Third-party services are listed first. Prefer Manual over Disabled so programs can still start a service they need." />
+                <ui:TextBlock Style="{StaticResource Muted}" Text="Third-party services first. Prefer Manual over Disabled."
+                              ToolTip="Third-party services are listed first. Prefer Manual over Disabled so programs can still start a service they need." />
               </StackPanel>
             </ui:CardExpander.Header>
             <StackPanel>
@@ -297,8 +303,6 @@
             </StackPanel>
           </ui:CardExpander>
 
-          <ui:InfoBar Severity="Informational" Title="Notes from the scan" Message="{Binding WarningsText}" IsOpen="{Binding HasWarnings, Mode=OneWay}" IsClosable="True" Margin="0,0,0,12"
-                      Visibility="{Binding WarningsText, Converter={StaticResource NullToVisibility}}" />
         </StackPanel>
       </StackPanel>
     </ScrollViewer>
