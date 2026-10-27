@@ -442,6 +442,8 @@ Options *Debugger* value for `taskmgr.exe`. When Windows launches Task Manager
 `--taskmgr` switch instead, and PC Checker opens straight on the Processes tab.
 
 - **Where**: Settings → General, and the Processes page *More* menu.
+- **Startup apps**: Task Manager's Startup apps tab is Apps & Drivers ›
+  Startup; *Startup apps* in the Processes *More* menu opens it.
 - **Only when installed safely**: the option is only available when PC Checker
   runs from Program Files and neither the program nor its folder can be
   changed by standard users. A user-writable copy could let another program

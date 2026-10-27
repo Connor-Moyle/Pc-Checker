@@ -85,4 +85,9 @@ public sealed partial class ProcessesViewModel
             _notifications.Error(Loc.T("Task Manager"), result.Message);
         }
     }
+
+    /// <summary>Task Manager's Startup apps tab lives on Apps &amp; Drivers › Startup; this takes a Task Manager user there.</summary>
+    [RelayCommand]
+    private void OpenStartupApps() =>
+        (App.Services.GetService(typeof(Wpf.Ui.INavigationService)) as Wpf.Ui.INavigationService)?.Navigate(typeof(Views.Pages.StartupPage));
 }
