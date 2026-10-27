@@ -33,6 +33,7 @@ Delete the `%LOCALAPPDATA%\PcChecker` folder to reset the app completely.
 | Vendor driver packages | `download.nvidia.com`, `drivers.amd.com` (and Intel's `downloadmirror.intel.com`); only these servers, over HTTPS | Only when you choose *Download and install* on a device and confirm; vendor downloads can be turned off |
 | winget | The Windows Package Manager's own sources | Only when you choose *Install with winget* for a PC maker tool and confirm |
 | Latency check | ICMP ping to your default gateway, `1.1.1.1`, `8.8.8.8` and any targets you add in Settings; one DNS lookup of `www.microsoft.com` to time your resolver | Only when you run a latency check with *include network* on |
+| Connections host names | Reverse DNS lookups of the remote addresses on the Connections page, sent to the DNS server your PC already uses | Only while *Show host names* is on (off by default) |
 | Claude assistant | Anthropic API | Only when you have entered an API key and send a message, ask for an explanation or request an overclock plan |
 
 Nothing else. In particular:
