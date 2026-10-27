@@ -288,13 +288,21 @@ public sealed class WindowsNetworkService : INetworkService
             }
 
             var ip = await LatencyProbes.RunAsync("netsh.exe", "int ip reset", ct, 120).ConfigureAwait(false);
-            // "int ip reset" reports "Access is denied" for a few protected keys even when it succeeds; only fail when it did not run.
-            if (ip.ExitCode != 0 && string.IsNullOrWhiteSpace(ip.Output))
+            switch (NetshResetOutcome.Classify(ip.ExitCode, ip.Output))
             {
-                return OperationResult.Fail("netsh int ip reset failed: " + Describe(ip));
-            }
+                case NetshResetStatus.Success:
+                    return OperationResult.Ok("Winsock and TCP/IP were reset to their defaults. Restart the PC to finish.", rebootRequired: true);
 
-            return OperationResult.Ok("Winsock and TCP/IP were reset to their defaults. Restart the PC to finish.", rebootRequired: true);
+                case NetshResetStatus.Partial:
+                    // "int ip reset" often cannot touch one or two protected keys ("Access is denied") while resetting everything else.
+                    var skipped = NetshResetOutcome.ProblemLines(ip.Output);
+                    return OperationResult.Ok("Winsock was reset and most of TCP/IP was reset, but Windows skipped some parts"
+                        + (skipped.Count == 0 ? "." : ": " + string.Join("; ", skipped) + ".")
+                        + " This is common and usually harmless. Restart the PC to finish.", rebootRequired: true);
+
+                default:
+                    return new OperationResult(false, "Winsock was reset, but netsh int ip reset failed: " + Describe(ip) + " Restart the PC to finish the Winsock part.", null, RebootRequired: true);
+            }
         }, null, cancellationToken);
     }
 

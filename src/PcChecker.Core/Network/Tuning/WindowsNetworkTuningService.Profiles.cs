@@ -69,9 +69,9 @@ public sealed partial class WindowsNetworkTuningService
             return OperationResult.Fail("This network or adapter name contains characters netsh cannot handle safely; change the order in Windows Settings instead.");
         }
 
-        var options = new ChangeOptions(false, null, Module, $"Wi-Fi profile {profile.Name}", true, $"netsh wlan set profileorder name=\"{profile.Name}\" interface=\"{profile.Interface}\" priority={profile.Priority}");
-        return await RunNetshGuardedAsync($"Move Wi-Fi network \"{profile.Name}\" to position {priority}", options, arguments,
-            $"\"{profile.Name}\" is now number {priority} in the list Windows tries.", cancellationToken).ConfigureAwait(false);
+        var options = new ChangeOptions(false, null, Module, $"Wi-Fi profile {profile.Name}", true, $"Use Revert on the Network page, or run: netsh wlan set profileorder name=\"{profile.Name}\" interface=\"{profile.Interface}\" priority={profile.Priority}");
+        return await WithProfileCaptureAsync(profile, () => RunNetshGuardedAsync($"Move Wi-Fi network \"{profile.Name}\" to position {priority}", options, arguments,
+            $"\"{profile.Name}\" is now number {priority} in the list Windows tries.", cancellationToken)).ConfigureAwait(false);
     }
 
     public async Task<OperationResult> ForgetNetworkAsync(string profileName, CancellationToken cancellationToken)
@@ -113,8 +113,98 @@ public sealed partial class WindowsNetworkTuningService
             ? "No backup could be made; reconnect to the network and type its password again."
             : $"netsh wlan add profile filename=\"{backupFile}\" (re-adds the network with its saved password on this PC)";
         var options = new ChangeOptions(false, null, Module, $"Wi-Fi profile {profile.Name}", backupFile is not null, undo);
-        return await RunNetshGuardedAsync($"Forget Wi-Fi network \"{profile.Name}\"", options, arguments,
+        var result = await RunNetshGuardedAsync($"Forget Wi-Fi network \"{profile.Name}\"", options, arguments,
             $"\"{profile.Name}\" was forgotten." + (backupFile is null ? string.Empty : $" A backup was saved to {backupFile}."), cancellationToken).ConfigureAwait(false);
+        if (result.Success)
+        {
+            Forget(NetworkTuningCaptureStore.ProfileEntryId(profile.Name)); // Nothing left to revert; the backup file is the way back.
+        }
+
+        return result;
+    }
+
+    public bool CanRevertSavedNetwork(string profileName) =>
+        NetworkTuningCaptureStore.ProfileFrom(profileName, Captured(NetworkTuningCaptureStore.ProfileEntryId(profileName))) is not null;
+
+    public async Task<OperationResult> RevertSavedNetworkAsync(string profileName, CancellationToken cancellationToken)
+    {
+        string entry = NetworkTuningCaptureStore.ProfileEntryId(profileName);
+        var before = NetworkTuningCaptureStore.ProfileFrom(profileName, Captured(entry));
+        if (before is null)
+        {
+            return OperationResult.Fail("PC Checker has not changed this network, so there is nothing to put back.");
+        }
+
+        var profile = await FindProfileAsync(profileName, cancellationToken).ConfigureAwait(false);
+        if (profile is null)
+        {
+            Forget(entry);
+            return OperationResult.Fail($"\"{profileName}\" is no longer saved on this PC, so its settings cannot be put back.");
+        }
+
+        var steps = new List<string?>();
+        if (before.AutoConnect != profile.AutoConnect)
+        {
+            steps.Add(NetshCommandBuilder.SetConnectionMode(profile.Name, before.AutoConnect, profile.Interface));
+        }
+
+        if (before.Metered != profile.Metered)
+        {
+            steps.Add(NetshCommandBuilder.SetCost(profile.Name, before.Metered, profile.Interface));
+        }
+
+        if (before.Priority != profile.Priority && before.Priority > 0)
+        {
+            steps.Add(NetshCommandBuilder.SetProfileOrder(profile.Name, profile.Interface, before.Priority));
+        }
+
+        if (steps.Count == 0)
+        {
+            Forget(entry);
+            return OperationResult.Ok($"\"{profile.Name}\" already has the settings it had before PC Checker changed it.");
+        }
+
+        if (steps.Any(s => s is null))
+        {
+            return OperationResult.Fail("This network or adapter name contains characters netsh cannot handle safely; change it back in Windows Settings instead.");
+        }
+
+        string summary = $"position {before.Priority}, {(before.AutoConnect ? "connects automatically" : "connects only when chosen")}, {(before.Metered ? "metered" : "not metered")}";
+        var options = new ChangeOptions(false, null, Module, $"Wi-Fi profile {profile.Name}", false, "Change the settings again on the Network page.");
+        var result = await _guard.RunGuardedAsync($"Undo: restore Wi-Fi network \"{profile.Name}\" ({summary})", options, async ct =>
+        {
+            foreach (var arguments in steps)
+            {
+                var run = await LatencyProbes.RunAsync("netsh.exe", arguments!, ct, 30).ConfigureAwait(false);
+                if (run.ExitCode != 0)
+                {
+                    return OperationResult.Fail($"netsh refused: {Describe(run)}");
+                }
+            }
+
+            return OperationResult.Ok($"\"{profile.Name}\" is back to {summary}.");
+        }, null, cancellationToken).ConfigureAwait(false);
+        if (result.Success)
+        {
+            Forget(entry);
+        }
+
+        return result;
+    }
+
+    /// <summary>Captures the network's settings before its first change (kept on failure only when an earlier change already captured them).</summary>
+    private async Task<OperationResult> WithProfileCaptureAsync(WifiProfileInfo profile, Func<Task<OperationResult>> change)
+    {
+        string entry = NetworkTuningCaptureStore.ProfileEntryId(profile.Name);
+        bool firstCapture = Captured(entry) is null;
+        Capture(entry, NetworkTuningCaptureStore.ProfileValues(profile));
+        var result = await change().ConfigureAwait(false);
+        if (!result.Success && firstCapture)
+        {
+            Forget(entry);
+        }
+
+        return result;
     }
 
     public async Task<OperationResult> SetAutoConnectAsync(string profileName, bool enabled, CancellationToken cancellationToken)
@@ -131,9 +221,9 @@ public sealed partial class WindowsNetworkTuningService
             return OperationResult.Fail("This network name contains characters netsh cannot handle safely; change it in Windows Settings instead.");
         }
 
-        var options = new ChangeOptions(false, null, Module, $"Wi-Fi profile {profile.Name}", true, $"Set \"Connect automatically\" back to {(profile.AutoConnect ? "on" : "off")}.");
-        return await RunNetshGuardedAsync($"{(enabled ? "Connect" : "Do not connect")} automatically to \"{profile.Name}\"", options, arguments,
-            enabled ? $"Windows will connect to \"{profile.Name}\" automatically." : $"Windows will only connect to \"{profile.Name}\" when you choose it.", cancellationToken).ConfigureAwait(false);
+        var options = new ChangeOptions(false, null, Module, $"Wi-Fi profile {profile.Name}", true, $"Use Revert on the Network page, or set \"Connect automatically\" back to {(profile.AutoConnect ? "on" : "off")}.");
+        return await WithProfileCaptureAsync(profile, () => RunNetshGuardedAsync($"{(enabled ? "Connect" : "Do not connect")} automatically to \"{profile.Name}\"", options, arguments,
+            enabled ? $"Windows will connect to \"{profile.Name}\" automatically." : $"Windows will only connect to \"{profile.Name}\" when you choose it.", cancellationToken)).ConfigureAwait(false);
     }
 
     public async Task<OperationResult> SetMeteredAsync(string profileName, bool metered, CancellationToken cancellationToken)
@@ -150,11 +240,11 @@ public sealed partial class WindowsNetworkTuningService
             return OperationResult.Fail("This network name contains characters netsh cannot handle safely; change it in Windows Settings instead.");
         }
 
-        var options = new ChangeOptions(false, null, Module, $"Wi-Fi profile {profile.Name}", true, $"Set \"Metered connection\" back to {(profile.Metered ? "on" : "off")}.");
-        return await RunNetshGuardedAsync($"{(metered ? "Mark" : "Unmark")} \"{profile.Name}\" as a metered connection", options, arguments,
+        var options = new ChangeOptions(false, null, Module, $"Wi-Fi profile {profile.Name}", true, $"Use Revert on the Network page, or set \"Metered connection\" back to {(profile.Metered ? "on" : "off")}.");
+        return await WithProfileCaptureAsync(profile, () => RunNetshGuardedAsync($"{(metered ? "Mark" : "Unmark")} \"{profile.Name}\" as a metered connection", options, arguments,
             metered
                 ? $"\"{profile.Name}\" is metered: Windows Update and some apps will hold back large downloads on it."
-                : $"\"{profile.Name}\" is no longer metered.", cancellationToken).ConfigureAwait(false);
+                : $"\"{profile.Name}\" is no longer metered.", cancellationToken)).ConfigureAwait(false);
     }
 
     private async Task<WifiProfileInfo?> FindProfileAsync(string profileName, CancellationToken cancellationToken)

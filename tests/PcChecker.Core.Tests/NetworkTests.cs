@@ -642,3 +642,35 @@ public class DemoNetworkServiceTests
         Assert.Contains(adapters, a => a.Description.Contains("I226-V"));
     }
 }
+
+public class NetshResetOutcomeTests
+{
+    [Fact]
+    public void Exit_code_zero_is_a_clean_reset()
+    {
+        Assert.Equal(NetshResetStatus.Success, NetshResetOutcome.Classify(0, "Resetting Global, OK!\nRestart the computer to complete this action."));
+    }
+
+    [Fact]
+    public void Non_zero_exit_with_some_parts_reset_is_partial_and_lists_what_failed()
+    {
+        const string output = """
+            Resetting Compartment Forwarding, OK!
+            Resetting Global, OK!
+            Resetting Interface, failed.
+            Access is denied.
+
+            Restart the computer to complete this action.
+            """;
+        Assert.Equal(NetshResetStatus.Partial, NetshResetOutcome.Classify(1, output));
+        Assert.Equal(["Resetting Interface, failed."], NetshResetOutcome.ProblemLines(output));
+    }
+
+    [Fact]
+    public void Non_zero_exit_with_text_but_nothing_reset_is_a_failure()
+    {
+        Assert.Equal(NetshResetStatus.Failed, NetshResetOutcome.Classify(1, "The requested operation requires elevation (Run as administrator)."));
+        Assert.Equal(NetshResetStatus.Failed, NetshResetOutcome.Classify(1, null));
+        Assert.Equal(NetshResetStatus.Failed, NetshResetOutcome.Classify(5, string.Empty));
+    }
+}

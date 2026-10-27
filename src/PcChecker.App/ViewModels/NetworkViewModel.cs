@@ -304,6 +304,11 @@ public sealed partial class NetworkViewModel : ViewModelBase
     [RelayCommand]
     private async Task ResetNetworkStackAsync()
     {
+        if (!IsAdvancedMode)
+        {
+            return; // Advanced-only: the button is hidden in Basic mode, and the command refuses too.
+        }
+
         bool ok = await _dialogs.ConfirmAsync("Reset the network stack?",
             "This resets Winsock and TCP/IP to the Windows defaults: the last resort when nothing connects even though other devices work.\n\n"
             + "• Any IP address or DNS server you typed in by hand is cleared and must be entered again.\n"

@@ -93,7 +93,7 @@ public sealed partial class NetworkViewModel
         foreach (var profile in profiles.OrderBy(p => p.Interface).ThenBy(p => p.Priority))
         {
             int count = profiles.Count(p => p.Interface == profile.Interface);
-            SavedNetworks.Add(new SavedNetworkRow(profile, count, connected is not null && profile.Name == connected));
+            SavedNetworks.Add(new SavedNetworkRow(profile, count, connected is not null && profile.Name == connected, _tuning.CanRevertSavedNetwork(profile.Name)));
         }
 
         OnPropertyChanged(nameof(HasSavedNetworks));
@@ -104,9 +104,9 @@ public sealed partial class NetworkViewModel
     [RelayCommand]
     private async Task ApplyTuningAsync(TuningActionRow? row)
     {
-        if (row is null)
+        if (row is null || (row.AdvancedOnly && !IsAdvancedMode))
         {
-            return;
+            return; // Advanced-only tweaks are hidden in Basic mode; the command refuses them too.
         }
 
         string what = row.HasProviders && row.SelectedProvider is { } p
@@ -322,6 +322,23 @@ public sealed partial class NetworkViewModel
         if (ok)
         {
             await ChangeProfileAsync(ct => _tuning.ForgetNetworkAsync(row.Name, ct), $"Forgetting \"{row.Name}\"…", "Network forgotten");
+        }
+    }
+
+    [RelayCommand]
+    private async Task RevertSavedNetworkAsync(SavedNetworkRow? row)
+    {
+        if (row is not { CanRevert: true })
+        {
+            return;
+        }
+
+        bool ok = await _dialogs.ConfirmAsync($"Revert \"{row.Name}\"?",
+            "PC Checker puts this network's position in the list, auto-connect and metered settings back to what they were before it first changed them.",
+            "Revert");
+        if (ok)
+        {
+            await ChangeProfileAsync(ct => _tuning.RevertSavedNetworkAsync(row.Name, ct), $"Reverting \"{row.Name}\"…", "Network reverted");
         }
     }
 

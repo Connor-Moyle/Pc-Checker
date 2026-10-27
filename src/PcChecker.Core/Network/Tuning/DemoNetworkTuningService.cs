@@ -22,6 +22,7 @@ public sealed class DemoNetworkTuningService : INetworkTuningService
         new("CoffeeHouse Free WiFi", DemoNetworkService.WifiAdapterName, true, false, "Open", 4),
     ];
 
+    private readonly Dictionary<string, WifiProfileInfo> _profileOriginals = new(StringComparer.Ordinal);
     private string? _dnsProvider;
 
     public DemoNetworkTuningService()
@@ -213,10 +214,8 @@ public sealed class DemoNetworkTuningService : INetworkTuningService
                 return OperationResult.Fail($"No saved Wi-Fi network called \"{profileName}\" was found.");
             }
 
-            var ordered = _profiles.OrderBy(p => p.Priority).Where(p => p.Name != profileName).ToList();
-            ordered.Insert(Math.Clamp(priority - 1, 0, ordered.Count), profile);
-            _profiles.Clear();
-            _profiles.AddRange(ordered.Select((p, i) => p with { Priority = i + 1 }));
+            _profileOriginals.TryAdd(profile.Name, profile);
+            MoveProfile(profile, priority);
         }
 
         return OperationResult.Ok($"Demo mode: \"{profileName}\" is now number {priority} in the list Windows tries.");
@@ -231,6 +230,8 @@ public sealed class DemoNetworkTuningService : INetworkTuningService
             {
                 return OperationResult.Fail($"No saved Wi-Fi network called \"{profileName}\" was found.");
             }
+
+            _profileOriginals.Remove(profileName);
 
             var ordered = _profiles.OrderBy(p => p.Priority).Select((p, i) => p with { Priority = i + 1 }).ToList();
             _profiles.Clear();
@@ -257,10 +258,52 @@ public sealed class DemoNetworkTuningService : INetworkTuningService
                 return OperationResult.Fail($"No saved Wi-Fi network called \"{profileName}\" was found.");
             }
 
+            _profileOriginals.TryAdd(profileName, _profiles[index]);
             _profiles[index] = change(_profiles[index]);
         }
 
         return OperationResult.Ok($"Demo mode: \"{profileName}\" {text}.");
+    }
+
+    public async Task<OperationResult> RevertSavedNetworkAsync(string profileName, CancellationToken cancellationToken)
+    {
+        await DemoData.DelayAsync(cancellationToken, 150, 300).ConfigureAwait(false);
+        lock (_gate)
+        {
+            if (!_profileOriginals.Remove(profileName, out var original))
+            {
+                return OperationResult.Fail("PC Checker has not changed this network, so there is nothing to put back.");
+            }
+
+            int index = _profiles.FindIndex(p => p.Name == profileName);
+            if (index < 0)
+            {
+                return OperationResult.Fail($"\"{profileName}\" is no longer saved on this PC, so its settings cannot be put back.");
+            }
+
+            var current = _profiles[index] with { AutoConnect = original.AutoConnect, Metered = original.Metered };
+            _profiles[index] = current;
+            MoveProfile(current, original.Priority);
+        }
+
+        return OperationResult.Ok($"Demo mode: \"{profileName}\" is back to how it was.");
+    }
+
+    public bool CanRevertSavedNetwork(string profileName)
+    {
+        lock (_gate)
+        {
+            return _profileOriginals.ContainsKey(profileName);
+        }
+    }
+
+    /// <summary>Moves one profile to a position and renumbers the rest (call under the lock).</summary>
+    private void MoveProfile(WifiProfileInfo profile, int priority)
+    {
+        var ordered = _profiles.OrderBy(p => p.Priority).Where(p => p.Name != profile.Name).ToList();
+        ordered.Insert(Math.Clamp(priority - 1, 0, ordered.Count), profile);
+        _profiles.Clear();
+        _profiles.AddRange(ordered.Select((p, i) => p with { Priority = i + 1 }));
     }
 
     private IReadOnlyList<AdapterSetting> Build()

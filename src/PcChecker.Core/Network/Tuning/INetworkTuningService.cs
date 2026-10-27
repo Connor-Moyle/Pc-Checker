@@ -39,4 +39,10 @@ public interface INetworkTuningService
     Task<OperationResult> SetAutoConnectAsync(string profileName, bool enabled, CancellationToken cancellationToken);
 
     Task<OperationResult> SetMeteredAsync(string profileName, bool metered, CancellationToken cancellationToken);
+
+    /// <summary>Puts a saved network's priority, auto-connect and metered settings back to what they were before PC Checker first changed them.</summary>
+    Task<OperationResult> RevertSavedNetworkAsync(string profileName, CancellationToken cancellationToken);
+
+    /// <summary>True when a previous state was captured for this saved network, so <see cref="RevertSavedNetworkAsync"/> can run.</summary>
+    bool CanRevertSavedNetwork(string profileName);
 }

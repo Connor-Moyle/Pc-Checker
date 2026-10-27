@@ -163,7 +163,11 @@ public static class NetworkSpeedTester
         while (!allDone.IsCompleted)
         {
             await Task.WhenAny(allDone, Task.Delay(100, CancellationToken.None)).ConfigureAwait(false);
-            cancellationToken.ThrowIfCancellationRequested();
+            if (cancellationToken.IsCancellationRequested)
+            {
+                break; // Drain the workers and probes below before reporting the cancellation.
+            }
+
             double seconds = stopwatch.Elapsed.TotalSeconds;
             long bytes = Interlocked.Read(ref moved);
             samples.Add((seconds, bytes));
@@ -178,13 +182,13 @@ public static class NetworkSpeedTester
             progress?.Report(new ProgressUpdate(phase, startPercent + spanPercent * percent, LiveRate(samples)));
         }
 
+        // Workers stop as soon as phaseCts is cancelled (it is linked to the caller's token). Probes still in flight
+        // belong to an idle line now; drop them, and wait for them all before the HTTP clients and phaseCts are disposed.
         await allDone.ConfigureAwait(false);
-        cancellationToken.ThrowIfCancellationRequested();
         samples.Add((stopwatch.Elapsed.TotalSeconds, Interlocked.Read(ref moved)));
-
-        // Probes still in flight belong to an idle line now; drop them.
         phaseCts.Cancel();
         await Task.WhenAll(probes).ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
 
         if (stopwatch.Elapsed >= PhaseLimit - TimeSpan.FromMilliseconds(200) && Interlocked.Read(ref moved) < budget)
         {
@@ -213,7 +217,7 @@ public static class NetworkSpeedTester
                 }
             }
         }
-        catch (OperationCanceledException)
+        catch (Exception ex) when (ex is OperationCanceledException or ObjectDisposedException)
         {
             // The phase ended while this probe was in flight; it does not count.
         }

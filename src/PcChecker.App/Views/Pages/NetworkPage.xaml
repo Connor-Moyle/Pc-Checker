@@ -753,6 +753,10 @@
                                    Command="{Binding DataContext.MoveNetworkUpCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}" />
                         <ui:Button Icon="{ui:SymbolIcon ArrowDown24}" ToolTip="Try this network later" Margin="0,0,8,0" IsEnabled="{Binding CanMoveDown}"
                                    Command="{Binding DataContext.MoveNetworkDownCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}" />
+                        <ui:Button Content="Revert" Icon="{ui:SymbolIcon ArrowUndo24}" Margin="0,0,8,0"
+                                   ToolTip="Put this network's position, auto-connect and metered settings back to how they were before PC Checker changed them."
+                                   Visibility="{Binding CanRevert, Converter={StaticResource BoolToVisibility}}"
+                                   Command="{Binding DataContext.RevertSavedNetworkCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}" />
                         <ui:Button Content="Forget" Icon="{ui:SymbolIcon Delete24}" Appearance="Danger"
                                    Command="{Binding DataContext.ForgetNetworkCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}" />
                       </StackPanel>

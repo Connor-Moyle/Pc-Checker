@@ -254,12 +254,16 @@ public sealed record AdapterSettingGroup(string AdapterName, IReadOnlyList<Adapt
 /// <summary>A saved Wi-Fi network.</summary>
 public sealed class SavedNetworkRow
 {
-    public SavedNetworkRow(WifiProfileInfo profile, int count, bool isCurrent)
+    public SavedNetworkRow(WifiProfileInfo profile, int count, bool isCurrent, bool canRevert = false)
     {
         Profile = profile;
         Count = count;
         IsCurrent = isCurrent;
+        CanRevert = canRevert;
     }
+
+    /// <summary>True when PC Checker changed this network and recorded how it was before.</summary>
+    public bool CanRevert { get; }
 
     public WifiProfileInfo Profile { get; }
     public int Count { get; }

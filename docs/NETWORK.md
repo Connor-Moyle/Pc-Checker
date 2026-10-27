@@ -124,7 +124,7 @@ Advanced ones also get a restore point when Settings ask for one.
 | `net.tcp.ecn.default` | `netsh int tcp set global ecncapability=default`; the resulting value is remembered as this PC's default | captured value |
 | `net.rss.enable` | `netsh int tcp set global rss=enabled` | captured value |
 | `net.dns.fast` (`.cloudflare`, `.google`, `.quad9`) | `Set-DnsClientServerAddress` on every connected adapter with a gateway | captured `NameServer` per adapter: automatic adapters get `-ResetServerAddresses`, hand-typed servers are put back |
-| `net.dns.doh` (Advanced, Windows 11) | DoH template with automatic upgrade for the DNS servers in use (`Add/Set-DnsClientDohServerAddress`), fallback to plain DNS allowed | captured template settings, or the entry removed |
+| `net.dns.doh` (Advanced, Windows 11) | DoH template with automatic upgrade for the DNS servers in use (`Add/Set-DnsClientDohServerAddress`, fallback to plain DNS allowed), plus the per-adapter switch Settings uses (`Dnscache\InterfaceSpecificParameters\{guid}\DohInterfaceSettings\Doh\<server>` `DohFlags` = 1, "On (automatic template)") and the global `EnableAutoDoh` = 2. The state only reads "Encrypted" when the template and every adapter's switch are on | captured template settings (or the entry removed), each adapter's previous `DohFlags` and the previous `EnableAutoDoh` |
 | `net.ipv6.prefer-ipv4` (Advanced) | `Tcpip6\Parameters\DisabledComponents` bit 0x20 (prefer IPv4; IPv6 stays on), other bits kept | captured value |
 
 Turning off Nagle's algorithm lives on the Latency page (`latency.nagle.off`);
@@ -169,6 +169,11 @@ exported (password still encrypted, readable only on this PC) to
 `%LOCALAPPDATA%\PcChecker\wifi-profile-backups\`; the journal entry shows the
 `netsh wlan add profile filename=…` command that brings it back. Names with
 double quotes are refused rather than passed to netsh unsafely.
+
+Before the first change to a saved network, its position, auto-connect and
+metered settings are captured in `network-tuning.json` (entry
+`profile:<name>`), so the row's **Revert** button puts them back, also after a
+restart. A change that fails does not leave a capture behind.
 
 ### Quick improve Wi-Fi
 

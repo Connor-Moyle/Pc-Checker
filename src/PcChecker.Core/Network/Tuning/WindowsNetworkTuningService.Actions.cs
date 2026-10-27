@@ -100,9 +100,7 @@ public sealed partial class WindowsNetworkTuningService
                         return new ActionState(actionId, null, "Choose a public DNS provider first");
                     }
 
-                    var entries = await ReadDohServersAsync(cancellationToken).ConfigureAwait(false);
-                    bool on = servers.All(s => entries.TryGetValue(s, out var e) && e.AutoUpgrade);
-                    return new ActionState(actionId, on, on ? "Encrypted (automatic upgrade on)" : "Not encrypted");
+                    return await ReadDohStateAsync(actionId, servers, cancellationToken).ConfigureAwait(false);
                 }
 
                 case TuningActionIds.PreferIpv4:
@@ -264,22 +262,8 @@ public sealed partial class WindowsNetworkTuningService
                 break;
 
             case TuningActionIds.DnsOverHttps:
-            {
-                var entries = await ReadDohServersAsync(ct).ConfigureAwait(false);
-                foreach (var server in DohCapableServers())
-                {
-                    bool exists = entries.TryGetValue(server, out var entry);
-                    map[$"{server}|exists"] = exists ? "true" : "false";
-                    if (exists)
-                    {
-                        map[$"{server}|template"] = entry.Template;
-                        map[$"{server}|autoUpgrade"] = entry.AutoUpgrade ? "true" : "false";
-                        map[$"{server}|fallback"] = entry.AllowFallback ? "true" : "false";
-                    }
-                }
-
+                await CaptureDohAsync(map, ct).ConfigureAwait(false);
                 break;
-            }
 
             case TuningActionIds.PreferIpv4:
                 map["DisabledComponents"] = LatencyProbes.ReadDword(RegistryHive.LocalMachine, Tcpip6ParametersKey, "DisabledComponents")?.ToString();
@@ -413,75 +397,6 @@ public sealed partial class WindowsNetworkTuningService
         var run = await PowerShellRunner.RunAsync(string.Join("; ", commands) + "; Clear-DnsClientCache", TimeSpan.FromSeconds(60), ct).ConfigureAwait(false);
         return run.Success ? OperationResult.Ok("The previous DNS servers are back.") : OperationResult.Fail("Windows refused to restore the DNS servers: " + FirstLine(run.StdErr, run.StdOut));
     }
-
-    private static async Task<OperationResult> EnableDohAsync(CancellationToken ct)
-    {
-        var servers = DohCapableServers();
-        if (servers.Count == 0)
-        {
-            return OperationResult.Fail("Your DNS servers do not offer a known DNS-over-HTTPS service. Use \"Use a fast public DNS server\" first.");
-        }
-
-        var commands = servers.Select(s =>
-        {
-            string template = PowerShellRunner.Quote(NetworkTuningCatalog.DohTemplateFor(s)!);
-            string server = PowerShellRunner.Quote(s);
-            return $"if (Get-DnsClientDohServerAddress -ServerAddress {server} -ErrorAction SilentlyContinue) {{ Set-DnsClientDohServerAddress -ServerAddress {server} -DohTemplate {template} -AllowFallbackToUdp $true -AutoUpgrade $true -ErrorAction Stop }} "
-                + $"else {{ Add-DnsClientDohServerAddress -ServerAddress {server} -DohTemplate {template} -AllowFallbackToUdp $true -AutoUpgrade $true -ErrorAction Stop }}";
-        });
-        var run = await PowerShellRunner.RunAsync(string.Join("; ", commands) + "; Clear-DnsClientCache", TimeSpan.FromSeconds(60), ct).ConfigureAwait(false);
-        return run.Success
-            ? OperationResult.Ok($"DNS lookups to {string.Join(", ", servers)} are now encrypted when the server supports it.")
-            : OperationResult.Fail("Windows refused to turn on DNS over HTTPS: " + FirstLine(run.StdErr, run.StdOut));
-    }
-
-    private static async Task<OperationResult> RestoreDohAsync(IReadOnlyDictionary<string, string?>? previous, CancellationToken ct)
-    {
-        if (previous is null || previous.Count == 0)
-        {
-            return OperationResult.Fail("Nothing was recorded before DNS over HTTPS was turned on, so there is nothing to restore. Change it in Settings → Network & internet → your adapter → DNS server assignment.");
-        }
-
-        var commands = new List<string>();
-        foreach (var server in previous.Keys.Where(k => k.EndsWith("|exists", StringComparison.OrdinalIgnoreCase)).Select(k => k[..k.IndexOf('|')]))
-        {
-            string quoted = PowerShellRunner.Quote(server);
-            if (previous[$"{server}|exists"] != "true")
-            {
-                commands.Add($"Remove-DnsClientDohServerAddress -ServerAddress {quoted} -ErrorAction SilentlyContinue");
-                continue;
-            }
-
-            string template = PowerShellRunner.Quote(previous.GetValueOrDefault($"{server}|template") ?? NetworkTuningCatalog.DohTemplateFor(server) ?? string.Empty);
-            string auto = previous.GetValueOrDefault($"{server}|autoUpgrade") == "true" ? "$true" : "$false";
-            string fallback = previous.GetValueOrDefault($"{server}|fallback") == "false" ? "$false" : "$true";
-            commands.Add($"Set-DnsClientDohServerAddress -ServerAddress {quoted} -DohTemplate {template} -AutoUpgrade {auto} -AllowFallbackToUdp {fallback} -ErrorAction Stop");
-        }
-
-        var run = await PowerShellRunner.RunAsync(string.Join("; ", commands) + "; Clear-DnsClientCache", TimeSpan.FromSeconds(60), ct).ConfigureAwait(false);
-        return run.Success ? OperationResult.Ok("DNS over HTTPS is back to how it was.") : OperationResult.Fail("Windows refused to restore the DNS-over-HTTPS settings: " + FirstLine(run.StdErr, run.StdOut));
-    }
-
-    private async Task<Dictionary<string, (string Template, bool AutoUpgrade, bool AllowFallback)>> ReadDohServersAsync(CancellationToken ct)
-    {
-        var map = new Dictionary<string, (string, bool, bool)>(StringComparer.OrdinalIgnoreCase);
-        var rows = await PowerShellRunner.RunJsonAsync<List<JsonElement>>(
-            "Get-DnsClientDohServerAddress -ErrorAction SilentlyContinue | Select-Object ServerAddress, DohTemplate, AllowFallbackToUdp, AutoUpgrade", TimeSpan.FromSeconds(30), ct).ConfigureAwait(false);
-        foreach (var row in rows ?? [])
-        {
-            var server = Text(row, "ServerAddress");
-            if (server is not null)
-            {
-                map[server] = (Text(row, "DohTemplate") ?? string.Empty, Text(row, "AutoUpgrade") == "True", Text(row, "AllowFallbackToUdp") != "False");
-            }
-        }
-
-        return map;
-    }
-
-    /// <summary>DNS servers in use that belong to a known DoH provider.</summary>
-    private static IReadOnlyList<string> DohCapableServers() =>
-        ActiveInterfaces().SelectMany(a => a.Dns).Distinct().Where(s => NetworkTuningCatalog.DohTemplateFor(s) is not null).ToList();
 
     /// <summary>Connected adapters with an IPv4 gateway (the ones that reach the internet).</summary>
     private static IReadOnlyList<(string Id, int Index, string Name, IReadOnlyList<string> Dns)> ActiveInterfaces(bool includeAll = false)

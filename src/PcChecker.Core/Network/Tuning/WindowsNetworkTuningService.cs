@@ -89,8 +89,17 @@ public sealed partial class WindowsNetworkTuningService : INetworkTuningService
         }
 
         string entry = NetworkTuningCaptureStore.AdapterEntryId(adapterName, setting.Key);
+        // The capture is saved before the write so a crash mid-change can still be undone; a write that did not
+        // happen must not leave a capture behind, or the page would offer Revert for a setting that never changed.
+        bool firstCapture = Captured(entry) is null;
         var previous = Capture(entry, new Dictionary<string, string?> { ["value"] = setting.CurrentValue });
-        return await WriteAdapterPropertyAsync(setting, value, previous.GetValueOrDefault("value"), $"Set {setting.DisplayName} to {setting.LabelFor(value)} on {adapterName}", cancellationToken).ConfigureAwait(false);
+        var result = await WriteAdapterPropertyAsync(setting, value, previous.GetValueOrDefault("value"), $"Set {setting.DisplayName} to {setting.LabelFor(value)} on {adapterName}", cancellationToken).ConfigureAwait(false);
+        if (!result.Success && firstCapture)
+        {
+            Forget(entry);
+        }
+
+        return result;
     }
 
     public async Task<OperationResult> RevertAdapterSettingAsync(string adapterName, string key, CancellationToken cancellationToken)

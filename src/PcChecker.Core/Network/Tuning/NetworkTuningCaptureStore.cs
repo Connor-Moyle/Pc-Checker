@@ -14,6 +14,36 @@ public static class NetworkTuningCaptureStore
     /// <summary>Entry id for an adapter property capture.</summary>
     public static string AdapterEntryId(string adapterName, string keyword) => $"adapter:{adapterName}|{keyword}";
 
+    /// <summary>Entry id for a saved Wi-Fi network (priority, auto-connect and metered before the first change).</summary>
+    public static string ProfileEntryId(string profileName) => $"profile:{profileName}";
+
+    /// <summary>The values of a saved network that PC Checker can change, as a capture entry.</summary>
+    public static IReadOnlyDictionary<string, string?> ProfileValues(WifiProfileInfo profile)
+    {
+        ArgumentNullException.ThrowIfNull(profile);
+        return new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["interface"] = profile.Interface,
+            ["priority"] = profile.Priority.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            ["autoConnect"] = profile.AutoConnect ? "true" : "false",
+            ["metered"] = profile.Metered ? "true" : "false",
+        };
+    }
+
+    /// <summary>Rebuilds the captured state of a saved network; null when nothing (or nothing usable) was captured.</summary>
+    public static WifiProfileInfo? ProfileFrom(string profileName, IReadOnlyDictionary<string, string?>? values)
+    {
+        if (values is null
+            || !int.TryParse(values.GetValueOrDefault("priority"), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out int priority)
+            || !bool.TryParse(values.GetValueOrDefault("autoConnect"), out bool autoConnect)
+            || !bool.TryParse(values.GetValueOrDefault("metered"), out bool metered))
+        {
+            return null;
+        }
+
+        return new WifiProfileInfo(profileName, values.GetValueOrDefault("interface") ?? string.Empty, autoConnect, metered, string.Empty, priority);
+    }
+
     /// <summary>Entry that remembers what <c>ecncapability=default</c> resolved to on this PC.</summary>
     public const string EcnDefaultEntryId = "info:ecn-default";
 

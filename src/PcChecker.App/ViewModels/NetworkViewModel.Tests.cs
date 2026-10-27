@@ -109,14 +109,15 @@ public sealed partial class NetworkViewModel
             return;
         }
 
-        await RunBusyAsync(async ct =>
+        bool wifiDone = await RunBusyAsync(async ct =>
         {
             var progress = new Progress<ProgressUpdate>(p => BusyText = p.Stage);
             ApplyAdapters(await _network.GetAdaptersAsync(ct));
             ApplyWifi(await _network.AnalyzeWifiAsync(progress, ct));
         }, "Analyzing Wi-Fi…");
 
-        if (await RunPacketLossCoreAsync())
+        // Cancelling (or a failure in) the Wi-Fi step stops the whole run.
+        if (wifiDone && await RunPacketLossCoreAsync())
         {
             await RunSpeedTestCoreAsync();
         }

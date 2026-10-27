@@ -425,3 +425,70 @@ public class QuickImprovePlannerTests
         Assert.Empty(QuickImprovePlanner.Plan([], []));
     }
 }
+
+public class DohInterfaceSettingsTests
+{
+    [Fact]
+    public void Key_points_at_the_per_adapter_switch_for_the_address_family()
+    {
+        Assert.Equal(
+            @"SYSTEM\CurrentControlSet\Services\Dnscache\InterfaceSpecificParameters\{4D36E972-E325-11CE-BFC1-08002BE10318}\DohInterfaceSettings\Doh\1.1.1.1",
+            DohInterfaceSettings.KeyFor("{4d36e972-e325-11ce-bfc1-08002be10318}", "1.1.1.1"));
+        Assert.EndsWith(@"\DohInterfaceSettings\Doh6\2606:4700:4700::1111", DohInterfaceSettings.KeyFor("4d36e972-e325-11ce-bfc1-08002be10318", "2606:4700:4700::1111"));
+        Assert.Contains(@"\{4D36E972-E325-11CE-BFC1-08002BE10318}\", DohInterfaceSettings.KeyFor("4d36e972-e325-11ce-bfc1-08002be10318", "8.8.8.8"));
+        Assert.Null(DohInterfaceSettings.KeyFor("{abc}", "not-an-ip"));
+        Assert.Null(DohInterfaceSettings.KeyFor(" ", "1.1.1.1"));
+    }
+
+    [Fact]
+    public void Capture_keys_round_trip_and_ignore_other_entries()
+    {
+        string key = DohInterfaceSettings.CaptureKey("{GUID-1}", "9.9.9.9");
+        Assert.True(DohInterfaceSettings.TryParseCaptureKey(key, out var id, out var server));
+        Assert.Equal("{GUID-1}", id);
+        Assert.Equal("9.9.9.9", server);
+        Assert.False(DohInterfaceSettings.TryParseCaptureKey("1.1.1.1|exists", out _, out _));
+        Assert.False(DohInterfaceSettings.TryParseCaptureKey(DohInterfaceSettings.GlobalCaptureKey, out _, out _));
+    }
+
+    [Fact]
+    public void Only_a_non_zero_flag_means_encrypted()
+    {
+        Assert.True(DohInterfaceSettings.IsEncrypted(DohInterfaceSettings.AutomaticTemplate));
+        Assert.False(DohInterfaceSettings.IsEncrypted(0));
+        Assert.False(DohInterfaceSettings.IsEncrypted(null));
+    }
+}
+
+public class SavedNetworkCaptureTests
+{
+    [Fact]
+    public void Profile_capture_round_trips_and_rejects_partial_entries()
+    {
+        var profile = new WifiProfileInfo("HomeNet", "Wi-Fi", AutoConnect: true, Metered: false, "WPA2-Personal", Priority: 2);
+        var values = NetworkTuningCaptureStore.ProfileValues(profile);
+        var json = NetworkTuningCaptureStore.Serialize(new Dictionary<string, IReadOnlyDictionary<string, string?>> { [NetworkTuningCaptureStore.ProfileEntryId("HomeNet")] = values });
+        var read = NetworkTuningCaptureStore.Deserialize(json)[NetworkTuningCaptureStore.ProfileEntryId("HomeNet")];
+        var back = NetworkTuningCaptureStore.ProfileFrom("HomeNet", read);
+        Assert.NotNull(back);
+        Assert.Equal((2, true, false, "Wi-Fi"), (back!.Priority, back.AutoConnect, back.Metered, back.Interface));
+        Assert.Null(NetworkTuningCaptureStore.ProfileFrom("HomeNet", null));
+        Assert.Null(NetworkTuningCaptureStore.ProfileFrom("HomeNet", new Dictionary<string, string?> { ["priority"] = "1" }));
+    }
+
+    [Fact]
+    public async Task Demo_saved_network_changes_can_be_reverted()
+    {
+        var tuning = new DemoNetworkTuningService();
+        Assert.False(tuning.CanRevertSavedNetwork("Pixel 8 Hotspot"));
+        Assert.True((await tuning.SetMeteredAsync("Pixel 8 Hotspot", false, CancellationToken.None)).Success);
+        Assert.True((await tuning.SetNetworkPriorityAsync("Pixel 8 Hotspot", 4, CancellationToken.None)).Success);
+        Assert.True(tuning.CanRevertSavedNetwork("Pixel 8 Hotspot"));
+
+        Assert.True((await tuning.RevertSavedNetworkAsync("Pixel 8 Hotspot", CancellationToken.None)).Success);
+        var restored = (await tuning.GetSavedNetworksAsync(CancellationToken.None)).Single(p => p.Name == "Pixel 8 Hotspot");
+        Assert.Equal((2, true), (restored.Priority, restored.Metered));
+        Assert.False(tuning.CanRevertSavedNetwork("Pixel 8 Hotspot"));
+        Assert.False((await tuning.RevertSavedNetworkAsync("Pixel 8 Hotspot", CancellationToken.None)).Success);
+    }
+}
