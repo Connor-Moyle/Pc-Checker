@@ -22,7 +22,11 @@ public sealed partial class HostsEntryRow : ObservableObject
         _isEnabled = line.Enabled;
         _enabledChanged = enabledChanged;
         Flag = HostsSuspicionRules.Evaluate(line);
+        IsBlock = HostsSuspicionRules.IsBlockAddress(line.Address);
     }
+
+    /// <summary>True for 0.0.0.0 and loopback addresses (the entry blocks the names).</summary>
+    public bool IsBlock { get; }
 
     public int LineIndex { get; }
 
@@ -43,7 +47,7 @@ public sealed partial class HostsEntryRow : ObservableObject
     public string? FlagReason => Flag?.Reason;
 
     /// <summary>"Blocks" for 0.0.0.0 and loopback addresses, "Sends to" otherwise.</summary>
-    public string ActionText => HostsSuspicionRules.IsBlockAddress(Line.Address) ? Loc.T("Blocks") : Loc.T("Sends to this address");
+    public string ActionText => IsBlock ? Loc.T("Blocks") : Loc.T("Sends to this address");
 
     public string LineText => (LineIndex + 1).ToString(CultureInfo.CurrentCulture);
 

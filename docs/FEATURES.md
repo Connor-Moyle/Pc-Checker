@@ -1338,7 +1338,9 @@ deleting anything.
 - **What is listed**: commands (shell verbs) and shell extensions
   (ContextMenuHandlers) for files, files and folders, folders, inside a
   folder, drives and the desktop, plus the 20 most common file types
-  (`.txt`, `.pdf`, pictures, music, video, Office, archives, `.exe`); the
+  (`.txt`, `.pdf`, pictures, music, video, Office, archives, `.exe`),
+  including the program classes those types are linked to (the verb a
+  double-click runs is left out so files always open); the
   items in **Send to**; and the Windows 11 entries of packaged apps (read
   from their manifests). Each line shows the text as Explorer shows it
   (resource strings such as `@shell32.dll,-8506` are resolved), the program

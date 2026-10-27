@@ -54,17 +54,19 @@ public sealed partial class WindowsContextMenuService : IContextMenuService
         var verbs = new Dictionary<string, List<VerbInstance>>(StringComparer.OrdinalIgnoreCase);
         var handlers = new Dictionary<string, List<HandlerInstance>>(StringComparer.OrdinalIgnoreCase);
         var classes = ContextMenuRules.ClassKeys
-            .Concat(ContextMenuRules.CommonExtensions.SelectMany(e => new[] { e, "SystemFileAssociations\\" + e }))
+            .Select(k => (Key: k, Location: ContextMenuRules.LocationOf(k), SkipVerb: (string?)null))
+            .Concat(ContextMenuRules.CommonExtensions.SelectMany(ExtensionClasses))
             .ToList();
 
         for (int i = 0; i < classes.Count; i++)
         {
             ct.ThrowIfCancellationRequested();
-            progress?.Report(new ProgressUpdate("Reading the right-click menu", (double)i / classes.Count * 70, ContextMenuRules.LocationOf(classes[i])));
+            var (key, location, skipVerb) = classes[i];
+            progress?.Report(new ProgressUpdate("Reading the right-click menu", (double)i / classes.Count * 70, location));
             foreach (var scope in new[] { MenuEntryScope.User, MenuEntryScope.Machine })
             {
-                ReadVerbs(scope, classes[i], verbs, warnings);
-                ReadHandlers(scope, classes[i], handlers, warnings);
+                ReadVerbs(scope, key, location, verbs, warnings, skipVerb);
+                ReadHandlers(scope, key, location, handlers, warnings);
             }
         }
 
@@ -103,12 +105,58 @@ public sealed partial class WindowsContextMenuService : IContextMenuService
         return new MenuScanResult(sorted, warnings, DateTimeOffset.Now, ReadClassicMenu());
     }
 
+    /// <summary>
+    /// The classes File Explorer uses for a file type: the extension itself, SystemFileAssociations and the program
+    /// classes (ProgIDs) it is linked to, where most programs register their verbs. A ProgID's main verb (the one a
+    /// double-click runs) is skipped, so turning it off cannot stop the files from opening.
+    /// </summary>
+    private static IEnumerable<(string Key, string Location, string? SkipVerb)> ExtensionClasses(string extension)
+    {
+        string location = ContextMenuRules.LocationOf(extension);
+        yield return (extension, location, null);
+        yield return ("SystemFileAssociations\\" + extension, location, null);
+
+        var progIds = new List<string?>();
+        using (var choice = Open(MenuEntryScope.User, $@"Software\Microsoft\Windows\CurrentVersion\Explorer\FileExts\{extension}\UserChoice"))
+        {
+            progIds.Add(choice?.GetValue("ProgId") as string);
+        }
+
+        foreach (var scope in new[] { MenuEntryScope.User, MenuEntryScope.Machine })
+        {
+            using var ext = Open(scope, $@"Software\Classes\{extension}");
+            progIds.Add(ext?.GetValue(string.Empty) as string);
+        }
+
+        foreach (var progId in progIds.Where(ContextMenuRules.IsUsableProgId).Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            yield return (progId!, location, DefaultVerb(progId!));
+        }
+    }
+
+    /// <summary>The verb a double-click runs: the shell key's default value, or "open".</summary>
+    private static string DefaultVerb(string progId)
+    {
+        foreach (var scope in new[] { MenuEntryScope.User, MenuEntryScope.Machine })
+        {
+            using var shell = Open(scope, $@"Software\Classes\{progId}\shell");
+            if (shell?.GetValue(string.Empty) is string verb && !string.IsNullOrWhiteSpace(verb))
+            {
+                // The value can list several verbs in order of preference; the first one that exists is used.
+                return verb.Split([',', ' '], StringSplitOptions.RemoveEmptyEntries)[0];
+            }
+        }
+
+        return "open";
+    }
+
     // ---- shell verbs -------------------------------------------------------------------------------------------------
 
-    private sealed record VerbInstance(MenuEntryScope Scope, string Path, string ClassKey, string? Text, string? Command,
-        string? HandlerClsid, bool HasSubCommands, bool Hidden, bool Extended);
+    private sealed record VerbInstance(MenuEntryScope Scope, string Path, string ClassKey, string Location, string? Text, string? Command,
+        string? HandlerClsid, bool HasSubCommands, bool Hidden, bool Extended, string? ChildCommand);
 
-    private void ReadVerbs(MenuEntryScope scope, string classKey, Dictionary<string, List<VerbInstance>> verbs, List<string> warnings)
+    private void ReadVerbs(MenuEntryScope scope, string classKey, string location, Dictionary<string, List<VerbInstance>> verbs,
+        List<string> warnings, string? skipVerb = null)
     {
         string shellPath = $@"Software\Classes\{classKey}\shell";
         using var shell = Open(scope, shellPath);
@@ -119,6 +167,11 @@ public sealed partial class WindowsContextMenuService : IContextMenuService
 
         foreach (var name in SubKeyNames(shell))
         {
+            if (skipVerb is not null && name.Equals(skipVerb, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
             try
             {
                 using var verb = shell.OpenSubKey(name);
@@ -141,13 +194,21 @@ public sealed partial class WindowsContextMenuService : IContextMenuService
                 }
 
                 string? command = null;
+                string? delegateExecute = verb.GetValue("DelegateExecute") as string;
                 using (var commandKey = verb.OpenSubKey("command"))
                 {
                     command = commandKey?.GetValue(string.Empty, null, RegistryValueOptions.DoNotExpandEnvironmentNames) as string;
+                    if (string.IsNullOrWhiteSpace(command))
+                    {
+                        command = null;
+                    }
+
+                    // Windows keeps DelegateExecute on the command subkey (DesktopBackground\Shell\Display\command).
+                    delegateExecute ??= commandKey?.GetValue("DelegateExecute") as string;
                 }
 
                 string? handler = ShellExtensionBlockList.Normalize(verb.GetValue("ExplorerCommandHandler") as string)
-                    ?? ShellExtensionBlockList.Normalize(verb.GetValue("DelegateExecute") as string);
+                    ?? ShellExtensionBlockList.Normalize(delegateExecute);
                 bool sub = valueNames.Any(v => v.Equals("SubCommands", StringComparison.OrdinalIgnoreCase) || v.Equals("ExtendedSubCommandsKey", StringComparison.OrdinalIgnoreCase))
                     || verb.GetSubKeyNames().Any(k => k.Equals("shell", StringComparison.OrdinalIgnoreCase));
                 bool extended = valueNames.Any(v => v.Equals("Extended", StringComparison.OrdinalIgnoreCase));
@@ -157,13 +218,35 @@ public sealed partial class WindowsContextMenuService : IContextMenuService
                     verbs[name] = list = [];
                 }
 
-                list.Add(new VerbInstance(scope, $@"{shellPath}\{name}", classKey, text, command, handler, sub, hidden, extended));
+                string? childCommand = command is null && handler is null && sub ? FirstChildCommand(verb) : null;
+                list.Add(new VerbInstance(scope, $@"{shellPath}\{name}", classKey, location, text, command, handler, sub, hidden, extended, childCommand));
             }
             catch (Exception ex) when (ex is System.Security.SecurityException or UnauthorizedAccessException or IOException)
             {
                 warnings.Add($"Could not read {ScopeName(scope)}\\{shellPath}\\{name}: {ex.Message}");
             }
         }
+    }
+
+    /// <summary>The first command of a cascading menu's own items, so the program that added the menu can be named.</summary>
+    private static string? FirstChildCommand(RegistryKey verb)
+    {
+        using var shell = verb.OpenSubKey("shell");
+        if (shell is null)
+        {
+            return null;
+        }
+
+        foreach (var child in SubKeyNames(shell))
+        {
+            using var command = shell.OpenSubKey(child + "\\command");
+            if (command?.GetValue(string.Empty, null, RegistryValueOptions.DoNotExpandEnvironmentNames) is string text && !string.IsNullOrWhiteSpace(text))
+            {
+                return text;
+            }
+        }
+
+        return null;
     }
 
     /// <summary>
@@ -175,7 +258,7 @@ public sealed partial class WindowsContextMenuService : IContextMenuService
         static bool HasContent(VerbInstance i) =>
             i.Command is not null || i.HandlerClsid is not null || i.HasSubCommands || !string.IsNullOrWhiteSpace(i.Text);
         static string ProgramKey(VerbInstance i) =>
-            (i.Command is not null ? ContextMenuRules.ProgramOfCommand(i.Command) : null) ?? i.HandlerClsid ?? string.Empty;
+            ContextMenuRules.ProgramOfCommand(i.Command ?? i.ChildCommand) ?? i.HandlerClsid ?? string.Empty;
 
         var stubs = instances.Where(i => !HasContent(i)).ToList();
         var groups = instances.Where(HasContent).GroupBy(ProgramKey, StringComparer.OrdinalIgnoreCase).ToList();
@@ -195,8 +278,9 @@ public sealed partial class WindowsContextMenuService : IContextMenuService
         string text = IndirectString.DisplayText(rawText, Resolve(rawText), name);
         string? command = preferred.Select(i => i.Command).FirstOrDefault(c => !string.IsNullOrWhiteSpace(c));
         string? handler = preferred.Select(i => i.HandlerClsid).FirstOrDefault(c => c is not null);
+        string? childCommand = preferred.Select(i => i.ChildCommand).FirstOrDefault(c => c is not null);
 
-        string? file = command is not null ? ContextMenuRules.ProgramOfCommand(command) : null;
+        string? file = ContextMenuRules.ProgramOfCommand(command ?? childCommand);
         if (file is null && handler is not null)
         {
             file = ClsidServer(handler);
@@ -208,7 +292,14 @@ public sealed partial class WindowsContextMenuService : IContextMenuService
         bool enabled = state.GroupBy(i => i.ClassKey, StringComparer.OrdinalIgnoreCase)
             .Any(g => !(g.FirstOrDefault(i => i.Scope == MenuEntryScope.User) ?? g.First()).Hidden);
 
-        var (owner, publisher, broken) = Describe(file, windows, name, handler);
+        var (owner, publisher, broken) = Describe(file, windows, name, handler, rawText);
+        if (owner != MenuEntryOwner.Windows && ContextMenuRules.IsUnattributedVerb(file, rawText, windows))
+        {
+            // No program could be found (or its text comes from a Windows file): treat it as Windows' own and leave it alone.
+            owner = MenuEntryOwner.Windows;
+            publisher ??= "Microsoft Windows";
+        }
+
         return new MenuEntry
         {
             Id = id,
@@ -220,7 +311,7 @@ public sealed partial class WindowsContextMenuService : IContextMenuService
             Command = command,
             FilePath = file,
             Publisher = publisher,
-            Locations = ContextMenuRules.MergeLocations(instances.Select(i => ContextMenuRules.LocationOf(i.ClassKey))),
+            Locations = ContextMenuRules.MergeLocations(instances.Select(i => i.Location)),
             IsEnabled = enabled,
             Owner = owner,
             IsBroken = broken,
@@ -231,9 +322,9 @@ public sealed partial class WindowsContextMenuService : IContextMenuService
 
     // ---- shell extensions --------------------------------------------------------------------------------------------
 
-    private sealed record HandlerInstance(MenuEntryScope Scope, string Path, string ClassKey, string KeyName, bool DisabledByPrefix);
+    private sealed record HandlerInstance(MenuEntryScope Scope, string Path, string ClassKey, string Location, string KeyName, bool DisabledByPrefix);
 
-    private void ReadHandlers(MenuEntryScope scope, string classKey, Dictionary<string, List<HandlerInstance>> handlers, List<string> warnings)
+    private void ReadHandlers(MenuEntryScope scope, string classKey, string location, Dictionary<string, List<HandlerInstance>> handlers, List<string> warnings)
     {
         string path = $@"Software\Classes\{classKey}\shellex\ContextMenuHandlers";
         using var key = Open(scope, path);
@@ -258,7 +349,7 @@ public sealed partial class WindowsContextMenuService : IContextMenuService
                     handlers[clsid] = list = [];
                 }
 
-                list.Add(new HandlerInstance(scope, $@"{path}\{name}", classKey, name, disabledByPrefix));
+                list.Add(new HandlerInstance(scope, $@"{path}\{name}", classKey, location, name, disabledByPrefix));
             }
             catch (Exception ex) when (ex is System.Security.SecurityException or UnauthorizedAccessException or IOException)
             {
@@ -295,7 +386,7 @@ public sealed partial class WindowsContextMenuService : IContextMenuService
             Keys = instances.Select(i => new MenuEntryKey(i.Scope, i.Path)).ToList(),
             FilePath = file,
             Publisher = publisher,
-            Locations = ContextMenuRules.MergeLocations(instances.Select(i => ContextMenuRules.LocationOf(i.ClassKey))),
+            Locations = ContextMenuRules.MergeLocations(instances.Select(i => i.Location)),
             IsEnabled = !blockedUser && !blockedMachine && !prefixed,
             Owner = owner,
             IsBroken = broken,
@@ -463,13 +554,18 @@ public sealed partial class WindowsContextMenuService : IContextMenuService
     // ---- shared helpers ----------------------------------------------------------------------------------------------
 
     /// <summary>Owner, publisher and whether the file is missing.</summary>
-    private (MenuEntryOwner Owner, string? Publisher, bool Broken) Describe(string? file, string windows, string? verbName, string? clsid)
+    private (MenuEntryOwner Owner, string? Publisher, bool Broken) Describe(string? file, string windows, string? verbName, string? clsid,
+        string? menuText = null)
     {
         bool rooted = file is not null && Path.IsPathFullyQualified(file);
         bool exists = rooted && (File.Exists(file) || Directory.Exists(file));
         if (ContextMenuRules.IsInWindowsFolder(file, windows))
         {
-            return (MenuEntryOwner.Windows, "Microsoft Windows", rooted && !exists);
+            // Usually Windows' own; a tweak that runs cmd or PowerShell is not (see ContextMenuRules.ClassifyOwner).
+            var windowsFileOwner = ContextMenuRules.ClassifyOwner(file, null, windows, verbName, clsid, menuText: menuText);
+            return windowsFileOwner == MenuEntryOwner.Windows
+                ? (MenuEntryOwner.Windows, "Microsoft Windows", rooted && !exists)
+                : (windowsFileOwner, null, rooted && !exists);
         }
 
         SignatureInfo signature = SignatureInfo.Unknown;
@@ -496,7 +592,7 @@ public sealed partial class WindowsContextMenuService : IContextMenuService
         }
 
         string? signer = signature.IsSigned ? signature.Publisher : null;
-        var owner = ContextMenuRules.ClassifyOwner(file, signer, windows, verbName, clsid);
+        var owner = ContextMenuRules.ClassifyOwner(file, signer, windows, verbName, clsid, menuText: menuText);
         string? publisher = signer ?? (string.IsNullOrWhiteSpace(company) ? StartupPublisherRules.VendorFolder(file) : company);
         return (owner, publisher, rooted && !exists);
     }

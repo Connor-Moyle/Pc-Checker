@@ -57,6 +57,34 @@ public static class SendToRules
         return ContextMenuRules.IsInWindowsFolder(shortcutTarget, windowsDirectory);
     }
 
+    /// <summary>
+    /// True when <paramref name="candidate"/> is <paramref name="original"/> or a name <see cref="FreeName"/> made from
+    /// it ("Tool (2).lnk" for "Tool.lnk"), so undo still finds a Send to item that had to be renamed when it was moved.
+    /// </summary>
+    public static bool IsFreeNameOf(string? candidate, string? original)
+    {
+        if (string.IsNullOrWhiteSpace(candidate) || string.IsNullOrWhiteSpace(original))
+        {
+            return false;
+        }
+
+        if (candidate.Equals(original, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        string stem = Path.GetFileNameWithoutExtension(original);
+        string extension = Path.GetExtension(original);
+        if (!candidate.EndsWith(extension, StringComparison.OrdinalIgnoreCase)
+            || !candidate.StartsWith(stem + " (", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        string middle = candidate[(stem.Length + 2)..^extension.Length];
+        return middle.Length > 1 && middle.EndsWith(')') && middle[..^1].All(char.IsAsciiHexDigit);
+    }
+
     /// <summary>A free file name in the backup folder: "name.lnk", then "name (2).lnk" and so on.</summary>
     public static string FreeName(string fileName, Func<string, bool> exists)
     {

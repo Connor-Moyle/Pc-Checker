@@ -244,6 +244,8 @@
                 <controls:EmptyState Icon="DocumentText24" Title="No entries to show"
                                      Message="Nothing matches the search or filter, or the file only has comments. Use Add entry to block a site or point a name at an address."
                                      Visibility="{Binding HasNoRows, Converter={StaticResource BoolToVisibility}}" MinHeight="120" />
+                <ui:TextBlock Style="{StaticResource Muted}" Margin="0,8,0,0" TextWrapping="Wrap" Text="{Binding RowLimitText}"
+                              Visibility="{Binding HasRowLimit, Converter={StaticResource BoolToVisibility}}" />
               </StackPanel>
             </TabItem>
 

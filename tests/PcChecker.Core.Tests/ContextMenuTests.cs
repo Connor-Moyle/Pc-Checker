@@ -359,3 +359,73 @@ public class PackagedMenuAndSendToTests
         Assert.False(again.Entries.Single(e => e.Id == program.Id).IsEnabled);
     }
 }
+
+public class ContextMenuOwnerEdgeCaseTests
+{
+    private const string Windows = @"C:\Windows";
+
+    [Theory]
+    [InlineData(@"@%SystemRoot%\system32\themecpl.dll,-10", true)]
+    [InlineData(@"@%windir%\System32\display.dll,-4", true)]
+    [InlineData("@display.dll,-4", true)]
+    [InlineData(@"@C:\Windows\System32\shell32.dll,-8506", true)]
+    [InlineData(@"@C:\Program Files\Tool\menu.dll,-3", false)]
+    [InlineData("Display settings", false)]
+    [InlineData(null, false)]
+    public void Indirect_text_from_a_Windows_file_is_recognised(string? text, bool expected) =>
+        Assert.Equal(expected, ContextMenuRules.IsWindowsResourceText(text, Windows));
+
+    [Fact]
+    public void Desktop_Display_and_Personalize_are_Windows_entries()
+    {
+        Assert.True(ContextMenuRules.IsBuiltInVerb("Display"));
+        Assert.True(ContextMenuRules.IsBuiltInVerb("personalize"));
+
+        // No command and no handler that could be read: the owner is unknown, so it is treated as Windows'.
+        Assert.True(ContextMenuRules.IsUnattributedVerb(null, "@display.dll,-4", Windows));
+        Assert.True(ContextMenuRules.IsUnattributedVerb(null, "Plain text", Windows));
+        Assert.True(ContextMenuRules.IsUnattributedVerb("someprog.exe", @"@%SystemRoot%\system32\themecpl.dll,-10", Windows));
+        Assert.False(ContextMenuRules.IsUnattributedVerb(@"C:\Program Files\Tool\tool.exe", null, Windows));
+        Assert.False(ContextMenuRules.IsUnattributedVerb("someprog.exe", "Open with Some Program", Windows));
+    }
+
+    [Theory]
+    [InlineData(@"C:\Windows\System32\cmd.exe", "TakeOwnership", "Take ownership", MenuEntryOwner.Program)]
+    [InlineData(@"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe", "OpenPSHere", "Open PowerShell here", MenuEntryOwner.Program)]
+    [InlineData(@"C:\Windows\explorer.exe", "OpenInNewWindowTweak", "Open in new window", MenuEntryOwner.Program)]
+    [InlineData(@"C:\Windows\System32\cmd.exe", "cmd", "@shell32.dll,-8506", MenuEntryOwner.Windows)]
+    [InlineData(@"C:\Windows\System32\cmd.exe", "SomeVerb", @"@%SystemRoot%\system32\shell32.dll,-37424", MenuEntryOwner.Windows)]
+    [InlineData(@"C:\Windows\System32\notepad.exe", "Tweak", "Edit", MenuEntryOwner.Windows)]
+    public void Verbs_running_cmd_PowerShell_or_Explorer_belong_to_whoever_added_them(string file, string verb, string text, MenuEntryOwner expected) =>
+        Assert.Equal(expected, ContextMenuRules.ClassifyOwner(file, "Microsoft Windows", Windows, verbName: verb, menuText: text));
+
+    [Fact]
+    public void A_general_tool_with_a_shell_handler_stays_Windows()
+    {
+        Assert.Equal(MenuEntryOwner.Windows,
+            ContextMenuRules.ClassifyOwner(@"C:\Windows\explorer.exe", null, Windows, verbName: "opennewwindow2", clsid: "{11dbb47c-a525-400b-9e80-a54615a090c0}"));
+    }
+
+    [Theory]
+    [InlineData("txtfile", true)]
+    [InlineData("Word.Document.12", true)]
+    [InlineData(@"Applications\notepad++.exe", true)]
+    [InlineData(".txt", false)]
+    [InlineData("*", false)]
+    [InlineData("Directory", false)]
+    [InlineData("", false)]
+    [InlineData(null, false)]
+    public void ProgIds_of_file_types_are_read_unless_they_are_extensions_or_base_classes(string? progId, bool expected) =>
+        Assert.Equal(expected, ContextMenuRules.IsUsableProgId(progId));
+
+    [Theory]
+    [InlineData("Tool.lnk", "Tool.lnk", true)]
+    [InlineData("Tool (2).lnk", "Tool.lnk", true)]
+    [InlineData("tool (12).LNK", "Tool.lnk", true)]
+    [InlineData("Tool (0123456789abcdef0123456789abcdef).lnk", "Tool.lnk", true)]
+    [InlineData("Tool (copy).lnk", "Tool.lnk", false)]
+    [InlineData("Toolbox.lnk", "Tool.lnk", false)]
+    [InlineData("Tool (2).url", "Tool.lnk", false)]
+    public void Renamed_Send_to_items_are_found_for_undo(string candidate, string original, bool expected) =>
+        Assert.Equal(expected, SendToRules.IsFreeNameOf(candidate, original));
+}

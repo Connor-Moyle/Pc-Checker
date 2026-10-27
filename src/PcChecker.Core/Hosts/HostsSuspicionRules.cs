@@ -22,12 +22,24 @@ public static class HostsSuspicionRules
         "steampowered.com", "steamcommunity.com", "epicgames.com", "discord.com", "netflix.com", "spotify.com",
     ];
 
-    /// <summary>Words in bank and payment site names.</summary>
+    /// <summary>Bank and payment sites matched as a whole domain (the name or a name under it).</summary>
+    private static readonly string[] BankDomains =
+    [
+        "chase.com", "citi.com", "amex.com", "americanexpress.com", "visa.com", "mastercard.com", "stripe.com",
+        "paypal.com", "venmo.com", "coinbase.com", "binance.com", "revolut.com", "monzo.com",
+    ];
+
+    /// <summary>Bank brand names and words, matched at the start or end of a part of the name ("mybank", "bankofamerica").</summary>
     private static readonly string[] BankWords =
     [
-        "bank", "paypal", "chase.com", "wellsfargo", "citi.com", "citibank", "barclays", "hsbc", "santander", "natwest",
-        "lloyds", "capitalone", "americanexpress", "amex.", "visa.com", "mastercard", "creditunion", "sparkasse",
-        "revolut", "monzo", "stripe.com", "venmo", "coinbase", "binance",
+        "bank", "paypal", "wellsfargo", "citibank", "barclays", "hsbc", "santander", "natwest", "lloyds", "capitalone",
+        "americanexpress", "creditunion", "sparkasse", "revolut", "monzo", "venmo", "coinbase", "binance",
+    ];
+
+    /// <summary>Endings of names that only work on a home or office network; they are never bank sites.</summary>
+    private static readonly string[] LocalSuffixes =
+    [
+        "local", "localhost", "lan", "home", "internal", "intranet", "corp", "test", "example", "invalid", "localdomain", "home.arpa",
     ];
 
     /// <summary>Update and security sites, with the product named in the reason.</summary>
@@ -92,8 +104,32 @@ public static class HostsSuspicionRules
 
     public static bool IsWellKnown(string host) => WellKnownSites.Any(d => Matches(host, d));
 
-    public static bool IsBankLike(string host) =>
-        !string.IsNullOrWhiteSpace(host) && BankWords.Any(w => host.Contains(w, StringComparison.OrdinalIgnoreCase));
+    /// <summary>
+    /// True for bank and payment site names: a known domain, or a part of the name that starts or ends with a bank
+    /// word. Names without a dot and local names (".local", ".lan", ".home"…) are never bank sites.
+    /// </summary>
+    public static bool IsBankLike(string host)
+    {
+        if (string.IsNullOrWhiteSpace(host))
+        {
+            return false;
+        }
+
+        string name = host.Trim().TrimEnd('.');
+        if (!name.Contains('.') || LocalSuffixes.Any(s => Matches(name, s)))
+        {
+            return false;
+        }
+
+        if (BankDomains.Any(d => Matches(name, d)))
+        {
+            return true;
+        }
+
+        var labels = name.Split('.');
+        return labels.Take(labels.Length - 1).Any(label => BankWords.Any(w =>
+            label.StartsWith(w, StringComparison.OrdinalIgnoreCase) || label.EndsWith(w, StringComparison.OrdinalIgnoreCase)));
+    }
 
     /// <summary>True when <paramref name="host"/> is <paramref name="domain"/> or a name under it (not "notmicrosoft.com").</summary>
     public static bool Matches(string host, string domain)

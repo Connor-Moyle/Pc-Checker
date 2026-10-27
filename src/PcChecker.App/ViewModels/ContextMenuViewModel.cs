@@ -24,7 +24,7 @@ public sealed partial class ContextMenuViewModel : ViewModelBase
     private readonly IDialogService _dialogs;
     private readonly INotificationService _notifications;
     private readonly ILogger<ContextMenuViewModel> _logger;
-    private readonly Stack<(string EntryId, string Text, bool WasEnabled)> _undo = new();
+    private readonly Stack<(string EntryId, string Text, bool WasEnabled, MenuEntryKind Kind, string KeyName)> _undo = new();
     private IReadOnlyList<MenuEntry> _all = [];
 
     public ContextMenuViewModel(ISettingsService settings, IContextMenuService menu, IDialogService dialogs,
@@ -179,8 +179,13 @@ public sealed partial class ContextMenuViewModel : ViewModelBase
             return;
         }
 
-        var (id, text, wasEnabled) = _undo.Peek();
-        var entry = _all.FirstOrDefault(e => e.Id == id);
+        var (id, text, wasEnabled, kind, keyName) = _undo.Peek();
+
+        // A Send to item may have been renamed ("Tool (2).lnk") when it was moved, which changes its id.
+        var entry = _all.FirstOrDefault(e => e.Id == id)
+            ?? (kind == MenuEntryKind.SendTo
+                ? _all.FirstOrDefault(e => e.Kind == MenuEntryKind.SendTo && e.IsEnabled != wasEnabled && SendToRules.IsFreeNameOf(e.KeyName, keyName))
+                : null);
         if (entry is null)
         {
             _undo.Pop();
@@ -233,7 +238,7 @@ public sealed partial class ContextMenuViewModel : ViewModelBase
 
         if (recordUndo)
         {
-            _undo.Push((entry.Id, entry.Text, entry.IsEnabled));
+            _undo.Push((entry.Id, entry.Text, entry.IsEnabled, entry.Kind, entry.KeyName));
             UpdateUndo();
         }
 
@@ -248,14 +253,14 @@ public sealed partial class ContextMenuViewModel : ViewModelBase
         string how = entry.Kind switch
         {
             MenuEntryKind.Command => enabled
-                ? Loc.T("PC Checker removes the LegacyDisable value it added to the entry's registry key.")
-                : Loc.T("PC Checker adds a LegacyDisable value to the entry's registry key, which hides it."),
+                ? Loc.T("PC Checker removes the setting that hides it. The entry itself was never deleted.")
+                : Loc.T("PC Checker adds a setting that hides it from the menu. The entry itself stays, so it can come back."),
             MenuEntryKind.SendTo => enabled
                 ? Loc.T("PC Checker moves the shortcut back into your Send to folder.")
                 : Loc.T("PC Checker moves the shortcut to a hidden backup folder."),
             _ => enabled
-                ? Loc.T("PC Checker removes it from the Shell Extensions Blocked list.")
-                : Loc.T("PC Checker adds it to your Shell Extensions Blocked list, so File Explorer stops loading it."),
+                ? Loc.T("PC Checker takes it off Windows' list of blocked menu add-ons.")
+                : Loc.T("PC Checker puts it on your list of blocked menu add-ons, so File Explorer stops loading it. The program itself is not changed."),
         };
 
         var lines = new List<string>
@@ -416,7 +421,7 @@ public sealed partial class ContextMenuViewModel : ViewModelBase
             return;
         }
 
-        var (_, text, wasEnabled) = _undo.Peek();
+        var (_, text, wasEnabled, _, _) = _undo.Peek();
         UndoText = wasEnabled ? Loc.F("Undo: turn \"{0}\" back on", text) : Loc.F("Undo: turn \"{0}\" off again", text);
     }
 }

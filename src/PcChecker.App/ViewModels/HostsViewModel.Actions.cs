@@ -74,10 +74,25 @@ public sealed partial class HostsViewModel
         SelectedRow = Rows.FirstOrDefault(r => r.LineIndex == _document.Lines.Count - 1);
     }
 
+    /// <summary>
+    /// The entry actions work on table rows. Text typed in the Text view is read first; if it changed the file, the
+    /// table is rebuilt and the action stops so it never works on a line that is no longer there.
+    /// </summary>
+    private bool TextViewChangedTable()
+    {
+        if (!_rawDirty)
+        {
+            return false;
+        }
+
+        ApplyRawText();
+        return true;
+    }
+
     [RelayCommand(CanExecute = nameof(HasSelection))]
     private async Task EditEntryAsync()
     {
-        if (SelectedRow is not { } row)
+        if (TextViewChangedTable() || SelectedRow is not { } row)
         {
             return;
         }
@@ -98,7 +113,7 @@ public sealed partial class HostsViewModel
     [RelayCommand(CanExecute = nameof(HasSelection))]
     private void ToggleEntry()
     {
-        if (SelectedRow is { } row)
+        if (!TextViewChangedTable() && SelectedRow is { } row)
         {
             ReplaceLine(row.LineIndex, row.Line with { Raw = null, Enabled = !row.Line.Enabled });
         }
@@ -107,7 +122,7 @@ public sealed partial class HostsViewModel
     [RelayCommand(CanExecute = nameof(HasSelection))]
     private void RemoveEntry()
     {
-        if (SelectedRow is { } row)
+        if (!TextViewChangedTable() && SelectedRow is { } row)
         {
             ReplaceLine(row.LineIndex, null);
             _notifications.Info(Loc.T("Entry removed"), Loc.T("Save to apply it, or Discard to bring it back."));

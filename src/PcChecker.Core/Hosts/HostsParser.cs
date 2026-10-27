@@ -7,7 +7,8 @@ namespace PcChecker.Core.Hosts;
 /// <summary>
 /// Reads and writes the hosts file. Every line is kept: comments, blank lines and lines Windows cannot use are written
 /// back exactly as they were, and only lines changed on the page are written from their fields. A commented-out line
-/// that holds a valid address and host names is shown as a turned-off entry; Microsoft's sample lines stay comments.
+/// that holds a valid address and host names is shown as a turned-off entry; Microsoft's sample lines (the acme.com
+/// examples and the "#&lt;tab&gt;127.0.0.1 localhost" and "#&lt;tab&gt;::1 localhost" notes of the default file) stay comments.
 /// </summary>
 public static class HostsParser
 {
@@ -43,7 +44,7 @@ public static class HostsParser
         if (trimmed.StartsWith('#'))
         {
             var disabled = TryParseEntry(trimmed.TrimStart('#'), strict: true);
-            if (disabled is not null && !disabled.Value.Names.Any(SampleHosts.Contains))
+            if (disabled is not null && !disabled.Value.Names.Any(SampleHosts.Contains) && !IsDefaultLocalhostNote(trimmed, disabled.Value))
             {
                 return Entry(line, disabled.Value, enabled: false);
             }
@@ -56,6 +57,16 @@ public static class HostsParser
             ? new HostsLine { Kind = HostsLineKind.Invalid, Raw = line }
             : Entry(line, entry.Value, enabled: true);
     }
+
+    /// <summary>
+    /// Microsoft's default file ends with "#\t127.0.0.1  localhost" and "#\t::1  localhost" to explain that localhost is
+    /// handled by DNS; they are notes, not entries someone turned off. Lines PC Checker turns off start with "# ".
+    /// </summary>
+    private static bool IsDefaultLocalhostNote(string trimmed, (string Address, List<string> Names, string? Comment) entry) =>
+        trimmed.StartsWith("#\t", StringComparison.Ordinal)
+        && entry.Comment is null
+        && entry.Names.Count == 1 && entry.Names[0].Equals("localhost", StringComparison.OrdinalIgnoreCase)
+        && entry.Address is "127.0.0.1" or "::1";
 
     /// <summary>Writes the document back: unchanged lines as read, new and edited ones from their fields.</summary>
     public static string Serialize(HostsDocument document)

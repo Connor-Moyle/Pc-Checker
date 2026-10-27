@@ -62,16 +62,34 @@ public class HostsParserTests
     }
 
     [Fact]
-    public void Microsoft_sample_lines_stay_comments_and_localhost_examples_are_turned_off_entries()
+    public void Microsoft_sample_and_localhost_note_lines_stay_comments()
     {
         var doc = HostsParser.Parse(HostsFileRules.WindowsDefault);
-        var entries = doc.Entries.ToList();
-        Assert.Equal(2, entries.Count);
-        Assert.All(entries, e => Assert.False(e.Enabled));
-        Assert.All(entries, e => Assert.Equal("localhost", Assert.Single(e.HostNames)));
-        Assert.DoesNotContain(doc.Entries, e => e.HostNames.Contains("rhino.acme.com"));
+        Assert.Empty(doc.Entries);
+        Assert.Contains(doc.Lines, l => l.Kind == HostsLineKind.Comment && l.Raw!.Contains("::1", StringComparison.Ordinal));
         Assert.Equal(HostsFileRules.WindowsDefault, HostsParser.Serialize(doc));
     }
+
+    [Fact]
+    public void A_localhost_line_turned_off_by_the_page_is_still_a_turned_off_entry()
+    {
+        var line = HostsParser.ParseLine("# 127.0.0.1\tlocalhost");
+        Assert.Equal(HostsLineKind.Entry, line.Kind);
+        Assert.False(line.Enabled);
+    }
+
+    [Theory]
+    [InlineData("online.mybank.co.uk", true)]
+    [InlineData("bankofamerica.com", true)]
+    [InlineData("secure.chase.com", true)]
+    [InlineData("www.amex.com", true)]
+    [InlineData("databank.local", false)]
+    [InlineData("mybank", false)]
+    [InlineData("files.bank.lan", false)]
+    [InlineData("chase.company.com", false)]
+    [InlineData("visa.community.org", false)]
+    public void Bank_like_names_are_matched_on_parts_of_the_name(string host, bool expected) =>
+        Assert.Equal(expected, HostsSuspicionRules.IsBankLike(host));
 
     [Fact]
     public void Edited_lines_are_written_from_their_fields_and_the_rest_is_kept()

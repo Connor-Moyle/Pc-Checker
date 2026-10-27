@@ -24,7 +24,18 @@ public sealed partial class HostsViewModel : ViewModelBase
     private readonly IDialogService _dialogs;
     private readonly INotificationService _notifications;
     private readonly ILogger<HostsViewModel> _logger;
+
+    /// <summary>The table shows at most this many rows; search or filter finds the rest (block lists can be huge).</summary>
+    private const int MaxShownRows = 1000;
+
+    /// <summary>Above this many entries, search waits for a pause in typing before filtering.</summary>
+    private const int SearchDebounceThreshold = 2000;
+
+    private static readonly TimeSpan SearchDelay = TimeSpan.FromMilliseconds(250);
+
     private HostsSnapshot? _snapshot;
+    private List<HostsEntryRow> _allRows = [];
+    private CancellationTokenSource? _searchDebounce;
     private HostsDocument _document = HostsDocument.Empty;
     private HostsBackup? _lastBackup;
     private bool _rawDirty;
@@ -41,7 +52,8 @@ public sealed partial class HostsViewModel : ViewModelBase
         _logger = logger;
     }
 
-    public ObservableCollection<HostsEntryRow> Rows { get; } = [];
+    /// <summary>The rows shown, replaced in one go so a big file does not send one notification per row.</summary>
+    [ObservableProperty] private ObservableCollection<HostsEntryRow> _rows = [];
 
     public ObservableCollection<HostsBackupRow> Backups { get; } = [];
 
@@ -65,7 +77,17 @@ public sealed partial class HostsViewModel : ViewModelBase
     [ObservableProperty] private string _blockedText = "—";
     [ObservableProperty] private string _unwantedText = "—";
     [ObservableProperty] private string _fileInfoText = string.Empty;
-    [ObservableProperty] private int _selectedViewIndex;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasSelection))]
+    [NotifyCanExecuteChangedFor(nameof(EditEntryCommand))]
+    [NotifyCanExecuteChangedFor(nameof(RemoveEntryCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ToggleEntryCommand))]
+    [NotifyCanExecuteChangedFor(nameof(CopyLineCommand))]
+    private int _selectedViewIndex;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasRowLimit))]
+    private string? _rowLimitText;
     [ObservableProperty] private bool _hasNoBackups = true;
 
     [ObservableProperty]
@@ -114,7 +136,10 @@ public sealed partial class HostsViewModel : ViewModelBase
         }
     }
 
-    public bool HasSelection => SelectedRow is not null;
+    /// <summary>Only in the table view: the entry actions work on the table, not on text typed in the Text view.</summary>
+    public bool HasSelection => SelectedRow is not null && SelectedViewIndex == 0;
+
+    public bool HasRowLimit => !string.IsNullOrWhiteSpace(RowLimitText);
 
     public bool HasFileWarnings => !string.IsNullOrWhiteSpace(FileWarnings);
 
@@ -135,7 +160,34 @@ public sealed partial class HostsViewModel : ViewModelBase
 
     protected override void OnBusyError(Exception exception) => _logger.LogError(exception, "Hosts file page operation failed.");
 
-    partial void OnSearchTextChanged(string? value) => RebuildRows();
+    partial void OnSearchTextChanged(string? value)
+    {
+        _searchDebounce?.Cancel();
+        _searchDebounce?.Dispose();
+        _searchDebounce = null;
+        if (_allRows.Count <= SearchDebounceThreshold)
+        {
+            RebuildRows();
+            return;
+        }
+
+        var debounce = new CancellationTokenSource();
+        _searchDebounce = debounce;
+        _ = RebuildAfterPauseAsync(debounce.Token);
+    }
+
+    private async Task RebuildAfterPauseAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await Task.Delay(SearchDelay, cancellationToken);
+            RebuildRows();
+        }
+        catch (OperationCanceledException)
+        {
+            // Superseded by newer typing; that search rebuilds the table.
+        }
+    }
 
     partial void OnSelectedFilterIndexChanged(int value) => RebuildRows();
 
@@ -167,7 +219,10 @@ public sealed partial class HostsViewModel : ViewModelBase
             ? Loc.F("{0} · {1} · {2}", snapshot.Path, HostsEncodingDetector.Describe(snapshot.Encoding), ByteSize.Format(snapshot.Facts.Size))
             : snapshot.Path;
         Subtitle = Loc.F("Read at {0}. Edits are kept here until you Save.", snapshot.Loaded.ToString("t", CultureInfo.CurrentCulture));
-        RefreshFromDocument();
+        // Building a row per entry (with its checks) is the slow part for big block lists, so it runs off the UI thread.
+        var document = snapshot.Document;
+        var rows = await Task.Run(() => CreateRows(document, OnRowEnabledChanged), ct);
+        RefreshFromDocument(rows);
         await LoadBackupsAsync(ct);
         HasLoaded = true;
     }
@@ -184,8 +239,12 @@ public sealed partial class HostsViewModel : ViewModelBase
         HasNoBackups = Backups.Count == 0;
     }
 
-    /// <summary>Updates the table, the text view and the tiles from the current document.</summary>
-    private void RefreshFromDocument()
+    /// <summary>
+    /// Updates the table, the text view and the tiles from the current document. <paramref name="rows"/> are rows
+    /// already built for it; <paramref name="changedIndex"/> is a single entry line that was replaced in place, so only
+    /// that row is rebuilt.
+    /// </summary>
+    private void RefreshFromDocument(List<HostsEntryRow>? rows = null, int? changedIndex = null)
     {
         _settingRaw = true;
         try
@@ -197,34 +256,99 @@ public sealed partial class HostsViewModel : ViewModelBase
             _settingRaw = false;
         }
 
-        var entries = _document.Entries.ToList();
-        ActiveText = entries.Count(e => e.Enabled).ToString(CultureInfo.CurrentCulture);
-        OffText = entries.Count(e => !e.Enabled).ToString(CultureInfo.CurrentCulture);
-        BlockedText = entries.Count(e => e.Enabled && HostsSuspicionRules.IsBlockAddress(e.Address)).ToString(CultureInfo.CurrentCulture);
-        UnwantedCount = entries.Count(e => HostsSuspicionRules.Evaluate(e) is not null);
-        UnwantedText = UnwantedCount.ToString(CultureInfo.CurrentCulture);
+        if (rows is not null)
+        {
+            _allRows = rows;
+        }
+        else if (changedIndex is not { } index || !TryReplaceRow(index))
+        {
+            _allRows = CreateRows(_document, OnRowEnabledChanged);
+        }
+
+        int on = 0, off = 0, blocked = 0, unwanted = 0;
+        foreach (var row in _allRows)
+        {
+            if (row.Line.Enabled)
+            {
+                on++;
+                blocked += row.IsBlock ? 1 : 0;
+            }
+            else
+            {
+                off++;
+            }
+
+            unwanted += row.HasFlag ? 1 : 0;
+        }
+
+        ActiveText = on.ToString(CultureInfo.CurrentCulture);
+        OffText = off.ToString(CultureInfo.CurrentCulture);
+        BlockedText = blocked.ToString(CultureInfo.CurrentCulture);
+        UnwantedCount = unwanted;
+        UnwantedText = unwanted.ToString(CultureInfo.CurrentCulture);
         RebuildRows();
+    }
+
+    /// <summary>One row per entry line of <paramref name="document"/>, in file order. Safe to run off the UI thread.</summary>
+    private static List<HostsEntryRow> CreateRows(HostsDocument document, Action<HostsEntryRow, bool> enabledChanged)
+    {
+        var rows = new List<HostsEntryRow>();
+        for (int i = 0; i < document.Lines.Count; i++)
+        {
+            if (document.Lines[i].Kind == HostsLineKind.Entry)
+            {
+                rows.Add(new HostsEntryRow(i, document.Lines[i], enabledChanged));
+            }
+        }
+
+        return rows;
+    }
+
+    /// <summary>Rebuilds the row of one entry line that was replaced by another entry line; false when that does not apply.</summary>
+    private bool TryReplaceRow(int lineIndex)
+    {
+        if (lineIndex < 0 || lineIndex >= _document.Lines.Count || _document.Lines[lineIndex].Kind != HostsLineKind.Entry)
+        {
+            return false;
+        }
+
+        int lo = 0, hi = _allRows.Count - 1;
+        while (lo <= hi)
+        {
+            int mid = (lo + hi) / 2;
+            int at = _allRows[mid].LineIndex;
+            if (at == lineIndex)
+            {
+                _allRows[mid] = new HostsEntryRow(lineIndex, _document.Lines[lineIndex], OnRowEnabledChanged);
+                return true;
+            }
+
+            if (at < lineIndex)
+            {
+                lo = mid + 1;
+            }
+            else
+            {
+                hi = mid - 1;
+            }
+        }
+
+        return false;
     }
 
     private void RebuildRows()
     {
         int? selectedLine = SelectedRow?.LineIndex;
         string term = SearchText?.Trim() ?? string.Empty;
-        Rows.Clear();
-        for (int i = 0; i < _document.Lines.Count; i++)
+        var shown = new List<HostsEntryRow>(Math.Min(_allRows.Count, MaxShownRows));
+        int matching = 0;
+        foreach (var row in _allRows)
         {
-            var line = _document.Lines[i];
-            if (line.Kind != HostsLineKind.Entry)
-            {
-                continue;
-            }
-
-            var row = new HostsEntryRow(i, line, OnRowEnabledChanged);
             bool keep = SelectedFilterIndex switch
             {
-                1 => line.Enabled,
-                2 => !line.Enabled,
-                3 => line.Enabled && HostsSuspicionRules.IsBlockAddress(line.Address),
+                1 => row.Line.Enabled,
+                2 => !row.Line.Enabled,
+                3 => row.Line.Enabled && row.IsBlock,
                 4 => row.HasFlag,
                 _ => true,
             };
@@ -233,12 +357,21 @@ public sealed partial class HostsViewModel : ViewModelBase
                 || row.Address.Contains(term, StringComparison.OrdinalIgnoreCase)
                 || row.Comment.Contains(term, StringComparison.CurrentCultureIgnoreCase)))
             {
-                Rows.Add(row);
+                matching++;
+                if (shown.Count < MaxShownRows)
+                {
+                    shown.Add(row);
+                }
             }
         }
 
-        HasNoRows = Rows.Count == 0;
-        SelectedRow = selectedLine is null ? null : Rows.FirstOrDefault(r => r.LineIndex == selectedLine);
+        Rows = new ObservableCollection<HostsEntryRow>(shown);
+        HasNoRows = shown.Count == 0;
+        RowLimitText = matching > shown.Count
+            ? Loc.F("Showing the first {0} of {1} entries. Search or filter to find the others.",
+                shown.Count.ToString("N0", CultureInfo.CurrentCulture), matching.ToString("N0", CultureInfo.CurrentCulture))
+            : null;
+        SelectedRow = selectedLine is null ? null : shown.FirstOrDefault(r => r.LineIndex == selectedLine);
     }
 
     private void OnRowEnabledChanged(HostsEntryRow row, bool enabled)
@@ -261,6 +394,9 @@ public sealed partial class HostsViewModel : ViewModelBase
             return;
         }
 
+        // An entry replaced by an entry keeps every line number, so only its own row needs rebuilding.
+        bool inPlace = line is { Kind: HostsLineKind.Entry } && index < _document.Lines.Count
+            && _document.Lines[index].Kind == HostsLineKind.Entry;
         var lines = _document.Lines.ToList();
         if (line is null)
         {
@@ -277,7 +413,7 @@ public sealed partial class HostsViewModel : ViewModelBase
 
         _document = _document with { Lines = lines };
         IsDirty = true;
-        RefreshFromDocument();
+        RefreshFromDocument(changedIndex: inPlace ? index : null);
     }
 
     /// <summary>Reads the text view into the document when it was typed in.</summary>

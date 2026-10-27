@@ -31,7 +31,7 @@ public static class ContextMenuRules
         "UpdateEncryptionSettings", "UpdateEncryptionSettingsWork", "encrypt-bde", "encrypt-bde-elev", "manage-bde",
         "resume-bde", "resume-bde-elev", "unlock-bde", "format", "eject", "removeproperties", "install", "uninstall",
         "WSL", "ShowFileHistory", "BurnDisc", "change-passphrase", "change-pin", "pin", "unpin", "MapNetworkDrive",
-        "DisconnectNetworkDrive", "Windows.ModernShare", "Windows.Copilot",
+        "DisconnectNetworkDrive", "Windows.ModernShare", "Windows.Copilot", "Display", "Personalize", "Gadgets",
     };
 
     /// <summary>Shell extension CLSIDs that are part of Windows (sharing, libraries, pinning, compressed folders…).</summary>
@@ -55,6 +55,14 @@ public static class ContextMenuRules
 
     /// <summary>Hosts that run another file: the file in the arguments is the real program.</summary>
     private static readonly string[] HostPrograms = ["rundll32.exe", "wscript.exe", "cscript.exe", "mshta.exe", "regsvr32.exe"];
+
+    /// <summary>
+    /// Windows tools that programs and tweaks use to run their own commands ("Take ownership", "Open PowerShell here").
+    /// A verb that runs one of them is a program's (or a tweak's) unless it is a known Windows verb or its text comes
+    /// from a Windows file.
+    /// </summary>
+    private static readonly string[] GeneralTools =
+        ["cmd.exe", "powershell.exe", "pwsh.exe", "explorer.exe", "msiexec.exe", "conhost.exe", "wt.exe", "reg.exe", "takeown.exe", "icacls.exe"];
 
     /// <summary>Plain words for where a class key's menu shows.</summary>
     public static string LocationOf(string classKey)
@@ -189,8 +197,14 @@ public static class ContextMenuRules
     /// program.
     /// </summary>
     public static MenuEntryOwner ClassifyOwner(string? filePath, string? signer, string windowsDirectory,
-        string? verbName = null, string? clsid = null, string? packagePublisher = null)
+        string? verbName = null, string? clsid = null, string? packagePublisher = null, string? menuText = null)
     {
+        // A tweak that runs cmd, PowerShell, Explorer or msiexec: the file is Windows', the entry is not.
+        if (IsGeneralTool(filePath) && clsid is null && !IsBuiltInVerb(verbName) && !IsWindowsResourceText(menuText, windowsDirectory))
+        {
+            return MenuEntryOwner.Program;
+        }
+
         if (IsInWindowsFolder(filePath, windowsDirectory))
         {
             return MenuEntryOwner.Windows;
@@ -218,6 +232,63 @@ public static class ContextMenuRules
         }
 
         return MenuEntryOwner.Program;
+    }
+
+    /// <summary>True when the file is cmd, PowerShell, Explorer, msiexec or a similar general Windows tool.</summary>
+    public static bool IsGeneralTool(string? filePath) =>
+        !string.IsNullOrWhiteSpace(filePath)
+        && GeneralTools.Any(t => FileName(filePath.Trim().Trim('"')).Equals(t, StringComparison.OrdinalIgnoreCase)
+            || FileName(filePath.Trim().Trim('"')).Equals(t[..^4], StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>
+    /// True when indirect menu text ("@%SystemRoot%\system32\themecpl.dll,-10", "@shell32.dll,-8506") is read from a file
+    /// in the Windows folder, or from a bare file name, which Windows looks up in System32.
+    /// </summary>
+    public static bool IsWindowsResourceText(string? text, string windowsDirectory)
+    {
+        if (!IndirectString.TryParseResource(text, out string file, out _))
+        {
+            return false;
+        }
+
+        string path = file.Replace('/', '\\');
+        foreach (var variable in new[] { "%SystemRoot%", "%windir%" })
+        {
+            if (path.StartsWith(variable, StringComparison.OrdinalIgnoreCase))
+            {
+                path = windowsDirectory.TrimEnd('\\') + path[variable.Length..];
+            }
+        }
+
+        return !path.Contains('\\') || IsInWindowsFolder(path, windowsDirectory);
+    }
+
+    /// <summary>
+    /// True when no program could be found for a command verb (no command, no handler and no program in a cascading
+    /// menu), or only a bare file name whose menu text comes from Windows. Such verbs are Windows' own (for example
+    /// the desktop's Display settings and Personalize) and are left alone.
+    /// </summary>
+    public static bool IsUnattributedVerb(string? filePath, string? menuText, string windowsDirectory)
+    {
+        if (string.IsNullOrWhiteSpace(filePath))
+        {
+            return true;
+        }
+
+        return !IsRooted(filePath) && IsWindowsResourceText(menuText, windowsDirectory);
+    }
+
+    /// <summary>A ProgID worth reading for a file type: a class name, not an extension or one of the classes read anyway.</summary>
+    public static bool IsUsableProgId(string? progId)
+    {
+        if (string.IsNullOrWhiteSpace(progId))
+        {
+            return false;
+        }
+
+        string id = progId.Trim();
+        return id.Length <= 200 && !id.StartsWith('.') && !id.Contains('*') && !id.Contains('/') && !id.StartsWith('\\')
+            && !id.EndsWith('\\') && !ClassKeys.Contains(id, StringComparer.OrdinalIgnoreCase);
     }
 
     /// <summary>True for "Microsoft Corporation", "CN=Microsoft Corporation, O=…" and "Microsoft Windows".</summary>

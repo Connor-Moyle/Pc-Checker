@@ -41,7 +41,9 @@ public sealed partial class WindowsContextMenuService
 
         var result = await _guard.RunGuardedAsync(description, options,
             ct => Task.Run(() => Apply(entry, enabled), ct), null, cancellationToken).ConfigureAwait(false);
-        return entry.Keys.All(k => k.Scope == MenuEntryScope.User) ? ElevatedUserScope.Annotate(result) : result;
+        // Everything but a command verb with HKLM keys changes only the current user (HKCU, the Send to folder).
+        bool perUser = entry.Kind != MenuEntryKind.Command || entry.Keys.All(k => k.Scope == MenuEntryScope.User);
+        return perUser ? ElevatedUserScope.Annotate(result) : result;
     }
 
     public Task<OperationResult> SetClassicMenuAsync(bool classic, CancellationToken cancellationToken)
@@ -156,18 +158,31 @@ public sealed partial class WindowsContextMenuService
             case BlockListAction.Remove:
             {
                 var removed = new List<string>();
+                var failed = new List<string>();
                 if (plan.InUserList && ShellExtensionBlockList.MatchingName(user, clsid) is { } userName)
                 {
                     using var key = Open(MenuEntryScope.User, ShellExtensionBlockList.KeyPath, writable: true);
+                    (key is null ? failed : removed).Add("HKCU");
                     key?.DeleteValue(userName, throwOnMissingValue: false);
-                    removed.Add("HKCU");
                 }
 
                 if (plan.InMachineList && ShellExtensionBlockList.MatchingName(machine, clsid) is { } machineName)
                 {
                     using var key = Open(MenuEntryScope.Machine, ShellExtensionBlockList.KeyPath, writable: true);
+                    (key is null ? failed : removed).Add("HKLM");
                     key?.DeleteValue(machineName, throwOnMissingValue: false);
-                    removed.Add("HKLM");
+                }
+
+                if (failed.Count > 0)
+                {
+                    string done = removed.Count > 0 ? $" It was taken off the list in {string.Join(" and ", removed)} only." : string.Empty;
+                    string admin = failed.Contains("HKLM") ? " Blocking for every user can only be undone with administrator rights." : string.Empty;
+                    return OperationResult.Fail($"\"{entry.Text}\" is still turned off: Windows did not allow the change in {string.Join(" and ", failed)}.{done}{admin}");
+                }
+
+                if (removed.Count == 0)
+                {
+                    return OperationResult.Fail($"\"{entry.Text}\" was not found on the Blocked list, so nothing was changed.");
                 }
 
                 return OperationResult.Ok($"\"{entry.Text}\" is back in the right-click menu (removed from the Blocked list in {string.Join(" and ", removed)}). Restart File Explorer to see it.");
