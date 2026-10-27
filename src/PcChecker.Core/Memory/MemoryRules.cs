@@ -18,37 +18,52 @@ public static class MemoryRules
     /// Compares the configured clock of every module against its rated speed. <paramref name="platform"/> is the CPU vendor
     /// ("Intel", "AMD" or null) and only changes the wording (XMP vs EXPO).
     /// </summary>
-    public static XmpEvaluation EvaluateXmp(IReadOnlyList<MemoryModuleInfo> modules, string? platform = null)
+    public static XmpEvaluation EvaluateXmp(IReadOnlyList<MemoryModuleInfo> modules, string? platform = null, string? cpuName = null)
     {
         ArgumentNullException.ThrowIfNull(modules);
-        int? configured = modules.Select(m => m.ConfiguredClockSpeedMhz).Where(s => s is > 0).DefaultIfEmpty().Max();
-        int? rated = modules.Select(m => m.SpeedMhz).Where(s => s is > 0).DefaultIfEmpty().Max();
         string memoryType = modules.Select(m => m.MemoryType).FirstOrDefault(t => !string.IsNullOrWhiteSpace(t)) ?? string.Empty;
-        string profile = ProfileNameFor(platform, memoryType);
+        string profile = ProfileNameFor(platform ?? (CpuTraits.Parse(cpuName).IsAmd ? "AMD" : null), memoryType);
 
-        if (configured is null or 0 || rated is null or 0)
+        // One verdict for the Memory and Overclock pages: slowest module vs the highest rating (SMBIOS or part number).
+        var verdict = MemorySpeedRules.Evaluate(modules.Select(m => new ModuleSpeed(m.ConfiguredClockSpeedMhz, m.SpeedMhz, m.PartNumber)), memoryType);
+        int? configured = verdict.ConfiguredMhz, rated = verdict.RatedMhz;
+        string fabric = MemorySpeedRules.AmdFabricAdvice(cpuName, memoryType, configured) is { } f ? " " + f : string.Empty;
+
+        if (configured is null || rated is null)
         {
-            return new XmpEvaluation("Unknown", profile, configured is 0 ? null : configured, rated is 0 ? null : rated,
+            return new XmpEvaluation("Unknown", profile, configured, rated,
                 "Memory speed could not be read",
                 $"Windows did not report the rated and running speed of your memory. You can check whether {profile} is on in the BIOS (it is usually under an Overclocking, Tweaker or Extreme Memory Profile menu).",
                 Severity.Low);
         }
 
-        if (configured >= rated * (1 - SpeedTolerance))
+        if (verdict.State == MemorySpeedVerdict.Unknown && verdict.JedecOnly)
+        {
+            return new XmpEvaluation("Unknown", profile, configured, rated,
+                $"Running at {configured} MT/s, a standard (JEDEC) speed – check the BIOS",
+                $"Windows reports {configured} MT/s as both the rated and the running speed. Many boards report the standard speed here even when the kit is rated faster, so {profile} may be off. "
+                + $"Check the label on the memory or the BIOS: if the kit is rated faster (for example 6000 or 3600 MT/s), turn on {profile}." + fabric,
+                Severity.Low);
+        }
+
+        if (verdict.State == MemorySpeedVerdict.Enabled)
         {
             string title = configured > rated * (1 + SpeedTolerance)
                 ? $"Running above the rated {rated} MT/s ({configured} MT/s)"
                 : $"Running at the rated {rated} MT/s";
             return new XmpEvaluation("Enabled", profile, configured, rated, title,
-                $"{profile} is on: your memory runs at the speed it was sold for. Nothing to do here.",
+                $"{profile} is on: your memory runs at the speed it was sold for. Nothing to do here." + fabric,
                 Severity.Info);
         }
 
+        string boot = MemorySpeedRules.TrainingNote(cpuName ?? (platform?.Contains("AMD", StringComparison.OrdinalIgnoreCase) == true ? "AMD Ryzen" : null), memoryType)
+            ?? "If the PC then fails to boot, the BIOS resets to defaults after a few tries.";
         return new XmpEvaluation("Disabled", profile, configured, rated,
             $"Your RAM is rated for {rated} MT/s but runs at {configured} MT/s",
             $"Enable {profile} in the BIOS to get the speed you paid for: restart the PC, press Del or F2 while it starts, "
             + $"find \"{profile}\" (also called DOCP or A-XMP on some boards) under Overclocking, Tweaker or Memory, choose Profile 1, then save and exit. "
-            + "Games and heavy multitasking will feel noticeably smoother. If the PC then fails to boot, the BIOS resets to defaults after a few tries.",
+            + "Games and heavy multitasking will feel noticeably smoother. " + boot
+            + (verdict.RatedFromPartNumber ? $" (The {rated} MT/s rating comes from the module part number.)" : string.Empty),
             Severity.Medium);
     }
 

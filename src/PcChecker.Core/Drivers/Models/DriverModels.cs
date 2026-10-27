@@ -57,6 +57,15 @@ public sealed record DriverUpdateInfo(
 {
     /// <summary>The driver publisher as Windows Update reports it (DriverProvider), or null when unknown.</summary>
     public string? Provider { get; init; }
+
+    /// <summary>The driver class Windows Update reports (Display, System, MEDIA…), or null.</summary>
+    public string? DriverClass { get; init; }
+
+    /// <summary>
+    /// Set when this offer would replace a driver a vendor tool manages (AMD Software, NVIDIA app); such updates are
+    /// left unticked. See <see cref="DriverUpdateRules"/>.
+    /// </summary>
+    public string? VendorWarning { get; init; }
 }
 
 public sealed record DriverScanResult(IReadOnlyList<DriverInfo> Drivers, IReadOnlyList<string> Warnings, DateTimeOffset Captured)

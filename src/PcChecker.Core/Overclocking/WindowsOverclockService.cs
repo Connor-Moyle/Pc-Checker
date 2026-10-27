@@ -105,9 +105,9 @@ public sealed partial class WindowsOverclockService : IOverclockService, IDispos
 
             // Memory
             var modules = inventory?.MemoryModules.Count > 0
-                ? inventory.MemoryModules.Select(m => (m.ConfiguredClockSpeedMhz, m.SpeedMhz, m.MemoryType)).ToList()
+                ? inventory.MemoryModules.Select(m => (m.ConfiguredClockSpeedMhz, m.SpeedMhz, m.MemoryType, m.PartNumber)).ToList()
                 : WmiOverclockFacts.QueryMemory().ToList();
-            var xmp = XmpStateEvaluator.Evaluate(modules.Select(m => (m.Item1, m.Item2)), modules.Select(m => m.Item3).FirstOrDefault(t => t is not null));
+            var xmp = XmpStateEvaluator.Evaluate(modules.Select(m => new Memory.ModuleSpeed(m.Item1, m.Item2, m.Item4)), modules.Select(m => m.Item3).FirstOrDefault(t => t is not null));
             notes.Add(xmp.Advice);
 
             // Fans through the shared host

@@ -12,7 +12,7 @@ namespace PcChecker.Core.Drivers;
 /// for the installed list, the Windows Update Agent for the driver catalog, and <c>pnputil</c> for backup, install
 /// and rollback. Every system change goes through <see cref="IChangeGuard"/>.
 /// </summary>
-public sealed class WindowsDriverService : IDriverService, IDriverStoreProvider, IDriverUpdateStateProvider
+public sealed class WindowsDriverService : IDriverService, IDriverStoreProvider, IDriverUpdateStateProvider, IDriverUpdateHiding
 {
     private const string ModuleName = "Drivers";
 
@@ -147,8 +147,36 @@ public sealed class WindowsDriverService : IDriverService, IDriverStoreProvider,
         }
 
         _logger.LogInformation("Windows Update reported {Count} driver update(s).", updates.Count);
-        return new DriverUpdateCheckResult(updates, links, allWarnings, DateTimeOffset.Now);
+        bool amdSoftware = Overclocking.VendorSoftwareCatalog.AmdAdrenalin.Locate(File.Exists) is not null;
+        bool nvidiaSoftware = Overclocking.VendorSoftwareCatalog.NvidiaApp.Locate(File.Exists) is not null;
+        var annotated = DriverUpdateRules.Annotate(updates, amdSoftware, nvidiaSoftware);
+        if (annotated.Any(u => u.VendorWarning is not null))
+        {
+            allWarnings.Add("Some offers would replace a driver that AMD Software or the NVIDIA app manages; they are left unticked. Use \"Hide selected\" to stop Windows Update offering them, or the Debloat tweak \"Don't install drivers through Windows Update\" to stop driver updates for good.");
+        }
+
+        return new DriverUpdateCheckResult(annotated, links, allWarnings, DateTimeOffset.Now);
     }
+
+    public async Task<OperationResult> SetHiddenAsync(IReadOnlyList<DriverUpdateInfo> updates, bool hidden, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(updates);
+        if (updates.Count == 0)
+        {
+            return OperationResult.Fail("Nothing selected.");
+        }
+
+        var target = updates.Count == 1 ? updates[0].Title : $"{updates.Count} driver updates";
+        return await _changeGuard.RunGuardedAsync(
+            hidden ? "Hide driver updates" : "Unhide driver updates",
+            ChangeOptions.For(ModuleName, target, reversible: true, undoHint: hidden ? "Drivers page → More → Unhide driver updates" : "Hide the update again on the Drivers page.")
+                with { CreateBefore = false, CreateAfter = false },
+            ct => _agent.SetHiddenAsync(updates, hidden, ct),
+            null,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    public Task<IReadOnlyList<DriverUpdateInfo>> GetHiddenAsync(CancellationToken cancellationToken) => _agent.SearchHiddenAsync(cancellationToken);
 
     public Task<OperationResult> DownloadAsync(IReadOnlyList<DriverUpdateInfo> updates, IProgress<ProgressUpdate>? progress, CancellationToken cancellationToken)
     {

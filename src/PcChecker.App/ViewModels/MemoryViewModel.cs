@@ -161,7 +161,7 @@ public sealed partial class MemoryViewModel : ViewModelBase
         KitSummary = MemoryRules.DescribeKit(o.Modules);
         SlotsText = o.Slots > 0 ? $"{o.SlotsUsed} of {o.Slots} slots used" : $"{o.SlotsUsed} module(s)";
 
-        var xmp = MemoryRules.EvaluateXmp(o.Modules, (_memory as IMemoryTuning)?.PlatformVendor);
+        var xmp = MemoryRules.EvaluateXmp(o.Modules, (_memory as IMemoryTuning)?.PlatformVendor, PcChecker.Core.Hardware.LocalCpu.Name);
         XmpProfileName = xmp.ProfileName;
         XmpState = o.XmpState;
         XmpTitle = o.XmpState == "Enabled" && o.RatedMhz is { } rated ? $"Running at the rated {rated} MT/s" : xmp.Title;

@@ -40,6 +40,8 @@
                           Visibility="{Binding IsAdvancedMode, Converter={StaticResource BoolToVisibility}}"
                           ToolTip="Advanced: adds a driver package (.inf) from disk to Windows and installs it on matching devices." />
                 <MenuItem Header="Open Device Manager" Command="{Binding OpenDeviceManagerCommand}" />
+                <MenuItem Header="Unhide driver updates…" Command="{Binding UnhideUpdatesCommand}"
+                          ToolTip="Lists driver updates hidden in Windows Update and lets you offer them again." />
                 <MenuItem Header="Export driver list…" Command="{Binding ExportListCommand}"
                           ToolTip="Saves the installed driver list as a CSV file." />
               </ContextMenu>
@@ -101,7 +103,9 @@
               <ui:Button Content="Download only" Icon="{ui:SymbolIcon CloudArrowDown24}" Command="{Binding DownloadSelectedCommand}" Margin="0,0,8,0"
                          ToolTip="Fetches the ticked updates now so they install faster later." />
               <ui:Button Content="Select all" Command="{Binding SelectAllUpdatesCommand}" Margin="0,0,4,0" />
-              <ui:Button Content="Clear" Command="{Binding ClearUpdateSelectionCommand}" Margin="0,0,12,0" />
+              <ui:Button Content="Clear" Command="{Binding ClearUpdateSelectionCommand}" Margin="0,0,4,0" />
+              <ui:Button Content="Hide selected" Command="{Binding HideSelectedUpdatesCommand}" Margin="0,0,12,0"
+                         ToolTip="Tells Windows Update to stop offering and installing the ticked updates. Use it for display or chipset drivers that AMD Software or the NVIDIA app installs." />
               <ui:TextBlock Style="{StaticResource Muted}" VerticalAlignment="Center">
                 <Run Text="{Binding SelectedUpdateCount, Mode=OneWay}" /><Run Text=" selected" />
               </ui:TextBlock>
@@ -136,10 +140,13 @@
                 <DataGridTextColumn Header="Size" Binding="{Binding SizeText}" Width="80" IsReadOnly="True" />
                 <DataGridTextColumn Header="Source" Binding="{Binding SourceText}" Width="120" IsReadOnly="True" />
                 <DataGridTextColumn Header="State" Binding="{Binding StateText}" Width="140" IsReadOnly="True" />
+                <DataGridTextColumn Header="Note" Binding="{Binding NoteText}" Width="150" IsReadOnly="True" />
               </ui:DataGrid.Columns>
               <ui:DataGrid.RowDetailsTemplate>
                 <DataTemplate>
                   <StackPanel Margin="48,8,16,12">
+                    <ui:TextBlock Text="{Binding VendorWarning}" TextWrapping="Wrap" FontWeight="SemiBold" Margin="0,0,0,6"
+                                  Visibility="{Binding VendorWarning, Converter={StaticResource NullToVisibility}}" />
                     <ui:TextBlock Text="{Binding Description}" TextWrapping="Wrap" />
                     <ui:TextBlock Style="{StaticResource Caption}" Margin="0,6,0,0" Visibility="{Binding KbText, Converter={StaticResource NullToVisibility}}">
                       <Run Text="Knowledge Base article: " /><Run Text="{Binding KbText, Mode=OneWay}" />

@@ -62,9 +62,9 @@ public static class WmiOverclockFacts
         return (null, null);
     }
 
-    public static IReadOnlyList<(int? ConfiguredMhz, int? RatedMhz, string? MemoryType)> QueryMemory()
+    public static IReadOnlyList<(int? ConfiguredMhz, int? RatedMhz, string? MemoryType, string? PartNumber)> QueryMemory()
     {
-        var list = new List<(int?, int?, string?)>();
+        var list = new List<(int?, int?, string?, string?)>();
         if (!PlatformGuard.IsWindows)
         {
             return list;
@@ -72,13 +72,13 @@ public static class WmiOverclockFacts
 
         try
         {
-            using var searcher = new ManagementObjectSearcher("SELECT Speed, ConfiguredClockSpeed, SMBIOSMemoryType FROM Win32_PhysicalMemory");
+            using var searcher = new ManagementObjectSearcher("SELECT Speed, ConfiguredClockSpeed, SMBIOSMemoryType, PartNumber FROM Win32_PhysicalMemory");
             foreach (var o in searcher.Get())
             {
                 int? speed = o["Speed"] is { } s ? Convert.ToInt32(s) : null;
                 int? configured = o["ConfiguredClockSpeed"] is { } c ? Convert.ToInt32(c) : null;
                 string? type = o["SMBIOSMemoryType"] is { } t ? Convert.ToInt32(t) switch { 34 => "DDR5", 26 => "DDR4", 24 => "DDR3", _ => null } : null;
-                list.Add((configured, speed, type));
+                list.Add((configured, speed, type, (o["PartNumber"] as string)?.Trim()));
             }
         }
         catch (Exception)

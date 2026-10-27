@@ -125,6 +125,107 @@ internal sealed class WindowsUpdateAgent
         }, cancellationToken);
     }
 
+    /// <summary>Lists hidden driver updates (IsHidden=1) and caches them so they can be unhidden.</summary>
+    public Task<IReadOnlyList<DriverUpdateInfo>> SearchHiddenAsync(CancellationToken cancellationToken)
+    {
+        return Task.Run(() =>
+        {
+            var list = new List<DriverUpdateInfo>();
+            if (!IsSupported)
+            {
+                return (IReadOnlyList<DriverUpdateInfo>)list;
+            }
+
+            try
+            {
+                dynamic session = WuaCom.CreateComObject("Microsoft.Update.Session");
+                WuaCom.TrySet(() => session.ClientApplicationID = WuaCom.ClientId);
+                dynamic searcher = session.CreateUpdateSearcher();
+                WuaCom.TrySet(() => searcher.ServerSelection = WuaCom.ServerSelectionOthers);
+                WuaCom.TrySet(() => searcher.ServiceID = WuaResultCodes.WindowsUpdateServiceId);
+                WuaCom.TrySet(() => searcher.Online = true);
+                cancellationToken.ThrowIfCancellationRequested();
+                dynamic result = searcher.Search("IsInstalled=0 and Type='Driver' and IsHidden=1");
+                int count = WuaCom.TryGet(() => (int)result.Updates.Count, 0);
+                lock (_gate)
+                {
+                    for (int i = 0; i < count; i++)
+                    {
+                        dynamic update = result.Updates.Item(i);
+                        var info = Map(update);
+                        if (info is not null)
+                        {
+                            list.Add(info);
+                            _comUpdates[info.Id] = update;
+                        }
+                    }
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Listing hidden driver updates failed.");
+            }
+
+            return (IReadOnlyList<DriverUpdateInfo>)list;
+        }, cancellationToken);
+    }
+
+    /// <summary>
+    /// Sets IUpdate.IsHidden on cached updates (from the last search or <see cref="SearchHiddenAsync"/>). A hidden update
+    /// is not offered or installed by Windows Update until it is unhidden.
+    /// </summary>
+    public Task<OperationResult> SetHiddenAsync(IReadOnlyList<DriverUpdateInfo> updates, bool hidden, CancellationToken cancellationToken)
+    {
+        return Task.Run(() =>
+        {
+            if (!IsSupported)
+            {
+                return OperationResult.Fail("Windows Update is only available on Windows.");
+            }
+
+            int changed = 0;
+            var failed = new List<string>();
+            foreach (var u in updates)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                object? com;
+                lock (_gate)
+                {
+                    _comUpdates.TryGetValue(u.Id, out com);
+                }
+
+                if (com is null)
+                {
+                    failed.Add(u.Title + " (search again first)");
+                    continue;
+                }
+
+                try
+                {
+                    ((dynamic)com).IsHidden = hidden;
+                    changed++;
+                }
+                catch (COMException ex)
+                {
+                    _logger.LogWarning(ex, "Setting IsHidden={Hidden} failed for {Title}.", hidden, u.Title);
+                    failed.Add($"{u.Title} ({WuaResultCodes.DescribeHResult(ex.HResult)})");
+                }
+            }
+
+            string verb = hidden ? "hidden" : "unhidden";
+            if (changed == 0)
+            {
+                return OperationResult.Fail($"No update was {verb}. " + string.Join("; ", failed));
+            }
+
+            return OperationResult.Ok($"{changed} driver update(s) {verb}." + (failed.Count > 0 ? " Not changed: " + string.Join("; ", failed) : string.Empty));
+        }, cancellationToken);
+    }
+
     /// <summary>Asks the cached update objects which of the given updates are downloaded; unknown ids are left out.</summary>
     public Task<IReadOnlySet<string>> GetDownloadedIdsAsync(IEnumerable<string> updateIds, CancellationToken cancellationToken)
     {
@@ -381,6 +482,7 @@ internal sealed class WindowsUpdateAgent
             hardwareId, kb, null, downloaded, installed, reboot)
         {
             Provider = string.IsNullOrWhiteSpace(provider) ? null : provider.Trim(),
+            DriverClass = string.IsNullOrWhiteSpace(driverClass) ? null : driverClass.Trim(),
         };
     }
 

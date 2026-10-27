@@ -13,3 +13,14 @@ public interface IDriverService
     Task<OperationResult> InstallInfAsync(string infPath, CancellationToken cancellationToken);
     Task<OperationResult> RollbackAsync(string deviceId, CancellationToken cancellationToken);
 }
+
+/// <summary>
+/// Optional capability: hide a Windows Update driver offer (IUpdate.IsHidden) so it is not offered or installed again,
+/// and list or unhide hidden ones. Hiding changes Windows Update state, so implementations go through IChangeGuard.
+/// </summary>
+public interface IDriverUpdateHiding
+{
+    Task<OperationResult> SetHiddenAsync(IReadOnlyList<DriverUpdateInfo> updates, bool hidden, CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<DriverUpdateInfo>> GetHiddenAsync(CancellationToken cancellationToken);
+}

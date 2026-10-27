@@ -84,7 +84,9 @@ public sealed partial class DriverUpdateRow : ObservableObject
     public DriverUpdateRow(DriverUpdateInfo update)
     {
         Update = update;
-        _isSelected = true;
+
+        // Offers that would replace a driver AMD Software or the NVIDIA app manages start unticked.
+        _isSelected = update.VendorWarning is null;
         _stateText = update.IsInstalled ? "Installed" : update.IsDownloaded ? "Downloaded" : "Available";
     }
 
@@ -99,6 +101,11 @@ public sealed partial class DriverUpdateRow : ObservableObject
     public string SourceText => Update.Source == DriverUpdateSource.WindowsUpdate ? "Windows Update" : "Vendor";
     public string KbText => Update.KbArticle ?? string.Empty;
     public bool RebootRequired => Update.RebootRequired;
+
+    /// <summary>Why this offer should come from the vendor tool instead (null when fine).</summary>
+    public string? VendorWarning => Update.VendorWarning;
+
+    public string NoteText => Update.VendorWarning is null ? string.Empty : "Use the vendor's tool";
 
     /// <summary>Replaces the underlying update (after download/install) and refreshes the derived text.</summary>
     public void Apply(DriverUpdateInfo update)

@@ -91,6 +91,80 @@ public sealed partial class DriversViewModel
         }
     }
 
+    /// <summary>Hides the ticked offers in Windows Update (IUpdate.IsHidden) so they are not offered or installed again.</summary>
+    [RelayCommand]
+    private async Task HideSelectedUpdatesAsync()
+    {
+        var selected = Updates.Where(u => u.IsSelected).ToList();
+        if (selected.Count == 0)
+        {
+            _notifications.Warning("Nothing selected", "Tick the updates you want to hide first.");
+            return;
+        }
+
+        if (_drivers is not IDriverUpdateHiding hiding)
+        {
+            _notifications.Warning("Not available", "Hiding updates is not supported here.");
+            return;
+        }
+
+        var list = string.Join("\n", selected.Select(s => "• " + s.Title));
+        if (!await _dialogs.ConfirmAsync("Hide driver updates?",
+                $"Windows Update will stop offering and installing these {selected.Count} driver update(s):\n\n{list}\n\n"
+                + "You can unhide them later from More → Unhide driver updates. To stop driver updates through Windows Update completely, "
+                + "use the Debloat tweak \"Don't install drivers through Windows Update\".", "Hide"))
+        {
+            return;
+        }
+
+        await RunBusyAsync(async ct =>
+        {
+            var result = await hiding.SetHiddenAsync(selected.Select(s => s.Update).ToList(), true, ct);
+            if (result.Success)
+            {
+                foreach (var row in selected)
+                {
+                    Updates.Remove(row);
+                }
+
+                UpdatesAvailable = Updates.Count;
+                OnPropertyChanged(nameof(SelectedUpdateCount));
+            }
+
+            ShowResult(result.Success, result.Message, "Hide");
+        }, "Hiding driver updates…");
+    }
+
+    /// <summary>Lists hidden driver offers and, after confirmation, unhides them all.</summary>
+    [RelayCommand]
+    private async Task UnhideUpdatesAsync()
+    {
+        if (_drivers is not IDriverUpdateHiding hiding)
+        {
+            return;
+        }
+
+        IReadOnlyList<DriverUpdateInfo> hidden = [];
+        await RunBusyAsync(async ct => hidden = await hiding.GetHiddenAsync(ct), "Looking for hidden driver updates…");
+        if (hidden.Count == 0)
+        {
+            await _dialogs.ShowMessageAsync("No hidden driver updates", "Windows Update has no hidden driver updates for this PC.");
+            return;
+        }
+
+        var list = string.Join("\n", hidden.Select(h => "• " + h.Title));
+        if (!await _dialogs.ConfirmAsync("Unhide driver updates?", $"These driver updates are hidden:\n\n{list}\n\nUnhide them so Windows Update offers them again?", "Unhide"))
+        {
+            return;
+        }
+
+        await RunBusyAsync(async ct =>
+        {
+            var result = await hiding.SetHiddenAsync(hidden, false, ct);
+            ShowResult(result.Success, result.Message, "Unhide");
+        }, "Unhiding driver updates…");
+    }
+
     [RelayCommand]
     private async Task DownloadSelectedAsync()
     {
