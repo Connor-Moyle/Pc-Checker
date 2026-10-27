@@ -26,6 +26,12 @@ internal sealed class WindowsUpdateClient
         _logger = logger;
     }
 
+    /// <summary>
+    /// True while a search or install is running. A cancelled search keeps running until Windows Update answers, because
+    /// the agent's search cannot be stopped.
+    /// </summary>
+    public bool IsBusy => Volatile.Read(ref _busy) != 0;
+
     /// <summary>Last successful automatic check and install, as Windows Update recorded them, and whether a restart is pending.</summary>
     public (DateTimeOffset? LastSearch, DateTimeOffset? LastInstall, bool? RebootRequired, List<string> Warnings) ReadAgentState()
     {

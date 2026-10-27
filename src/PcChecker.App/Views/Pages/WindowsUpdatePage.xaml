@@ -291,29 +291,24 @@
       <TabItem Header="Pause &amp; active hours">
         <ScrollViewer Style="{StaticResource PageScroll}" Margin="0,8,0,0">
           <StackPanel>
-            <Grid>
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="12" />
-                <ColumnDefinition Width="*" />
-              </Grid.ColumnDefinitions>
+            <controls:AdaptiveGrid MinItemWidth="420" MaxColumns="2">
 
               <!-- Pause -->
-              <ui:Card Grid.Column="0" Padding="16" VerticalAlignment="Stretch" VerticalContentAlignment="Top">
+              <ui:Card Padding="16" VerticalAlignment="Stretch" VerticalContentAlignment="Top">
                 <StackPanel>
                   <ui:TextBlock Style="{StaticResource CardTitle}" Text="Pause updates" />
                   <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,12"
                                 Text="Holds back all updates for up to five weeks, like Settings does."
                                 ToolTip="Useful before a deadline or a long game session. Security fixes wait too, so resume as soon as you can." />
                   <ui:TextBlock FontTypography="BodyStrong" Text="{Binding PauseStatusText}" TextWrapping="Wrap" Margin="0,0,0,12" />
-                  <StackPanel Orientation="Horizontal" IsEnabled="{Binding PauseControlsEnabled}">
+                  <WrapPanel IsEnabled="{Binding PauseControlsEnabled}">
                     <ComboBox ItemsSource="{Binding AvailableWeeks}" SelectedItem="{Binding SelectedWeeks}" DisplayMemberPath="Label"
-                              MinWidth="130" Margin="0,0,8,0" IsEnabled="{Binding CanPause}" />
-                    <ui:Button Content="{Binding PauseButtonText}" Icon="{ui:SymbolIcon Pause24}" Command="{Binding PauseCommand}" Margin="0,0,8,0"
+                              MinWidth="130" Margin="0,0,8,8" IsEnabled="{Binding CanPause}" />
+                    <ui:Button Content="{Binding PauseButtonText}" Icon="{ui:SymbolIcon Pause24}" Command="{Binding PauseCommand}" Margin="0,0,8,8"
                                ToolTip="Pauses (or extends the pause) for the chosen number of weeks, after you confirm." />
-                    <ui:Button Content="Resume" Icon="{ui:SymbolIcon Play24}" Command="{Binding ResumeCommand}"
+                    <ui:Button Content="Resume" Icon="{ui:SymbolIcon Play24}" Command="{Binding ResumeCommand}" Margin="0,0,0,8"
                                ToolTip="Ends the pause so Windows looks for updates again." />
-                  </StackPanel>
+                  </WrapPanel>
                   <ui:TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,8,0,0"
                                 Text="Pausing is set by a policy on this PC, so it can only be changed there."
                                 Visibility="{Binding PauseManaged, Converter={StaticResource BoolToVisibility}}" />
@@ -321,34 +316,42 @@
               </ui:Card>
 
               <!-- Active hours -->
-              <ui:Card Grid.Column="2" Padding="16" VerticalAlignment="Stretch" VerticalContentAlignment="Top">
+              <ui:Card Padding="16" VerticalAlignment="Stretch" VerticalContentAlignment="Top">
                 <StackPanel>
                   <ui:TextBlock Style="{StaticResource CardTitle}" Text="Active hours" />
                   <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,12"
                                 Text="Windows does not restart for updates during these hours."
-                                ToolTip="Up to 18 hours, and they may run past midnight. Outside them Windows may restart to finish an update when you are not using the PC." />
+                                ToolTip="Outside them Windows may restart to finish an update when you are not using the PC." />
+                  <ui:TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,-8,0,12" Text="{Binding ActiveHoursHelp}" />
                   <ui:TextBlock FontTypography="BodyStrong" Margin="0,0,0,12">
                     <Run Text="Now: " /><Run Text="{Binding ActiveHoursText, Mode=OneWay}" />
                   </ui:TextBlock>
-                  <StackPanel Orientation="Horizontal" IsEnabled="{Binding ActiveHoursEnabled}">
-                    <ui:TextBlock Text="From" VerticalAlignment="Center" Margin="0,0,8,0" />
-                    <ComboBox ItemsSource="{Binding HourOptions}" SelectedItem="{Binding ActiveStart}" DisplayMemberPath="Label" MinWidth="96" Margin="0,0,8,0" />
-                    <ui:TextBlock Text="to" VerticalAlignment="Center" Margin="0,0,8,0" />
-                    <ComboBox ItemsSource="{Binding HourOptions}" SelectedItem="{Binding ActiveEnd}" DisplayMemberPath="Label" MinWidth="96" Margin="0,0,8,0" />
-                    <ui:Button Content="Save" Icon="{ui:SymbolIcon Clock24}" Command="{Binding SaveActiveHoursCommand}"
-                               ToolTip="Saves these hours after you confirm and turns off the automatic adjustment." />
-                  </StackPanel>
+                  <WrapPanel IsEnabled="{Binding ActiveHoursEnabled}">
+                    <StackPanel Orientation="Horizontal" Margin="0,0,8,8">
+                      <ui:TextBlock Text="From" VerticalAlignment="Center" Margin="0,0,8,0" />
+                      <ComboBox ItemsSource="{Binding HourOptions}" SelectedItem="{Binding ActiveStart}" DisplayMemberPath="Label" MinWidth="96" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,8,8">
+                      <ui:TextBlock Text="to" VerticalAlignment="Center" Margin="0,0,8,0" />
+                      <ComboBox ItemsSource="{Binding HourOptions}" SelectedItem="{Binding ActiveEnd}" DisplayMemberPath="Label" MinWidth="96" />
+                    </StackPanel>
+                    <ui:Button Content="Save" Icon="{ui:SymbolIcon Clock24}" Command="{Binding SaveActiveHoursCommand}" Margin="0,0,0,8"
+                               ToolTip="Saves these hours after you confirm." />
+                  </WrapPanel>
                   <ui:TextBlock Style="{StaticResource Caption}" Foreground="{StaticResource AccentOrangeBrush}" TextWrapping="Wrap" Margin="0,8,0,0"
                                 Text="{Binding ActiveHoursProblem}"
                                 Visibility="{Binding HasActiveHoursProblem, Converter={StaticResource BoolToVisibility}}" />
                   <ui:TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,8,0,0"
                                 Text="Active hours are set by a policy on this PC, so they can only be changed there."
                                 Visibility="{Binding ActiveHoursManaged, Converter={StaticResource BoolToVisibility}}" />
+                  <ui:TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,8,0,0"
+                                Text="Windows is adjusting active hours automatically from how you use the PC. To pick them yourself, turn that off in Settings."
+                                Visibility="{Binding ActiveHoursAutomatic, Converter={StaticResource BoolToVisibility}}" />
                   <ui:Button Content="Active hours in Settings" Appearance="Transparent" Icon="{ui:SymbolIcon Open24}" Command="{Binding OpenActiveHoursSettingsCommand}"
                              Padding="8,4" Margin="-8,8,0,0" />
                 </StackPanel>
               </ui:Card>
-            </Grid>
+            </controls:AdaptiveGrid>
           </StackPanel>
         </ScrollViewer>
       </TabItem>

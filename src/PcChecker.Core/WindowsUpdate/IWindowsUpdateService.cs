@@ -29,6 +29,9 @@ public interface IWindowsUpdateService
     /// <summary>Ends a pause so Windows looks for updates again.</summary>
     Task<OperationResult> ResumeAsync(CancellationToken cancellationToken);
 
-    /// <summary>Sets active hours (whole hours, at most 18 apart) and turns off the automatic adjustment.</summary>
+    /// <summary>
+    /// Sets active hours (whole hours, at most 18 apart or the policy limit). Refused while Windows adjusts them
+    /// automatically, since that switch is left to Settings.
+    /// </summary>
     Task<OperationResult> SetActiveHoursAsync(int startHour, int endHour, CancellationToken cancellationToken);
 }

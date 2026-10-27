@@ -20,6 +20,7 @@ public sealed partial class WindowsUpdateViewModel
 
     private UpdatePauseState _pause = UpdatePauseState.NotPaused;
     private int _maxPauseDays = UpdatePauseRules.DefaultMaxPauseDays;
+    private int _activeHoursMaxSpan = ActiveHoursRules.MaxSpanHours;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(PauseButtonText))]
@@ -74,6 +75,15 @@ public sealed partial class WindowsUpdateViewModel
     [NotifyCanExecuteChangedFor(nameof(SaveActiveHoursCommand))]
     private bool _activeHoursChanged;
 
+    /// <summary>Windows picks active hours from usage; they are then changed in Settings, not here.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ActiveHoursEnabled))]
+    [NotifyCanExecuteChangedFor(nameof(SaveActiveHoursCommand))]
+    private bool _activeHoursAutomatic;
+
+    [ObservableProperty]
+    private string _activeHoursHelp = Loc.F("Up to {0} hours, and they may run past midnight.", ActiveHoursRules.MaxSpanHours);
+
     public IReadOnlyList<PauseOption> WeekOptions { get; }
 
     public IReadOnlyList<HourOption> HourOptions { get; }
@@ -82,7 +92,7 @@ public sealed partial class WindowsUpdateViewModel
 
     public bool PauseControlsEnabled => !PauseManaged;
 
-    public bool ActiveHoursEnabled => !ActiveHoursManaged;
+    public bool ActiveHoursEnabled => !ActiveHoursManaged && !ActiveHoursAutomatic;
 
     public bool HasActiveHoursProblem => !string.IsNullOrWhiteSpace(ActiveHoursProblem);
 
@@ -107,7 +117,7 @@ public sealed partial class WindowsUpdateViewModel
             return;
         }
 
-        await RunSettingChangeAsync(ct => _updates.PauseAsync(weeks, ct), "Pausing updates…", offerSettings: true);
+        await RunSettingChangeAsync(ct => _updates.PauseAsync(weeks, ct), "Pausing updates…", SettingsUri);
     }
 
     private bool CanRunPause() => CanPause && !PauseManaged;
@@ -120,7 +130,7 @@ public sealed partial class WindowsUpdateViewModel
             return;
         }
 
-        await RunSettingChangeAsync(ct => _updates.ResumeAsync(ct), "Resuming updates…", offerSettings: true);
+        await RunSettingChangeAsync(ct => _updates.ResumeAsync(ct), "Resuming updates…", SettingsUri);
     }
 
     private bool CanResume() => IsPaused && !PauseManaged;
@@ -135,16 +145,16 @@ public sealed partial class WindowsUpdateViewModel
 
         var hours = new ActiveHours(start.Hour, end.Hour, false);
         if (!await _dialogs.ConfirmAsync("Change active hours?",
-                $"Windows will not restart the PC for updates between {ActiveHoursRules.Describe(hours)}. Automatic adjustment of active hours is turned off.",
+                $"Windows will not restart the PC for updates between {ActiveHoursRules.Describe(hours)}. PC Checker sets the same values as Settings → Windows Update → Advanced options.",
                 "Save"))
         {
             return;
         }
 
-        await RunSettingChangeAsync(ct => _updates.SetActiveHoursAsync(start.Hour, end.Hour, ct), "Saving active hours…", offerSettings: false);
+        await RunSettingChangeAsync(ct => _updates.SetActiveHoursAsync(start.Hour, end.Hour, ct), "Saving active hours…", AdvancedOptionsUri);
     }
 
-    private bool CanSaveActiveHours() => ActiveHoursChanged && !ActiveHoursManaged && !HasActiveHoursProblem;
+    private bool CanSaveActiveHours() => ActiveHoursChanged && !ActiveHoursManaged && !ActiveHoursAutomatic && !HasActiveHoursProblem;
 
     [RelayCommand]
     private void OpenSettings() => Open(SettingsUri);
@@ -190,12 +200,21 @@ public sealed partial class WindowsUpdateViewModel
             SelectedWeeks = AvailableWeeks[^1];
         }
 
-        if (weeks == 0 && IsPaused)
+        if (UpdatePauseRules.HasUnknownStart(status.Pause, DateTimeOffset.UtcNow))
+        {
+            PauseStatusText += " " + Loc.T("To extend this pause, use Settings → Windows Update.");
+        }
+        else if (weeks == 0 && IsPaused)
         {
             PauseStatusText += " " + Loc.T("That is as long as Windows allows.");
         }
 
         ActiveHoursManaged = status.Policy.ActiveHoursManaged;
+        _activeHoursMaxSpan = ActiveHoursRules.EffectiveMaxSpan(status.Policy.ActiveHoursMaxSpan);
+        ActiveHoursHelp = _activeHoursMaxSpan < ActiveHoursRules.MaxSpanHours
+            ? Loc.F("Up to {0} hours (set by a policy on this PC), and they may run past midnight.", _activeHoursMaxSpan)
+            : Loc.F("Up to {0} hours, and they may run past midnight.", _activeHoursMaxSpan);
+        ActiveHoursAutomatic = status.ActiveHours?.IsAutomatic == true;
         if (status.ActiveHours is { } hours)
         {
             ActiveHoursText = ActiveHoursRules.Describe(hours);
@@ -218,15 +237,15 @@ public sealed partial class WindowsUpdateViewModel
             return;
         }
 
-        ActiveHoursProblem = ActiveHoursRules.Validate(start.Hour, end.Hour);
+        ActiveHoursProblem = ActiveHoursRules.Validate(start.Hour, end.Hour, _activeHoursMaxSpan);
         ActiveHoursChanged = true;
     }
 
     /// <summary>
-    /// Runs one setting change, shows its result and reloads the status. When Windows refused it and
-    /// <paramref name="offerSettings"/> is set, offers to open Windows Update in Settings to do it there instead.
+    /// Runs one setting change, shows its result and reloads the status. When it failed, offers to open
+    /// <paramref name="settingsUri"/> (the matching page in Settings) to make the change there instead.
     /// </summary>
-    private async Task RunSettingChangeAsync(Func<CancellationToken, Task<OperationResult>> change, string busyText, bool offerSettings)
+    private async Task RunSettingChangeAsync(Func<CancellationToken, Task<OperationResult>> change, string busyText, string settingsUri)
     {
         OperationResult? result = null;
         await RunBusyAsync(async ct =>
@@ -238,10 +257,10 @@ public sealed partial class WindowsUpdateViewModel
             await LoadStatusAndHistoryAsync(CancellationToken.None);
         }, busyText, cancellable: false);
 
-        if (result is { Success: false } failed && offerSettings
+        if (result is { Success: false } failed
             && await _dialogs.ConfirmAsync("Open Windows Update settings?", failed.Message + "\n\nYou can make this change in Settings → Windows Update.", "Open Settings"))
         {
-            Open(SettingsUri);
+            Open(settingsUri);
         }
     }
 

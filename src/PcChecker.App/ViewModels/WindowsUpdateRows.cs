@@ -39,7 +39,14 @@ public sealed partial class PendingUpdateRow : ObservableObject
         ? Loc.F("{0} (optional)", Loc.T(UpdateClassifier.Label(Update.Classification)))
         : Loc.T(UpdateClassifier.Label(Update.Classification));
 
-    public string SeverityText => Update.Severity == UpdateSeverity.Unspecified ? "—" : Update.Severity.ToString();
+    public string SeverityText => Update.Severity switch
+    {
+        UpdateSeverity.Critical => Loc.T("Critical"),
+        UpdateSeverity.Important => Loc.T("Important"),
+        UpdateSeverity.Moderate => Loc.T("Moderate"),
+        UpdateSeverity.Low => Loc.T("Low"),
+        _ => "—",
+    };
 
     public UpdateSeverity Severity => Update.Severity;
 

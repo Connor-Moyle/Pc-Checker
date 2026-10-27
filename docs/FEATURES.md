@@ -518,10 +518,14 @@ updates; driver updates stay on the Drivers page.
     if Windows did not keep them, on a build older than Windows 10 version
     2004, or when a policy owns pausing, the page offers to open Settings
     instead. *Resume* removes the values, as Settings does.
-  - *Active hours*: start and end hour, at most 18 hours apart and allowed
-    to run past midnight. Saving writes `ActiveHoursStart` and
-    `ActiveHoursEnd` and turns off the automatic adjustment, like choosing
-    the hours by hand in Settings.
+  - *Active hours*: start and end hour, at most 18 hours apart (fewer when
+    the ActiveHoursMaxRange policy says so) and allowed to run past
+    midnight. Saving writes `ActiveHoursStart`/`ActiveHoursEnd` and the
+    hand-picked pair `UserChoiceActiveHoursStart`/`UserChoiceActiveHoursEnd`
+    that Settings restores them from. While Windows adjusts active hours
+    automatically, or when saving fails, the page sends you to Settings
+    instead. The read-back only confirms the values were stored, so the
+    result also says to check Settings.
   - Every change is confirmed and recorded in the Action Journal with the
     previous value; pause and active hours do not create restore points.
 - **Links**: Windows Update, Update history, Advanced options and Active

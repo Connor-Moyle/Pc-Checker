@@ -43,8 +43,9 @@ public static class UpdatePolicyRules
             || !string.IsNullOrWhiteSpace(Text(gp, "PauseQualityUpdatesStartTime"))
             || !string.IsNullOrWhiteSpace(Text(gp, "PauseFeatureUpdatesStartTime"))
             || Dword(gp, "PauseQualityUpdates") == 1 || Dword(gp, "PauseFeatureUpdates") == 1
-            || mdm.ContainsKey("PauseQualityUpdates") || mdm.ContainsKey("PauseFeatureUpdates")
-            || mdm.ContainsKey("PauseQualityUpdatesStartTime") || mdm.ContainsKey("PauseFeatureUpdatesStartTime");
+            || Dword(mdm, "PauseQualityUpdates") == 1 || Dword(mdm, "PauseFeatureUpdates") == 1
+            || !string.IsNullOrWhiteSpace(Text(mdm, "PauseQualityUpdatesStartTime"))
+            || !string.IsNullOrWhiteSpace(Text(mdm, "PauseFeatureUpdatesStartTime"));
         if (pauseManaged && !accessDisabled)
         {
             notes.Add("Pausing updates is controlled by policy.");
@@ -52,7 +53,7 @@ public static class UpdatePolicyRules
 
         bool activeHoursManaged = accessDisabled
             || Dword(gp, "SetActiveHours") == 1
-            || mdm.ContainsKey("ActiveHoursStart") || mdm.ContainsKey("ActiveHoursEnd");
+            || Dword(mdm, "ActiveHoursStart") is >= 0 and <= 23 || Dword(mdm, "ActiveHoursEnd") is >= 0 and <= 23;
         if (activeHoursManaged && !accessDisabled)
         {
             var start = Dword(gp, "ActiveHoursStart") ?? Dword(mdm, "ActiveHoursStart");
@@ -60,6 +61,19 @@ public static class UpdatePolicyRules
             notes.Add(start is >= 0 and <= 23 && end is >= 0 and <= 23
                 ? $"Active hours are set by policy to {ActiveHoursRules.Hour(start.Value)} – {ActiveHoursRules.Hour(end.Value)}."
                 : "Active hours are set by policy.");
+        }
+
+        // ActiveHoursMaxRange only narrows what may be chosen; the page still lets the user pick hours within it.
+        int? maxSpan = null;
+        var policySpan = Dword(gp, "SetActiveHoursMaxRange") == 1 ? Dword(gp, "ActiveHoursMaxRange") : null;
+        policySpan ??= Dword(mdm, "ActiveHoursMaxRange");
+        if (policySpan is >= ActiveHoursRules.MinPolicySpanHours and < ActiveHoursRules.MaxSpanHours)
+        {
+            maxSpan = policySpan;
+            if (!activeHoursManaged)
+            {
+                notes.Add($"A policy allows active hours to cover at most {policySpan} hours.");
+            }
         }
 
         bool automaticOff = Dword(au, "NoAutoUpdate") == 1 || Dword(mdm, "AllowAutoUpdate") == 5;
@@ -93,7 +107,10 @@ public static class UpdatePolicyRules
                 : "Some Windows Update settings are set by Group Policy.");
         }
 
-        return new UpdatePolicyStatus(managed, pauseManaged, activeHoursManaged, automaticOff, usesServer, accessDisabled, notes);
+        return new UpdatePolicyStatus(managed, pauseManaged, activeHoursManaged, automaticOff, usesServer, accessDisabled, notes)
+        {
+            ActiveHoursMaxSpan = maxSpan,
+        };
     }
 
     /// <summary>

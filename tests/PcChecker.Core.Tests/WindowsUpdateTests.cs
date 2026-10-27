@@ -185,6 +185,22 @@ public class UpdatePauseRulesTests
         Assert.Equal(0, UpdatePauseRules.WeeksAvailable(current, Now, UpdatePauseRules.DefaultMaxPauseDays));
     }
 
+    [Fact]
+    public void A_running_pause_without_a_readable_start_is_not_extended()
+    {
+        var current = new UpdatePauseState(true, null, Now.AddDays(7));
+        var plan = UpdatePauseRules.Plan(current, Now, 1, UpdatePauseRules.DefaultMaxPauseDays);
+        Assert.False(plan.Allowed);
+        Assert.Equal(UpdatePauseRules.UnknownStartMessage, plan.Message);
+        Assert.True(UpdatePauseRules.HasUnknownStart(current, Now));
+        Assert.Equal(0, UpdatePauseRules.WeeksAvailable(current, Now, UpdatePauseRules.DefaultMaxPauseDays));
+
+        // A start in the future reads as unknown too.
+        var state = UpdatePauseRules.ReadState("2026-12-01T00:00:00Z", "2026-11-10T00:00:00Z", Now);
+        Assert.True(UpdatePauseRules.HasUnknownStart(state, Now));
+        Assert.False(UpdatePauseRules.HasUnknownStart(UpdatePauseState.NotPaused, Now));
+    }
+
     [Theory]
     [InlineData(0)]
     [InlineData(6)]
@@ -243,6 +259,18 @@ public class ActiveHoursRulesTests
     public void At_most_eighteen_hours_are_allowed(int start, int end, bool ok)
     {
         Assert.Equal(ok, ActiveHoursRules.Validate(start, end) is null);
+    }
+
+    [Fact]
+    public void A_policy_limit_shortens_the_allowed_span()
+    {
+        Assert.Null(ActiveHoursRules.Validate(8, 20, 12));
+        Assert.Contains("policy", ActiveHoursRules.Validate(8, 21, 12));
+        Assert.Equal(12, ActiveHoursRules.EffectiveMaxSpan(12));
+        Assert.Equal(18, ActiveHoursRules.EffectiveMaxSpan(null));
+        Assert.Equal(18, ActiveHoursRules.EffectiveMaxSpan(3));
+        Assert.Equal(18, ActiveHoursRules.EffectiveMaxSpan(24));
+        Assert.Null(ActiveHoursRules.Validate(6, 0, 30));
     }
 
     [Fact]
@@ -377,6 +405,41 @@ public class UpdatePolicyRulesTests
         var gp = Values(("WUServer", "http://wsus.contoso.local:8530"));
         Assert.True(UpdatePolicyRules.Evaluate(new UpdatePolicyValues(gp, Values(("UseWUServer", 1)), Values())).UsesUpdateServer);
         Assert.False(UpdatePolicyRules.Evaluate(new UpdatePolicyValues(gp, Values(("UseWUServer", 0)), Values())).UsesUpdateServer);
+    }
+
+    [Fact]
+    public void Device_management_values_that_turn_nothing_on_do_not_lock_the_page()
+    {
+        var mdm = Values(("PauseQualityUpdates", 0), ("PauseFeatureUpdates", 0), ("AllowAutoUpdate", 2), ("ActiveHoursStart", 99));
+        var status = UpdatePolicyRules.Evaluate(new UpdatePolicyValues(Values(), Values(), mdm));
+        Assert.True(status.IsManaged);
+        Assert.False(status.PauseManaged);
+        Assert.False(status.ActiveHoursManaged);
+        Assert.False(status.AutomaticUpdatesOff);
+
+        var paused = Values(("PauseQualityUpdates", 1));
+        Assert.True(UpdatePolicyRules.Evaluate(new UpdatePolicyValues(Values(), Values(), paused)).PauseManaged);
+        var started = Values(("PauseFeatureUpdatesStartTime", "2026-10-01"));
+        Assert.True(UpdatePolicyRules.Evaluate(new UpdatePolicyValues(Values(), Values(), started)).PauseManaged);
+    }
+
+    [Fact]
+    public void The_active_hours_max_range_policy_narrows_the_span()
+    {
+        var gp = Values(("SetActiveHoursMaxRange", 1), ("ActiveHoursMaxRange", 12));
+        var status = UpdatePolicyRules.Evaluate(new UpdatePolicyValues(gp, Values(), Values()));
+        Assert.Equal(12, status.ActiveHoursMaxSpan);
+        Assert.False(status.ActiveHoursManaged);
+        Assert.Contains(status.Notes, n => n.Contains("12 hours"));
+
+        // Without the enabling switch the Group Policy range is ignored; MDM needs none.
+        var off = Values(("SetActiveHoursMaxRange", 0), ("ActiveHoursMaxRange", 12));
+        Assert.Null(UpdatePolicyRules.Evaluate(new UpdatePolicyValues(off, Values(), Values())).ActiveHoursMaxSpan);
+        Assert.Equal(10, UpdatePolicyRules.Evaluate(new UpdatePolicyValues(Values(), Values(), Values(("ActiveHoursMaxRange", 10)))).ActiveHoursMaxSpan);
+
+        // Out-of-range or the usual 18 change nothing.
+        Assert.Null(UpdatePolicyRules.Evaluate(new UpdatePolicyValues(Values(), Values(), Values(("ActiveHoursMaxRange", 4)))).ActiveHoursMaxSpan);
+        Assert.Null(UpdatePolicyRules.Evaluate(new UpdatePolicyValues(Values(), Values(), Values(("ActiveHoursMaxRange", 18)))).ActiveHoursMaxSpan);
     }
 
     [Fact]

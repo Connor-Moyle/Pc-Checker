@@ -99,6 +99,15 @@ public sealed partial class WindowsUpdateService : IWindowsUpdateService
             return OperationResult<UpdateInstallResult>.Fail(NotOnWindows);
         }
 
+        // Checked before the guard so no restore point is made and no failed change is journaled for a run that cannot
+        // start (for example right after a cancelled check, which Windows Update finishes in the background).
+        if (_client.IsBusy)
+        {
+            const string busy = "Windows Update is still busy with an earlier check. Try again in a minute.";
+            var waiting = new UpdateInstallResult(updates.Select(u => new UpdateInstallItem(u, false, "Not installed: " + busy, false)).ToList(), false);
+            return new OperationResult<UpdateInstallResult>(false, busy, waiting, null);
+        }
+
         var target = updates.Count == 1 ? updates[0].Title : $"{updates.Count} Windows updates";
         var options = ChangeOptions.For(Module, target, reversible: true,
             undoHint: "Settings → Windows Update → Update history → Uninstall updates, or restore the restore point.")

@@ -222,7 +222,7 @@ public sealed partial class WindowsUpdateViewModel : ViewModelBase
         PendingCountText = UpdateCount.ToString(CultureInfo.CurrentCulture);
         PendingSubtitle = UpdateCount == 0 ? Loc.T("Up to date") : bytes > 0 ? Loc.F("{0} to download", ByteSize.Format(bytes)) : Loc.T("Already downloaded");
         LastCheckText = RelativeTimeConverter.Format(scan.Captured, DateTimeOffset.Now);
-        Subtitle = "Checked " + scan.Captured.ToString("t", CultureInfo.CurrentCulture) + ". " + DefaultSubtitle;
+        Subtitle = Loc.F("Checked {0}.", scan.Captured.ToString("t", CultureInfo.CurrentCulture)) + " " + Loc.T(DefaultSubtitle);
         _checkWarnings = scan.Warnings;
         ShowWarnings();
         UpdateSelection();

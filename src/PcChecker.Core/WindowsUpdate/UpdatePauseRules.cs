@@ -87,6 +87,11 @@ public static class UpdatePauseRules
     /// <summary>How many whole weeks can still be added to the current pause (or a new one), 0 to 5.</summary>
     public static int WeeksAvailable(UpdatePauseState current, DateTimeOffset now, int maxPauseDays)
     {
+        if (HasUnknownStart(current, now))
+        {
+            return 0;
+        }
+
         var limit = Limit(current, now, maxPauseDays);
         var from = current.IsPaused && current.PausedUntil is { } until ? until : now;
         var days = (limit - from).TotalDays;
@@ -107,7 +112,13 @@ public static class UpdatePauseRules
         }
 
         bool extending = current.IsPaused && current.PausedUntil is { } until && until > nowUtc;
-        var start = extending ? TruncateToSeconds((current.PausedSince ?? nowUtc).ToUniversalTime()) : nowUtc;
+        if (extending && current.PausedSince is null)
+        {
+            // Without the start, the limit (counted from the start) is unknown; guessing "now" could pass it.
+            return Refuse(nowUtc, UnknownStartMessage);
+        }
+
+        var start = extending ? TruncateToSeconds(current.PausedSince!.Value.ToUniversalTime()) : nowUtc;
         var from = extending ? TruncateToSeconds(current.PausedUntil!.Value.ToUniversalTime()) : nowUtc;
         var limit = start.AddDays(EffectiveMaxPauseDays(maxPauseDays));
         var expiry = from.AddDays(7 * weeks);
@@ -133,6 +144,14 @@ public static class UpdatePauseRules
 
         return new UpdatePausePlan(true, start, expiry, extending, shortened, message);
     }
+
+    /// <summary>Why a running pause whose start cannot be read is not extended here.</summary>
+    public const string UnknownStartMessage =
+        "Windows did not record when the current pause started, so PC Checker cannot tell how much longer it may last. Extend the pause in Settings → Windows Update instead.";
+
+    /// <summary>True for a running pause whose start time is missing or unreadable: it can only be extended in Settings.</summary>
+    public static bool HasUnknownStart(UpdatePauseState current, DateTimeOffset now) =>
+        current is { IsPaused: true, PausedSince: null, PausedUntil: { } until } && until > now;
 
     private static DateTimeOffset Limit(UpdatePauseState current, DateTimeOffset now, int maxPauseDays)
     {

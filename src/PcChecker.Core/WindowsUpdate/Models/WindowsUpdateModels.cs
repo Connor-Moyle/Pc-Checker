@@ -120,6 +120,9 @@ public sealed record UpdatePolicyStatus(
     bool AccessDisabled,
     IReadOnlyList<string> Notes)
 {
+    /// <summary>The longest active hours span a policy allows (ActiveHoursMaxRange, 8–17), or null for the usual 18.</summary>
+    public int? ActiveHoursMaxSpan { get; init; }
+
     public static UpdatePolicyStatus None { get; } = new(false, false, false, false, false, false, []);
 }
 

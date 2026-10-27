@@ -69,7 +69,8 @@ public sealed partial class WindowsUpdateService
                 return Task.FromResult(written);
             }
 
-            // Read the values back: if Windows did not keep them, say so and point to Settings.
+            // Reading back only proves the values were stored (something else may have reset them at once). Whether the
+            // update orchestrator honours them cannot be checked from here, so the message says where to confirm it.
             var check = ReadUxSettings([]);
             if (!check.Pause.IsPaused || check.Pause.PausedUntil != plan.Expiry)
             {
@@ -77,7 +78,7 @@ public sealed partial class WindowsUpdateService
                 return Task.FromResult(OperationResult.Fail("Windows did not keep the pause." + UseSettingsInstead));
             }
 
-            return Task.FromResult(OperationResult.Ok(plan.Message + " Windows Update in Settings shows the same date."));
+            return Task.FromResult(OperationResult.Ok(plan.Message + " If Windows Update in Settings does not show the pause, pause there instead."));
         }, null, cancellationToken);
     }
 
@@ -115,9 +116,10 @@ public sealed partial class WindowsUpdateService
                 return Task.FromResult(removed);
             }
 
+            // As with pausing, this only proves the values are gone; Settings is where to confirm Windows agrees.
             return Task.FromResult(ReadUxSettings([]).Pause.IsPaused
                 ? OperationResult.Fail("Windows still reports updates as paused." + UseSettingsInstead)
-                : OperationResult.Ok("Updates are no longer paused. Windows will look for updates again shortly."));
+                : OperationResult.Ok("Updates are no longer paused. Windows will look for updates again shortly. If Settings still shows a pause, resume there."));
         }, null, cancellationToken);
     }
 
@@ -128,42 +130,71 @@ public sealed partial class WindowsUpdateService
             return Task.FromResult(OperationResult.Fail(NotOnWindows));
         }
 
-        if (ActiveHoursRules.Validate(startHour, endHour) is { } problem)
-        {
-            return Task.FromResult(OperationResult.Fail(problem));
-        }
-
-        if (UpdatePolicyRules.Evaluate(ReadPolicyValues()).ActiveHoursManaged)
+        var policy = UpdatePolicyRules.Evaluate(ReadPolicyValues());
+        if (policy.ActiveHoursManaged)
         {
             return Task.FromResult(OperationResult.Fail("Active hours are set by a policy on this PC."));
         }
 
+        if (ActiveHoursRules.Validate(startHour, endHour, ActiveHoursRules.EffectiveMaxSpan(policy.ActiveHoursMaxSpan)) is { } problem)
+        {
+            return Task.FromResult(OperationResult.Fail(problem));
+        }
+
+        if (!UpdatePauseRules.SupportsRegistryPause(Environment.OSVersion.Version.Build))
+        {
+            return Task.FromResult(OperationResult.Fail("This version of Windows keeps active hours differently." + UseSettingsInstead));
+        }
+
         var current = ReadUxSettings([]).ActiveHours ?? ActiveHoursRules.FromRegistry(null, null, null);
+        if (current.IsAutomatic)
+        {
+            // How Settings records "adjust automatically: off" is not documented, so PC Checker does not guess at it.
+            return Task.FromResult(OperationResult.Fail(
+                "Windows is adjusting active hours automatically. Turn off 'Adjust active hours automatically' in Settings → Windows Update → Advanced options, or set the hours there."));
+        }
+
         var wanted = new ActiveHours(startHour, endHour, false);
         var options = new ChangeOptions(CreateBefore: false, CreateAfter: false, Module, "Active hours", Reversible: true,
             UndoHint: $"Before: {ActiveHoursRules.Describe(current)}. Set them back on the Windows Update page or in Settings → Windows Update → Advanced options.");
         return _guard.RunGuardedAsync($"Set active hours to {ActiveHoursRules.Describe(wanted)}", options, _ =>
         {
+            // Settings writes the hand-picked pair as well and restores ActiveHoursStart/End from it, so both are written.
             var written = WriteUxValues(key =>
             {
+                key.SetValue(ActiveHoursRules.UserChoiceStartValue, startHour, RegistryValueKind.DWord);
+                key.SetValue(ActiveHoursRules.UserChoiceEndValue, endHour, RegistryValueKind.DWord);
                 key.SetValue(ActiveHoursRules.StartValue, startHour, RegistryValueKind.DWord);
                 key.SetValue(ActiveHoursRules.EndValue, endHour, RegistryValueKind.DWord);
-                if (current.IsAutomatic)
-                {
-                    // Choosing hours by hand in Settings switches the automatic adjustment off.
-                    key.SetValue(ActiveHoursRules.SmartStateValue, 0, RegistryValueKind.DWord);
-                }
             });
             if (!written.Success)
             {
                 return Task.FromResult(written);
             }
 
-            var check = ReadUxSettings([]).ActiveHours;
-            return Task.FromResult(check is { } h && h.StartHour == startHour && h.EndHour == endHour
-                ? OperationResult.Ok($"Active hours are now {ActiveHoursRules.Describe(wanted)}. Windows will not restart for updates during these hours.")
+            // Reading back only proves the values were stored, so the message says where to confirm them.
+            var check = ReadActiveHoursPairs();
+            return Task.FromResult(check is { Start: { } s, End: { } e, ChoiceStart: { } cs, ChoiceEnd: { } ce }
+                    && s == startHour && e == endHour && cs == startHour && ce == endHour
+                ? OperationResult.Ok($"Active hours are now {ActiveHoursRules.Describe(wanted)}. Windows will not restart for updates during these hours. If Settings shows other hours, set them there.")
                 : OperationResult.Fail("Windows did not keep the new active hours." + UseSettingsInstead));
         }, null, cancellationToken);
+    }
+
+    private (int? Start, int? End, int? ChoiceStart, int? ChoiceEnd) ReadActiveHoursPairs()
+    {
+        try
+        {
+            using var hklm = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry64);
+            using var key = hklm.OpenSubKey(UpdatePauseRules.SettingsKey);
+            return (AsInt(key?.GetValue(ActiveHoursRules.StartValue)), AsInt(key?.GetValue(ActiveHoursRules.EndValue)),
+                AsInt(key?.GetValue(ActiveHoursRules.UserChoiceStartValue)), AsInt(key?.GetValue(ActiveHoursRules.UserChoiceEndValue)));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Active hours could not be read back.");
+            return (null, null, null, null);
+        }
     }
 
     private (UpdatePauseState Pause, ActiveHours? ActiveHours, int MaxPauseDays) ReadUxSettings(List<string> warnings)
