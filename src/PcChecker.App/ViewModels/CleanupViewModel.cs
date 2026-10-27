@@ -151,11 +151,11 @@ public sealed partial class CleanupViewModel : ViewModelBase
 
     public bool HasScanNote => !string.IsNullOrEmpty(ScanNote);
 
-    public string CleanButtonText => DryRun ? "Preview cleanup" : "Clean selected";
+    public string CleanButtonText => DryRun ? Loc.T("Preview cleanup") : Loc.T("Clean selected");
 
     public string DryRunHint => DryRun
-        ? "Dry run is on: nothing will be deleted, you only get a report."
-        : "Dry run is off: cleaning really deletes files.";
+        ? Loc.T("Dry run is on: nothing will be deleted, you only get a report.")
+        : Loc.T("Dry run is off: cleaning really deletes files.");
 
     public int SkipNewerThanMinutes => Settings.Current.Cleanup.SkipFilesNewerThanMinutes;
 
