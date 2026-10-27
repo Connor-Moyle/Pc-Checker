@@ -16,6 +16,19 @@ public static class SetupFileReader
 
     public static OperationResult<SetupDocument> Parse(string? text)
     {
+        try
+        {
+            return ParseCore(text);
+        }
+        catch (Exception ex) when (ex is JsonException or ArgumentException or InvalidOperationException or FormatException)
+        {
+            // For example the same name twice in one object ("Format" and "format"), which JSON allows but a setup cannot use.
+            return OperationResult<SetupDocument>.Fail(NotASetupFile + " Some of its names appear twice or it is not in the expected form.", ex);
+        }
+    }
+
+    private static OperationResult<SetupDocument> ParseCore(string? text)
+    {
         if (string.IsNullOrWhiteSpace(text))
         {
             return OperationResult<SetupDocument>.Fail(NotASetupFile + " It is empty.");
@@ -72,7 +85,17 @@ public static class SetupFileReader
         var skipped = new List<SetupSkippedSection>();
         foreach (var (id, node) in sectionsNode)
         {
-            var (data, reason) = ReadSection(id, node, sections);
+            SetupSectionData? data;
+            string? reason;
+            try
+            {
+                (data, reason) = ReadSection(id, node, sections);
+            }
+            catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or FormatException)
+            {
+                (data, reason) = (null, "This part is not in the expected form.");
+            }
+
             if (data is not null)
             {
                 sections[data.Id] = data;

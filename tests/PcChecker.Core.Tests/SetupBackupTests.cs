@@ -109,6 +109,8 @@ public class SetupBackupTests : IDisposable
     [InlineData("{ \"Format\": \"Something.Else\", \"SchemaVersion\": 1, \"Sections\": {} }")]
     [InlineData("{ \"Format\": \"PcChecker.Setup\", \"Sections\": { \"fans\": { \"Version\": 1, \"Data\": { \"Fans\": {} } } } }")]
     [InlineData("{ \"Format\": \"PcChecker.Setup\", \"SchemaVersion\": 1 }")]
+    [InlineData("{ \"Format\": \"PcChecker.Setup\", \"format\": \"PcChecker.Setup\", \"SchemaVersion\": 1, \"Sections\": { \"fans\": { \"Version\": 1, \"Data\": { \"Fans\": {} } } } }")]
+    [InlineData("{ \"Format\": \"PcChecker.Setup\", \"SchemaVersion\": 1, \"Sections\": { \"fans\": 1, \"Fans\": 2 } }")]
     public void Files_that_are_not_valid_setups_are_refused_with_a_reason(string text)
     {
         var result = SetupFileReader.Parse(text);
@@ -150,6 +152,22 @@ public class SetupBackupTests : IDisposable
         var outcome = SetupApplier.Apply(AppSettings.CreateDefault(), doc, [SetupSectionIds.Lighting, "cloudSync"], Now);
         Assert.Empty(outcome.AppliedSections);
         Assert.Equal(6742, outcome.Settings.Lighting.OpenRgbPort);
+    }
+
+    [Fact]
+    public void A_part_with_a_name_written_twice_is_skipped_and_the_rest_is_read()
+    {
+        const string text = """
+            { "Format": "PcChecker.Setup", "SchemaVersion": 1, "Sections": {
+              "fans": { "Version": 1, "Data": { "Fans": { "MinimumPercent": 30, "minimumPercent": 40 } } },
+              "memory": { "Version": 1, "Data": { "Memory": { "LowMemoryPercent": 15 } } } } }
+            """;
+
+        var result = SetupFileReader.Parse(text);
+
+        Assert.True(result.Success, result.Message);
+        Assert.Equal([SetupSectionIds.Memory], result.Value!.Sections.Keys);
+        Assert.Equal(SetupSectionIds.Fans, Assert.Single(result.Value.Skipped).Id);
     }
 
     [Fact]
