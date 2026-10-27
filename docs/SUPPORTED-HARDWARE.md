@@ -75,8 +75,16 @@ controllable when the board or device exposes a PWM control the library knows
 how to write:
 
 - **Motherboard headers**: the same Super I/O chips listed above. Most
-  enthusiast desktop boards from ASUS, MSI, Gigabyte and ASRock work. Some
-  boards expose RPM but not control for certain headers.
+  enthusiast desktop boards from ASUS, MSI, Gigabyte and ASRock work. They
+  are read through the **PawnIO** driver: without it the Fans page shows only
+  the graphics card fans (those come through the graphics driver) and offers
+  *Install PawnIO*. Some boards expose RPM but not control for certain
+  headers; those are listed as *read-only* with their speed. An output with
+  no speed sensor that can be matched to it for certain is listed as a
+  *control without RPM reading*: PC Checker pairs a speed sensor and a
+  control only when they share the chip channel (or a unique name), never by
+  guessing. Headers that read 0 RPM (usually nothing plugged in) are hidden
+  until you turn on *Show empty headers*.
 - **GPU fans**: NVIDIA and AMD cards through the driver. Intel Arc cards show
   RPM but the library does not expose a control.
 - **Coolers**: a few AIOs and fan controllers. Devices that only speak a
@@ -85,6 +93,17 @@ how to write:
 - **Laptops and OEM desktops**: almost never. The embedded controller owns the
   fans and does not expose a standard interface. The page says so instead of
   showing a slider that does nothing.
+
+When a fan is missing, open *Why is a fan missing?* at the bottom of the Fans
+page. It shows the PawnIO state, the motherboard and its fan controller chip
+(or "no fan controller chip found"), every fan and control sensor with its
+value, index and pairing, and other fan or RGB software that is running and
+fights over the chip (Armoury Crate, AI Suite, iCUE, NZXT CAM, MSI Center,
+Gigabyte Control Center / RGB Fusion / SIV, ASRock Polychrome / Phantom
+Gaming Tuning, SignalRGB, Fan Control, HWiNFO, Argus Monitor, SpeedFan).
+*Copy diagnostic report* puts the same information on the clipboard as text,
+without personal data. *Reload sensors* returns every fan to automatic,
+restarts the hardware monitor and detects the fans again.
 
 Safety: a minimum percentage (Settings → Fans, default 20 %) is enforced
 unless you explicitly allow lower; a critical temperature forces 100 %; fans

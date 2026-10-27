@@ -108,6 +108,29 @@ All notable changes to PC Checker are recorded here. The format follows
   *Sensor N* or *Controller* with their own, higher limits; SMART 194 uses only
   its current-temperature byte and wins over 190; values of 0, 255 and 65535
   count as "not reported".
+- **Fans page only showed the graphics card fans**: the CPU and case fans on
+  the motherboard are read through the PawnIO driver, and without it the page
+  listed the GPU fans with no word about the missing ones. The Fans and
+  Temperatures pages and the Check-up now detect whether PawnIO is installed
+  and running (by opening its device, not only from the uninstall entry, so
+  an install during the session is seen) and offer *Install PawnIO*: winget
+  when available, otherwise the official signed setup from GitHub, checked
+  with WinVerifyTrust before it runs silently. Afterwards the sensors reload
+  without restarting the app and the page says how many motherboard fans
+  appeared. *Reload sensors* returns the fans to automatic first.
+- Fan speed sensors without a matching control are listed as read-only with
+  their RPM (and refresh every second even when no fan is controllable), a
+  control is no longer paired with another header's speed sensor by position
+  (it is shown as a control without RPM reading instead), and a numbered
+  header is no longer guessed to be the CPU fan. Headers that read 0 RPM are
+  hidden behind *Show empty headers*.
+- New *Why is a fan missing?* panel on the Fans page with the PawnIO state,
+  the motherboard and fan controller chip, every fan and control sensor,
+  running fan and RGB software that fights over the chip, plain-English
+  reasons a fan cannot be controlled, and *Copy diagnostic report*.
+- The Temperatures page no longer claims the motherboard sensor chip was
+  found when only the board name was read, and its *Retry* no longer leaves
+  the Fans page driving fans through a closed hardware monitor.
 
 ## [0.4.0] - 2026-10-27
 

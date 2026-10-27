@@ -56,15 +56,16 @@ wrong, the restore point the app made is the way back.
 
 - CPU, motherboard and fan sensors need the free, signed **PawnIO** driver
   (the sensor library moved to it because Windows blocks the older WinRing0
-  driver). If it is missing, the Temperatures and Fans pages say so and link
-  to [pawnio.eu](https://pawnio.eu); install it once and restart PC Checker.
-  GPU and drive temperatures work without it.
+  driver). If it is missing, the Temperatures and Fans pages say so and offer
+  *Install PawnIO*, which installs it and reloads the sensors without a
+  restart of the app. GPU and drive temperatures work without it.
 - The sensor driver needs administrator rights.
 - CPU temperatures and the motherboard sensor chip (case and CPU fan headers)
   are read through the signed **PawnIO** driver, which is installed
-  separately. If it is missing, the Temperatures page says so; install it from
-  [pawnio.eu](https://pawnio.eu) or with `winget install namazso.PawnIO`, then
-  restart PC Checker. It works with core isolation (memory integrity) on.
+  separately. If it is missing, the Temperatures page says so; click *Install
+  PawnIO*, or install it from [pawnio.eu](https://pawnio.eu) or with `winget
+  install namazso.PawnIO` and click *More → Reload sensors*. It works with
+  core isolation (memory integrity) on.
 - Another monitoring tool (one that ships with a motherboard, HWiNFO, an RGB
   suite) can hold the sensor interface. Close it and click *Retry*.
 - Some laptops and OEM desktops expose very few sensors. Virtual machines
@@ -86,6 +87,38 @@ wrong, the restore point the app made is the way back.
   as the drive temperature. Update if a cool drive reads about 70 °C.
 - Still high? Compare with the drive maker's tool. Drives without airflow, or
   under a graphics card, really can run at 60–70 °C while copying large files.
+
+### The Fans page only shows my GPU fans
+
+Graphics card fans are read through the graphics driver, so they always
+appear. The CPU and case fans plugged into the motherboard are read from the
+board's sensor chip, and PC Checker can only reach that chip through the
+free, signed **PawnIO** driver.
+
+1. Open **Cooling & RGB → Fans**. If PawnIO is missing, a yellow bar says so: click
+   **Install PawnIO** and confirm. PC Checker uses `winget install --id
+   namazso.PawnIO` when the Windows Package Manager is there; otherwise it
+   downloads the official `PawnIO_setup.exe` from
+   [github.com/namazso/PawnIO.Setup](https://github.com/namazso/PawnIO.Setup/releases),
+   checks its digital signature and runs it silently. You can also install it
+   yourself from [pawnio.eu](https://pawnio.eu).
+2. PC Checker returns every fan to automatic, reloads the sensors and says
+   how many motherboard fans appeared. If you installed PawnIO yourself, click
+   **More → Reload sensors** (no need to restart the app).
+3. If the bar says PawnIO is installed but not running, restart the PC.
+4. Still only GPU fans? Open **Why is a fan missing?** at the bottom of the
+   page. It names the fan controller chip (or says none was found), lists
+   every fan sensor and any fan or RGB program that is running. Close those
+   programs (Armoury Crate, iCUE, MSI Center, HWiNFO, Fan Control and the
+   like), then **Reload sensors**. **Copy diagnostic report** gives you text
+   to paste into a bug report; it contains no personal data.
+
+Headers that read 0 RPM are usually empty and are hidden until you turn on
+**Show empty headers**. A fan whose speed shows but cannot be changed is
+listed as *read-only*: the BIOS may be in charge (set the header to manual
+in the BIOS fan settings), the header may be in DC mode with a PWM fan (or
+the other way round), or the fan sits on a hub or AIO that only its maker's
+app can drive. PawnIO can be removed any time from Settings → Apps.
 
 ### The Fans page says no controllable fans were found
 
