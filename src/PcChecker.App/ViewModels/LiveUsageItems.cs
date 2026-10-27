@@ -59,6 +59,9 @@ public sealed partial class LiveResourceItem : ObservableObject
 
     public string AutomationName => Title + ", " + ValueText;
 
+    /// <summary>What screen readers and copy fall back to when they read the item itself.</summary>
+    public override string ToString() => AutomationName;
+
     /// <summary>The main series: utilization (CPU, disk active time, GPU), memory in use (%) or bits received.</summary>
     public SampleRing Main { get; } = new(HistoryLength);
 

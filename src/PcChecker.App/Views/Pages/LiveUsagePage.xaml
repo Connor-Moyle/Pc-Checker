@@ -46,7 +46,9 @@
         </MenuItem>
         <MenuItem Header="Show kernel times" IsCheckable="True" IsChecked="{Binding ShowKernelTimes}"
                   Visibility="{Binding IsCpu, Converter={StaticResource BoolToVisibility}}"
-                  ToolTip="Shade the part of the processor time spent inside Windows itself" />
+                  IsEnabled="{Binding PerLogicalProcessor, Converter={StaticResource InverseBool}}"
+                  ToolTipService.ShowOnDisabled="True"
+                  ToolTip="Shade the part of the processor time spent inside Windows itself (on the overall graph)" />
         <MenuItem Header="Look for new devices" Command="{Binding RefreshDevicesCommand}"
                   ToolTip="Read the list again after plugging in a disk, adapter or graphics card">
           <MenuItem.Icon>
@@ -102,7 +104,14 @@
                  ToolTip="Pick a resource to see its graph and details. Right-click for more."
                  ContextMenu="{StaticResource GraphActions}"
                  ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                 Background="Transparent" BorderThickness="0" />
+                 Background="Transparent" BorderThickness="0">
+          <ListBox.ItemContainerStyle>
+            <!-- Screen readers read the item container, not the template inside it. -->
+            <Style TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
+              <Setter Property="AutomationProperties.Name" Value="{Binding AutomationName}" />
+            </Style>
+          </ListBox.ItemContainerStyle>
+        </ListBox>
       </ui:Card>
 
       <!-- Right: the selected resource. -->
@@ -113,10 +122,14 @@
               <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
               </Grid.ColumnDefinitions>
               <ui:TextBlock Grid.Column="0" Text="{Binding SelectedResource.Title}" FontSize="26" FontWeight="SemiBold" Margin="0,0,16,0" />
               <ui:TextBlock Grid.Column="1" Text="{Binding SelectedResource.DeviceName}" FontSize="16" HorizontalAlignment="Right" VerticalAlignment="Bottom"
                             TextTrimming="CharacterEllipsis" Margin="0,0,0,4" ToolTip="{Binding SelectedResource.DeviceName}" />
+              <ui:Button Grid.Column="2" Content="Copy" Icon="{ui:SymbolIcon Copy24}" Margin="12,0,0,0" VerticalAlignment="Center"
+                         Command="{Binding CopyDetailsCommand}" AutomationProperties.Name="Copy details"
+                         ToolTip="Copy these details as text (Ctrl+C)" />
             </Grid>
 
             <Grid Margin="0,0,0,4">
@@ -237,7 +250,7 @@
             </Grid>
 
             <ui:TextBlock Style="{StaticResource Caption}" Margin="0,16,0,0" TextWrapping="Wrap"
-                          Text="Tip: Ctrl+C copies these details. Right-click for more choices, such as one graph per processor." />
+                          Text="Tip: Right-click for more choices, such as one graph per processor." />
           </StackPanel>
         </ui:Card>
       </ScrollViewer>

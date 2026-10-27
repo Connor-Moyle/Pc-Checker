@@ -27,6 +27,7 @@ public sealed partial class WindowsLiveUsageService
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
+            ObjectDisposedException.ThrowIf(_disposed, this);
             var inventory = await Task.Run(() => ReadInventory(wifi, cancellationToken), cancellationToken).ConfigureAwait(false);
             _inventory = inventory;
             _wifi = wifi;

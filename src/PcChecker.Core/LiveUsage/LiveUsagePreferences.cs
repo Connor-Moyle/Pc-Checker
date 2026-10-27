@@ -36,14 +36,18 @@ public static class CompactWindowPlacement
     public const double MaxWidth = 520;
 
     /// <summary>
-    /// Keeps a remembered position on screen: when the window would be more than half off the visible area (a monitor
-    /// was unplugged), it moves to the top-right corner of <paramref name="area"/>. Returns left, top and width.
+    /// Keeps a remembered position on screen: when the window would be more than half off every one of
+    /// <paramref name="screens"/> (a monitor was unplugged), it moves to the top-right corner of
+    /// <paramref name="area"/> (the primary monitor's work area). <paramref name="screens"/> defaults to
+    /// <paramref name="area"/> alone; pass the virtual screen or each monitor so a position on a second monitor is kept.
+    /// Returns left, top and width.
     /// </summary>
     public static (double Left, double Top, double Width) Fit(double? left, double? top, double? width, double height,
-        (double Left, double Top, double Width, double Height) area)
+        (double Left, double Top, double Width, double Height) area,
+        IReadOnlyList<(double Left, double Top, double Width, double Height)>? screens = null)
     {
         double w = width is { } value && double.IsFinite(value) ? Math.Clamp(value, MinWidth, MaxWidth) : DefaultWidth;
-        double h = Math.Max(0, double.IsFinite(height) ? height : 0);
+        double h = Math.Max(1, double.IsFinite(height) ? height : 0);
         double defaultLeft = area.Left + area.Width - w - 16;
         double defaultTop = area.Top + 16;
         if (left is not { } l || top is not { } t || !double.IsFinite(l) || !double.IsFinite(t))
@@ -51,10 +55,19 @@ public static class CompactWindowPlacement
             return (defaultLeft, defaultTop, w);
         }
 
-        double visibleWidth = Math.Min(l + w, area.Left + area.Width) - Math.Max(l, area.Left);
-        double visibleHeight = Math.Min(t + Math.Max(h, 1), area.Top + area.Height) - Math.Max(t, area.Top);
-        bool mostlyVisible = visibleWidth >= w / 2 && visibleHeight >= Math.Max(h, 1) / 2 && t >= area.Top - 8;
-        return mostlyVisible ? (l, t, w) : (defaultLeft, defaultTop, w);
+        IReadOnlyList<(double Left, double Top, double Width, double Height)> candidates =
+            screens is { Count: > 0 } ? screens : [area];
+        foreach (var screen in candidates)
+        {
+            double visibleWidth = Math.Min(l + w, screen.Left + screen.Width) - Math.Max(l, screen.Left);
+            double visibleHeight = Math.Min(t + h, screen.Top + screen.Height) - Math.Max(t, screen.Top);
+            if (visibleWidth >= w / 2 && visibleHeight >= h / 2 && t >= screen.Top - 8)
+            {
+                return (l, t, w);
+            }
+        }
+
+        return (defaultLeft, defaultTop, w);
     }
 }
 

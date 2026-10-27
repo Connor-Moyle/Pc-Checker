@@ -258,7 +258,7 @@ public sealed partial class LiveUsageViewModel : ViewModelBase
         foreach (var item in Resources)
         {
             item.Spark = item.Main.ToPaddedArray();
-            item.SparkMaximum = item.Kind == LiveResourceKind.Network ? LiveUsageMath.NiceScale(item.Main.Max(), 100_000) : 100;
+            item.SparkMaximum = item.Kind == LiveResourceKind.Network ? LiveUsageMath.NiceScale(Math.Max(item.Main.Max(), item.Second.Max()), 100_000) : 100;
         }
 
         RefreshSelected();

@@ -22,6 +22,7 @@ public sealed partial class WindowsLiveUsageService : ILiveUsageService, IDispos
     private readonly ISensorService _sensors;
     private readonly ILogger<WindowsLiveUsageService> _logger;
     private readonly SemaphoreSlim _gate = new(1, 1);
+    private volatile bool _disposed;
     private readonly Dictionary<string, (long Sent, long Received)> _lastBytes = new(StringComparer.OrdinalIgnoreCase);
     private readonly Stopwatch _networkClock = new();
     private readonly Stopwatch _compressionClock = new();
@@ -50,6 +51,7 @@ public sealed partial class WindowsLiveUsageService : ILiveUsageService, IDispos
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
+            ObjectDisposedException.ThrowIf(_disposed, this);
             return await Task.Run(() => SampleCore(cancellationToken), cancellationToken).ConfigureAwait(false);
         }
         finally
@@ -71,9 +73,31 @@ public sealed partial class WindowsLiveUsageService : ILiveUsageService, IDispos
 
     public void Dispose()
     {
-        _query?.Dispose();
-        _slowQuery?.Dispose();
-        _query = _slowQuery = null;
+        if (_disposed)
+        {
+            return;
+        }
+
+        // A reading still running on the thread pool holds the gate; closing the PDH queries under it would pull the
+        // handles out from under PdhCollectQueryData. Wait for it (a reading takes well under a second) and stop any
+        // later one from starting.
+        _disposed = true;
+        if (!_gate.Wait(TimeSpan.FromSeconds(3)))
+        {
+            _logger.LogDebug("A live usage reading was still running at shutdown; the counters are left to Windows.");
+            return;
+        }
+
+        try
+        {
+            _query?.Dispose();
+            _slowQuery?.Dispose();
+            _query = _slowQuery = null;
+        }
+        finally
+        {
+            _gate.Release();
+        }
     }
 
     private LiveUsageSample SampleCore(CancellationToken cancellationToken)
@@ -327,9 +351,12 @@ public sealed partial class WindowsLiveUsageService : ILiveUsageService, IDispos
         });
     }
 
+    /// <summary>The full path, so an elevated run never picks up a netsh.exe from the app or current folder.</summary>
+    private static string NetshPath => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "netsh.exe");
+
     private static async Task<IReadOnlyDictionary<string, WifiInterfaceInfo>> ReadWifiAsync(CancellationToken cancellationToken)
     {
-        var run = await Latency.LatencyProbes.RunAsync("netsh.exe", "wlan show interfaces", cancellationToken, 15).ConfigureAwait(false);
+        var run = await Latency.LatencyProbes.RunAsync(NetshPath, "wlan show interfaces", cancellationToken, 15).ConfigureAwait(false);
         var map = new Dictionary<string, WifiInterfaceInfo>(StringComparer.OrdinalIgnoreCase);
         if (run.ExitCode != 0)
         {

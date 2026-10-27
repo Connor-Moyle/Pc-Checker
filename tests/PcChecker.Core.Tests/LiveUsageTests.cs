@@ -338,6 +338,24 @@ public class LiveUsageTests
     }
 
     [Fact]
+    public void Compact_window_keeps_a_position_on_a_second_monitor()
+    {
+        var primary = (0d, 0d, 1920d, 1040d);
+
+        // Virtual screen with a monitor on the left (negative X) and one on the right of the primary.
+        var virtualScreen = new[] { (-1920d, 0d, 5760d, 1080d) };
+        Assert.Equal((-1500d, 100d, 300d), CompactWindowPlacement.Fit(-1500, 100, 300, 400, primary, virtualScreen));
+        Assert.Equal((2500d, 300d, 300d), CompactWindowPlacement.Fit(2500, 300, 300, 400, primary, virtualScreen));
+
+        // The second monitor has been unplugged: the virtual screen is the primary alone, so back to its corner.
+        var primaryOnly = new[] { (0d, 0d, 1920d, 1080d) };
+        Assert.Equal((1920 - 300 - 16d, 16d, 300d), CompactWindowPlacement.Fit(2500, 300, 300, 400, primary, primaryOnly));
+
+        // Above the top of the screens is off screen too.
+        Assert.Equal((1920 - 300 - 16d, 16d, 300d), CompactWindowPlacement.Fit(100, -300, 300, 400, primary, virtualScreen));
+    }
+
+    [Fact]
     public void Preferences_survive_a_restart_and_a_broken_file()
     {
         string dir = Path.Combine(Path.GetTempPath(), "pcchecker-live-" + Guid.NewGuid().ToString("N"));

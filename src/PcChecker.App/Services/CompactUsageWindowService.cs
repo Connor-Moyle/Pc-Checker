@@ -57,8 +57,10 @@ public sealed class CompactUsageWindowService
             var window = new CompactUsageWindow(_viewModel);
             var prefs = _viewModel.Preferences;
             var area = SystemParameters.WorkArea;
+            var virtualScreen = (SystemParameters.VirtualScreenLeft, SystemParameters.VirtualScreenTop,
+                SystemParameters.VirtualScreenWidth, SystemParameters.VirtualScreenHeight);
             var (left, top, width) = CompactWindowPlacement.Fit(prefs.CompactLeft, prefs.CompactTop, prefs.CompactWidth, 360,
-                (area.Left, area.Top, area.Width, area.Height));
+                (area.Left, area.Top, area.Width, area.Height), [virtualScreen]);
             window.WindowStartupLocation = WindowStartupLocation.Manual;
             window.Left = left;
             window.Top = top;
