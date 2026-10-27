@@ -321,8 +321,10 @@ coolers and controllers.
   manual or curve profile is active and the fan is below 100 %, the app
   forces 100 % and raises an alert.
 - **Watchdog**: while software control is active the app keeps a session
-  file; if it finds one on the next start (a crash), it reverts every fan to
-  automatic and tells you on the Dashboard.
+  file; if it finds one on the next start (a crash), it reverts graphics card
+  fans to automatic and tells you on the Dashboard. Motherboard fans keep the
+  speed they were left at until the PC restarts, so the app holds them on the
+  Balanced curve with its overheating protection on until you restart.
 - **Advanced**: the raw control list with identifiers, ranges and current
   software values.
 

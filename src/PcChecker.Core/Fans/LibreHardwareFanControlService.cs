@@ -29,6 +29,14 @@ public sealed partial class LibreHardwareFanControlService : IFanControlService,
     private readonly Dictionary<string, ISensor> _lhmTemperatures = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<FanControlAlert> _alerts = [];
     private readonly List<string> _capabilityNotes = [];
+
+    /// <summary>
+    /// Fans a previous session left without firmware control that still need a PC restart (or could not be found yet).
+    /// Motherboard fans in this set are never "returned to automatic": see <see cref="FanSession.NeedsRestartFanIds"/>.
+    /// Guarded by <see cref="_gate"/>.
+    /// </summary>
+    private readonly HashSet<string> _needsRestart = new(StringComparer.OrdinalIgnoreCase);
+
     private readonly SemaphoreSlim _discoveryGate = new(1, 1);
 
     /// <summary>
@@ -230,7 +238,8 @@ public sealed partial class LibreHardwareFanControlService : IFanControlService,
 
         if (entries.Count == 0)
         {
-            FanSessionStore.Delete(SessionFilePath);
+            // Keeps the marker only while fans from a crashed session still wait for a restart.
+            UpdateSessionFile();
             ActiveProfile = null;
             return OperationResult.Ok("No fans are under software control.");
         }

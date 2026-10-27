@@ -93,6 +93,21 @@ public sealed partial class LibreHardwareFanControlService
     /// <summary>Hands a fan back to the firmware and clears its software state.</summary>
     private OperationResult ApplyDefault(FanEntry entry)
     {
+        bool held;
+        lock (_gate)
+        {
+            held = IsHeldUntilRestart(entry);
+        }
+
+        if (held)
+        {
+            // SetDefault would "restore" what LibreHardwareMonitor saved at this process's first write to the fan, which
+            // is the manual speed the crashed session left behind, and the app would then stop watching the fan.
+            var hold = entry.Mode == FanMode.Auto ? HoldUntilRestart(entry) : null;
+            return OperationResult.Fail($"{entry.Name} cannot be handed back to the motherboard until the PC restarts: PC Checker closed unexpectedly while controlling it, and the fan chip keeps the speed it was left at. PC Checker keeps driving it, with its overheating protection on, until then."
+                + (hold is { Success: false } ? " " + hold.Message : string.Empty));
+        }
+
         OperationResult? result = null;
         _host.WithComputer(_ =>
         {
@@ -115,9 +130,48 @@ public sealed partial class LibreHardwareFanControlService
             entry.LastApplied = null;
             entry.Forced = false;
             entry.MissingTemperatureTicks = 0;
+            if (result is { Success: true })
+            {
+                _needsRestart.Remove(entry.Id);
+            }
         }
 
         return result ?? OperationResult.Fail("The hardware monitor is not open, so the fan could not be reverted.");
+    }
+
+    /// <summary>True for a motherboard fan a crashed session left in manual mode during this boot. Call under <see cref="_gate"/>.</summary>
+    private bool IsHeldUntilRestart(FanEntry entry) => entry.Kind == HardwareKind.Motherboard && _needsRestart.Contains(entry.Id);
+
+    /// <summary>
+    /// Keeps a fan the motherboard will not take back before a restart under software control, so the safety net keeps
+    /// watching it: on the built-in Balanced curve when there is one for it, otherwise at full speed.
+    /// </summary>
+    private OperationResult HoldUntilRestart(FanEntry entry)
+    {
+        const string why = "held until the PC restarts";
+        var balanced = BuiltInProfiles.FirstOrDefault(p => p.Name.Equals(FanCurveMath.PresetBalanced, StringComparison.OrdinalIgnoreCase));
+        if (balanced is not null && balanced.Fans.TryGetValue(entry.Id, out var assignment) && assignment.Mode == FanMode.Curve
+            && assignment.Curve is not null && FanCurveMath.Validate(assignment.Curve) is null)
+        {
+            return ApplyCurveCore(entry, assignment.Curve, why);
+        }
+
+        var result = ApplySoftware(entry, 100, why);
+        if (result.Success)
+        {
+            lock (_gate)
+            {
+                entry.Mode = FanMode.Manual;
+                entry.ManualPercent = 100;
+                entry.Curve = null;
+                entry.Forced = false;
+            }
+
+            UpdateSessionFile();
+            EnsureTimer();
+        }
+
+        return result;
     }
 
     private OperationResult ApplyProfileCore(FanProfile profile)
@@ -505,12 +559,14 @@ public sealed partial class LibreHardwareFanControlService
         try
         {
             List<string> ids;
+            List<string> needsRestart;
             lock (_gate)
             {
                 ids = _entries.Where(e => e.Mode != FanMode.Auto).Select(e => e.Id).ToList();
+                needsRestart = _needsRestart.ToList();
             }
 
-            if (ids.Count == 0)
+            if (ids.Count == 0 && needsRestart.Count == 0)
             {
                 FanSessionStore.Delete(SessionFilePath);
                 return;
@@ -522,6 +578,8 @@ public sealed partial class LibreHardwareFanControlService
             session.UpdatedUtc = DateTimeOffset.UtcNow;
             session.ProfileName = ActiveProfile?.Name;
             session.FanIds = ids;
+            session.NeedsRestartFanIds = needsRestart;
+            session.BootUtc = FanSessionStore.CurrentBootUtc();
             FanSessionStore.Write(SessionFilePath, session);
         }
         catch (Exception ex)

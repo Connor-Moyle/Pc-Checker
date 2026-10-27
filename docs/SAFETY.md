@@ -126,7 +126,10 @@ follows, so you know what to expect and contributors know what to build.
   profile is active and the fan is below 100 %, the app forces 100 % and
   raises an alert.
 - Fans revert to automatic control when the app exits (configurable) and,
-  if the app crashed while controlling fans, on the next start.
+  if the app crashed while controlling fans, on the next start. The one
+  exception: motherboard fan headers a crash left at a manual speed stay at
+  that speed until the PC restarts, so the app keeps driving them (Balanced
+  curve, overheating protection on) and says so until you restart.
 - The app only touches fans that LibreHardwareMonitor exposes a control for;
   it never guesses at embedded-controller registers.
 

@@ -275,6 +275,76 @@ public class FansTests : IDisposable
         Assert.False(FanSessionStore.IsStale(legacy, _ => new ProcessIdentity(DateTimeOffset.UtcNow, "x")));
     }
 
+    [Fact]
+    public void Restart_detection_uses_the_boot_time_and_the_uptime_counter()
+    {
+        var boot = new DateTimeOffset(2026, 10, 27, 8, 0, 0, TimeSpan.Zero);
+        var session = new FanSession { BootUtc = boot, UpdatedUtc = boot.AddMinutes(30) };
+
+        // Same boot: later, with the uptime grown by the same amount.
+        Assert.False(FanSessionStore.RebootedSince(session, boot.AddHours(2), TimeSpan.FromHours(2)));
+        // Same boot after a small clock adjustment.
+        Assert.False(FanSessionStore.RebootedSince(session, boot.AddHours(2).AddSeconds(40), TimeSpan.FromHours(2)));
+        // Restarted: the uptime counter is lower than when the file was written.
+        Assert.True(FanSessionStore.RebootedSince(session, boot.AddMinutes(40), TimeSpan.FromMinutes(5)));
+        // Restarted long ago, uptime already past the old value: the boot times differ.
+        Assert.True(FanSessionStore.RebootedSince(session, boot.AddHours(5), TimeSpan.FromHours(3)));
+        // Files from older versions have no boot time: never assume a restart.
+        Assert.False(FanSessionStore.RebootedSince(new FanSession { UpdatedUtc = boot }, boot.AddDays(3), TimeSpan.FromMinutes(1)));
+    }
+
+    [Fact]
+    public void Fans_left_without_firmware_control_depend_on_how_the_session_ended()
+    {
+        var crashed = new FanSession { FanIds = ["/lpc/nct/control/0", "/gpu/nvidia/0/control/0"], NeedsRestartFanIds = ["/lpc/nct/control/1", "/LPC/nct/control/0"] };
+        Assert.Equal(["/lpc/nct/control/0", "/gpu/nvidia/0/control/0", "/lpc/nct/control/1"], FanSessionStore.FansWithoutFirmwareControl(crashed, rebooted: false));
+        Assert.Empty(FanSessionStore.FansWithoutFirmwareControl(crashed, rebooted: true));
+
+        // Closing normally hands every fan back except those a crash left stuck earlier in this boot.
+        var clean = new FanSession { CleanExit = true, FanIds = ["/lpc/nct/control/0", "/lpc/nct/control/1"], NeedsRestartFanIds = ["/lpc/nct/control/1"] };
+        Assert.Equal(["/lpc/nct/control/1"], FanSessionStore.FansWithoutFirmwareControl(clean, rebooted: false));
+        Assert.Empty(FanSessionStore.FansWithoutFirmwareControl(clean, rebooted: true));
+
+        Directory.CreateDirectory(_dir);
+        var path = FanSessionStore.DefaultPath(_dir);
+        File.WriteAllText(path, """{ "ProcessId": 4242, "FanIds": ["a"], "NeedsRestartFanIds": null }""");
+        var legacy = FanSessionStore.TryRead(path);
+        Assert.NotNull(legacy);
+        Assert.Empty(legacy!.NeedsRestartFanIds);
+        Assert.Null(legacy.BootUtc);
+    }
+
+    [Fact]
+    public async Task Crash_recovery_keeps_the_marker_when_the_fans_cannot_be_found()
+    {
+        var settings = new FakeSettingsService(_dir);
+        var path = FanSessionStore.DefaultPath(_dir);
+        FanSessionStore.Write(path, new FanSession { ProcessId = 0, FanIds = ["/lpc/nct/control/0"], BootUtc = FanSessionStore.CurrentBootUtc() });
+
+        using var sensors = new DemoSensorService();
+        using (var svc = new LibreHardwareFanControlService(new RecordingHost(), sensors, settings, new PassThroughGuard(),
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<LibreHardwareFanControlService>.Instance))
+        {
+            // The hardware monitor exposes no fans (driver blocked or still loading): nothing was reverted, so say so.
+            var notices = await svc.RunStartupAsync(CancellationToken.None);
+            var notice = Assert.Single(notices);
+            Assert.Contains("could not", notice, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("already back under automatic", notice, StringComparison.OrdinalIgnoreCase);
+
+            var kept = FanSessionStore.TryRead(path);
+            Assert.NotNull(kept);
+            Assert.Contains("/lpc/nct/control/0", kept!.NeedsRestartFanIds);
+
+            await svc.ShutdownAsync();
+        }
+
+        // A normal exit keeps the unconfirmed fan, so the next start still tries to recover it.
+        var afterExit = FanSessionStore.TryRead(path);
+        Assert.NotNull(afterExit);
+        Assert.True(afterExit!.CleanExit);
+        Assert.Equal(["/lpc/nct/control/0"], FanSessionStore.FansWithoutFirmwareControl(afterExit, rebooted: false));
+    }
+
     // ---- FanSafetyRules -----------------------------------------------------------------------------------------
 
     [Fact]
@@ -432,11 +502,11 @@ public class FansTests : IDisposable
             CancellationToken cancellationToken) => change(cancellationToken);
     }
 
-    private sealed class FakeSettingsService : ISettingsService
+    private sealed class FakeSettingsService(string? directory = null) : ISettingsService
     {
         public AppSettings Current { get; } = new();
-        public string SettingsDirectory => Path.GetTempPath();
-        public string SettingsFilePath => Path.Combine(Path.GetTempPath(), "fake-settings.json");
+        public string SettingsDirectory => directory ?? Path.GetTempPath();
+        public string SettingsFilePath => Path.Combine(SettingsDirectory, "fake-settings.json");
         public event EventHandler<AppSettings>? Changed;
         public Task LoadAsync() => Task.CompletedTask;
 

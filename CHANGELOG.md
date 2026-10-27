@@ -19,6 +19,15 @@ All notable changes to PC Checker are recorded here. The format follows
   and motherboard through the signed PawnIO driver instead of WinRing0, which
   Microsoft Defender quarantines. When PawnIO is not installed, the
   Temperatures and Fans pages say so and how to install it.
+- After a crash while it controlled fans, PC Checker no longer reports
+  motherboard fans as back on automatic: the board keeps them at the last
+  manual speed until the PC restarts, so the app keeps driving them on the
+  Balanced curve with its overheating protection on, and says to restart. If
+  the fans cannot be found at startup, it says it could not confirm them and
+  keeps the record for the next start instead of discarding it.
+- The fan loop can no longer undo *Revert all to automatic* or a new manual
+  speed that was set while a loop tick was running.
+- Power plan names are no longer garbled on non-English Windows.
 
 ## [0.2.0] - 2026-10-27
 

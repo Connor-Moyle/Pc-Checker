@@ -1,6 +1,7 @@
 using LibreHardwareMonitor.Hardware;
 using Microsoft.Extensions.Logging;
 using PcChecker.Core.Common;
+using PcChecker.Core.Restore;
 using PcChecker.Core.Sensors;
 
 namespace PcChecker.Core.Fans;
@@ -91,11 +92,15 @@ public sealed partial class LibreHardwareFanControlService
     }
 
     /// <summary>
-    /// Called once at app start. A marker left by a crashed run means its fans were abandoned under software control:
-    /// they are returned to automatic and the user is warned. A marker flagged as a clean exit (the previous session
-    /// ended normally with "revert on exit" off) is handled quietly: the profile it names is re-applied so the curves
-    /// and the safety loop take over again, or the fans go back to automatic with an accurate message. Then the saved
-    /// profile is applied when "apply on startup" is on. Returns plain-English notices for the dashboard.
+    /// Called once at app start. A marker left by a crashed run means its fans were abandoned under software control.
+    /// Graphics card fans are returned to automatic. Motherboard fans cannot be: the fan chip keeps the manual speed
+    /// until the PC restarts, because LibreHardwareMonitor only restores the firmware setting it saved itself in the
+    /// same process. Those fans are kept under software control (Balanced curve, overheating protection on) and the
+    /// marker remembers them until the PC restarts. Fans that cannot be found keep the marker too, so a later start can
+    /// still recover them. A marker flagged as a clean exit (the previous session ended normally with "revert on exit"
+    /// off) is handled quietly: the profile it names is re-applied so the curves and the safety loop take over again,
+    /// or the fans go back to automatic with an accurate message. Then the saved profile is applied when "apply on
+    /// startup" is on. Returns plain-English notices for the dashboard.
     /// </summary>
     public async Task<IReadOnlyList<string>> RunStartupAsync(CancellationToken cancellationToken)
     {
@@ -107,67 +112,71 @@ public sealed partial class LibreHardwareFanControlService
             bool crashed = !session.CleanExit;
             try
             {
-                await DiscoverAsync(cancellationToken).ConfigureAwait(false);
-                var previousProfile = crashed ? null : FindProfile(session.ProfileName);
-                if (previousProfile is not null)
+                bool rebooted = FanSessionStore.RebootedSince(session, DateTimeOffset.UtcNow, TimeSpan.FromMilliseconds(Environment.TickCount64));
+                var leftOver = FanSessionStore.FansWithoutFirmwareControl(session, rebooted);
+                var recovery = await RecoverLeftOverFansAsync(leftOver, cancellationToken).ConfigureAwait(false);
+
+                if (crashed)
                 {
-                    FanSessionStore.Delete(SessionFilePath);
-                    var reapply = await ApplyProfileAsync(previousProfile, cancellationToken).ConfigureAwait(false);
-                    if (reapply.Success)
-                    {
-                        reappliedProfile = previousProfile.Name;
-                        notices.Add($"Fan profile \"{previousProfile.Name}\" was still in charge of {session.FanIds.Count} fan(s) when PC Checker last closed (revert on exit is off), so it was re-applied.");
-                        _logger.LogInformation("Re-applied fan profile {Profile} left active by the previous session.", previousProfile.Name);
-                    }
-                    else
-                    {
-                        _logger.LogWarning("Could not re-apply fan profile {Profile} from the previous session: {Message}", previousProfile.Name, reapply.Message);
-                    }
+                    string text = DescribeCrashRecovery(session, rebooted, recovery);
+                    RaiseAlert(FanAlertKind.RecoveredFromCrash, string.Empty, "All fans", text, Severity.Medium);
+                    _logger.LogWarning("Recovered from a previous fan-control session: {Text}", text);
+                    notices.Add(text);
                 }
-
-                if (reappliedProfile is null)
+                else
                 {
-                    int reverted = UnderControlGate(() =>
+                    if (recovery.Held > 0 || recovery.Unconfirmed > 0)
                     {
-                        int count = 0;
-                        foreach (var id in session.FanIds)
-                        {
-                            var entry = Find(id);
-                            if (entry is not null && ApplyDefault(entry).Success)
-                            {
-                                count++;
-                            }
-                        }
-
-                        return count;
-                    });
-
-                    FanSessionStore.Delete(SessionFilePath);
-                    string text;
-                    if (crashed)
-                    {
-                        text = reverted > 0
-                            ? $"PC Checker did not shut down cleanly last time while {session.FanIds.Count} fan(s) were under its control. {reverted} fan(s) were returned to automatic control."
-                            : "PC Checker did not shut down cleanly last time while it was controlling fans. The fans were already back under automatic control.";
-                        RaiseAlert(FanAlertKind.RecoveredFromCrash, string.Empty, "All fans", text, Severity.Medium);
-                        _logger.LogWarning("Recovered from a previous fan-control session: {Text}", text);
+                        notices.Add(DescribeHeldAndUnconfirmed(recovery));
                     }
-                    else
+
+                    var previousProfile = FindProfile(session.ProfileName);
+                    if (previousProfile is not null)
                     {
-                        text = reverted > 0
+                        var reapply = await ApplyProfileAsync(previousProfile, cancellationToken).ConfigureAwait(false);
+                        if (reapply.Success)
+                        {
+                            reappliedProfile = previousProfile.Name;
+                            notices.Add($"Fan profile \"{previousProfile.Name}\" was still in charge of {session.FanIds.Count} fan(s) when PC Checker last closed (revert on exit is off), so it was re-applied.");
+                            _logger.LogInformation("Re-applied fan profile {Profile} left active by the previous session.", previousProfile.Name);
+                        }
+                        else
+                        {
+                            _logger.LogWarning("Could not re-apply fan profile {Profile} from the previous session: {Message}", previousProfile.Name, reapply.Message);
+                        }
+                    }
+
+                    if (reappliedProfile is null)
+                    {
+                        int reverted = UnderControlGate(() =>
+                        {
+                            int count = 0;
+                            foreach (var id in session.FanIds)
+                            {
+                                var entry = Find(id);
+                                if (entry is not null && ApplyDefault(entry).Success)
+                                {
+                                    count++;
+                                }
+                            }
+
+                            UpdateSessionFile();
+                            return count;
+                        });
+
+                        string text = reverted > 0
                             ? $"{session.FanIds.Count} fan(s) were left under manual control when PC Checker last closed (revert on exit is off). {reverted} fan(s) were returned to automatic control at startup for safety; turn on \"Apply on startup\" to bring a profile back automatically."
                             : "Fans were left under manual control when PC Checker last closed (revert on exit is off); they were already back under automatic control.";
                         _logger.LogInformation("Previous session ended cleanly with fans under manual control: {Text}", text);
+                        notices.Add(text);
                     }
-
-                    notices.Add(text);
                 }
             }
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "Could not revert fans from the previous session.");
                 notices.Add(crashed
-                    ? "PC Checker could not confirm the fans were returned to automatic control after the last unclean shutdown. Open the Fans page and click \"Revert all to automatic\"."
+                    ? "PC Checker could not confirm the fans were returned to automatic control after the last unclean shutdown. Restart the PC to hand them back to the motherboard, or open the Fans page and click \"Revert all to automatic\"."
                     : "PC Checker could not confirm the fans it left under manual control last time were returned to automatic. Open the Fans page and click \"Revert all to automatic\".");
             }
         }
@@ -187,6 +196,131 @@ public sealed partial class LibreHardwareFanControlService
         }
 
         return notices;
+    }
+
+    /// <summary>What happened to the fans a previous session left without firmware control.</summary>
+    private sealed record LeftOverRecovery(int Total, int Reverted, int Held, int Unconfirmed);
+
+    /// <summary>
+    /// Takes care of fans the previous session left without firmware control: graphics card and other fans go back to
+    /// automatic, motherboard fans are held under software control until the PC restarts, and fans that cannot be found
+    /// or written stay recorded in the marker. With nothing left over, this only clears the old marker.
+    /// </summary>
+    private async Task<LeftOverRecovery> RecoverLeftOverFansAsync(IReadOnlyList<string> ids, CancellationToken cancellationToken)
+    {
+        if (ids.Count == 0)
+        {
+            UpdateSessionFile();
+            return new LeftOverRecovery(0, 0, 0, 0);
+        }
+
+        await DiscoverAsync(cancellationToken).ConfigureAwait(false);
+        var motherboard = new List<FanEntry>();
+        var others = new List<FanEntry>();
+        int missing = 0;
+        lock (_gate)
+        {
+            foreach (var id in ids)
+            {
+                var entry = _entries.FirstOrDefault(e => e.Id.Equals(id, StringComparison.OrdinalIgnoreCase));
+                if (entry is null)
+                {
+                    // Not found (driver blocked, still loading, hardware gone): keep it in the marker until it is handled.
+                    _needsRestart.Add(id);
+                    missing++;
+                }
+                else if (entry.Kind == HardwareKind.Motherboard)
+                {
+                    _needsRestart.Add(entry.Id);
+                    motherboard.Add(entry);
+                }
+                else
+                {
+                    others.Add(entry);
+                }
+            }
+        }
+
+        int reverted = 0, held = 0;
+        if (motherboard.Count + others.Count > 0)
+        {
+            await _guard.RunGuardedAsync($"Recover {motherboard.Count + others.Count} fan(s) left under control by the last session",
+                new ChangeOptions(false, false, ModuleName, "fans left by the last session", true, "Restart the PC to hand motherboard fans back to the BIOS"),
+                _ => Task.Run(() => UnderControlGate(() =>
+                {
+                    foreach (var entry in others)
+                    {
+                        if (ApplyDefault(entry).Success)
+                        {
+                            reverted++;
+                        }
+                        else
+                        {
+                            lock (_gate)
+                            {
+                                _needsRestart.Add(entry.Id);
+                            }
+                        }
+                    }
+
+                    foreach (var entry in motherboard)
+                    {
+                        if (HoldUntilRestart(entry).Success)
+                        {
+                            held++;
+                        }
+                    }
+
+                    FansUpdated?.Invoke(this, Snapshot());
+                    return OperationResult.Ok($"{reverted} fan(s) returned to automatic, {held} held until the PC restarts.");
+                })), null, cancellationToken).ConfigureAwait(false);
+        }
+
+        // Writes the marker for this process (held fans and anything still unconfirmed), or deletes it when all is handled.
+        UpdateSessionFile();
+        return new LeftOverRecovery(ids.Count, reverted, held, ids.Count - reverted - held);
+    }
+
+    private static string DescribeCrashRecovery(FanSession session, bool rebooted, LeftOverRecovery recovery)
+    {
+        if (rebooted)
+        {
+            return "PC Checker did not shut down cleanly last time while it was controlling fans. The PC has restarted since, so the motherboard and graphics card are in charge of the fans again.";
+        }
+
+        var parts = new List<string> { $"PC Checker did not shut down cleanly last time while {session.FanIds.Count} fan(s) were under its control." };
+        if (recovery.Reverted > 0)
+        {
+            parts.Add($"{recovery.Reverted} fan(s) were returned to automatic control.");
+        }
+
+        if (recovery.Held > 0 || recovery.Unconfirmed > 0)
+        {
+            parts.Add(DescribeHeldAndUnconfirmed(recovery));
+        }
+
+        if (recovery.Total == 0)
+        {
+            parts.Add("The fans were already back under automatic control.");
+        }
+
+        return string.Join(" ", parts);
+    }
+
+    private static string DescribeHeldAndUnconfirmed(LeftOverRecovery recovery)
+    {
+        var parts = new List<string>();
+        if (recovery.Held > 0)
+        {
+            parts.Add($"{recovery.Held} motherboard fan(s) stay at the speed they were left at until the PC restarts, so PC Checker keeps driving them (Balanced curve, or full speed) with its overheating protection on. Restart the PC (Restart, not Shut down) to hand them back to the motherboard.");
+        }
+
+        if (recovery.Unconfirmed > 0)
+        {
+            parts.Add($"PC Checker could not find or take over {recovery.Unconfirmed} fan(s), so it cannot confirm they are back under automatic control. Restart the PC, or open the Fans page and click \"Detect fans\".");
+        }
+
+        return string.Join(" ", parts);
     }
 
     private FanProfile? FindProfile(string? name)
@@ -212,10 +346,9 @@ public sealed partial class LibreHardwareFanControlService
             {
                 await RevertAllToAutoAsync(CancellationToken.None).ConfigureAwait(false);
             }
-            else
-            {
-                FanSessionStore.MarkCleanExit(SessionFilePath);
-            }
+
+            // Also after a revert: fans held until the PC restarts keep the marker, and the next start must not report a crash.
+            FanSessionStore.MarkCleanExit(SessionFilePath);
         }
         catch (Exception ex)
         {
