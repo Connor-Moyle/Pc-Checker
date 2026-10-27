@@ -83,6 +83,20 @@ public class CleanupSafetyTests
         Assert.Empty(CleanupSafety.FoldersFromRoot(@"C:\Windows\Temp\..\System32\x.dll", @"C:\Windows\Temp"));
     }
 
+    [Fact]
+    public void FoldersAboveRoot_lists_every_folder_between_the_drive_and_the_root()
+    {
+        // A junction at Packages\Evil\AC would redirect the root, so every one of these folders is checked.
+        Assert.Equal(
+            [@"C:\Users", @"C:\Users\Bob", @"C:\Users\Bob\AppData", @"C:\Users\Bob\AppData\Local", @"C:\Users\Bob\AppData\Local\Packages",
+             @"C:\Users\Bob\AppData\Local\Packages\Evil", @"C:\Users\Bob\AppData\Local\Packages\Evil\AC"],
+            CleanupSafety.FoldersAboveRoot(@"C:\Users\Bob\AppData\Local\Packages\Evil\AC\Temp\"));
+        Assert.Equal([@"D:\SteamLibrary"], CleanupSafety.FoldersAboveRoot("D:/SteamLibrary/shadercache"));
+        Assert.Empty(CleanupSafety.FoldersAboveRoot(@"C:\Windows"));
+        Assert.Empty(CleanupSafety.FoldersAboveRoot(@"\\server\share\Temp"));
+        Assert.Empty(CleanupSafety.FoldersAboveRoot("  "));
+    }
+
     [Theory]
     [InlineData(@"\\?\C:\Windows\Temp\a.tmp", @"C:\Windows\Temp\a.tmp")]
     [InlineData(@"\\?\UNC\server\share\a.tmp", @"\\server\share\a.tmp")]

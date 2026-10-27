@@ -131,7 +131,7 @@ public sealed class WindowsTempFileScanner : ITempFileScanner
         {
             cancellationToken.ThrowIfCancellationRequested();
             var root = entry.Path;
-            if (!Directory.Exists(root) || env.IsProtected(root))
+            if (!Directory.Exists(root) || env.IsProtected(root) || CleanupEnvironment.HasLinkAboveRoot(root))
             {
                 continue;
             }

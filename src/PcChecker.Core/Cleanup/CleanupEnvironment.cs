@@ -115,6 +115,35 @@ internal sealed class CleanupEnvironment
     public bool IsProtected(string path) => ProtectedDirectories.Any(d => CleanupRules.IsUnderDirectory(path, d));
 
     /// <summary>
+    /// True when a folder above <paramref name="root"/> is a junction or symlink (or cannot be checked), so the root
+    /// may really be somewhere else and must be neither scanned nor cleaned.
+    /// </summary>
+    public static bool HasLinkAboveRoot(string root)
+    {
+        foreach (var folder in CleanupSafety.FoldersAboveRoot(root))
+        {
+            try
+            {
+                if (CleanupSafety.IsReparsePoint(File.GetAttributes(folder)))
+                {
+                    return true;
+                }
+            }
+            catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException)
+            {
+                // Nothing exists below a missing folder, so there is nothing to scan either.
+                return false;
+            }
+            catch
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
     /// Folders only known at run time that a category must leave alone: under C:\AMD every folder an installed
     /// program's uninstall entry points to (newer chipset drivers keep their uninstaller there), and in Steam's
     /// downloading folders every download Steam still has queued or paused.
