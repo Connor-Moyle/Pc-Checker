@@ -1144,6 +1144,48 @@ again.
 - Shortcuts: Windows Startup Apps settings, Task Scheduler, System
   Configuration.
 
+### Scheduled tasks
+
+Every Windows Task Scheduler task, in the *Apps & Drivers* section next to
+Startup.
+
+- **List**: name and folder, status (Ready, Running, Off), when it runs in
+  plain words ("At log on", "Daily at 03:00, then every hour for 1 day",
+  "When idle", "Weekly on Mon, Wed at 09:00"), last run with its result in
+  plain words (OK, "Running now", "Not started: it was already running",
+  "Failed: the program it runs was not found", other codes as hex with
+  Windows' own message), next run and who it is from (the program's signer,
+  else the task's author).
+- **Filters**: *Not from Microsoft* (the default: updaters, PC-maker tools,
+  adware, plus any task with a warning), *All tasks*, *Microsoft*, *With
+  warnings* and *Turned off*, and a search over name, program and company.
+- **Warnings** with a plain reason: the program runs from AppData, Temp,
+  the Public folder, Downloads or ProgramData and is not validly signed; a script host
+  (PowerShell, wscript, mshta…) runs an encoded command or downloads code;
+  the task is hidden from Task Scheduler's list (outside Microsoft's
+  folder); the program has no valid signature. A task that only claims to be
+  from Microsoft (its program is unsigned or signed by someone else) is not
+  treated as Microsoft's; this is checked for Windows' own folder too
+  whenever the program lies outside the Windows folder. A note explains tasks whose program is gone.
+- **Details card**: what it runs, as which account (SYSTEM, a user, highest
+  privileges), every trigger, the last result and next run.
+- **Actions** (right-click, *More*, buttons and shortcuts): *Run now*
+  (Ctrl+R), *End* (Ctrl+E), *Turn off* / *Turn on* (Ctrl+D), *Delete*
+  (Del), *Open file location* (Ctrl+O), *Search online*, *Copy details*
+  (Ctrl+C) and *Open Task Scheduler*. Every action asks first and is
+  recorded in the Action Journal.
+- **Deleted tasks**: only other companies' tasks can be deleted, and each
+  one's definition is saved (sealed where only administrators can write)
+  before it goes; *Restore* registers it again exactly as it was.
+- Windows' own tasks (`\Microsoft\Windows\`) are read-only; Advanced mode
+  allows turning them off or on, with a warning and a restore point first.
+  PC Checker's own schedules stay in Settings → Schedules.
+
+Read through the Task Scheduler COM API (numbers, dates and each task's XML
+definition), so it works the same on every Windows language; when that is
+not available, `schtasks /Query /XML ONE` gives the definitions without the
+live state.
+
 ### Windows Features
 
 Three sections with a plain-English note on what each is:
@@ -1508,6 +1550,39 @@ moment.
 Limitations: the router's channel and QoS can only be changed on the router;
 the nearby list is Windows' latest scan; speed results depend on the server
 and the time of day. See [NETWORK.md](NETWORK.md).
+
+### Connections
+
+A TCPView-style live list of every open TCP and UDP endpoint (IPv4 and
+IPv6) with the program behind it, on the *Connections* tab of the Network
+section.
+
+- **Programs** on the left with their icon, process ids and connection
+  count (every Chrome process is one program); pick one to see only its
+  connections, or *All programs*.
+- **Connections** on the right: program, PID, protocol, local and remote
+  address and port, state in plain words (Listening, Connected, Recently
+  closed…, with the technical name as a tooltip) and, with *Show host
+  names* on, the remote host name (reverse DNS through your own DNS server,
+  looked up in the background and remembered; off by default).
+- **Filters**: all, listening (TCP listeners and UDP sockets) or connected; *Hide this-PC-only* (on by
+  default) hides traffic between programs on the PC itself; a search over
+  program, address, port, state and host name.
+- **Open to other devices**: a program listening on every network adapter
+  (0.0.0.0 or ::) on a port Windows does not open itself (TCP, or UDP below
+  Windows' outgoing port range 49152) is marked
+  "Accepts connections from other devices", counted in a tile and listed in
+  a banner with its ports.
+- Refreshes every 2 seconds while the page is visible, with *Pause*
+  (Ctrl+P) and *Refresh* (F5).
+- **Actions**: *Copy* (Ctrl+C), *Search the remote address online*, *Open
+  file location* (Ctrl+O), *Go to the process* on the Processes page
+  (Ctrl+G), *Close connection* (Del; IPv4 TCP only, administrator, confirmed
+  and journaled; the program may reconnect) and *End process* (Shift+Del;
+  through the Processes page's service with all its protections).
+
+No geo-IP or other outside service is used; the country of an address is
+not shown.
 
 ### Overclock
 

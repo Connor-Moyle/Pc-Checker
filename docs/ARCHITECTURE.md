@@ -65,6 +65,8 @@ Every project targets `net8.0-windows10.0.19041.0`. `EnableWindowsTargeting` is 
 | `Shell` | Quick search (`FuzzyMatcher`, `QuickSearchIndex`, `QuickSearchRanker`, `RecentItems`, the settings, quick action and page keyword catalogs) and `WelcomeRules` for the first-start welcome |
 | `Checkup` | `ICheckupService` and `CheckupService` (runs the other modules' scans and fixes through their interfaces, so one class serves both modes), `CheckupItemMapper`, `CheckupPrioritizer`, `CheckupSelection`, `CheckupBatchPlanner`, `CheckupProgress`, `DashboardGlance` |
 | `Scheduling` | `IScheduledTaskService` (schtasks), `ScheduledJobExecutor`, `IScheduledJobStore`, the `PcChecker.Jobs` pipe, `SchtasksCommandBuilder`, `SchtasksCsvParser`, `ScheduleRules`, `JobResultSummarizer`, tray text and popup placement helpers |
+| `ScheduledTasks` | `ITaskSchedulerService` (every Task Scheduler task through the COM API, `schtasks /Query /XML ONE` as fallback; run, end, turn off or on, delete with a sealed copy, restore), `TaskDefinitionParser`, `TaskTriggerText`, `TaskResultText`, `TaskActionText`, `TaskSuspicionRules`, `TaskPublisherRules`, `TaskSafetyRules`, `TaskBackupNaming`, `TaskAnalysis` |
+| `Connections` | `IConnectionService` (GetExtendedTcpTable/GetExtendedUdpTable, reverse DNS, SetTcpEntry), `EndpointTableParser` (raw MIB_*_OWNER_PID rows), `ConnectionRules`, `ConnectionText`, `ConnectionGrouping`, `HostNameCache` |
 | `SetupBackup` | `ISetupBackupService` (export, import, reset, undo), `ISetupBackupStore` (`FileSetupBackupStore`, `DemoSetupBackupStore`), `SetupSectionCatalog`, `SetupExporter`, `SetupFileReader`, `SetupMigrations`, `SetupPreviewBuilder`, `SetupApplier`, `SetupScheduleSync` |
 
 Inside each folder you will find the same shapes:

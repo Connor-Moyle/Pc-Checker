@@ -25,6 +25,24 @@ All notable changes to PC Checker are recorded here. The format follows
 A Task Manager replacement (Processes, Live usage, Services, Users), every fan, drive and RGB device found correctly, debloat tweaks that really apply, drivers from the makers themselves, Windows Update roll back, PawnIO from inside the app, and much wider debloat, cleanup and AMD coverage.
 
 ### Added
+- **Apps & Drivers → Scheduled tasks**: every Windows Task Scheduler task
+  with its folder, status, triggers in plain words, last run and result,
+  next run, publisher, action and account. Other companies' tasks are shown
+  first; tasks that run from writable folders, run encoded or downloading
+  scripts, are hidden or run unsigned programs are flagged with a reason.
+  Run now, end, turn off or on, delete other companies' tasks (the
+  definition is saved and sealed first, and *Deleted tasks* puts it back),
+  open the file location, search online and open Task Scheduler. Windows'
+  own tasks are read-only outside Advanced mode. Read through the Task
+  Scheduler COM API, so it does not depend on the Windows language.
+- **Network → Connections**: a live list of TCP and UDP endpoints per
+  program (IPv4 and IPv6, with the owning process), grouped by program with
+  counts, filters for listening and connected, loopback hiding, search,
+  optional reverse DNS host names and a 2-second refresh with pause.
+  Programs listening on every network on an unusual port are marked
+  "Accepts connections from other devices". Copy, search an address online,
+  open the file location, go to the process, close an IPv4 TCP connection
+  and end the program, each confirmed and journaled.
 - **Task manager → Services**: every Windows service with its display name,
   service name, description, status, startup type (Automatic, Automatic
   (Delayed), Manual, Disabled), log-on account, PID and group; search and

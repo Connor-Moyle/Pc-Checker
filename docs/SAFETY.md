@@ -243,6 +243,33 @@ follows, so you know what to expect and contributors know what to build.
 - *Safe mode next boot* and *Restart to UEFI* are confirmed, explain the way
   back, and the restart has a countdown you can cancel.
 
+## Scheduled task rules
+
+- Reading the list changes nothing. Warnings are information only.
+- Every action (run, end, turn off, turn on, delete, restore) is confirmed
+  and recorded in the Action Journal.
+- Only other companies' tasks can be deleted. Microsoft's tasks and PC
+  Checker's own schedules never are. Before a delete, the task's exact
+  definition is saved to `%LOCALAPPDATA%\PcChecker\task-backups\` with a seal
+  kept where only administrators can write; a task that cannot be saved is
+  not deleted. *Restore* only registers a copy whose seal still matches,
+  under its original name, never over an existing task, and through a folder
+  only administrators can write to.
+- Windows' own tasks (`\Microsoft\Windows\`) are read-only. Advanced mode
+  allows turning them off or on, with a warning and a restore point first.
+- *Run now* is refused when a task would start a program from a folder any
+  program can write to with administrator rights.
+
+## Connection rules
+
+- Reading connections changes nothing; host names are only looked up while
+  *Show host names* is on, through your own DNS server.
+- *Close connection* only closes IPv4 TCP connections (Windows offers no way
+  for IPv6 or UDP), needs administrator rights, is confirmed and journaled,
+  and cannot be undone; the program may simply reconnect.
+- *End process* goes through the Processes page's service, so the process
+  rules below apply.
+
 ## Process rules
 
 - Ending a program, ending a process tree and changing a priority are
