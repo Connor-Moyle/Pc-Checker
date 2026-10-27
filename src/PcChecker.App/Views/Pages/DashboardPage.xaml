@@ -123,75 +123,77 @@
             </StackPanel>
           </ui:Card>
 
-          <!-- Alerts -->
-          <ui:Card Grid.Column="1" Padding="16" Margin="0,0,0,12" VerticalAlignment="Stretch" VerticalContentAlignment="Top">
-            <StackPanel>
-              <ui:TextBlock Style="{StaticResource CardTitle}" Text="Alerts" />
-              <StackPanel Orientation="Horizontal" Visibility="{Binding HasNoAlerts, Converter={StaticResource BoolToVisibility}}">
-                <ui:SymbolIcon Symbol="CheckmarkCircle24" Foreground="{StaticResource AccentGreenBrush}" FontSize="20" Margin="0,0,8,0" />
-                <ui:TextBlock Appearance="Secondary" VerticalAlignment="Center" Text="Nothing needs your attention right now." />
+          <StackPanel Grid.Column="1">
+            <!-- Alerts -->
+            <ui:Card Padding="16" Margin="0,0,0,12">
+              <StackPanel>
+                <ui:TextBlock Style="{StaticResource CardTitle}" Text="Alerts" />
+                <StackPanel Orientation="Horizontal" Visibility="{Binding HasNoAlerts, Converter={StaticResource BoolToVisibility}}">
+                  <ui:SymbolIcon Symbol="CheckmarkCircle24" Foreground="{StaticResource AccentGreenBrush}" FontSize="20" Margin="0,0,8,0" />
+                  <ui:TextBlock Appearance="Secondary" VerticalAlignment="Center" Text="Nothing needs your attention right now." />
+                </StackPanel>
+                <ItemsControl ItemsSource="{Binding Alerts}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                      <Border BorderThickness="0,0,0,1" BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}" Padding="0,6">
+                        <Grid>
+                          <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                          </Grid.ColumnDefinitions>
+                          <Ellipse Width="10" Height="10" Margin="0,5,10,0" VerticalAlignment="Top" Fill="{Binding Severity, Converter={StaticResource SeverityToBrush}}" />
+                          <StackPanel Grid.Column="1">
+                            <ui:TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                            <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding Message}" TextWrapping="Wrap" />
+                          </StackPanel>
+                          <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0,0,0">
+                            <ui:Button Content="{Binding ActionText}" Appearance="Secondary" Padding="8,4"
+                                       Command="{Binding DataContext.OpenAlertCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}"
+                                       Visibility="{Binding HasPage, Converter={StaticResource BoolToVisibility}}" />
+                            <ui:Button Icon="{ui:SymbolIcon Dismiss24}" Appearance="Transparent" Padding="6,4" Margin="4,0,0,0" ToolTip="Dismiss"
+                                       Command="{Binding DataContext.DismissAlertCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}" />
+                          </StackPanel>
+                        </Grid>
+                      </Border>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
               </StackPanel>
-              <ItemsControl ItemsSource="{Binding Alerts}">
-                <ItemsControl.ItemTemplate>
-                  <DataTemplate>
-                    <Border BorderThickness="0,0,0,1" BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}" Padding="0,6">
-                      <Grid>
-                        <Grid.ColumnDefinitions>
-                          <ColumnDefinition Width="Auto" />
-                          <ColumnDefinition Width="*" />
-                          <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
-                        <Ellipse Width="10" Height="10" Margin="0,5,10,0" VerticalAlignment="Top" Fill="{Binding Severity, Converter={StaticResource SeverityToBrush}}" />
-                        <StackPanel Grid.Column="1">
-                          <ui:TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextWrapping="Wrap" />
-                          <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding Message}" TextWrapping="Wrap" />
-                        </StackPanel>
-                        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0,0,0">
-                          <ui:Button Content="{Binding ActionText}" Appearance="Secondary" Padding="8,4"
-                                     Command="{Binding DataContext.OpenAlertCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}"
-                                     Visibility="{Binding HasPage, Converter={StaticResource BoolToVisibility}}" />
-                          <ui:Button Icon="{ui:SymbolIcon Dismiss24}" Appearance="Transparent" Padding="6,4" Margin="4,0,0,0" ToolTip="Dismiss"
-                                     Command="{Binding DataContext.DismissAlertCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}" />
-                        </StackPanel>
-                      </Grid>
-                    </Border>
-                  </DataTemplate>
-                </ItemsControl.ItemTemplate>
-              </ItemsControl>
-            </StackPanel>
-          </ui:Card>
-        </Grid>
+            </ui:Card>
 
-        <!-- Row 2: quick actions -->
-        <ui:Card Padding="16" Margin="0,0,0,12">
-          <StackPanel>
-            <ui:TextBlock Style="{StaticResource CardTitle}" Text="Quick actions" />
-            <ItemsControl ItemsSource="{Binding QuickActions}">
-              <ItemsControl.ItemsPanel>
-                <ItemsPanelTemplate>
-                  <controls:AdaptiveGrid MinItemWidth="260" MaxColumns="3" Spacing="8" />
-                </ItemsPanelTemplate>
-              </ItemsControl.ItemsPanel>
-              <ItemsControl.ItemTemplate>
-                <DataTemplate>
-                  <ui:Button Command="{Binding Command}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" VerticalAlignment="Stretch" Padding="12,10">
-                    <Grid>
-                      <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="*" />
-                      </Grid.ColumnDefinitions>
-                      <ui:SymbolIcon Symbol="{Binding Icon}" FontSize="22" Margin="0,0,12,0" VerticalAlignment="Center" Foreground="{StaticResource AccentCyanBrush}" />
-                      <StackPanel Grid.Column="1">
-                        <ui:TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
-                        <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding Description}" TextWrapping="Wrap" />
-                      </StackPanel>
-                    </Grid>
-                  </ui:Button>
-                </DataTemplate>
-              </ItemsControl.ItemTemplate>
-            </ItemsControl>
+            <!-- Quick actions -->
+            <ui:Card Padding="16" Margin="0,0,0,12">
+              <StackPanel>
+                <ui:TextBlock Style="{StaticResource CardTitle}" Text="Quick actions" />
+                <ItemsControl ItemsSource="{Binding QuickActions}">
+                  <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                      <controls:AdaptiveGrid MinItemWidth="260" MaxColumns="3" Spacing="8" />
+                    </ItemsPanelTemplate>
+                  </ItemsControl.ItemsPanel>
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                      <ui:Button Command="{Binding Command}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" VerticalAlignment="Stretch" Padding="12,10">
+                        <Grid>
+                          <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                          </Grid.ColumnDefinitions>
+                          <ui:SymbolIcon Symbol="{Binding Icon}" FontSize="22" Margin="0,0,12,0" VerticalAlignment="Center" Foreground="{StaticResource AccentCyanBrush}" />
+                          <StackPanel Grid.Column="1">
+                            <ui:TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
+                            <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding Description}" TextWrapping="Wrap" />
+                          </StackPanel>
+                        </Grid>
+                      </ui:Button>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </StackPanel>
+            </ui:Card>
           </StackPanel>
-        </ui:Card>
+        </Grid>
 
         <!-- Row 4: system summary + recent activity -->
         <Grid>

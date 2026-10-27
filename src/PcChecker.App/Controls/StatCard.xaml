@@ -4,7 +4,7 @@
              xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
              x:Name="Root"
              MinWidth="180">
-  <ui:Card Padding="16">
+  <ui:Card Padding="16" VerticalAlignment="Stretch" VerticalContentAlignment="Top">
     <Grid>
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="Auto" />
