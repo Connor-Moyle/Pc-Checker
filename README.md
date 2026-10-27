@@ -87,23 +87,23 @@ gaming desktop) every time the app changes. The full set of every page is in
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/screenshots/temperatures.png" alt="Temperatures page"><br><sub>Temperatures</sub></td>
-    <td width="50%"><img src="docs/screenshots/fans.png" alt="Fans page"><br><sub>Fans</sub></td>
+    <td width="50%"><img src="docs/screenshots/health.png" alt="Health score with the reasons"><br><sub>Hardware › Health</sub></td>
+    <td width="50%"><img src="docs/screenshots/fans.png" alt="Fan speeds, curves and profiles"><br><sub>Cooling & RGB › Fans</sub></td>
   </tr>
   <tr>
-    <td width="50%"><img src="docs/screenshots/overclock.png" alt="Overclock page"><br><sub>Overclock</sub></td>
-    <td width="50%"><img src="docs/screenshots/storage.png" alt="Storage page"><br><sub>Storage</sub></td>
+    <td width="50%"><img src="docs/screenshots/network.png" alt="Wi-Fi analysis, speed and packet loss"><br><sub>Network</sub></td>
+    <td width="50%"><img src="docs/screenshots/old-drivers.png" alt="Old and unused drivers with the space they take"><br><sub>Apps & Drivers › Old drivers</sub></td>
   </tr>
   <tr>
-    <td width="50%"><img src="docs/screenshots/latency.png" alt="Latency page"><br><sub>Latency</sub></td>
-    <td width="50%"><img src="docs/screenshots/lighting.png" alt="Lighting page"><br><sub>Lighting</sub></td>
+    <td width="50%"><img src="docs/screenshots/debloat.png" alt="Debloat tweaks with presets"><br><sub>Clean up › Debloat</sub></td>
+    <td width="50%"><img src="docs/screenshots/latency.png" alt="Latency score with known fixes"><br><sub>Gaming › Latency</sub></td>
   </tr>
   <tr>
-    <td width="50%"><img src="docs/screenshots/health.png" alt="Health page"><br><sub>Health</sub></td>
-    <td width="50%"><img src="docs/screenshots/assistant.png" alt="Ask Claude page"><br><sub>Ask Claude</sub></td>
+    <td width="50%"><img src="docs/screenshots/overclock.png" alt="Overclocking with a built-in stress test"><br><sub>Performance › Overclock</sub></td>
+    <td width="50%"><img src="docs/screenshots/temperatures.png" alt="Live temperatures for every sensor"><br><sub>Monitor › Temperatures</sub></td>
   </tr>
   <tr>
-    <td width="50%"><img src="docs/screenshots/settings.png" alt="Settings page"><br><sub>Settings</sub></td>
+    <td width="50%"><img src="docs/screenshots/assistant.png" alt="Ask Claude about this PC"><br><sub>Ask Claude</sub></td>
     <td width="50%"><img src="docs/screenshots/tray.png" alt="Tray popup with temperatures, load, power and quick actions"><br><sub>Tray popup</sub></td>
   </tr>
 </table>
@@ -115,63 +115,88 @@ them as tabs, so you always know where you are. The full
 page-by-page detail, including what every button does and each page's
 limitations, is in [docs/FEATURES.md](docs/FEATURES.md).
 
-### Overview
+### Home
 
 | Page | What it does |
 |---|---|
 | **Dashboard** | Health score, live CPU/GPU temperature, memory and power tiles, active alerts, quick actions (full scan, clean up, check drivers, optimize), a summary of this PC, the last few journal entries and a collapsible hardware-support table. Export report sits under *More*. |
 
-### Monitoring
+### Monitor
 
 | Page | What it does |
 |---|---|
 | **Temperatures** | Live readings for every sensor your hardware exposes (CPU, GPU, drives, motherboard/VRM, memory, PSU, AIO), with gauges, min/max/average, sparklines, thresholds and alerts. Advanced mode shows every sensor kind (loads, clocks, fans, voltages). |
 | **Power** | Per-component watts where sensors exist, an estimated total (clearly marked as an estimate when there is no PSU sensor), battery discharge, session energy and cost at your electricity price, and power-plan switching. |
-| **Overlay** | A click-through, always-on-top in-game panel. Pick metrics (including an FPS counter with frame time and 1% low), corner or custom position, opacity, scale, fonts, colours and presets; toggle it with a global hotkey. Game profiles switch the overlay preset, fan profile and power plan automatically while a game runs and put them back when it closes. Works over borderless and windowed games; exclusive full-screen games hide every desktop window, including this one. |
 
 ### Hardware
 
 | Page | What it does |
 |---|---|
-| **Hardware** | Every device Windows knows about with typed, human-labelled fields and the raw property bag underneath. Search, export as JSON, copy a summary. |
+| **Overview** | Every device Windows knows about with typed, human-labelled fields and the raw property bag underneath. Search, export as JSON, copy a summary. |
 | **Health** | Disk SMART, battery wear, device problems, event-log errors, reliability history, crash dumps, memory-diagnostic results, Windows Update state, free space, thermals and security basics, scored out of 100 with the reasons. |
 | **Storage** | Read-only surface scan (quick or full) with a live block map, disk benchmark (sequential and random 4K), `chkdsk` scan or scheduled repair, `Repair-Volume`, TRIM or defragment, recent disk error events explained, and links to your drive vendor's tool. |
 | **Memory** | Usage, commit, standby and cache, compression and SysMain state, page files, module list, XMP/EXPO status with BIOS guidance, channel layout, an in-app memory test, Windows Memory Diagnostic scheduling, standby-list clearing, memory profiles and a manual page-file editor. |
-| **Displays** | Arrangement preview with identify, resolution and refresh rate with a keep-or-revert countdown, orientation, primary display, HDR, brightness and contrast over DDC/CI or the laptop panel, display profiles, and shortcuts to Windows, Night light, colour calibration and your GPU control panel. |
-| **Audio** | Output and input devices with volume, mute and live level meters, default and communications device, a per-app mixer, audio service restart and the troubleshooter. |
-| **Keyboard & Mouse** | Pointer speed, Enhance pointer precision (acceleration), double-click, scroll, trails, keyboard repeat and cursor blink, accessibility toggles, profiles (Windows default, Gaming, Precision, Accessibility), a mouse polling-rate meter and links to your peripheral vendor's software. RGB for peripherals lives on the Lighting page. |
-| **Fans** | Detects every fan LibreHardwareMonitor can control (motherboard headers, GPU fans, some coolers). Manual speed, custom curves with hysteresis and ramp limiting, Silent/Balanced/Performance profiles, revert to automatic on exit and after a crash, and a failsafe that forces 100 % if a part overheats. Laptops and OEM boards often expose no controllable fans; the page says so plainly. |
-| **Lighting** | RGB control through [OpenRGB](https://openrgb.org): motherboards, RAM, GPUs, keyboards, mice, coolers and strips. Per-device modes, colours, zones, brightness and speed, sync-all, turn-off-all, profiles. Needs OpenRGB with its SDK server enabled; the page can launch it and links the vendor suites as alternatives. |
 
-### Software
+### Devices
 
 | Page | What it does |
 |---|---|
+| **Displays** | Arrangement preview with identify, resolution and refresh rate with a keep-or-revert countdown, orientation, primary display, HDR, brightness and contrast over DDC/CI or the laptop panel, display profiles, and shortcuts to Windows, Night light, colour calibration and your GPU control panel. |
+| **Audio** | Output and input devices with volume, mute and live level meters, default and communications device, a per-app mixer, audio service restart and the troubleshooter. |
+| **Keyboard & Mouse** | Pointer speed, Enhance pointer precision (acceleration), double-click, scroll, trails, keyboard repeat and cursor blink, accessibility toggles, profiles (Windows default, Gaming, Precision, Accessibility), a mouse polling-rate meter and links to your peripheral vendor's software. RGB for peripherals lives on the Lighting page. |
+
+### Cooling & RGB
+
+| Page | What it does |
+|---|---|
+| **Fans** | Detects every fan LibreHardwareMonitor can control (motherboard headers, GPU fans, some coolers). Manual speed, custom curves with hysteresis and ramp limiting, Silent/Balanced/Performance profiles, revert to automatic on exit and after a crash, and a failsafe that forces 100 % if a part overheats. Laptops and OEM boards often expose no controllable fans; the page says so plainly. |
+| **Lighting** | RGB control through [OpenRGB](https://openrgb.org): motherboards, RAM, GPUs, keyboards, mice, coolers and strips. Per-device modes, colours, zones, brightness and speed, sync-all, turn-off-all, profiles. Needs OpenRGB with its SDK server enabled; the page can launch it and links the vendor suites as alternatives. |
+
+### Apps & Drivers
+
+| Page | What it does |
+|---|---|
+| **Apps** | Programs and Store apps with size, location and install date. Detects what was *installed alongside* something else, groups runtime dependencies so they are not mistaken for bloat, protects critical components, and uninstalls quietly or with the vendor's own wizard. |
 | **Drivers** | Every installed driver with version, date, signature and problem code; flags old, unsigned and faulty ones. Checks the Windows Update driver catalog, downloads and installs after you confirm, backs up all drivers, installs a `.inf`, and links to NVIDIA, AMD, Intel and your motherboard vendor. The **Old drivers** tab finds driver versions left behind by updates, packages no device uses and drivers of devices that are no longer connected, shows the space they take, and removes the ones you pick after backing each one up. |
-| **Software** | Programs and Store apps with size, location and install date. Detects what was *installed alongside* something else, groups runtime dependencies so they are not mistaken for bloat, protects critical components, and uninstalls quietly or with the vendor's own wizard. |
 | **Startup** | Startup apps from the registry, startup folders and logon tasks with enable, disable, add and remove; auto-start services (advanced); boot options: fast startup, boot-menu timeout, safe mode next boot, restart to UEFI or advanced startup. |
 | **Windows Features** | Optional features, capabilities and inbox apps with risk labels and notes on what removing each one affects. |
-| **Debloat** | 131 privacy, ads, AI/Copilot, telemetry, taskbar, Explorer, Edge/OneDrive, gaming, update, service and app-removal tweaks gathered from WinUtil, Win11Debloat, O&O ShutUp10++, Sophia Script and other popular tools. Presets (Recommended, Gaming, Privacy max, Minimal UI, consumer apps), live state per tweak, one restore point per batch, saved previous values for revert, WinUtil import. Disabling Defender or Windows Update and removing Edge or the Store are deliberately not offered. See [docs/DEBLOAT.md](docs/DEBLOAT.md). |
+
+### Clean up
+
+| Page | What it does |
+|---|---|
 | **Cleanup** | Junk by category (temp folders, update caches, browser and shader caches, crash dumps, logs, Windows.old) with a dry run first and strict safety rules. |
+| **Debloat** | 131 privacy, ads, AI/Copilot, telemetry, taskbar, Explorer, Edge/OneDrive, gaming, update, service and app-removal tweaks gathered from WinUtil, Win11Debloat, O&O ShutUp10++, Sophia Script and other popular tools. Presets (Recommended, Gaming, Privacy max, Minimal UI, consumer apps), live state per tweak, one restore point per batch, saved previous values for revert, WinUtil import. Disabling Defender or Windows Update and removing Edge or the Store are deliberately not offered. See [docs/DEBLOAT.md](docs/DEBLOAT.md). |
 | **Registry** | Finds leftover entries that point at programs, files and folders that are gone (uninstall entries, App Paths, startup entries, MUI cache, file associations, fonts, help files and more), backs each one up to a `.reg` file and creates a restore point before removing it, and restores any fix from the Backups list. Honest by design: tidies things up, does not promise speed. See [docs/REGISTRY.md](docs/REGISTRY.md). |
 
 ### Performance
 
 | Page | What it does |
 |---|---|
-| **Performance** | A slowdown scan: startup items, services, hungry processes, memory and disk pressure, power plan, fast startup, visual effects, boot time, HDD vs SSD and TRIM, pending updates and throttling. Findings are prioritised and each links to its fix. |
+| **Speed check** | A slowdown scan: startup items, services, hungry processes, memory and disk pressure, power plan, fast startup, visual effects, boot time, HDD vs SSD and TRIM, pending updates and throttling. Findings are prioritised and each links to its fix. |
 | **Optimize** | Reversible tweaks grouped by risk: power plan, visual effects, Game Mode, background apps, Storage Sense, TRIM, hibernation, service modes, and in Advanced mode DNS, telemetry, SysMain, indexing, `DISM`, `sfc` and network reset. Also hosts the actions contributed by Latency, Memory, Startup and Keyboard & Mouse. |
-| **Latency** | Samples DPC and interrupt time, reads timer resolution, HPET and dynamic tick, HAGS, power plan, core parking, USB and PCIe power saving, Game Mode, pointer precision and mouse polling rate, pings your gateway and public DNS, times a DNS lookup, then scores it and offers the known fixes. Real-time DPC tracing still needs LatencyMon or Windows Performance Analyzer; the page says so and links them. |
-| **Network** | Wi-Fi analysis (signal and dBm, band, channel, standard, link rate, security, nearby networks and channel congestion, plain-English findings), an HTTP speed test with ping under load and a bufferbloat grade, a packet loss test, adapter error counters, flush DNS / renew IP / reset network stack, and reversible Wi-Fi tuning: power saving, adapter driver settings with recommendations, TCP settings, fast or encrypted DNS, saved networks, and a "Quick improve Wi-Fi" checklist with a before/after comparison. |
 | **Overclock** | NVIDIA tuning through NVAPI (core and memory offsets, power and temperature limits where the driver exposes them, fan percent). AMD GPUs through ADL/Overdrive8 and Intel Arc through IGCL are **experimental** and fall back to the vendor's software. CPU tuning goes through Intel XTU or AMD Ryzen Master when installed, otherwise BIOS guidance. XMP/EXPO detection, profiles, a stress test with a temperature watchdog, automatic revert after an unclean shutdown, a safety validator that clamps every value, a support matrix and a consent gate. The stress test loads the GPU itself with a built-in DirectX 11 compute workload (NVIDIA, AMD and Intel, integrated graphics included) and checks every result for errors, catches graphics-driver resets, and still offers a *guided* mode for your own game or benchmark. |
 
-### Assistant
+### Gaming
+
+| Page | What it does |
+|---|---|
+| **Overlay** | A click-through, always-on-top in-game panel. Pick metrics (including an FPS counter with frame time and 1% low), corner or custom position, opacity, scale, fonts, colours and presets; toggle it with a global hotkey. Game profiles switch the overlay preset, fan profile and power plan automatically while a game runs and put them back when it closes. Works over borderless and windowed games; exclusive full-screen games hide every desktop window, including this one. |
+| **Latency** | Samples DPC and interrupt time, reads timer resolution, HPET and dynamic tick, HAGS, power plan, core parking, USB and PCIe power saving, Game Mode, pointer precision and mouse polling rate, pings your gateway and public DNS, times a DNS lookup, then scores it and offers the known fixes. Real-time DPC tracing still needs LatencyMon or Windows Performance Analyzer; the page says so and links them. |
+
+### Network
+
+| Page | What it does |
+|---|---|
+| **Network** | Wi-Fi analysis (signal and dBm, band, channel, standard, link rate, security, nearby networks and channel congestion, plain-English findings), an HTTP speed test with ping under load and a bufferbloat grade, a packet loss test, adapter error counters, flush DNS / renew IP / reset network stack, and reversible Wi-Fi tuning: power saving, adapter driver settings with recommendations, TCP settings, fast or encrypted DNS, saved networks, and a "Quick improve Wi-Fi" checklist with a before/after comparison. |
+
+### Ask Claude
 
 | Page | What it does |
 |---|---|
 | **Ask Claude** | Chat about *this* PC with the scan results as context, get plain-English explanations of findings, and draft a staged overclocking plan you apply one step at a time. Optional; nothing is sent until you add an API key and press send. |
 
-### Footer
+### Logs and Settings
 
 | Page | What it does |
 |---|---|
@@ -317,8 +342,9 @@ not the public tracker.
 - [x] Tray mode with a compact temperature popup
 - [x] Scheduled health checks and cleanup
 - [ ] Localization (the UI is English only today)
-- [ ] Code-signed releases
-- [ ] ARM64 build for Windows on Arm
+- [ ] Code-signed releases (the release workflow signs automatically once a
+      code-signing certificate is added as a repository secret)
+- [x] ARM64 build for Windows on Arm
 
 ## Acknowledgements
 
