@@ -131,6 +131,10 @@ Live readings from every sensor LibreHardwareMonitor can see.
 - One expander per piece of hardware (CPU, GPU, each drive, motherboard,
   memory, PSU or cooler) listing each temperature sensor with its current,
   minimum, maximum and average for the session and a sparkline.
+- **Drives**: the drive temperature is the NVMe composite (or SMART 194 on
+  SATA). Extra NVMe sensors are listed as *Sensor N* or *Controller*, marked
+  "extra sensor", with limits 15 °C above the drive limits. The warning and
+  critical limits a drive reports are not shown as temperatures.
 - **Pause / Resume**, **Reset min/max**, and **Thresholds**, an inline editor
   for the warning and critical temperatures per component (the same values
   are in Settings → Monitoring).

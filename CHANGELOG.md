@@ -100,6 +100,14 @@ All notable changes to PC Checker are recorded here. The format follows
   run only when their signature is valid and signed by the maker, and install
   after a confirmation and a restore point. Each source can be switched off
   under *Update sources*.
+- **Drive temperatures**: a cool SSD could show about 70 °C. The NVMe warning
+  and critical limits the drive reports were read as temperatures, and the
+  health check could take a hotter controller sensor ("Temperature 2") as the
+  drive temperature. Every page, the tray, the overlay, reports and alerts now
+  use the drive's own (composite) temperature. Extra sensors are listed as
+  *Sensor N* or *Controller* with their own, higher limits; SMART 194 uses only
+  its current-temperature byte and wins over 190; values of 0, 255 and 65535
+  count as "not reported".
 
 ## [0.4.0] - 2026-10-27
 

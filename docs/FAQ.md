@@ -70,6 +70,23 @@ wrong, the restore point the app made is the way back.
 - Some laptops and OEM desktops expose very few sensors. Virtual machines
   report almost nothing.
 
+### My SSD shows a high temperature
+
+- PC Checker shows the drive's own temperature: the NVMe *composite*
+  temperature, or SMART attribute 194 on SATA drives. That is the number the
+  drive itself uses to decide when to slow down.
+- Many NVMe drives have extra sensors. One is often the controller, which
+  normally runs 10–25 °C hotter than the drive. The Temperatures page lists
+  these as *Sensor 1*, *Sensor 2* or *Controller* with "extra sensor" under the
+  name. They have their own limits (the drive limits plus 15 °C) and never
+  count as the drive temperature.
+- Drives also report a warning and a critical limit (often 70 °C and 80 °C).
+  These are limits, not readings, and are not shown as temperatures.
+- Earlier versions could show one of those limits or the controller sensor
+  as the drive temperature. Update if a cool drive reads about 70 °C.
+- Still high? Compare with the drive maker's tool. Drives without airflow, or
+  under a graphics card, really can run at 60–70 °C while copying large files.
+
 ### The Fans page says no controllable fans were found
 
 The app can only drive fans that LibreHardwareMonitor exposes a control for:
