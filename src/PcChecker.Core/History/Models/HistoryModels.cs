@@ -117,9 +117,58 @@ public sealed class HistorySettings
     /// <summary>Days of history kept on disk; older days are deleted automatically.</summary>
     public int RetentionDays { get; set; } = 90;
 
+    /// <summary>
+    /// The retention in force before it was last lowered. Until <see cref="RetentionGrace"/> has passed since
+    /// <see cref="RetentionLoweredAt"/>, nothing younger than this is deleted, so a slip of the number box can be undone.
+    /// </summary>
+    public int? PreviousRetentionDays { get; set; }
+
+    /// <summary>When <see cref="RetentionDays"/> was last lowered (see <see cref="PreviousRetentionDays"/>).</summary>
+    public DateTimeOffset? RetentionLoweredAt { get; set; }
+
+    /// <summary>How long a lowered retention waits before older days are actually deleted.</summary>
+    public static readonly TimeSpan RetentionGrace = TimeSpan.FromHours(24);
+
     public static int ClampInterval(double seconds) =>
         double.IsNaN(seconds) ? 60 : (int)Math.Clamp(Math.Round(seconds), MinIntervalSeconds, MaxIntervalSeconds);
 
     public static int ClampRetention(double days) =>
         double.IsNaN(days) ? 90 : (int)Math.Clamp(Math.Round(days), MinRetentionDays, MaxRetentionDays);
+
+    /// <summary>
+    /// The retention maintenance uses at <paramref name="now"/>: the setting, or the earlier, longer one while a recent
+    /// reduction is still within <see cref="RetentionGrace"/>.
+    /// </summary>
+    public int EffectiveRetention(DateTimeOffset now)
+    {
+        int current = ClampRetention(RetentionDays);
+        if (PreviousRetentionDays is { } previous && RetentionLoweredAt is { } lowered && now >= lowered && now - lowered < RetentionGrace)
+        {
+            return Math.Max(current, ClampRetention(previous));
+        }
+
+        return current;
+    }
+
+    /// <summary>
+    /// Changes <see cref="RetentionDays"/>. Lowering it starts (or restarts) the grace period and remembers the longer
+    /// retention in force until then; raising it back to that value or above ends the grace period.
+    /// </summary>
+    public void SetRetention(double days, DateTimeOffset now)
+    {
+        int next = ClampRetention(days);
+        int effective = EffectiveRetention(now);
+        if (next < effective)
+        {
+            PreviousRetentionDays = effective;
+            RetentionLoweredAt = now;
+        }
+        else
+        {
+            PreviousRetentionDays = null;
+            RetentionLoweredAt = null;
+        }
+
+        RetentionDays = next;
+    }
 }

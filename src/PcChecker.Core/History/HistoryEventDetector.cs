@@ -10,7 +10,10 @@ namespace PcChecker.Core.History;
 /// </summary>
 public static class HistoryEventDetector
 {
-    /// <summary>Two hot readings further apart than this count as separate hot spells.</summary>
+    /// <summary>
+    /// Two hot readings further apart than this count as separate hot spells. Rolled-up readings (15 minutes or an
+    /// hour each) may be up to 1.5 times their own span apart instead; see <see cref="SpellGapFor"/>.
+    /// </summary>
     public static readonly TimeSpan HotSpellGap = TimeSpan.FromMinutes(10);
 
     /// <summary>Free space readings further apart than this are not compared (the drop was not "sudden").</summary>
@@ -21,8 +24,8 @@ public static class HistoryEventDetector
         ArgumentNullException.ThrowIfNull(samples);
         ArgumentNullException.ThrowIfNull(thresholds);
         var events = new List<HistoryEvent>();
-        events.AddRange(TemperaturePeaks(HistoryMath.Series(samples, HistoryMetrics.CpuTemp), HistoryMetrics.CpuTemp, "CPU", thresholds.CpuWarnC, thresholds.CpuCritC));
-        events.AddRange(TemperaturePeaks(HistoryMath.Series(samples, HistoryMetrics.GpuTemp), HistoryMetrics.GpuTemp, "GPU", thresholds.GpuWarnC, thresholds.GpuCritC));
+        events.AddRange(TemperaturePeaks(samples, HistoryMetrics.CpuTemp, "CPU", thresholds.CpuWarnC, thresholds.CpuCritC));
+        events.AddRange(TemperaturePeaks(samples, HistoryMetrics.GpuTemp, "GPU", thresholds.GpuWarnC, thresholds.GpuCritC));
 
         var drives = samples.SelectMany(s => s.Values.Keys).Where(HistoryMetrics.IsDiskFree).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal);
         foreach (var metric in drives)
@@ -34,17 +37,47 @@ public static class HistoryEventDetector
         return events.OrderByDescending(e => e.Time).ThenByDescending(e => e.Severity).ToList();
     }
 
-    /// <summary>One event per spell of readings at or above <paramref name="warn"/>, at the spell's peak.</summary>
+    /// <summary>
+    /// The longest pause between two hot readings that still counts as one spell: <see cref="HotSpellGap"/>, or 1.5
+    /// times the longer of the two readings' spans for rolled-up data (so a long gaming session stored as 15-minute or
+    /// hourly points stays one event).
+    /// </summary>
+    public static TimeSpan SpellGapFor(int spanSecondsBefore, int spanSecondsAfter)
+    {
+        var span = TimeSpan.FromSeconds(Math.Max(0, Math.Max(spanSecondsBefore, spanSecondsAfter)) * 1.5);
+        return span > HotSpellGap ? span : HotSpellGap;
+    }
+
+    /// <summary>One event per spell of <paramref name="metric"/> readings at or above <paramref name="warn"/>, at the spell's peak.</summary>
+    public static IEnumerable<HistoryEvent> TemperaturePeaks(IEnumerable<HistorySample> samples, string metric, string part, double warn, double crit)
+    {
+        ArgumentNullException.ThrowIfNull(samples);
+        var readings = samples
+            .Where(s => s.Values.TryGetValue(metric, out var v) && double.IsFinite(v))
+            .OrderBy(s => s.Time)
+            .Select(s => (Point: new HistoryPoint(s.Time, s.Values[metric]), Span: s.SpanSeconds))
+            .ToList();
+        return TemperaturePeaks(readings, metric, part, warn, crit);
+    }
+
+    /// <summary>One event per spell of readings at or above <paramref name="warn"/>, at the spell's peak (readings of one minute or less).</summary>
     public static IEnumerable<HistoryEvent> TemperaturePeaks(IReadOnlyList<HistoryPoint> series, string metric, string part, double warn, double crit)
     {
         ArgumentNullException.ThrowIfNull(series);
+        return TemperaturePeaks(series.Select(p => (p, 0)).ToList(), metric, part, warn, crit);
+    }
+
+    private static IEnumerable<HistoryEvent> TemperaturePeaks(IReadOnlyList<(HistoryPoint Point, int Span)> series, string metric, string part,
+        double warn, double crit)
+    {
         HistoryPoint? peak = null;
         DateTimeOffset start = default, end = default;
+        int endSpan = 0;
         int count = 0;
-        foreach (var p in series)
+        foreach (var (p, span) in series)
         {
             bool hot = p.Value >= warn;
-            if (peak is not null && (!hot || p.Time - end > HotSpellGap))
+            if (peak is not null && (!hot || p.Time - end > SpellGapFor(endSpan, span)))
             {
                 yield return Peak(metric, part, peak.Value, start, end, count, warn, crit);
                 peak = null;
@@ -67,6 +100,7 @@ public static class HistoryEventDetector
             }
 
             end = p.Time;
+            endSpan = span;
             count++;
         }
 

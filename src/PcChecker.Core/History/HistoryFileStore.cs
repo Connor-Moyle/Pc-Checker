@@ -30,7 +30,14 @@ public sealed class HistoryFileStore
 
     public string PathFor(DateOnly day) => Path.Combine(Directory, HistoryRetention.FileName(day));
 
-    /// <summary>Appends one sample to the file of the UTC day it belongs to.</summary>
+    /// <summary>How often an append is tried when another process (a scheduled health run) is writing the same file.</summary>
+    public const int AppendAttempts = 5;
+
+    /// <summary>
+    /// Appends one sample to the file of the UTC day it belongs to. Writers take the file exclusively (readers are
+    /// still allowed) so two processes never interleave half lines; when the file is busy because the other process is
+    /// appending at that moment, the append is retried a few times after a short pause before giving up.
+    /// </summary>
     public void Append(HistorySample sample)
     {
         ArgumentNullException.ThrowIfNull(sample);
@@ -38,22 +45,47 @@ public sealed class HistoryFileStore
         lock (_gate)
         {
             System.IO.Directory.CreateDirectory(Directory);
-            using var stream = new FileStream(PathFor(HistoryRetention.DayOf(sample.Time)), FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.Read);
-            if (stream.Length > 0)
+            var path = PathFor(HistoryRetention.DayOf(sample.Time));
+            for (int attempt = 1; ; attempt++)
             {
-                // A crash in the middle of a write leaves a line without its newline; start on a fresh line so the
-                // new sample is not glued to the broken one.
-                stream.Seek(-1, SeekOrigin.End);
-                if (stream.ReadByte() != '\n')
+                try
                 {
-                    stream.WriteByte((byte)'\n');
+                    AppendUnlocked(path, line);
+                    return;
+                }
+                catch (IOException ex) when (attempt < AppendAttempts && IsSharingViolation(ex))
+                {
+                    Thread.Sleep(25 * attempt);
                 }
             }
-
-            stream.Seek(0, SeekOrigin.End);
-            stream.Write(line);
-            stream.Flush(flushToDisk: true);
         }
+    }
+
+    /// <summary>True for the "file is in use by another process" errors that are worth retrying.</summary>
+    public static bool IsSharingViolation(IOException exception)
+    {
+        ArgumentNullException.ThrowIfNull(exception);
+        int code = exception.HResult & 0xFFFF;
+        return code is 32 or 33; // ERROR_SHARING_VIOLATION, ERROR_LOCK_VIOLATION
+    }
+
+    private static void AppendUnlocked(string path, byte[] line)
+    {
+        using var stream = new FileStream(path, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.Read);
+        if (stream.Length > 0)
+        {
+            // A crash in the middle of a write leaves a line without its newline; start on a fresh line so the
+            // new sample is not glued to the broken one.
+            stream.Seek(-1, SeekOrigin.End);
+            if (stream.ReadByte() != '\n')
+            {
+                stream.WriteByte((byte)'\n');
+            }
+        }
+
+        stream.Seek(0, SeekOrigin.End);
+        stream.Write(line);
+        stream.Flush(flushToDisk: true);
     }
 
     /// <summary>Every readable sample from <paramref name="from"/> to <paramref name="to"/> (inclusive), oldest first.</summary>
@@ -148,9 +180,16 @@ public sealed class HistoryFileStore
                     continue;
                 }
 
-                Rewrite(path, HistoryRollup.Compact(samples, bucket));
-                compacted++;
-                dropped += corrupt;
+                try
+                {
+                    Rewrite(path, HistoryRollup.Compact(samples, bucket));
+                    compacted++;
+                    dropped += corrupt;
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    // A locked or read-only day file is tried again at the next pass; the other days still get tidied.
+                }
             }
         }
 

@@ -58,7 +58,7 @@ public static class HistoryLineCodec
             using var doc = JsonDocument.Parse(line);
             var root = doc.RootElement;
             if (root.ValueKind != JsonValueKind.Object
-                || !root.TryGetProperty("t", out var t) || !t.TryGetInt64(out long seconds)
+                || !root.TryGetProperty("t", out var t) || t.ValueKind != JsonValueKind.Number || !t.TryGetInt64(out long seconds)
                 || seconds < 0 || seconds > 253_402_300_799 // 9999-12-31
                 || !root.TryGetProperty("v", out var v) || v.ValueKind != JsonValueKind.Object)
             {
@@ -66,7 +66,7 @@ public static class HistoryLineCodec
             }
 
             int span = 60;
-            if (root.TryGetProperty("s", out var s) && s.TryGetInt32(out int parsedSpan))
+            if (root.TryGetProperty("s", out var s) && s.ValueKind == JsonValueKind.Number && s.TryGetInt32(out int parsedSpan))
             {
                 span = Math.Clamp(parsedSpan, 0, 86_400);
             }
@@ -89,8 +89,9 @@ public static class HistoryLineCodec
             sample = new HistorySample(DateTimeOffset.FromUnixTimeSeconds(seconds), span, values);
             return true;
         }
-        catch (JsonException)
+        catch (Exception ex) when (ex is JsonException or InvalidOperationException or FormatException or ArgumentException)
         {
+            // Well-formed JSON with the wrong shape counts as a damaged line too.
             return false;
         }
     }

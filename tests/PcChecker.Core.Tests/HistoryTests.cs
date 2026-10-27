@@ -10,6 +10,28 @@ public class HistoryCodecTests
 {
     private static readonly DateTimeOffset T0 = new(2026, 10, 27, 10, 0, 0, TimeSpan.Zero);
 
+    [Theory]
+    [InlineData("{\"t\":\"x\",\"v\":{\"cpu.temp\":5}}")]
+    [InlineData("{\"t\":true,\"v\":{\"cpu.temp\":5}}")]
+    [InlineData("{\"t\":1.5,\"v\":{\"cpu.temp\":5}}")]
+    [InlineData("[1,2,3]")]
+    [InlineData("{\"t\":1761559260,\"v\":[5]}")]
+    public void Well_formed_lines_of_the_wrong_shape_are_rejected_without_throwing(string line)
+    {
+        Assert.False(HistoryLineCodec.TryParse(line, out _));
+        var (samples, corrupt) = HistoryLineCodec.ParseLines([line, "{\"t\":1761559260,\"s\":60,\"v\":{\"cpu.temp\":5}}"]);
+        Assert.Single(samples);
+        Assert.Equal(1, corrupt);
+    }
+
+    [Fact]
+    public void A_span_of_the_wrong_type_falls_back_to_a_minute()
+    {
+        Assert.True(HistoryLineCodec.TryParse("{\"t\":1761559260,\"s\":\"60\",\"v\":{\"cpu.temp\":5}}", out var sample));
+        Assert.Equal(60, sample.SpanSeconds);
+        Assert.Equal(5, sample.Get(HistoryMetrics.CpuTemp));
+    }
+
     [Fact]
     public void Format_and_parse_round_trip_with_invariant_numbers()
     {
@@ -184,6 +206,27 @@ public class HistoryRollupTests
 public class HistoryRetentionTests
 {
     [Fact]
+    public void Lowering_retention_waits_a_day_and_raising_it_back_cancels()
+    {
+        var now = new DateTimeOffset(2026, 10, 27, 12, 0, 0, TimeSpan.Zero);
+        var options = new HistorySettings();
+
+        options.SetRetention(83, now);
+        options.SetRetention(7, now.AddSeconds(2)); // stepping the number box down
+        Assert.Equal(7, options.RetentionDays);
+        Assert.Equal(90, options.EffectiveRetention(now.AddHours(23)));
+        Assert.Equal(7, options.EffectiveRetention(now.AddHours(25)));
+
+        options.SetRetention(90, now.AddMinutes(1));
+        Assert.Null(options.PreviousRetentionDays);
+        Assert.Equal(90, options.EffectiveRetention(now.AddDays(2)));
+
+        options.SetRetention(120, now);
+        Assert.Equal(120, options.EffectiveRetention(now));
+        Assert.Null(options.RetentionLoweredAt);
+    }
+
+    [Fact]
     public void Expired_days_are_those_before_the_retention_window_and_never_today()
     {
         var today = new DateOnly(2026, 10, 27);
@@ -351,6 +394,29 @@ public class HistoryEventTests
     }
 
     [Fact]
+    public void A_long_hot_session_stored_as_rolled_up_points_is_one_event()
+    {
+        // Two hours above the CPU limit, stored as 15-minute and as hourly points, then a cool hour and a second spell.
+        var quarter = Enumerable.Range(0, 8)
+            .Select(i => new HistorySample(T0.AddMinutes(15 * i), 900, new Dictionary<string, double> { [HistoryMetrics.CpuTemp] = i == 5 ? 93 : 88 }))
+            .ToList();
+        var hourly = new[] { 88d, 91, 60, 87 }
+            .Select((t, i) => new HistorySample(T0.AddDays(-40).AddHours(i), 3600, new Dictionary<string, double> { [HistoryMetrics.CpuTemp] = t }))
+            .ToList();
+
+        var events = HistoryEventDetector.Detect(quarter.Concat(hourly).ToList(), Limits);
+
+        Assert.Equal(3, events.Count);
+        Assert.Contains("93 °C", events[0].Title);
+        Assert.Equal(T0.AddMinutes(75), events[0].Time);
+        Assert.Contains("87 °C", events[1].Title); // newest first
+        Assert.Contains("91 °C", events[2].Title);
+        // Missing data (the PC was off for an hour) between minute samples still splits a spell.
+        Assert.Equal(TimeSpan.FromMinutes(10), HistoryEventDetector.SpellGapFor(60, 60));
+        Assert.Equal(TimeSpan.FromMinutes(22.5), HistoryEventDetector.SpellGapFor(60, 900));
+    }
+
+    [Fact]
     public void Sudden_free_space_drops_are_found_but_slow_use_and_long_gaps_are_not()
     {
         const string c = "disk.free:C:";
@@ -424,6 +490,25 @@ public sealed class HistoryFileStoreTests : IDisposable
         Assert.Equal(1, data.CorruptLines);
         Assert.Equal([50d, 52d], data.Series(HistoryMetrics.CpuTemp).Select(p => p.Value));
         Assert.Single(store.Read(t.AddMinutes(1), t.AddMinutes(3)).Samples);
+    }
+
+    [Fact]
+    public void A_wrong_typed_line_does_not_break_reading_or_maintenance()
+    {
+        var store = new HistoryFileStore(_dir);
+        var today = new DateOnly(2026, 10, 27);
+        var old = new DateTimeOffset(today.AddDays(-10).ToDateTime(new TimeOnly(8, 0)), TimeSpan.Zero);
+        store.Append(Sample(old, 60));
+        File.AppendAllText(store.PathFor(today.AddDays(-10)), "{\"t\":\"x\",\"v\":{\"cpu.temp\":5}}\n");
+        store.Append(Sample(old.AddMinutes(1), 61));
+
+        var data = store.Read(old.AddHours(-1), old.AddHours(1));
+        Assert.Equal(2, data.Samples.Count);
+        Assert.Equal(1, data.CorruptLines);
+
+        var result = store.Maintain(today, retentionDays: 90);
+        Assert.Equal(1, result.CompactedFiles);
+        Assert.Equal(0, store.Read(old.AddHours(-1), old.AddHours(1)).CorruptLines);
     }
 
     [Fact]

@@ -165,8 +165,20 @@ public sealed partial class HealthViewModel : ViewModelBase
         Apply(report);
         if (report.Items.Count > 0)
         {
-            // The History page charts the score of every check.
-            _history.RecordHealthScore(report.Captured, report.Score);
+            // The History page charts the score of every check. Writing it touches the disk, so not on the UI thread.
+            var captured = report.Captured;
+            int score = report.Score;
+            _ = Task.Run(() =>
+            {
+                try
+                {
+                    _history.RecordHealthScore(captured, score);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "The health score could not be added to the history.");
+                }
+            });
         }
         ProgressText = null;
     }, "Checking drives, devices, logs and security…");

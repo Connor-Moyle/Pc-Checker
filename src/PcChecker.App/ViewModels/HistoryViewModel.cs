@@ -33,6 +33,7 @@ public sealed partial class HistoryViewModel : ViewModelBase
     private DateTimeOffset _lastLoad = DateTimeOffset.MinValue;
     private int _liveReloadPending;
     private bool _subscribed;
+    private volatile bool _isPageVisible;
 
     [ObservableProperty]
     private HistoryRangeOption _selectedRange;
@@ -219,11 +220,34 @@ public sealed partial class HistoryViewModel : ViewModelBase
         Apply(data, storage, range);
     }, "Loading history…");
 
+    /// <summary>
+    /// Page shown or hidden (another page, minimised to the tray). Live reloads only run while the page is visible;
+    /// coming back to a short range that has new samples catches up straight away.
+    /// </summary>
+    public void OnPageVisibilityChanged(bool visible)
+    {
+        _isPageVisible = visible;
+        if (visible && IsInitialized && SelectedRange.Range.Span <= TimeSpan.FromHours(24)
+            && _history.LastRecorded is { } last && last.ToUniversalTime() > _lastLoad)
+        {
+            QueueLiveReload();
+        }
+    }
+
     /// <summary>Reloads a short range quietly as new samples arrive, without the busy overlay.</summary>
     private void OnRecorded(object? sender, EventArgs e)
     {
-        if (SelectedRange.Range.Span > TimeSpan.FromHours(24) || DateTimeOffset.UtcNow - _lastLoad < LiveRefreshInterval
-            || Interlocked.Exchange(ref _liveReloadPending, 1) == 1)
+        if (!_isPageVisible || SelectedRange.Range.Span > TimeSpan.FromHours(24) || DateTimeOffset.UtcNow - _lastLoad < LiveRefreshInterval)
+        {
+            return;
+        }
+
+        QueueLiveReload();
+    }
+
+    private void QueueLiveReload()
+    {
+        if (Interlocked.Exchange(ref _liveReloadPending, 1) == 1)
         {
             return;
         }
@@ -232,7 +256,7 @@ public sealed partial class HistoryViewModel : ViewModelBase
         {
             try
             {
-                if (!IsBusy && IsInitialized)
+                if (_isPageVisible && !IsBusy && IsInitialized && !IsMainWindowMinimized())
                 {
                     var range = SelectedRange.Range;
                     var to = DateTimeOffset.UtcNow;
@@ -254,6 +278,10 @@ public sealed partial class HistoryViewModel : ViewModelBase
             }
         });
     }
+
+    private static bool IsMainWindowMinimized() =>
+        System.Windows.Application.Current?.MainWindow is { } window
+        && (window.WindowState == System.Windows.WindowState.Minimized || !window.IsVisible);
 
     private void Apply(HistoryData data, HistoryStorageInfo storage, HistoryRange range)
     {

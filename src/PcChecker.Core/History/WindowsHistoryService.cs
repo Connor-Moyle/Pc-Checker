@@ -36,7 +36,6 @@ public sealed class WindowsHistoryService : IHistoryService, IDisposable
     private bool _recording;
     private bool _settingsHooked;
     private int _intervalSeconds;
-    private int _retentionDays;
     private DateTimeOffset _periodStart;
     private DateTimeOffset _lastDrives = DateTimeOffset.MinValue;
     private DateTimeOffset _lastMaintenance = DateTimeOffset.MinValue;
@@ -140,7 +139,6 @@ public sealed class WindowsHistoryService : IHistoryService, IDisposable
     {
         var options = Options;
         int interval = HistorySettings.ClampInterval(options.SampleIntervalSeconds);
-        int retention = HistorySettings.ClampRetention(options.RetentionDays);
         if (_wanted && options.Enabled)
         {
             if (!_recording)
@@ -153,17 +151,13 @@ public sealed class WindowsHistoryService : IHistoryService, IDisposable
                 _timer?.Change(TimeSpan.FromSeconds(interval), TimeSpan.FromSeconds(interval));
             }
 
-            if (_retentionDays != 0 && retention != _retentionDays)
-            {
-                _lastMaintenance = DateTimeOffset.MinValue;
-            }
+            // A lower retention is not applied straight away: HistorySettings.EffectiveRetention keeps the old one
+            // for a day, and the regular maintenance pass deletes the older days after that.
         }
         else if (_recording)
         {
             StopRecording();
         }
-
-        _retentionDays = retention;
     }
 
     private void StartRecording(int intervalSeconds)
@@ -325,7 +319,7 @@ public sealed class WindowsHistoryService : IHistoryService, IDisposable
         }
 
         _lastMaintenance = DateTimeOffset.UtcNow;
-        int retention = HistorySettings.ClampRetention(Options.RetentionDays);
+        int retention = Options.EffectiveRetention(DateTimeOffset.UtcNow);
         _ = Task.Run(() =>
         {
             try

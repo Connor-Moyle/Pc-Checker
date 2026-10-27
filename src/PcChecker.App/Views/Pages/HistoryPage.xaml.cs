@@ -9,6 +9,7 @@ public partial class HistoryPage
         ViewModel = viewModel;
         DataContext = viewModel;
         InitializeComponent();
+        IsVisibleChanged += (_, e) => ViewModel.OnPageVisibilityChanged(e.NewValue is true);
     }
 
     public HistoryViewModel ViewModel { get; }

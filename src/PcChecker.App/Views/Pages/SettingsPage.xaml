@@ -294,7 +294,7 @@
               <ui:CardControl.Header>
                 <StackPanel>
                   <ui:TextBlock Text="Keep history for (days)" />
-                  <ui:TextBlock Style="{StaticResource Muted}" Text="Older days are deleted automatically. 90 days use a few megabytes." />
+                  <ui:TextBlock Style="{StaticResource Muted}" Text="Older days are deleted automatically, a day after you lower this. 90 days use a few megabytes." />
                 </StackPanel>
               </ui:CardControl.Header>
               <ui:NumberBox Style="{StaticResource Num}" Minimum="7" Maximum="365" SmallChange="7" MaxDecimalPlaces="0" Value="{Binding HistoryRetentionDays, Mode=TwoWay}" />

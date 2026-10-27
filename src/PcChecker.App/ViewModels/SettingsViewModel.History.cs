@@ -49,8 +49,10 @@ public sealed partial class SettingsViewModel
         }
     }
 
+    // Lowering the retention only deletes older days after a grace period, so stepping the number box down by mistake
+    // can be undone.
     partial void OnHistoryRetentionDaysChanged(double value) =>
-        Persist(s => (s.History ??= new HistorySettings()).RetentionDays = HistorySettings.ClampRetention(value));
+        Persist(s => (s.History ??= new HistorySettings()).SetRetention(value, DateTimeOffset.UtcNow));
 
     [RelayCommand]
     private void OpenHistoryPage() => _navigation.Navigate(typeof(HistoryPage));
