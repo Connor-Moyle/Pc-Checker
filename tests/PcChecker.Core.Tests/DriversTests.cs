@@ -130,6 +130,61 @@ public class DriverRulesTests
         Assert.False(DriverRules.CanRollBack(new DriverInfo("d", "id", "c", null, null, null, null, true, null, false, [], null, 0, null)));
     }
 
+    private static DriverInfo Device(string name, string id, string cls, string inf, string? classGuid = null, bool present = true) =>
+        new(name, id, cls, "Vendor", "1.0", DateTime.Today.AddDays(-30), inf, true, "Vendor", false, [], "OK", 0, null)
+        {
+            IsPresent = present,
+            ClassGuid = classGuid,
+        };
+
+    [Fact]
+    public void Rollback_is_allowed_for_a_package_only_this_device_uses()
+    {
+        var gpu = Device("GPU", @"PCI\VEN_10DE", "Display", "oem12.inf");
+        var other = Device("Audio", @"HDAUDIO\FUNC_01", "MEDIA", "oem10.inf");
+        var unplugged = Device("Old GPU", @"PCI\VEN_10DE&OLD", "Display", "oem12.inf", present: false);
+        Assert.Null(DriverRules.RollbackBlockReason(gpu, [gpu, other, unplugged]));
+    }
+
+    [Theory]
+    [InlineData("SCSIADAPTER", null)]
+    [InlineData("HDC", null)]
+    [InlineData("SYSTEM", null)]
+    [InlineData("Keyboard", null)]
+    [InlineData("Unknown", "{4d36e97b-e325-11ce-bfc1-08002be10318}")]
+    public void Rollback_is_refused_for_classes_windows_needs_to_start(string cls, string? guid)
+    {
+        var raid = Device("Intel RST VMD Controller", @"PCI\VEN_8086&DEV_A77F", cls, "oem5.inf", guid);
+        var reason = DriverRules.RollbackBlockReason(raid, [raid]);
+        Assert.NotNull(reason);
+        Assert.Contains("Device Manager", reason);
+    }
+
+    [Fact]
+    public void Rollback_is_refused_when_other_connected_devices_use_the_same_package()
+    {
+        var a = Device("Intel SMBus", @"PCI\VEN_8086&DEV_7A23", "Net", "oem3.inf");
+        var b = Device("Intel PCI Express Root Port", @"PCI\VEN_8086&DEV_7A38", "Net", "OEM3.INF ");
+        var reason = DriverRules.RollbackBlockReason(a, [a, b]);
+        Assert.NotNull(reason);
+        Assert.Contains("Intel PCI Express Root Port", reason);
+    }
+
+    [Fact]
+    public void Demo_rollback_refuses_the_storage_controller()
+    {
+        var rst = DemoDriverService.SampleDrivers().First(d => d.DeviceClass == "SCSIAdapter");
+        Assert.True(DriverRules.CanRollBack(rst));
+        Assert.NotNull(DriverRules.RollbackBlockReason(rst, DemoDriverService.SampleDrivers()));
+    }
+
+    [Fact]
+    public void Class_guid_is_read_from_wmi()
+    {
+        var bag = new Dictionary<string, object?> { ["DeviceID"] = "PCI\\X", ["InfName"] = "oem5.inf", ["ClassGuid"] = "{4D36E97B-E325-11CE-BFC1-08002BE10318}" };
+        Assert.Equal("{4D36E97B-E325-11CE-BFC1-08002BE10318}", DriverInfoBuilder.FromProperties(bag).ClassGuid);
+    }
+
     [Fact]
     public void Deep_links_are_defined()
     {
@@ -676,6 +731,8 @@ public class DemoDriverServiceTests
         Assert.True(rollback.Success);
         Assert.True(rollback.RebootRequired);
         Assert.False((await svc.RollbackAsync("nope", CancellationToken.None)).Success);
+        var storage = DemoDriverService.SampleDrivers().First(d => d.DeviceClass == "SCSIAdapter");
+        Assert.False((await svc.RollbackAsync(storage.DeviceId, CancellationToken.None)).Success);
     }
 
     [Fact]

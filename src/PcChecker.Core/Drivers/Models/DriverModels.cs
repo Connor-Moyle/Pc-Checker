@@ -30,6 +30,9 @@ public sealed record DriverInfo(
     /// </summary>
     public bool IsPresent { get; init; } = true;
 
+    /// <summary>The device setup class GUID (<c>{4d36e97d-…}</c>), or null when WMI did not report it.</summary>
+    public string? ClassGuid { get; init; }
+
     /// <summary>Days since the driver's release date, or null when unknown.</summary>
     public int? AgeDays => Date.HasValue ? Math.Max(0, (int)(DateTime.Today - Date.Value.Date).TotalDays) : null;
 

@@ -40,6 +40,7 @@ public static class DriverInfoBuilder
             IsInboxDriver(inf, provider), hardwareIds, status, problem, location)
         {
             IsPresent = entity?.Present ?? true,
+            ClassGuid = WmiPropertyMapper.GetString(signedDriver, "ClassGuid"),
         };
     }
 

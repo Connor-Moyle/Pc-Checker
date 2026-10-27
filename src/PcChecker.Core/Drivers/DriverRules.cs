@@ -63,6 +63,46 @@ public static class DriverRules
     }
 
     /// <summary>
+    /// Why removing this device's third-party package is refused even though <see cref="CanRollBack"/> allows it, or
+    /// null when it may go ahead. Removing a package takes it off every device that uses it, so it is refused for the
+    /// classes Windows needs to start and to reach disks, keyboard and mouse (a RAID or VMD storage controller has no
+    /// inbox fallback and the PC would no longer boot), and for packages other connected devices also use (a chipset
+    /// package typically drives dozens of system devices).
+    /// </summary>
+    public static string? RollbackBlockReason(DriverInfo driver, IEnumerable<DriverInfo> allDrivers)
+    {
+        ArgumentNullException.ThrowIfNull(driver);
+        ArgumentNullException.ThrowIfNull(allDrivers);
+        const string deviceManager = "Use Device Manager → Properties → Driver → Roll Back Driver for this device instead.";
+        if (DriverCleanupRules.IsProtectedClass(driver.DeviceClass, driver.ClassGuid))
+        {
+            return $"{driver.DeviceName} is a kind of device Windows needs to start or to reach your disks, keyboard and mouse ({driver.DeviceClass}). "
+                + $"Removing its driver package could leave Windows unable to start, so PC Checker does not do it. {deviceManager}";
+        }
+
+        var inf = driver.InfName?.Trim();
+        if (string.IsNullOrEmpty(inf))
+        {
+            return null;
+        }
+
+        var others = allDrivers
+            .Where(d => d.IsPresent
+                && !string.Equals(d.DeviceId, driver.DeviceId, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(d.InfName?.Trim(), inf, StringComparison.OrdinalIgnoreCase))
+            .Select(d => d.DeviceName)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (others.Count == 0)
+        {
+            return null;
+        }
+
+        var names = string.Join(", ", others.Take(3)) + (others.Count > 3 ? $" and {others.Count - 3} more" : string.Empty);
+        return $"{inf} also drives {others.Count} other connected device(s) ({names}). Removing it would take the driver off all of them, so PC Checker does not do it. {deviceManager}";
+    }
+
+    /// <summary>
     /// Vendor download pages for the machine described by a hardware inventory: GPU vendors, CPU vendor (chipset),
     /// motherboard and system manufacturer, plus storage and peripheral makers. Empty when nothing is known.
     /// </summary>

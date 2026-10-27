@@ -308,17 +308,62 @@ public sealed class WindowsDriverService : IDriverService, IDriverStoreProvider,
             return Task.FromResult(OperationResult.Fail($"{driver.DeviceName} uses the driver Windows ships ({driver.InfName ?? "inbox"}), so there is no third-party package to remove. Use Device Manager → Properties → Driver → Roll Back Driver if an earlier version exists."));
         }
 
-        var inf = driver.InfName!;
+        IReadOnlyList<DriverInfo> all;
+        lock (_gate)
+        {
+            all = _byDeviceId.Values.ToList();
+        }
+
+        if (DriverRules.RollbackBlockReason(driver, all) is { } blocked)
+        {
+            _logger.LogInformation("Rollback of {Inf} for {Device} refused: {Reason}", driver.InfName, driver.DeviceName, blocked);
+            return Task.FromResult(OperationResult.Fail(blocked));
+        }
+
+        var inf = driver.InfName!.Trim();
+        var backup = Path.Combine(DriverCleanupRules.BackupFolderFor(DriverCleanupRules.DefaultBackupRoot, DateTime.Now), Path.GetFileNameWithoutExtension(inf));
         return _changeGuard.RunGuardedAsync(
             $"Remove driver package {inf} for {driver.DeviceName}",
-            ChangeOptions.For(ModuleName, deviceId, reversible: false, undoHint: "Reinstall the driver from the manufacturer or from your driver backup.") with { OnRestorePointFailed = RestorePointFailedBehavior.Abort },
+            ChangeOptions.For(ModuleName, deviceId, reversible: true,
+                undoHint: $"The package was copied to {backup} first. Reinstall it with Drivers → More → Install .inf (Advanced mode), or restore the restore point.")
+                with { OnRestorePointFailed = RestorePointFailedBehavior.Abort },
             async ct =>
             {
-                var r = await PnpUtilRunner.RunAsync($"/delete-driver {inf} /uninstall /force", null, TimeSpan.FromMinutes(10), ct).ConfigureAwait(false);
-                return FromPnpUtil(r, $"Removed {inf}. Windows will fall back to its own driver for {driver.DeviceName} (or look for one on Windows Update).");
+                try
+                {
+                    Directory.CreateDirectory(backup);
+                }
+                catch (Exception ex)
+                {
+                    return OperationResult.Fail("Not removed: the backup folder could not be created: " + ex.Message, ex);
+                }
+
+                var export = await PnpUtilRunner.RunAsync($"/export-driver {inf} {PnpUtilRunner.Quote(backup)}", null, TimeSpan.FromMinutes(10), ct).ConfigureAwait(false);
+                var exported = FromPnpUtil(export, "Exported.");
+                if (!exported.Success || !ContainsFiles(backup))
+                {
+                    _logger.LogWarning("Export of {Inf} failed (exit {Code}); the package was not removed.", inf, export.ExitCode);
+                    return OperationResult.Fail("Not removed, because a backup copy could not be made first. " + exported.Message);
+                }
+
+                // No /force: Windows takes the package off the device, then refuses the delete if anything still uses it.
+                var r = await PnpUtilRunner.RunAsync($"/delete-driver {inf} /uninstall", null, TimeSpan.FromMinutes(10), ct).ConfigureAwait(false);
+                return FromPnpUtil(r, $"Removed {inf}. Windows will fall back to its own driver for {driver.DeviceName} (or look for one on Windows Update). A copy is in {backup}.");
             },
             null,
             cancellationToken);
+    }
+
+    private static bool ContainsFiles(string folder)
+    {
+        try
+        {
+            return Directory.EnumerateFiles(folder, "*", SearchOption.AllDirectories).Any();
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     public async Task<DriverStoreResult> GetDriverStoreAsync(CancellationToken cancellationToken)

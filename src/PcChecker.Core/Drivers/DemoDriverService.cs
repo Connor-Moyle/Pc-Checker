@@ -133,6 +133,11 @@ public sealed class DemoDriverService : IDriverService, IDriverStoreProvider, ID
             return OperationResult.Fail($"{driver.DeviceName} uses the driver Windows ships, so there is no third-party package to remove. Use Device Manager → Roll Back Driver.");
         }
 
+        if (DriverRules.RollbackBlockReason(driver, SampleDrivers()) is { } blocked)
+        {
+            return OperationResult.Fail(blocked);
+        }
+
         return OperationResult.Ok($"Removed {driver.InfName} for {driver.DeviceName} (demo). Restart Windows to finish.", rebootRequired: true);
     }
 
