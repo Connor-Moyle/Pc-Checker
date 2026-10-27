@@ -306,6 +306,33 @@ public class NetshCommandBuilderTests
     }
 }
 
+public class NetAdapterCommandsTests
+{
+    [Fact]
+    public void Set_picks_the_exact_adapter_and_keyword_instead_of_a_wildcard_match()
+    {
+        string command = NetAdapterCommands.SetAdvancedProperty("Ethernet [Dock]", "*EEE", "0");
+
+        Assert.DoesNotContain("-RegistryKeyword", command, StringComparison.Ordinal);
+        Assert.DoesNotContain("-Name", command, StringComparison.Ordinal);
+        Assert.Contains("$_.Name -eq 'Ethernet [Dock]'", command, StringComparison.Ordinal);
+        Assert.Contains("$_.RegistryKeyword -eq '*EEE'", command, StringComparison.Ordinal);
+        Assert.Contains("if ($p.Count -ne 1) { throw", command, StringComparison.Ordinal);
+        Assert.EndsWith("$p[0] | Set-NetAdapterAdvancedProperty -RegistryValue '0' -ErrorAction Stop", command, StringComparison.Ordinal);
+        Assert.Contains("$_.Name -eq 'O''Brien'", NetAdapterCommands.SetAdvancedProperty("O'Brien", "Key", "1"), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Read_filters_the_adapter_by_exact_name()
+    {
+        string one = NetAdapterCommands.ReadAdvancedProperties("Wi-Fi [2]");
+        Assert.Contains("$_.Name -eq 'Wi-Fi [2]'", one, StringComparison.Ordinal);
+        Assert.DoesNotContain("-Name", one, StringComparison.Ordinal);
+        Assert.DoesNotContain("-eq 'Wi-Fi", NetAdapterCommands.ReadAdvancedProperties(null), StringComparison.Ordinal);
+        Assert.Contains("$_.Name -eq $a.Name", NetAdapterCommands.ReadAdvancedProperties(null), StringComparison.Ordinal);
+    }
+}
+
 public class NetworkTuningCatalogTests
 {
     [Fact]

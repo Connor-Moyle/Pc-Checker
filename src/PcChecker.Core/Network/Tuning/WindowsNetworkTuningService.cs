@@ -133,11 +133,11 @@ public sealed partial class WindowsNetworkTuningService : INetworkTuningService
     private async Task<OperationResult> WriteAdapterPropertyAsync(AdapterSetting setting, string value, string? beforeValue, string description, CancellationToken cancellationToken)
     {
         string before = setting.LabelFor(beforeValue);
-        string undo = $"Use Revert on the Network page, or run: Set-NetAdapterAdvancedProperty -Name '{setting.AdapterName}' -RegistryKeyword '{setting.Key}' -RegistryValue '{beforeValue}'";
+        string undo = $"Use Revert on the Network page, or run: {NetAdapterCommands.SetAdvancedProperty(setting.AdapterName, setting.Key, beforeValue ?? string.Empty)}";
         var options = new ChangeOptions(false, null, Module, $"{setting.AdapterName}: {setting.Key}", true, undo);
         var result = await _guard.RunGuardedAsync(description, options, async ct =>
         {
-            string command = $"Set-NetAdapterAdvancedProperty -Name {PowerShellRunner.Quote(setting.AdapterName)} -RegistryKeyword {PowerShellRunner.Quote(setting.Key)} -RegistryValue {PowerShellRunner.Quote(value)} -ErrorAction Stop";
+            string command = NetAdapterCommands.SetAdvancedProperty(setting.AdapterName, setting.Key, value);
             var run = await PowerShellRunner.RunAsync(command, TimeSpan.FromSeconds(90), ct).ConfigureAwait(false);
             return run.Success
                 ? OperationResult.Ok($"{setting.DisplayName} is now {setting.LabelFor(value)}. The adapter restarted, so the connection may have dropped for a few seconds.")
@@ -149,12 +149,7 @@ public sealed partial class WindowsNetworkTuningService : INetworkTuningService
 
     private async Task<IReadOnlyList<(AdapterAdvancedProperty Property, bool IsWifi)>> ReadAdvancedPropertiesAsync(string? adapterName, CancellationToken cancellationToken)
     {
-        string filter = string.IsNullOrWhiteSpace(adapterName) ? string.Empty : $" -Name {PowerShellRunner.Quote(adapterName)}";
-        string command =
-            $"Get-NetAdapter -Physical{filter} -ErrorAction SilentlyContinue | Where-Object {{ $_.Status -ne 'Not Present' }} | ForEach-Object {{ " +
-            "$a = $_; Get-NetAdapterAdvancedProperty -Name $a.Name -ErrorAction SilentlyContinue | Where-Object { $_.RegistryKeyword } | " +
-            "Select-Object @{n='AdapterName';e={$a.Name}}, @{n='MediaType';e={[string]$a.PhysicalMediaType}}, DisplayName, DisplayValue, RegistryKeyword, " +
-            "@{n='RegistryValue';e={@($_.RegistryValue) -join ','}}, ValidDisplayValues, ValidRegistryValues }";
+        string command = NetAdapterCommands.ReadAdvancedProperties(adapterName);
         try
         {
             var rows = await PowerShellRunner.RunJsonAsync<List<JsonElement>>(command, TimeSpan.FromSeconds(60), cancellationToken).ConfigureAwait(false);
