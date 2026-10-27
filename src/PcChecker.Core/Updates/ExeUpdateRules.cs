@@ -8,20 +8,37 @@ namespace PcChecker.Core.Updates;
 /// </summary>
 public static partial class ExeUpdateRules
 {
-    /// <summary>The file name every release ships. The updater looks for it first.</summary>
+    /// <summary>The file name every release ships for x64 PCs. The updater looks for it first.</summary>
     public const string AssetName = "PcChecker.exe";
 
-    /// <summary>Picks the app executable from a release: <see cref="AssetName"/>, else the only .exe, else null.</summary>
-    public static GitHubReleaseAsset? FindExeAsset(GitHubRelease release)
+    /// <summary>The file name of the Windows on Arm build.</summary>
+    public const string Arm64AssetName = "PcChecker-arm64.exe";
+
+    /// <summary>Picks the app executable for this machine's architecture (x64 unless told otherwise).</summary>
+    public static GitHubReleaseAsset? FindExeAsset(GitHubRelease release) =>
+        FindExeAsset(release, System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture);
+
+    /// <summary>
+    /// Picks the executable for <paramref name="architecture"/>: Arm64 gets <see cref="Arm64AssetName"/> (never the x64
+    /// file, which would run emulated without hardware access); everything else gets <see cref="AssetName"/>, else the
+    /// only non-Arm .exe, else null.
+    /// </summary>
+    public static GitHubReleaseAsset? FindExeAsset(GitHubRelease release, System.Runtime.InteropServices.Architecture architecture)
     {
         ArgumentNullException.ThrowIfNull(release);
+        if (architecture == System.Runtime.InteropServices.Architecture.Arm64)
+        {
+            return release.Assets.FirstOrDefault(a => string.Equals(a.Name, Arm64AssetName, StringComparison.OrdinalIgnoreCase));
+        }
+
         var exact = release.Assets.FirstOrDefault(a => string.Equals(a.Name, AssetName, StringComparison.OrdinalIgnoreCase));
         if (exact is not null)
         {
             return exact;
         }
 
-        var exes = release.Assets.Where(a => a.Name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)).ToList();
+        var exes = release.Assets.Where(a => a.Name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
+            && !a.Name.Contains("arm64", StringComparison.OrdinalIgnoreCase)).ToList();
         return exes.Count == 1 ? exes[0] : null;
     }
 

@@ -46,6 +46,18 @@ public class ExeUpdateTests
     }
 
     [Fact]
+    public void FindExeAsset_picks_the_build_for_the_architecture()
+    {
+        var x64 = new GitHubReleaseAsset("PcChecker.exe", "u1", 1, null);
+        var arm = new GitHubReleaseAsset("PcChecker-arm64.exe", "u2", 1, null);
+        var release = Release(null, arm, x64);
+        Assert.Same(x64, ExeUpdateRules.FindExeAsset(release, System.Runtime.InteropServices.Architecture.X64));
+        Assert.Same(arm, ExeUpdateRules.FindExeAsset(release, System.Runtime.InteropServices.Architecture.Arm64));
+        Assert.Null(ExeUpdateRules.FindExeAsset(Release(null, x64), System.Runtime.InteropServices.Architecture.Arm64));
+        Assert.Null(ExeUpdateRules.FindExeAsset(Release(null, arm), System.Runtime.InteropServices.Architecture.X64));
+    }
+
+    [Fact]
     public void ExpectedSha256_uses_github_digest_first()
     {
         var asset = new GitHubReleaseAsset("PcChecker.exe", "u", 1, "sha256:" + Hash.ToUpperInvariant());

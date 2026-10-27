@@ -74,37 +74,67 @@ jobs:
       - name: Test
         run: dotnet test PcChecker.sln -c Release --no-build
 
-      - name: Publish a single self-contained PcChecker.exe
-        run: >
-          dotnet publish src/PcChecker.App/PcChecker.App.csproj
-          -c Release -r win-x64 --self-contained true
-          -p:PublishSingleFile=true
-          -p:IncludeNativeLibrariesForSelfExtract=true
-          -p:IncludeAllContentForSelfExtract=true
-          -p:EnableCompressionInSingleFile=true
-          -p:DebugType=None
-          -p:Version=${{ steps.version.outputs.version }}
-          -o publish
-
-      - name: Stage the release file and notes
-        id: stage
+      - name: Publish single-file executables (x64 and ARM64)
         shell: pwsh
         run: |
+          foreach ($rid in 'win-x64', 'win-arm64') {
+            dotnet publish src/PcChecker.App/PcChecker.App.csproj -c Release -r $rid --self-contained true `
+              -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true `
+              -p:IncludeAllContentForSelfExtract=true -p:EnableCompressionInSingleFile=true -p:DebugType=None `
+              -p:Version=${{ steps.version.outputs.version }} -o "publish/$rid"
+            if ($LASTEXITCODE -ne 0) { throw "dotnet publish failed for $rid" }
+          }
           New-Item -ItemType Directory -Force release | Out-Null
-          Copy-Item publish\PcChecker.exe release\PcChecker.exe
-          $hash = (Get-FileHash release\PcChecker.exe -Algorithm SHA256).Hash.ToLower()
-          $size = [math]::Round((Get-Item release\PcChecker.exe).Length / 1MB, 1)
+          Copy-Item publish/win-x64/PcChecker.exe release/PcChecker.exe
+          Copy-Item publish/win-arm64/PcChecker.exe release/PcChecker-arm64.exe
+
+      # Code signing switches on by itself once these repository secrets exist:
+      #   SIGNING_CERT_PFX_BASE64  - the code-signing certificate (.pfx) as base64
+      #   SIGNING_CERT_PASSWORD    - its password
+      - name: Sign the executables (when a certificate is configured)
+        shell: pwsh
+        env:
+          CERT_PFX_BASE64: ${{ secrets.SIGNING_CERT_PFX_BASE64 }}
+          CERT_PASSWORD: ${{ secrets.SIGNING_CERT_PASSWORD }}
+        run: |
+          if (-not $env:CERT_PFX_BASE64) { Write-Host "No signing certificate configured; publishing unsigned."; exit 0 }
+          $pfx = Join-Path $env:RUNNER_TEMP 'signing.pfx'
+          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:CERT_PFX_BASE64))
+          $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin" -Recurse -Filter signtool.exe |
+            Where-Object { $_.FullName -match '\\x64\\' } | Sort-Object FullName -Descending | Select-Object -First 1
+          if (-not $signtool) { throw "signtool.exe was not found on the runner." }
+          foreach ($file in Get-ChildItem release -Filter *.exe) {
+            & $signtool.FullName sign /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 /f $pfx /p $env:CERT_PASSWORD $file.FullName
+            if ($LASTEXITCODE -ne 0) { throw "Signing $($file.Name) failed." }
+          }
+          Remove-Item $pfx -Force
+          "signed=true" >> $env:GITHUB_OUTPUT
+
+      - name: Write the release notes
+        shell: pwsh
+        run: |
+          $x64 = (Get-FileHash release/PcChecker.exe -Algorithm SHA256).Hash.ToLower()
+          $arm = (Get-FileHash release/PcChecker-arm64.exe -Algorithm SHA256).Hash.ToLower()
+          $size = [math]::Round((Get-Item release/PcChecker.exe).Length / 1MB, 1)
+          $signed = (Get-AuthenticodeSignature release/PcChecker.exe).Status -eq 'Valid'
           $lines = @(
             "## Download and run",
             "",
             "Download **PcChecker.exe** below and double-click it. That is all: there is nothing to install and .NET is built in.",
             "",
             "- Works on Windows 11 and Windows 10 22H2 (64-bit). Size: $size MB.",
-            "- Windows asks for administrator permission when it starts; PC Checker needs it to read sensors, SMART data and drivers and to apply the changes you choose.",
-            "- The first time, SmartScreen may say *Windows protected your PC* because the file is not code-signed yet. Click **More info** then **Run anyway**.",
+            "- Windows on Arm laptops (Snapdragon): download **PcChecker-arm64.exe** instead. Sensors, fan control and GPU tuning are limited on Arm because the hardware drivers they rely on are x64-only.",
+            "- Windows asks for administrator permission when it starts; PC Checker needs it to read sensors, SMART data and drivers and to apply the changes you choose."
+          )
+          if (-not $signed) {
+            $lines += "- The first time, SmartScreen may say *Windows protected your PC* because the file is not code-signed yet. Click **More info** then **Run anyway**."
+          }
+          $lines += @(
             "- PC Checker updates itself from this page (Settings, Updates). Settings and logs live in %LOCALAPPDATA%\PcChecker.",
             "",
-            "**SHA-256:** ``$hash``"
+            "**SHA-256 (PcChecker.exe):** ``$x64``",
+            "",
+            "**SHA-256 (PcChecker-arm64.exe):** ``$arm``"
           )
           Set-Content -Path release-notes.md -Value ($lines -join "`n")
           Get-Content release-notes.md
@@ -119,4 +149,6 @@ jobs:
           generate_release_notes: true
           prerelease: ${{ steps.version.outputs.prerelease == 'true' }}
           fail_on_unmatched_files: true
-          files: release/PcChecker.exe
+          files: |
+            release/PcChecker.exe
+            release/PcChecker-arm64.exe
