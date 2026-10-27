@@ -180,6 +180,14 @@ public class DriveTemperatureTests
         Assert.Equal(70, chosen);
     }
 
+    [Fact]
+    public void A_composite_reading_at_the_threshold_beats_a_stale_reliability_counter()
+    {
+        double? chosen = DriveTemperatureRules.Choose(
+            [(DriveTemperatureSource.HardwareMonitor, 70), (DriveTemperatureSource.ReliabilityCounter, 41)], 70, 80);
+        Assert.Equal(70, chosen);
+    }
+
     // ---- LibreHardwareMonitor sensor names ----------------------------------------------------------------------
 
     [Theory]
@@ -272,6 +280,21 @@ public class DriveTemperatureTests
         var tracker = new AlertTracker();
         Assert.Null(tracker.Evaluate(controller, settings, DateTimeOffset.Now));
         Assert.NotNull(tracker.Evaluate(drive with { Value = 58 }, settings, DateTimeOffset.Now));
+    }
+
+    [Fact]
+    public void Extra_sensor_limits_apply_on_top_of_thresholds_worked_out_elsewhere()
+    {
+        var settings = new MonitoringSettings { DiskWarnC = 55, DiskCritC = 65 };
+        var controller = Temp("c", Nvme, HardwareKind.Storage, "Controller", 62);
+        var drive = Temp("d", Nvme, HardwareKind.Storage, "Temperature", 36);
+        var gpu = Temp("g", "GPU", HardwareKind.Gpu, "GPU Hot Spot", 80);
+
+        // A role-based rule that only knows the hardware still ends with the higher limits for the controller sensor.
+        Assert.Equal((70.0, 80.0), SensorMath.AdjustForSensor(controller, (55, 65), settings));
+        Assert.Equal((55.0, 65.0), SensorMath.AdjustForSensor(drive, (55, 65), settings));
+        Assert.Equal((95.0, 105.0), SensorMath.AdjustForSensor(gpu, (95, 105), settings));
+        Assert.Null(SensorMath.AdjustForSensor(controller, null, settings));
     }
 
     [Fact]

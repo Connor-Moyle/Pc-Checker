@@ -43,7 +43,7 @@ public sealed partial class SensorRowViewModel : ObservableObject
     public SensorRowViewModel(SensorReading reading)
     {
         Id = reading.Id;
-        Name = reading.Name;
+        Name = DisplayNameFor(reading);
         HardwareName = reading.HardwareName;
         Hardware = reading.Hardware;
         Kind = reading.Kind;
@@ -60,6 +60,27 @@ public sealed partial class SensorRowViewModel : ObservableObject
         {
             Note = Loc.T("The drive's own temperature (NVMe composite or SMART). This is the value PC Checker reports for the drive.");
         }
+    }
+
+    /// <summary>
+    /// The name shown for the sensor. Core names drive sensors "Temperature", "Controller" and "Sensor N" in English
+    /// (it matches on them), so they are translated here, at display time.
+    /// </summary>
+    private static string DisplayNameFor(SensorReading reading)
+    {
+        if (reading is not { Hardware: HardwareKind.Storage, Kind: SensorKind.Temperature })
+        {
+            return reading.Name;
+        }
+
+        var info = DriveTemperatureRules.Classify(reading.Name);
+        return info switch
+        {
+            { Role: DriveSensorRole.Drive } => Loc.T("Temperature"),
+            { Role: DriveSensorRole.Extra, Label: "Controller" } => Loc.T("Controller"),
+            { Role: DriveSensorRole.Extra, SensorNumber: { } n } when info.Label.StartsWith("Sensor ", StringComparison.Ordinal) => Loc.F("Sensor {0}", n),
+            _ => reading.Name,
+        };
     }
 
     /// <summary>One-line explanation shown as the row tooltip (drive sensors only), or null.</summary>

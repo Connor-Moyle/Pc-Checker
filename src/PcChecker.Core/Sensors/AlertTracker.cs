@@ -43,11 +43,13 @@ public sealed class AlertTracker
             return null;
         }
 
-        if (SensorMath.ThresholdsFor(reading, settings) is not { } thresholds)
+        if (SensorMath.ThresholdsFor(reading.Hardware, settings) is not { } thresholds)
         {
             return null;
         }
 
+        // Kept as its own step so it also applies on top of role-based limits: extra drive sensors get higher limits.
+        thresholds = SensorMath.AdjustForSensor(reading, thresholds, settings);
         return Evaluate(reading.Id, reading.HardwareName, value, thresholds.Warn, thresholds.Crit, now);
     }
 

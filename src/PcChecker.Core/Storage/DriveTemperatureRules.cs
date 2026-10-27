@@ -259,10 +259,12 @@ public static partial class DriveTemperatureRules
     }
 
     /// <summary>
-    /// Picks the drive temperature from several sources. Implausible values are dropped. A value that equals one of
-    /// the drive's reported limits (WCTEMP/CCTEMP) is dropped when another source disagrees with it, because it is the
-    /// threshold read by mistake. Of what is left, LibreHardwareMonitor's composite reading wins, then SMART, then the
-    /// Windows reliability counter.
+    /// Picks the drive temperature from several sources. Implausible values are dropped. A SMART or reliability
+    /// counter value that equals one of the drive's reported limits (WCTEMP/CCTEMP) is dropped when another source
+    /// disagrees with it, because it is the threshold read by mistake. LibreHardwareMonitor's composite reading is
+    /// never dropped that way: its threshold sensors are filtered out by name, so a composite reading at the limit is a
+    /// drive that really is that hot. Of what is left, LibreHardwareMonitor's composite reading wins, then SMART, then
+    /// the Windows reliability counter.
     /// </summary>
     public static double? Choose(IEnumerable<(DriveTemperatureSource Source, double? Celsius)> candidates, params double?[] reportedLimits)
     {
@@ -276,7 +278,7 @@ public static partial class DriveTemperatureRules
         var limits = reportedLimits.Where(l => IsPlausible(l)).Select(l => l!.Value).ToList();
         if (limits.Count > 0)
         {
-            var notLimits = values.Where(v => !limits.Any(l => Math.Abs(l - v.Value) < 0.5)).ToList();
+            var notLimits = values.Where(v => v.Source == DriveTemperatureSource.HardwareMonitor || !limits.Any(l => Math.Abs(l - v.Value) < 0.5)).ToList();
             bool someoneDisagrees = notLimits.Count > 0 && values.Any(v => notLimits.All(o => Math.Abs(o.Value - v.Value) >= DisagreementC));
             if (someoneDisagrees)
             {

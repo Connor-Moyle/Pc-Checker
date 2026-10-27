@@ -89,10 +89,27 @@ public static class SensorMath
     public static (double Warn, double Crit)? ThresholdsFor(SensorReading reading, MonitoringSettings settings)
     {
         ArgumentNullException.ThrowIfNull(reading);
-        return reading.Hardware == HardwareKind.Storage && reading.Kind == SensorKind.Temperature
-            ? Storage.DriveTemperatureRules.Thresholds(reading, settings)
-            : ThresholdsFor(reading.Hardware, settings);
+        return AdjustForSensor(reading, ThresholdsFor(reading.Hardware, settings), settings);
     }
+
+    /// <summary>
+    /// Applies the limits that depend on the sensor itself rather than its hardware to thresholds worked out
+    /// elsewhere (per hardware, or per role): an extra drive sensor (NVMe controller, "Sensor 2") gets the drive limits
+    /// plus <see cref="Storage.DriveTemperatureRules.ExtraSensorMarginC"/>. Anything else passes through unchanged, so
+    /// this can run after any other threshold rule without undoing it.
+    /// </summary>
+    public static (double Warn, double Crit) AdjustForSensor(SensorReading reading, (double Warn, double Crit) thresholds, MonitoringSettings settings)
+    {
+        ArgumentNullException.ThrowIfNull(reading);
+        ArgumentNullException.ThrowIfNull(settings);
+        return Storage.DriveTemperatureRules.IsExtraDriveSensor(reading)
+            ? Storage.DriveTemperatureRules.Thresholds(reading, settings)
+            : thresholds;
+    }
+
+    /// <summary>Same as the non-nullable overload; a sensor with no limits (null) keeps none.</summary>
+    public static (double Warn, double Crit)? AdjustForSensor(SensorReading reading, (double Warn, double Crit)? thresholds, MonitoringSettings settings) =>
+        thresholds is { } t ? AdjustForSensor(reading, t, settings) : null;
 
     /// <summary>Evaluates a temperature against thresholds: null when fine, otherwise the severity crossed.</summary>
     public static Severity? Evaluate(double value, double warn, double crit)

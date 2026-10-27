@@ -418,7 +418,10 @@ public sealed partial class SensorsViewModel : ViewModelBase
         foreach (var reading in snapshot.Readings)
         {
             bool isTemperature = reading.Kind == SensorKind.Temperature;
-            var thresholds = isTemperature ? SensorMath.ThresholdsFor(reading, monitoring) : null;
+            var thresholds = isTemperature ? SensorMath.ThresholdsFor(reading.Hardware, monitoring) : null;
+
+            // A separate step so it also applies on top of role-based limits: extra drive sensors get higher limits.
+            thresholds = SensorMath.AdjustForSensor(reading, thresholds, monitoring);
 
             if (!_rows.TryGetValue(reading.Id, out var row))
             {
