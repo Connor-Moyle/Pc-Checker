@@ -68,6 +68,17 @@ public class RegistryPathToolsTests
         Assert.Equal(expected, RegistryPathTools.ExtractPath(value, FakeMachine.Get));
     }
 
+    [Theory]
+    [InlineData(@"C:\Program Files\Tool\tool.exe", @"C:\ProgramData\Package Cache\{11111111-2222-3333-4444-555555555555}\setup.exe", @"C:\Program Files\Tool\tool.exe")]
+    [InlineData(@"C:\ProgramData\Package Cache\{11111111-2222-3333-4444-555555555555}\setup.exe", @"C:\ProgramData\Package Cache\{11111111-2222-3333-4444-555555555555}\setup.exe", null)]
+    [InlineData(@"C:\Program Files (x86)\InstallShield Installation Information\{ABC}\icon.ico", @"C:\Program Files (x86)\InstallShield Installation Information\{ABC}\setup.exe", null)]
+    [InlineData(null, @"C:\ProgramData\Package Cache\{X}\setup.exe", null)]
+    [InlineData("", @"C:\ProgramData\Package Cache\{X}\setup.exe", null)]
+    public void Only_an_icon_away_from_the_uninstaller_says_whether_the_program_is_installed(string? icon, string uninstaller, string? expected)
+    {
+        Assert.Equal(expected, RegistryPathTools.IconOutsideUninstallerFolder(icon, uninstaller));
+    }
+
     [Fact]
     public void ExtractPath_expands_environment_variables_and_keeps_unknown_ones()
     {

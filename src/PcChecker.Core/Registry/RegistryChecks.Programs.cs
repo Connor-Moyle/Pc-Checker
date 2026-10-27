@@ -71,14 +71,43 @@ internal sealed partial class RegistryChecks
             return null;
         }
 
-        string? folder = location ?? RegistryPathTools.DirectoryName(Expand(uninstaller!));
+        string uninstallerPath = Expand(uninstaller!);
+        if (location is not null)
+        {
+            if (location.Length <= 3 || !IsReportableMissing(c.Category, location, publisher))
+            {
+                return null;
+            }
+
+            return RegistryIssueRules.Create(c.Category, c.Hive, c.KeyPath, null,
+                $"{Quote(name)} is still listed in Installed apps, but its uninstaller and install folder are gone.", uninstallerPath);
+        }
+
+        // No InstallLocation. Many setups keep the uninstaller in its own cache folder (WiX Package Cache\{guid},
+        // InstallShield Installation Information\{guid}), which disk cleaners remove while the program stays installed,
+        // so that folder proves nothing. An icon elsewhere that is gone too does; without one the entry is only reported.
+        var icon = RegistryPathTools.IconOutsideUninstallerFolder(PathFrom(RegistryAccess.Text(key, "DisplayIcon")), uninstallerPath);
+        if (icon is not null)
+        {
+            if (!IsReportableMissing(c.Category, icon, publisher))
+            {
+                return null;
+            }
+
+            return RegistryIssueRules.Create(c.Category, c.Hive, c.KeyPath, null,
+                $"{Quote(name)} is still listed in Installed apps, but its uninstaller and program files are gone.", uninstallerPath);
+        }
+
+        string? folder = RegistryPathTools.DirectoryName(uninstallerPath);
         if (folder is null || folder.Length <= 3 || !IsReportableMissing(c.Category, folder, publisher))
         {
             return null;
         }
 
         return RegistryIssueRules.Create(c.Category, c.Hive, c.KeyPath, null,
-            $"{Quote(name)} is still listed in Installed apps, but its uninstaller and install folder are gone.", Expand(uninstaller!));
+            $"{Quote(name)} is still listed in Installed apps, but its uninstaller is gone. The entry does not say where the program " +
+            "was installed, so PC Checker cannot tell whether it is still there and only reports it. If the program is gone, " +
+            "remove the entry from Settings > Apps > Installed apps.", uninstallerPath) with { SafeToFix = false };
     }
 
     /// <summary>True when Windows Installer has no usable cached package for the product; null when that cannot be told.</summary>

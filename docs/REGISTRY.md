@@ -43,9 +43,13 @@ Details that keep the checks honest:
 
 - **Uninstall entries** need a display name, are skipped when marked as a
   system component or published by Microsoft, and are only reported when both
-  the uninstaller *and* the install folder are gone. Windows Installer (MSI)
-  entries are only reported when the install folder is gone *and* Windows
-  Installer has no cached package for the product.
+  the uninstaller *and* the install folder are gone. When an entry does not
+  record its install folder, the uninstaller's own folder proves nothing
+  (installers often keep it in a cache folder that cleaners remove), so the
+  entry is only fixed when its icon file elsewhere is gone too; otherwise it is
+  listed as report only. Windows Installer (MSI) entries are only reported when
+  the install folder is gone *and* Windows Installer has no cached package for
+  the product.
 - **File types** (ProgIDs) are only reported when no file extension uses them
   any more; Open with list entries only when the program's own registration
   points at a missing file.

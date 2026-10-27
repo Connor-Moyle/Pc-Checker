@@ -411,6 +411,23 @@ public static partial class RegistryPathTools
         return slash > 2 ? p[..slash] : slash == 2 ? p[..3] : null;
     }
 
+    /// <summary>
+    /// For an uninstall entry without InstallLocation: the DisplayIcon file when it lies outside the uninstaller's own
+    /// folder, so it says something about the program itself. Null when there is no icon or it sits with the uninstaller,
+    /// as it does in installer caches (Package Cache\{guid}, InstallShield Installation Information\{guid}) whose
+    /// removal says nothing about whether the program is still installed.
+    /// </summary>
+    public static string? IconOutsideUninstallerFolder(string? iconPath, string uninstallerPath)
+    {
+        if (string.IsNullOrWhiteSpace(iconPath) || string.IsNullOrWhiteSpace(uninstallerPath))
+        {
+            return null;
+        }
+
+        var folder = DirectoryName(uninstallerPath);
+        return folder is null || IsUnderDirectory(iconPath, folder) ? null : iconPath;
+    }
+
     /// <summary>Short hive name (HKLM, HKCU, HKCR, HKU) to the regedit name (HKEY_LOCAL_MACHINE …) joined with the key path.</summary>
     public static string FullKeyName(string hive, string keyPath)
     {
