@@ -9,14 +9,35 @@ public sealed record DiskEventExplanation(long EventId, string Title, string Mea
 /// <summary>Known disk/controller/file-system events and what they mean for a non-expert.</summary>
 public static partial class DiskEventCatalog
 {
-    /// <summary>Event providers that report drive problems in the System log.</summary>
+    /// <summary>
+    /// Event providers that report drive problems in the System log. On Windows 10 and 11 NTFS and ReFS log through
+    /// their manifest providers (Microsoft-Windows-Ntfs, Microsoft-Windows-ReFS); the short names are older sources.
+    /// </summary>
     public static readonly string[] Providers =
     [
-        "disk", "Disk", "Ntfs", "ntfs", "storahci", "stornvme", "volmgr", "iaStorA", "iaStorAC", "iaStorAVC", "storport", "partmgr", "ReFS",
+        "disk", "Ntfs", "Microsoft-Windows-Ntfs", "ReFS", "Microsoft-Windows-ReFS", "storahci", "stornvme", "volmgr",
+        "iaStorA", "iaStorAC", "iaStorAVC", "storport", "partmgr",
     ];
 
     /// <summary>Event ids worth showing.</summary>
     public static readonly long[] EventIds = [7, 11, 51, 55, 98, 129, 140, 153, 157];
+
+    /// <summary>
+    /// The PowerShell pipeline that reads the disk events of the last <paramref name="days"/> days. The System log is
+    /// filtered by id and time only and the providers are matched afterwards (case-insensitively): a ProviderName filter
+    /// matches the exact registered name and makes Get-WinEvent fail when one of the names (an Intel RST driver, say) is
+    /// not installed, which would lose every other event as well.
+    /// </summary>
+    public static string BuildEventQuery(int days, int maxEvents = 300)
+    {
+        days = Math.Clamp(days, 1, 365);
+        string providers = string.Join(",", Providers.Distinct(StringComparer.OrdinalIgnoreCase).Select(PowerShellRunner.Quote));
+        string ids = string.Join(",", EventIds);
+        return
+            $"Get-WinEvent -FilterHashtable @{{LogName='System'; Id=@({ids}); StartTime=(Get-Date).AddDays(-{days})}} -ErrorAction SilentlyContinue " +
+            $"| Where-Object {{ @({providers}) -contains $_.ProviderName }} | Select-Object -First {maxEvents} " +
+            "| Select-Object @{n='Time';e={$_.TimeCreated.ToString('o')}}, @{n='Source';e={$_.ProviderName}}, @{n='Id';e={$_.Id}}, @{n='Message';e={$_.Message}}";
+    }
 
     private static readonly Dictionary<long, DiskEventExplanation> Table = new()
     {

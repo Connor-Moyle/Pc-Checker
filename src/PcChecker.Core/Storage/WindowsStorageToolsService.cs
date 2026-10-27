@@ -72,16 +72,14 @@ public sealed partial class WindowsStorageToolsService : IStorageToolsService, I
             return [];
         }
 
-        days = Math.Clamp(days, 1, 365);
-        string providers = string.Join(",", DiskEventCatalog.Providers.Distinct(StringComparer.OrdinalIgnoreCase).Select(PowerShellRunner.Quote));
-        string ids = string.Join(",", DiskEventCatalog.EventIds);
-        string command =
-            $"Get-WinEvent -FilterHashtable @{{LogName='System'; ProviderName=@({providers}); Id=@({ids}); StartTime=(Get-Date).AddDays(-{days})}} -MaxEvents 300 -ErrorAction SilentlyContinue " +
-            "| Select-Object @{n='Time';e={$_.TimeCreated.ToString('o')}}, @{n='Source';e={$_.ProviderName}}, @{n='Id';e={$_.Id}}, @{n='Message';e={$_.Message}}";
+        string command = DiskEventCatalog.BuildEventQuery(days);
 
         try
         {
-            var rows = await PowerShellRunner.RunJsonAsync<List<EventRow>>(command, TimeSpan.FromSeconds(90), cancellationToken).ConfigureAwait(false);
+            // Get-WinEvent writes a non-terminating error (and PowerShell exits with 1) when nothing matches or a log
+            // entry cannot be rendered; whatever it did return is still valid, so the exit code alone is not a failure.
+            var result = await PowerShellRunner.RunAsync($"({command}) | ConvertTo-Json -Depth 4 -Compress", TimeSpan.FromSeconds(90), cancellationToken).ConfigureAwait(false);
+            var rows = result.TimedOut || string.IsNullOrWhiteSpace(result.StdOut) ? null : PowerShellRunner.ParseJson<List<EventRow>>(result.StdOut);
             if (rows is null)
             {
                 return [];

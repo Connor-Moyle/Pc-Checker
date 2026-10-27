@@ -279,6 +279,25 @@ public class StorageTests
     }
 
     [Fact]
+    public void Disk_event_query_finds_manifest_ntfs_events_and_filters_providers_afterwards()
+    {
+        Assert.Contains("Microsoft-Windows-Ntfs", DiskEventCatalog.Providers);
+        Assert.Contains("Microsoft-Windows-ReFS", DiskEventCatalog.Providers);
+        Assert.Equal(DiskEventCatalog.Providers.Length, DiskEventCatalog.Providers.Distinct(StringComparer.OrdinalIgnoreCase).Count());
+
+        string query = DiskEventCatalog.BuildEventQuery(30);
+        // A ProviderName filter makes Get-WinEvent fail when one of the providers is not installed.
+        Assert.DoesNotContain("ProviderName=", query);
+        Assert.Contains("Id=@(7,11,51,55,98,129,140,153,157)", query);
+        Assert.Contains("AddDays(-30)", query);
+        Assert.Contains("-contains $_.ProviderName", query);
+        Assert.Contains("'Microsoft-Windows-Ntfs'", query);
+        Assert.Contains("Select-Object -First 300", query);
+        Assert.Contains("AddDays(-365)", DiskEventCatalog.BuildEventQuery(5000));
+        Assert.Contains("AddDays(-1)", DiskEventCatalog.BuildEventQuery(0));
+    }
+
+    [Fact]
     public void Unknown_event_gets_generic_explanation_and_worst_severity_is_computed()
     {
         var e = DiskEventCatalog.Explain(9999);
