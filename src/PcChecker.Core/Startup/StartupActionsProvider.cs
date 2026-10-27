@@ -5,7 +5,8 @@ namespace PcChecker.Core.Startup;
 
 /// <summary>
 /// Optimization actions the Startup module contributes to the Optimize page: fast startup on/off and a 3-second boot
-/// menu. Changes go through <see cref="IStartupService"/>, which runs them through the change guard.
+/// menu. Changes go through <see cref="IStartupService"/>, which runs them through the change guard. Revert restores
+/// the values from before the first change (see <see cref="BootSettingsReverter"/>), not fixed defaults.
 /// </summary>
 public sealed class StartupActionsProvider : IOptimizationActionProvider
 {
@@ -13,13 +14,15 @@ public sealed class StartupActionsProvider : IOptimizationActionProvider
     public const string FastStartupOff = "startup.faststartup.off";
     public const string Timeout3s = "startup.timeout.3s";
     public const int ShortTimeoutSeconds = 3;
-    public const int DefaultTimeoutSeconds = 30;
+    public const int DefaultTimeoutSeconds = BootSettingsReverter.DefaultTimeoutSeconds;
 
     private readonly IStartupService _startup;
+    private readonly BootSettingsReverter _reverter;
 
-    public StartupActionsProvider(IStartupService startup)
+    public StartupActionsProvider(IStartupService startup, IBootSettingsStore? store = null)
     {
         _startup = startup;
+        _reverter = new BootSettingsReverter(startup, store ?? new RegistryBootSettingsStore());
     }
 
     public IReadOnlyList<OptimizationAction> Actions { get; } =
@@ -64,17 +67,17 @@ public sealed class StartupActionsProvider : IOptimizationActionProvider
 
     public Task<OperationResult> ApplyAsync(string id, CancellationToken cancellationToken) => id.ToLowerInvariant() switch
     {
-        FastStartupOn => _startup.SetFastStartupAsync(true, cancellationToken),
-        FastStartupOff => _startup.SetFastStartupAsync(false, cancellationToken),
-        Timeout3s => _startup.SetBootTimeoutAsync(ShortTimeoutSeconds, cancellationToken),
+        FastStartupOn => _reverter.SetFastStartupAsync(true, cancellationToken),
+        FastStartupOff => _reverter.SetFastStartupAsync(false, cancellationToken),
+        Timeout3s => _reverter.SetBootTimeoutAsync(ShortTimeoutSeconds, cancellationToken),
         _ => Task.FromResult(OperationResult.Fail($"Unknown startup action '{id}'.")),
     };
 
     public Task<OperationResult> RevertAsync(string id, CancellationToken cancellationToken) => id.ToLowerInvariant() switch
     {
-        FastStartupOn => _startup.SetFastStartupAsync(false, cancellationToken),
-        FastStartupOff => _startup.SetFastStartupAsync(true, cancellationToken),
-        Timeout3s => _startup.SetBootTimeoutAsync(DefaultTimeoutSeconds, cancellationToken),
+        FastStartupOn => _reverter.RevertFastStartupAsync(appliedEnabled: true, cancellationToken),
+        FastStartupOff => _reverter.RevertFastStartupAsync(appliedEnabled: false, cancellationToken),
+        Timeout3s => _reverter.RevertBootTimeoutAsync(cancellationToken),
         _ => Task.FromResult(OperationResult.Fail($"Unknown startup action '{id}'.")),
     };
 }

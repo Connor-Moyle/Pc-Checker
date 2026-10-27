@@ -39,6 +39,7 @@ public sealed partial class WindowsOptimizationService : IOptimizationService, I
     private readonly IReadOnlyList<IOptimizationActionProvider> _providers;
     private readonly ILogger<WindowsOptimizationService> _logger;
     private readonly Dictionary<string, Handler> _handlers;
+    private readonly BootSettingsReverter _bootSettings;
     private Guid? _previousPowerScheme;
 
     public WindowsOptimizationService(IChangeGuard guard, IStartupService startup, IEnumerable<IOptimizationActionProvider> providers,
@@ -49,6 +50,7 @@ public sealed partial class WindowsOptimizationService : IOptimizationService, I
         _providers = providers.ToList();
         _logger = logger;
         _handlers = BuildHandlers();
+        _bootSettings = new BootSettingsReverter(startup, new RegistryBootSettingsStore());
     }
 
     public event EventHandler<string>? OutputLine;
@@ -161,9 +163,12 @@ public sealed partial class WindowsOptimizationService : IOptimizationService, I
         if (actionId is "faststartup.enable" or "faststartup.disable")
         {
             // Fast startup needs hibernation; the Startup module turns that on first and guards/journals the change itself,
-            // so both pages behave the same instead of this one silently writing HiberbootEnabled.
-            bool enable = actionId == "faststartup.enable" ? !revert : revert;
-            return await _startup.SetFastStartupAsync(enable, cancellationToken).ConfigureAwait(false);
+            // so both pages behave the same instead of this one silently writing HiberbootEnabled. Revert restores the
+            // state from before the change and never turns hibernation on unless it was on.
+            bool applied = actionId == "faststartup.enable";
+            return revert
+                ? await _bootSettings.RevertFastStartupAsync(applied, cancellationToken).ConfigureAwait(false)
+                : await _bootSettings.SetFastStartupAsync(applied, cancellationToken).ConfigureAwait(false);
         }
 
         string description = (revert ? "Undo: " : string.Empty) + action.Title;

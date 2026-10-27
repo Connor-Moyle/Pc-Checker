@@ -479,6 +479,103 @@ public class StartupActionsProviderTests
         Assert.True((await provider.GetStateAsync(StartupActionsProvider.FastStartupOff, CancellationToken.None)).IsApplied);
         Assert.False((await provider.ApplyAsync("startup.nope", CancellationToken.None)).Success);
     }
+
+    [Fact]
+    public async Task Timeout_revert_restores_the_users_own_timeout()
+    {
+        var demo = new DemoStartupService();
+        await demo.SetBootTimeoutAsync(10, CancellationToken.None);
+        var provider = new StartupActionsProvider(demo);
+        Assert.True((await provider.ApplyAsync(StartupActionsProvider.Timeout3s, CancellationToken.None)).Success);
+        Assert.True((await provider.ApplyAsync(StartupActionsProvider.Timeout3s, CancellationToken.None)).Success);
+        Assert.True((await provider.RevertAsync(StartupActionsProvider.Timeout3s, CancellationToken.None)).Success);
+        Assert.Equal(10, (await demo.GetBootConfigAsync(CancellationToken.None)).TimeoutSeconds);
+    }
+
+    [Fact]
+    public async Task Fast_startup_revert_never_turns_hibernation_on_when_it_was_off()
+    {
+        // Hibernation was turned off earlier, leaving HiberbootEnabled = 1 behind.
+        var boot = new FakeBootService(fastStartup: true, hibernation: false);
+        var provider = new StartupActionsProvider(boot, new MemoryBootSettingsStore());
+        Assert.True((await provider.ApplyAsync(StartupActionsProvider.FastStartupOff, CancellationToken.None)).Success);
+        var revert = await provider.RevertAsync(StartupActionsProvider.FastStartupOff, CancellationToken.None);
+        Assert.True(revert.Success);
+        Assert.Equal([false], boot.FastStartupCalls);
+        Assert.False(boot.Config.HibernationEnabled);
+    }
+
+    [Fact]
+    public async Task Fast_startup_revert_restores_the_original_state()
+    {
+        var on = new FakeBootService(fastStartup: true, hibernation: true);
+        var provider = new StartupActionsProvider(on, new MemoryBootSettingsStore());
+        await provider.ApplyAsync(StartupActionsProvider.FastStartupOff, CancellationToken.None);
+        Assert.True((await provider.RevertAsync(StartupActionsProvider.FastStartupOff, CancellationToken.None)).Success);
+        Assert.Equal([false, true], on.FastStartupCalls);
+
+        // Already off before "turn off": Revert leaves it off.
+        var off = new FakeBootService(fastStartup: false, hibernation: true);
+        provider = new StartupActionsProvider(off, new MemoryBootSettingsStore());
+        await provider.ApplyAsync(StartupActionsProvider.FastStartupOff, CancellationToken.None);
+        Assert.True((await provider.RevertAsync(StartupActionsProvider.FastStartupOff, CancellationToken.None)).Success);
+        Assert.Equal([false], off.FastStartupCalls);
+
+        // Turned on (which turned hibernation on): Revert turns fast startup off and says hibernation is still on.
+        var hib = new FakeBootService(fastStartup: false, hibernation: false);
+        provider = new StartupActionsProvider(hib, new MemoryBootSettingsStore());
+        await provider.ApplyAsync(StartupActionsProvider.FastStartupOn, CancellationToken.None);
+        var undo = await provider.RevertAsync(StartupActionsProvider.FastStartupOn, CancellationToken.None);
+        Assert.True(undo.Success);
+        Assert.Equal([true, false], hib.FastStartupCalls);
+        Assert.Contains("Hibernation", undo.Message);
+    }
+
+    private sealed class MemoryBootSettingsStore : IBootSettingsStore
+    {
+        private readonly Dictionary<string, int> _values = [];
+
+        public int? Get(string name) => _values.TryGetValue(name, out int v) ? v : null;
+
+        public void Set(string name, int value) => _values[name] = value;
+
+        public void Remove(string name) => _values.Remove(name);
+    }
+
+    private sealed class FakeBootService(bool fastStartup, bool hibernation) : IStartupService
+    {
+        public BootConfig Config { get; private set; } = BootConfig.Unknown with { FastStartup = fastStartup, HibernationEnabled = hibernation };
+
+        public List<bool> FastStartupCalls { get; } = [];
+
+        public Task<BootConfig> GetBootConfigAsync(CancellationToken cancellationToken) => Task.FromResult(Config);
+
+        public Task<OperationResult> SetFastStartupAsync(bool enabled, CancellationToken cancellationToken)
+        {
+            FastStartupCalls.Add(enabled);
+            Config = Config with { FastStartup = enabled, HibernationEnabled = enabled || Config.HibernationEnabled };
+            return Task.FromResult(OperationResult.Ok(enabled ? "Fast startup is on." : "Fast startup is off."));
+        }
+
+        public Task<OperationResult> SetBootTimeoutAsync(int seconds, CancellationToken cancellationToken)
+        {
+            Config = Config with { TimeoutSeconds = seconds };
+            return Task.FromResult(OperationResult.Ok());
+        }
+
+        public Task<IReadOnlyList<StartupItem>> GetStartupItemsAsync(CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<OperationResult> SetStartupItemEnabledAsync(StartupItem item, bool enabled, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<OperationResult> RemoveStartupItemAsync(StartupItem item, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<OperationResult> AddStartupItemAsync(string name, string command, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<IReadOnlyList<ServiceInfo>> GetAutoStartServicesAsync(CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<OperationResult> SetServiceStartModeAsync(string serviceName, string startMode, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<OperationResult> SetSafeModeNextBootAsync(bool enabled, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<OperationResult> RestartToUefiAsync(CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<OperationResult> RestartToAdvancedStartupAsync(CancellationToken cancellationToken) => throw new NotSupportedException();
+        public OperationResult OpenStartupAppsSettings() => throw new NotSupportedException();
+        public OperationResult OpenTaskScheduler() => throw new NotSupportedException();
+        public OperationResult OpenSystemConfiguration() => throw new NotSupportedException();
+    }
 }
 
 public class DemoStartupServiceTests
