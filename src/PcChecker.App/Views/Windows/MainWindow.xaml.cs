@@ -46,10 +46,7 @@ public partial class MainWindow : FluentWindow
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
-        if (_settings.Current.General.Theme == AppTheme.System)
-        {
-            SystemThemeWatcher.Watch(this, WindowBackdropType.Mica, true);
-        }
+        SettingsViewModel.FollowSystemTheme(this, _settings.Current.General.Theme == AppTheme.System);
 
         NameTitleBarButtons();
         _navigation.Navigate(typeof(DashboardPage));

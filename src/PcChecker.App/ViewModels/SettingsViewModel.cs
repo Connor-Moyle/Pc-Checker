@@ -308,6 +308,42 @@ public sealed partial class SettingsViewModel : ViewModelBase
 
         ApplicationThemeManager.Apply(applied, WindowBackdropType.Mica, true);
         ThemeColors.Apply(applied);
+        if (System.Windows.Application.Current?.Windows.OfType<Views.Windows.MainWindow>().FirstOrDefault() is { IsLoaded: true } main)
+        {
+            FollowSystemTheme(main, theme == AppTheme.System);
+        }
+    }
+
+    private static bool _followingSystemTheme;
+
+    /// <summary>
+    /// Follows Windows switching between light and dark mode only while the theme setting is System, so a later change
+    /// in Settings starts or stops it and an explicit Light or Dark choice is never overridden.
+    /// </summary>
+    public static void FollowSystemTheme(System.Windows.Window window, bool follow)
+    {
+        if (follow == _followingSystemTheme)
+        {
+            return;
+        }
+
+        try
+        {
+            if (follow)
+            {
+                SystemThemeWatcher.Watch(window, WindowBackdropType.Mica, true);
+            }
+            else
+            {
+                SystemThemeWatcher.UnWatch(window);
+            }
+
+            _followingSystemTheme = follow;
+        }
+        catch (InvalidOperationException)
+        {
+            // The window has no handle yet; MainWindow starts following when it loads.
+        }
     }
 
     [RelayCommand]
