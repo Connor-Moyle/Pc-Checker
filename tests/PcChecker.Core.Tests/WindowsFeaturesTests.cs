@@ -88,3 +88,37 @@ public class InboxAppCatalogTests
         }
     }
 }
+
+public class InboxAppRemovalScriptTests
+{
+    [Fact]
+    public void Removing_for_this_account_fails_when_the_app_is_not_installed_for_it()
+    {
+        var script = WindowsFeatureService.BuildRemoveAppScript("Microsoft.BingNews", "News", allUsers: false);
+        Assert.Contains("$p = @(Get-AppxPackage -Name 'Microsoft.BingNews')", script);
+        Assert.Contains("if ($p.Count -eq 0) { throw (", script);
+        Assert.Contains("News is not installed for the account PC Checker runs as", script);
+        Assert.Contains("$p | Remove-AppxPackage;", script);
+        Assert.DoesNotContain("-AllUsers", script);
+        Assert.True(script.IndexOf("throw", StringComparison.Ordinal) < script.IndexOf("Removed = $true", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Removing_for_all_users_fails_only_when_no_account_and_no_provisioned_copy_has_the_app()
+    {
+        var script = WindowsFeatureService.BuildRemoveAppScript("Microsoft.BingNews", "News", allUsers: true);
+        Assert.Contains("$p = @(Get-AppxPackage -AllUsers -Name 'Microsoft.BingNews')", script);
+        Assert.Contains("$_.DisplayName -eq 'Microsoft.BingNews'", script);
+        Assert.Contains("if ($p.Count -eq 0 -and $v.Count -eq 0) { throw 'News is not installed for any account", script);
+        Assert.Contains("$p | Remove-AppxPackage -AllUsers;", script);
+        Assert.Contains("$v | Remove-AppxProvisionedPackage -Online | Out-Null;", script);
+    }
+
+    [Fact]
+    public void Names_with_quotes_are_escaped_for_powershell()
+    {
+        var script = WindowsFeatureService.BuildRemoveAppScript("Vendor.App'X", "Bob's app", allUsers: false);
+        Assert.Contains("-Name 'Vendor.App''X'", script);
+        Assert.Contains("'Bob''s app is not installed", script);
+    }
+}

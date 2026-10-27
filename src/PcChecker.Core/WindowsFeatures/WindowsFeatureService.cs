@@ -91,13 +91,7 @@ public sealed class WindowsFeatureService : IWindowsFeatureService
             return Task.FromResult(OperationResult.Fail($"{feature.DisplayName} is marked as not removable by Windows or by PC Checker's safety list."));
         }
 
-        var name = PowerShellRunner.Quote(feature.Name);
-        var script = allUsers
-            ? $"$ErrorActionPreference = 'Stop'; Get-AppxPackage -AllUsers -Name {name} | Remove-AppxPackage -AllUsers; " +
-              $"Get-AppxProvisionedPackage -Online | Where-Object {{ $_.DisplayName -eq {name} }} | Remove-AppxProvisionedPackage -Online | Out-Null; " +
-              "[pscustomobject]@{ RestartNeeded = $false; Removed = $true } | ConvertTo-Json -Compress"
-            : $"$ErrorActionPreference = 'Stop'; Get-AppxPackage -Name {name} | Remove-AppxPackage; " +
-              "[pscustomobject]@{ RestartNeeded = $false; Removed = $true } | ConvertTo-Json -Compress";
+        var script = BuildRemoveAppScript(feature.Name, feature.DisplayName, allUsers);
 
         var options = new ChangeOptions(null, null, ModuleName, feature.Name, Reversible: true,
             UndoHint: "Reinstall the app from the Microsoft Store (search for its name).")
@@ -105,6 +99,34 @@ public sealed class WindowsFeatureService : IWindowsFeatureService
 
         return _guard.RunGuardedAsync($"Remove {feature.DisplayName}{(allUsers ? " for all users" : string.Empty)}", options,
             ct => ExecuteAsync(script, $"{feature.DisplayName} removed{(allUsers ? " for all users" : string.Empty)}.", ct), null, cancellationToken);
+    }
+
+    /// <summary>
+    /// The PowerShell that removes a built-in app for the account PC Checker runs as, or for every account and new
+    /// accounts. The app list comes from <c>Get-AppxPackage -AllUsers</c>, so an app may be installed only for another
+    /// account (PC Checker runs as administrator, which is often not the everyday account). When there is nothing to
+    /// remove the script fails instead of reporting a removal that did not happen.
+    /// </summary>
+    public static string BuildRemoveAppScript(string packageName, string displayName, bool allUsers)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(packageName);
+        var name = PowerShellRunner.Quote(packageName);
+        var app = string.IsNullOrWhiteSpace(displayName) ? packageName : displayName.Trim();
+        const string done = "[pscustomobject]@{ RestartNeeded = $false; Removed = $true } | ConvertTo-Json -Compress";
+        if (allUsers)
+        {
+            var none = PowerShellRunner.Quote($"{app} is not installed for any account on this PC, so nothing was removed.");
+            return $"$ErrorActionPreference = 'Stop'; $p = @(Get-AppxPackage -AllUsers -Name {name}); " +
+                   $"$v = @(Get-AppxProvisionedPackage -Online | Where-Object {{ $_.DisplayName -eq {name} }}); " +
+                   $"if ($p.Count -eq 0 -and $v.Count -eq 0) {{ throw {none} }}; " +
+                   "$p | Remove-AppxPackage -AllUsers; $v | Remove-AppxProvisionedPackage -Online | Out-Null; " + done;
+        }
+
+        var before = PowerShellRunner.Quote($"{app} is not installed for the account PC Checker runs as (");
+        var after = PowerShellRunner.Quote("), so nothing was removed. It is installed for another account; remove it for all users to take it off that account.");
+        return $"$ErrorActionPreference = 'Stop'; $p = @(Get-AppxPackage -Name {name}); " +
+               $"if ($p.Count -eq 0) {{ throw ({before} + $env:USERNAME + {after}) }}; " +
+               "$p | Remove-AppxPackage; " + done;
     }
 
     private Task<OperationResult> RunChangeAsync(string description, WindowsFeature feature, string command, string undoHint, CancellationToken cancellationToken)
