@@ -20,6 +20,19 @@ All notable changes to PC Checker are recorded here. The format follows
   mode" hint; *Run a check-up* in the tray menu; empty states on Temperatures
   and Fans with a next step; Settings' *Reset to defaults* moved under *More*.
 
+- **Drivers → Your PC**: a card at the top of the Updates tab with your board
+  or PC model, BIOS version and date (and a hint when the BIOS is over two
+  years old), the chipset driver against the maker's newest and one-click
+  links to the exact support page (ASUS, MSI, GIGABYTE/AORUS, ASRock boards;
+  Dell by service tag, Lenovo by machine type, HP, Acer, Surface, Framework).
+  AMD Chipset Software is compared with AMD's chipset page for your socket and
+  can be installed from AMD's server through the signed-package flow; Intel
+  chipsets link to Intel and to the PC maker for the Management Engine.
+  Network, audio and Bluetooth devices link to Intel, Realtek, Killer or your
+  board or PC maker (never generic audio drivers), and Lenovo PCs are compared
+  with Lenovo's public driver and BIOS catalog. Each source can be switched
+  off; answers are kept for 12 hours and shown offline. BIOS updates are never
+  run by the app.
 ## [0.5.0] - 2026-10-27
 
 A Task Manager replacement (Processes, Live usage, Services, Users), every fan, drive and RGB device found correctly, debloat tweaks that really apply, drivers from the makers themselves, Windows Update roll back, PawnIO from inside the app, and much wider debloat, cleanup and AMD coverage.

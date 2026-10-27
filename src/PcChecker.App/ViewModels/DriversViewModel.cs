@@ -8,6 +8,7 @@ using PcChecker.App.Services;
 using PcChecker.App.Views.Pages;
 using PcChecker.Core.Common;
 using PcChecker.Core.Drivers;
+using PcChecker.Core.Drivers.Platform;
 using PcChecker.Core.Drivers.Sources;
 using PcChecker.Core.Settings;
 using Wpf.Ui;
@@ -24,6 +25,7 @@ public sealed partial class DriversViewModel : ViewModelBase
 {
     private readonly IDriverService _drivers;
     private readonly IDriverSourceService _sources;
+    private readonly IPcPlatformService _pcPlatform;
     private readonly IDialogService _dialogs;
     private readonly INotificationService _notifications;
     private readonly INavigationService _navigation;
@@ -98,11 +100,12 @@ public sealed partial class DriversViewModel : ViewModelBase
     private int _visibleDriverCount;
 
     public DriversViewModel(ISettingsService settings, IDriverService drivers, IDriverSourceService sources, IDialogService dialogs,
-        INotificationService notifications, INavigationService navigation, ILogger<DriversViewModel> logger)
+        INotificationService notifications, INavigationService navigation, ILogger<DriversViewModel> logger, IPcPlatformService pcPlatform)
         : base(settings)
     {
         _drivers = drivers;
         _sources = sources;
+        _pcPlatform = pcPlatform;
         _dialogs = dialogs;
         _notifications = notifications;
         _navigation = navigation;
@@ -143,6 +146,9 @@ public sealed partial class DriversViewModel : ViewModelBase
     {
         await RunScanAsync(cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
+
+        // The "Your PC" card reads the board, BIOS and chipset from this PC (and saved maker answers) without going online.
+        await LoadPlatformAsync(online: false, force: false, cancellationToken);
         if (AppOptions.Current.IsDemo)
         {
             await RunUpdateCheckAsync(cancellationToken);

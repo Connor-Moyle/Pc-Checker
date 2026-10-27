@@ -583,7 +583,7 @@ public class DriverSourceSearchTests
         Assert.Contains(gpu.Offers, o => o.Source == DriverSourceKind.WindowsUpdate && !o.IsNewest);
         Assert.Contains(result.Devices, d => d.Offers.Any(o => o.Source == DriverSourceKind.Intel));
         var system = result.Devices.Single(d => d.Device.Key == DriverOfferMerger.SystemKey);
-        Assert.Contains(system.Offers, o => o.Action == DriverOfferAction.OpenTool && o.Title == "Armoury Crate");
+        Assert.Contains(system.Offers, o => o.Action == DriverOfferAction.OpenTool && o.Title == "MSI Center");
         Assert.Contains(system.Offers, o => o.Action == DriverOfferAction.InstallTool && o.WingetId == "Intel.IntelDriverAndSupportAssistant");
         Assert.Contains(result.Sources, s => s.Source == DriverSourceKind.Amd && s.Message.Contains("No AMD", StringComparison.Ordinal));
 

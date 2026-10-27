@@ -17,13 +17,20 @@ internal static class VendorHttp
     public static readonly TimeSpan LookupTimeout = TimeSpan.FromSeconds(30);
 
     /// <summary>Fetches text from an allow-listed URL. Throws <see cref="HttpRequestException"/> for network and HTTP errors.</summary>
-    public static async Task<string> GetStringAsync(string url, IReadOnlyList<string> allowedHosts, CancellationToken cancellationToken)
+    public static Task<string> GetStringAsync(string url, IReadOnlyList<string> allowedHosts, CancellationToken cancellationToken) =>
+        GetStringAsync(url, allowedHosts, null, cancellationToken);
+
+    /// <summary>
+    /// Fetches text from an allow-listed URL, sending <paramref name="referrer"/> (HTTPS only) as a browser that came
+    /// from that page would. Throws <see cref="HttpRequestException"/> (with the status code) for network and HTTP errors.
+    /// </summary>
+    public static async Task<string> GetStringAsync(string url, IReadOnlyList<string> allowedHosts, string? referrer, CancellationToken cancellationToken)
     {
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(LookupTimeout);
         try
         {
-            using var response = await SendAsync(HttpMethod.Get, url, allowedHosts, null, HttpCompletionOption.ResponseContentRead, timeout.Token).ConfigureAwait(false);
+            using var response = await SendAsync(HttpMethod.Get, url, allowedHosts, referrer, HttpCompletionOption.ResponseContentRead, timeout.Token).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
             return await response.Content.ReadAsStringAsync(timeout.Token).ConfigureAwait(false);
         }

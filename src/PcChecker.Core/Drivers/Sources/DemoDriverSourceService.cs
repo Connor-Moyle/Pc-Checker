@@ -1,6 +1,6 @@
 using System.Globalization;
 using PcChecker.Core.Common;
-using PcChecker.Core.Hardware;
+using PcChecker.Core.Drivers.Platform;
 using PcChecker.Core.Settings;
 
 namespace PcChecker.Core.Drivers.Sources;
@@ -8,18 +8,21 @@ namespace PcChecker.Core.Drivers.Sources;
 /// <summary>
 /// Demo driver sources for the sample gaming desktop: Windows Update (the demo driver service's two updates plus an
 /// older GeForce driver), NVIDIA's Game Ready or Studio release for the RTX 4070 through the real parser, Intel's
-/// Wi-Fi and Bluetooth pages, Intel's assistant installable with winget, and ASUS Armoury Crate for the ROG board.
+/// Wi-Fi and Bluetooth pages, Intel's assistant installable with winget, MSI Center for the MSI B650 board, AMD
+/// Chipset Software one release behind, and the board maker's page for Realtek audio and Ethernet.
 /// Nothing touches the network or the machine.
 /// </summary>
 public sealed class DemoDriverSourceService : IDriverSourceService
 {
     private readonly IDriverService _drivers;
     private readonly ISettingsService? _settings;
+    private readonly IPcPlatformService _platform;
 
-    public DemoDriverSourceService(IDriverService drivers, ISettingsService? settings = null)
+    public DemoDriverSourceService(IDriverService drivers, ISettingsService? settings = null, IPcPlatformService? platform = null)
     {
         _drivers = drivers;
         _settings = settings;
+        _platform = platform ?? new DemoPcPlatformService(settings);
     }
 
     /// <summary>The older GeForce driver Windows Update offers in the demo (566.14 in NVIDIA's numbering).</summary>
@@ -41,13 +44,14 @@ public sealed class DemoDriverSourceService : IDriverSourceService
         }
 
         var settings = (_settings?.Current.DriverSources ?? new DriverSourceSettings()).Clone();
-        var facts = DriverSourceSearch.FactsFrom(DemoHardwareInventoryService.Build());
+        var facts = SmbiosNormalizer.ToDriverFacts(SmbiosNormalizer.Normalize(DemoPcPlatformService.Facts), DemoPcPlatformService.Facts);
         var context = new DriverSourceContext(installed, facts, settings);
-        IReadOnlyList<OemToolInstall> armoury = OemToolCatalog.Tools.Where(t => t.Id == "armoury-crate")
-            .Select(t => new OemToolInstall(t, null, "B9ECED6F.ArmouryCrate_qmba6cd70vzyy!App")).ToList();
+        IReadOnlyList<OemToolInstall> msiCenter = OemToolCatalog.Tools.Where(t => t.Id == "msi-center")
+            .Select(t => new OemToolInstall(t, null, "9426MICRO-STARINTERNATION.MSICenter_kzh8wxbdkxb8p!App")).ToList();
         Task<IReadOnlyList<OemToolInstall>> Detect(IReadOnlyList<OemTool> tools, CancellationToken ct) =>
-            Task.FromResult<IReadOnlyList<OemToolInstall>>(armoury.Where(a => tools.Any(t => t.Id == a.Tool.Id)).ToList());
+            Task.FromResult<IReadOnlyList<OemToolInstall>>(msiCenter.Where(a => tools.Any(t => t.Id == a.Tool.Id)).ToList());
         Task<bool> Winget(CancellationToken ct) => Task.FromResult(true);
+        Task<PcPlatformReport> Report(bool online, CancellationToken ct) => _platform.CheckAsync(online, false, null, ct);
 
         IReadOnlyList<IDriverUpdateProvider> providers =
         [
@@ -56,6 +60,9 @@ public sealed class DemoDriverSourceService : IDriverSourceService
             new AmdDriverProvider((_, _) => Task.FromResult(string.Empty), () => [], Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance),
             new IntelDriverProvider(Detect, Winget),
             new PcMakerToolProvider(Detect, Winget),
+            new ChipsetDriverProvider(Report),
+            new DeviceMakerProvider(Report),
+            new MakerCatalogProvider(Report),
         ];
         return await DriverSourceSearch.RunAsync(providers, context, progress, cancellationToken).ConfigureAwait(false);
     }
@@ -84,7 +91,7 @@ public sealed class DemoDriverSourceService : IDriverSourceService
             return OperationResult<VendorPackageInfo>.Fail(refusal);
         }
 
-        long size = offer.Source == DriverSourceKind.Nvidia ? 1_037_190_000 : 2_900_000;
+        long size = offer.Source == DriverSourceKind.Nvidia ? 1_037_190_000 : offer.Id.StartsWith("amd-chipset:", StringComparison.Ordinal) ? 74_400_000 : 2_900_000;
         return OperationResult<VendorPackageInfo>.Ok(new VendorPackageInfo(offer.Url!, VendorDownloadRules.InstallerFileName(offer.Url)!, size,
             VendorDownloadRules.ExpectedSignerText(offer.Source)));
     }
