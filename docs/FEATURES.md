@@ -599,8 +599,13 @@ Win11Debloat, O&O ShutUp10++, Sophia Script and others; full list and table in
 - **Presets**: Recommended (highlighted), Gaming, Privacy max, Minimal UI,
   Remove consumer apps and Custom. A preset only ticks boxes.
 - **Categories**: Privacy & telemetry, Ads & suggestions, AI & Copilot,
-  Taskbar & Start, File Explorer, Edge & OneDrive, Gaming & Xbox, and
-  (**Advanced**) Windows Update and Background services, plus Apps. Each row
+  Taskbar & Start, File Explorer, Windows preferences, Edge & OneDrive, Other
+  apps (Office, Outlook, Chrome, Brave, Firefox, developer tools, NVIDIA
+  Control Panel; shown only when installed), Gaming & Xbox, Automatic installs
+  (WPBT firmware installers, device co-installers, remote Store installs), and
+  (**Advanced**) Windows Update and Background services, plus Apps (consumer,
+  promotional, retired Microsoft and PC-maker apps; AMD, NVIDIA, Intel and
+  audio driver control panels are never offered). Each row
   shows its state (*Applied*, *Not applied*, *Partly applied*, *Not
   available* with the reason), a risk badge, *One-way* / *Explorer restart* /
   *Windows 11* badges, a warning when something stops working, and which other
@@ -614,7 +619,8 @@ Win11Debloat, O&O ShutUp10++, Sophia Script and others; full list and table in
 - **Import / Export** the selection as JSON, including WinUtil exports.
 - **Check these yourself** links to settings with no safe policy, and
   **Deliberately not offered** explains why disabling Defender or Windows
-  Update and removing Edge or the Store are left out.
+  Update, removing Edge or the Store, forcing S3 sleep and similar steps are
+  left out.
 
 ### Cleanup
 
