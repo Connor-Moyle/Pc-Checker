@@ -38,7 +38,9 @@ point and written to a journal with an undo hint.
 
 **[Download PcChecker.exe](https://github.com/Connor-Moyle/Pc-Checker/releases/latest/download/PcChecker.exe)**
 and double-click it. That is the whole install: one file, nothing to set up, and .NET is built in. Run it from
-your Downloads folder, a tools folder or a USB stick.
+your Downloads folder, a tools folder or a USB stick. On a Windows on Arm PC (Snapdragon), get
+**[PcChecker-arm64.exe](https://github.com/Connor-Moyle/Pc-Checker/releases/latest/download/PcChecker-arm64.exe)**
+instead; sensors, fan control and GPU tuning are limited there because the hardware drivers they use are x64-only.
 
 Three options start PC Checker with administrator rights without a UAC prompt: *Replace Task Manager*, *Start with
 Windows* and schedules. They only work when the exe is in a folder only administrators can change, so another
@@ -46,13 +48,13 @@ program cannot swap it. **Settings → General → Install in Program Files** co
 `C:\Program Files\PC Checker`, adds a Start menu shortcut and reopens from there; your settings are kept.
 
 Every release on the [Releases page](https://github.com/Connor-Moyle/Pc-Checker/releases) is that single
-`PcChecker.exe`, with its SHA-256 checksum in the release notes. The app **updates itself**: when a new version is
+`PcChecker.exe` (plus `PcChecker-arm64.exe`), with their SHA-256 checksums in the release notes. The app **updates itself**: when a new version is
 out it downloads the new exe, checks the checksum, swaps it in and restarts (Settings → Updates; pick the Beta
 channel to get pre-releases).
 
 **Requirements**
 
-- Windows 11, or Windows 10 version 22H2. 64-bit only.
+- Windows 11, or Windows 10 version 22H2. 64-bit only (x64, or Arm64 with `PcChecker-arm64.exe`).
 - No separate .NET install: the .NET 8 runtime is built into `PcChecker.exe`.
 - Administrator rights. The app asks for them on every start because reading
   SMART data, controlling fans, installing drivers, cleaning system folders,
@@ -92,7 +94,7 @@ gaming desktop) every time the app changes. The full set of every page is in
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/screenshots/processes.png" alt="Live process list with what each program is"><br><sub>Monitor › Processes</sub></td>
+    <td width="50%"><img src="docs/screenshots/processes.png" alt="Live process list with what each program is"><br><sub>Task manager › Processes</sub></td>
     <td width="50%"><img src="docs/screenshots/history.png" alt="Temperature, load and power history"><br><sub>Monitor › History</sub></td>
   </tr>
   <tr>
@@ -138,12 +140,17 @@ limitations, is in [docs/FEATURES.md](docs/FEATURES.md).
 |---|---|
 | **Temperatures** | Live readings for every sensor your hardware exposes (CPU, GPU, drives, motherboard/VRM, memory, PSU, AIO), with gauges, min/max/average, sparklines, thresholds and alerts. Advanced mode shows every sensor kind (loads, clocks, fans, voltages). |
 | **Power** | Per-component watts where sensors exist, an estimated total (clearly marked as an estimate when there is no PSU sensor), battery discharge, session energy and cost at your electricity price, and power-plan switching. |
+| **History** | Up to 90 days of temperatures, loads, power, memory, free space and health scores, recorded in the background (also from the tray) and kept only on your PC. Charts per metric with hover values, a list of notable events such as temperature peaks and sudden drops in free space, and CSV export. |
+
+### Task manager
+
+| Page | What it does |
+|---|---|
 | **Processes** | A Task Manager replacement: Apps, Background and Windows processes (or a flat Details view) with status, CPU, memory, disk, network connections, GPU and engine, power usage and a plain-English *what is this?*, heat-map shading and your own columns; end task (closes politely first), restart, suspend and resume, efficiency mode, priority, affinity, switch to, memory dump, properties and *Run new task*. Windows' core processes are never touched. |
 | **Live usage** | Task Manager's Performance tab: CPU, memory, every disk (SSD, HDD or NVMe, with drive letters), every active network adapter and every graphics card, each with a sparkline and a 60-second graph, plus the same details Task Manager shows (speed, cores and caches, memory composition, disk response time, Wi-Fi name and signal, GPU engines, memory, driver and temperature). One graph per processor, kernel time, Ctrl+C to copy, and a compact always-on-top window from the page or the tray. |
 | **Services** | Every Windows service with its display name, service name, description, status, startup type (Automatic, Automatic (Delayed), Manual, Disabled), log-on account, PID and group; search and filters (running, stopped, other companies only, disabled); start, stop, restart, pause, continue and change the startup type; open the Services console or the file, search online, go to the process, and show what depends on it. Core Windows services are locked with a plain reason; every change is confirmed and journaled, a startup-type change with the previous type so it can be set back. |
 | **Users** | Everyone signed in to the PC — user, session, state, client and sign-in time — with each person's summed processor and memory use. Switch user (locks to the sign-in screen), disconnect, sign another user out (confirmed, admin), and send a short on-screen message. |
-| **Replace Task Manager** | An option (Settings → General, and the Processes *More* menu) that makes Ctrl+Shift+Esc and every other way of opening Task Manager open PC Checker on the Processes tab instead, the way Process Explorer does. Only available from a Program Files install, confirmed and journaled, and fully reversible; a leftover setting from an old copy is cleaned up at start, and one pointing at another copy is offered to be fixed. *Open Windows Task Manager* turns it off first. |
-| **History** | Up to 90 days of temperatures, loads, power, memory, free space and health scores, recorded in the background (also from the tray) and kept only on your PC. Charts per metric with hover values, a list of notable events such as temperature peaks and sudden drops in free space, and CSV export. |
+| **Replace Task Manager** | An option (Settings → General, and the Processes *More* menu) that makes Ctrl+Shift+Esc and every other way of opening Task Manager open PC Checker on the Processes tab instead, the way Process Explorer does. Only available from a Program Files install (Settings → General → *Install in Program Files* puts it there), confirmed and journaled, and fully reversible; a leftover setting from an old copy is cleaned up at start, and one pointing at another copy is offered to be fixed. *Open Windows Task Manager* turns it off first. |
 
 ### Hardware
 
@@ -264,7 +271,7 @@ launching the vendor's own software. The levels are:
 | Memory (XMP/EXPO) | n/a | Monitor only | Monitor only | Detects rated vs configured speed and tells you how to enable the profile in BIOS; enabling it is BIOS-only on every platform. | WMI |
 | RGB lighting | Via OpenRGB (partner cards) | Via OpenRGB (partner cards) | Via OpenRGB | Via OpenRGB for motherboards, RAM, keyboards, mice, coolers and strips the OpenRGB project supports; vendor suites (Armoury Crate, MSI Center, iCUE, Synapse, G HUB and others) are linked as alternatives. | OpenRGB SDK over a local socket |
 | Display control | Full | Full | Full | Resolution, refresh rate, orientation, primary and HDR through Windows; brightness and contrast through DDC/CI on external monitors that answer, or WMI on laptop panels. Variable refresh rate is controlled in Windows Graphics settings. | Windows display APIs, DDC/CI |
-| Drivers | Full | Full | Full | Windows Update driver catalog for every device; vendor pages for GPU, chipset and motherboard. The app never downloads from third-party driver sites. | Windows Update Agent, pnputil |
+| Drivers | Full | Full | Full | Windows Update driver catalog for every device; NVIDIA and AMD Adrenalin graphics packages and AMD chipset software downloaded straight from the maker, signature-checked and installed after a restore point; newest-version comparison with AMD's chipset page and Lenovo's driver and BIOS catalog; links and the maker's own update tools for Intel and other board and PC makers. The app never downloads from third-party driver sites. | Windows Update Agent, pnputil |
 
 The same table with more detail, including which chips and which SDK calls
 are involved, is in [docs/SUPPORTED-HARDWARE.md](docs/SUPPORTED-HARDWARE.md).
@@ -293,7 +300,7 @@ list.
 ## Claude assistant
 
 The **Ask Claude** page is optional. Bring your own
-[Anthropic API key](https://console.anthropic.com/), paste it in Settings, and
+[Anthropic API key](https://console.anthropic.com/), paste it on the Ask Claude page (Settings links there), and
 the assistant can answer questions about your PC using the scan results as
 context ("why is my boot slow?", "is this drive failing?"), explain any finding
 in plain English, and draft a staged overclocking plan that the safety
