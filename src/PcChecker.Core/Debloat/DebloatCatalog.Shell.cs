@@ -18,6 +18,11 @@ public static partial class DebloatCatalog
             RiskLevel.Safe, From(WinUtil, Win11Debloat, Sophia, BloatyNosy),
             [ExplorerFlag("TaskbarAl", 0, null)], minBuild: Windows11, explorer: true),
 
+        Tweak("taskbar.aligncenter", TaskbarCategory, "Centre taskbar icons",
+            "Puts the Start button and taskbar icons back in the middle (the Windows 11 default).",
+            RiskLevel.Safe, From(WinUtil, Sophia),
+            [ExplorerFlag("TaskbarAl", 1, null)], minBuild: Windows11, explorer: true),
+
         Tweak("taskbar.widgets", TaskbarCategory, "Hide the Widgets button",
             "Removes the weather/news Widgets button from the taskbar.",
             RiskLevel.Safe, From(WinUtil, Win11Debloat, ShutUp10, Sophia),
@@ -49,6 +54,16 @@ public static partial class DebloatCatalog
             "Removes search from the taskbar completely. Press the Windows key and type to search.",
             RiskLevel.Safe, From(WinUtil, Win11Debloat, Sophia),
             [User(SearchKey, "SearchboxTaskbarMode", 0, null)], explorer: true),
+
+        Tweak("taskbar.searchbox", TaskbarCategory, "Show the full search box",
+            "Shows the wide search box on the taskbar (the Windows 11 default).",
+            RiskLevel.Safe, From(WinUtil, Sophia),
+            [User(SearchKey, "SearchboxTaskbarMode", 2, null)], explorer: true),
+
+        Tweak("taskbar.searchlabel", TaskbarCategory, "Show search as an icon with a label",
+            "Shows a compact search button with the word Search next to the icon.",
+            RiskLevel.Safe, From(Sophia),
+            [User(SearchKey, "SearchboxTaskbarMode", 3, null)], minBuild: Windows11_22H2, explorer: true),
 
         Tweak("taskbar.endtask", TaskbarCategory, "Add \"End task\" to taskbar right-click",
             "Right-clicking an app on the taskbar offers End task to close a frozen app without Task Manager.",

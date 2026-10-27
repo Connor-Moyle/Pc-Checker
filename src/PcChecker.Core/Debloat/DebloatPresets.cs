@@ -45,7 +45,7 @@ public static class DebloatPresets
             ]),
         new(ConsumerAppsId, "Remove consumer apps",
             "Removes pre-installed consumer and promotional apps (news, games, social and streaming stubs). Useful apps such as Photos, Calculator and the Store are never included.",
-            DebloatCatalog.PreselectedAppIds),
+            [.. DebloatCatalog.PreselectedAppIds, "ai.copilotapp"]),
         new(CustomId, "Custom", "Clear all ticks and choose tweaks yourself.", []),
     ];
 

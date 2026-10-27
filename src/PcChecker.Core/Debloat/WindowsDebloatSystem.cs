@@ -109,8 +109,20 @@ public sealed class WindowsDebloatSystem : IDebloatSystem
         return result.Success && bool.TryParse(LastLine(result.StdOut), out bool value) ? value : null;
     }
 
-    public IReadOnlyList<string> GetPrinterNames() =>
-        Registry.GetSubKeyNames(DebloatHive.LocalMachine, @"SYSTEM\CurrentControlSet\Control\Print\Printers");
+    /// <summary>
+    /// Local printers plus network printer connections (per-user under HKCU\Printers\Connections and machine-wide
+    /// ones pushed by policy), so a PC that only prints to a shared printer still counts as having a printer.
+    /// </summary>
+    public IReadOnlyList<string> GetPrinterNames()
+    {
+        var local = Registry.GetSubKeyNames(DebloatHive.LocalMachine, @"SYSTEM\CurrentControlSet\Control\Print\Printers");
+        var userConnections = Registry.GetSubKeyNames(DebloatHive.CurrentUser, @"Printers\Connections");
+        var machineConnections = Registry.GetSubKeyNames(DebloatHive.LocalMachine, @"SYSTEM\CurrentControlSet\Control\Print\Connections");
+        return local
+            .Concat(userConnections.Select(DebloatRules.ConnectionKeyToPrinterName))
+            .Concat(machineConnections.Select(DebloatRules.ConnectionKeyToPrinterName))
+            .ToList();
+    }
 
     public async Task<OperationResult> SetServiceStartModeAsync(string serviceName, DebloatStartMode mode, CancellationToken cancellationToken)
     {

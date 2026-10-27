@@ -101,6 +101,16 @@ public sealed partial class DebloatViewModel
         }
 
         var tweaks = rows.Select(r => r.Tweak).ToList();
+        if (!revert && DebloatRules.ConflictingPairs(tweaks) is { Count: > 0 } conflicts)
+        {
+            // Two tweaks that write the same setting with different values: the result would depend on the order, and the
+            // second one would save the first one's value as the "original" to revert to.
+            var (a, b) = conflicts[0];
+            _notifications.Warning("Two selected tweaks conflict",
+                $"\"{a.Title}\" and \"{b.Title}\" change the same setting in different ways. Untick one of them, then choose Apply again.");
+            return;
+        }
+
         string verb = revert ? "Revert" : "Apply";
         string title = rows.Count == 1
             ? $"{verb} \"{rows[0].Title}\"?"
@@ -118,19 +128,20 @@ public sealed partial class DebloatViewModel
         }
 
         DebloatRunResult? result = null;
+        var ids = tweaks.Select(t => t.Id).ToList();
         try
         {
             await RunBusyAsync(async ct =>
             {
                 var progress = new Progress<ProgressUpdate>(p => BusyText = p.Detail is null ? p.Stage : $"{p.Stage}: {p.Detail}");
                 result = revert
-                    ? await _debloat.RevertAsync(tweaks.Select(t => t.Id).ToList(), progress, ct)
-                    : await _debloat.ApplyAsync(tweaks.Select(t => t.Id).ToList(), progress, ct);
-                BusyText = "Checking the result…";
-
-                // Cancel stops the batch between tweaks; the states are always re-read so the page shows what changed.
-                ApplyStates(await _debloat.GetStatesAsync(CancellationToken.None));
+                    ? await _debloat.RevertAsync(ids, progress, ct)
+                    : await _debloat.ApplyAsync(ids, progress, ct);
             }, revert ? "Reverting tweaks…" : "Applying tweaks…");
+
+            // Cancel stops the batch between tweaks, so the states are re-read even then. Only the tweaks in the batch
+            // (and those sharing a setting with them) are checked, and this check can be cancelled on its own.
+            await RunBusyAsync(async ct => ApplyStates(await _debloat.GetStatesAsync(ids, ct), partial: true), "Checking the result…");
         }
         finally
         {

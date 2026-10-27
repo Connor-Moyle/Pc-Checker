@@ -37,9 +37,13 @@ re-implemented; none of their code is used):
   risk with its exact registry, service, task, app and feature changes, then
   runs the whole selection as one guarded batch: a restore point first (always,
   for this page, whatever the global setting), then each tweak. App and Windows
-  feature removals are part of that batch and share its restore point instead of
-  creating one per app; a batch that contains one-way changes (app or OneDrive
-  removal) is not started at all when the restore point cannot be created.
+  feature removals and the linked Optimize page actions are part of that batch
+  and share its restore point instead of each trying to create their own; a
+  batch that contains one-way changes (app or OneDrive removal) or a Windows
+  optional feature change (Recall) is not started at all when the restore point
+  cannot be created. Two tweaks that set the same value differently (for example
+  two search box styles) cannot be applied together; the page asks you to untick
+  one.
   Before a tweak changes anything its current values (with their exact registry
   type) are saved to `%LOCALAPPDATA%\PcChecker\debloat-capture.json`. Each tweak
   gets its own result and its own Action Journal entry with the values before
@@ -58,7 +62,8 @@ re-implemented; none of their code is used):
 - **Advanced mode** shows the service, Windows Update, Xbox service, OneDrive
   removal and policy-only tweaks. They are hidden otherwise.
 - The Print Spooler and Fax tweaks are only applied when no physical printer is
-  installed; the row explains which printer keeps them on.
+  installed and no network printer is connected (per-user `\\server\printer`
+  connections count); the row explains which printer keeps them on.
 - **OneDrive autostart** is turned off through the Startup apps switch
   (`StartupApproved\Run`, the same one Task Manager uses) instead of deleting the
   `Run` value. OneDrive rewrites its `Run` value when it updates, so the switch
@@ -199,11 +204,14 @@ Windows builds: 22000 = Windows 11 21H2, 22621 = 22H2, 22631 = 23H2,
 | Tweak | What it does | Offered by | Risk | Reversible |
 |---|---|---|---|---|
 | **Align taskbar icons to the left**<br>`taskbar.alignleft` · Windows 11 (build 22000+) | Moves the Start button and taskbar icons to the left, like Windows 10.<br>`Set HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced\TaskbarAl = 0` | WinUtil, Win11Debloat, Sophia Script, BloatyNosy | Safe | Yes |
+| **Centre taskbar icons**<br>`taskbar.aligncenter` · Windows 11 (build 22000+) | Puts the Start button and taskbar icons back in the middle (the Windows 11 default).<br>`Set HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced\TaskbarAl = 1` | WinUtil, Sophia Script | Safe | Yes |
 | **Hide the Widgets button**<br>`taskbar.widgets` · Windows 11 (build 22000+) | Removes the weather/news Widgets button from the taskbar.<br>`Set HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced\TaskbarDa = 0` | WinUtil, Win11Debloat, ShutUp10++, Sophia Script | Safe | Yes |
 | **Turn off Widgets completely (policy)**<br>`taskbar.widgetspolicy` · Windows 11 (build 22000+) | Sets the Allow widgets policy to off, which removes the Widgets board for every user.<br>`Set HKLM\SOFTWARE\Policies\Microsoft\Dsh\AllowNewsAndInterests = 0` | WinUtil, Win11Debloat, ShutUp10++ | Advanced (Advanced mode) | Yes |
 | **Hide the Chat (Teams) button**<br>`taskbar.chat` · Windows 11 (build 22000+) | Removes the Microsoft Teams Chat button from the taskbar.<br>`Set HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced\TaskbarMn = 0` | WinUtil, Win11Debloat, Sophia Script | Safe | Yes |
 | **Hide the Task View button**<br>`taskbar.taskview` | Removes the Task View button. Win+Tab still opens Task View.<br>`Set HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced\ShowTaskViewButton = 0` | WinUtil, Win11Debloat, Sophia Script | Safe | Yes |
 | **Show search as an icon only**<br>`taskbar.searchicon` | Replaces the wide search box on the taskbar with a small search icon.<br>`Set HKCU\Software\Microsoft\Windows\CurrentVersion\Search\SearchboxTaskbarMode = 1` | WinUtil, Win11Debloat, Sophia Script | Safe | Yes |
+| **Show the full search box**<br>`taskbar.searchbox` | Shows the wide search box on the taskbar (the Windows 11 default).<br>`Set HKCU\Software\Microsoft\Windows\CurrentVersion\Search\SearchboxTaskbarMode = 2` | WinUtil, Sophia Script | Safe | Yes |
+| **Show search as an icon with a label**<br>`taskbar.searchlabel` · Windows 11 22H2 (build 22621+) | Shows a compact search button with the word Search next to the icon.<br>`Set HKCU\Software\Microsoft\Windows\CurrentVersion\Search\SearchboxTaskbarMode = 3` | Sophia Script | Safe | Yes |
 | **Hide search on the taskbar**<br>`taskbar.searchhide` | Removes search from the taskbar completely. Press the Windows key and type to search.<br>`Set HKCU\Software\Microsoft\Windows\CurrentVersion\Search\SearchboxTaskbarMode = 0` | WinUtil, Win11Debloat, Sophia Script | Safe | Yes |
 | **Add "End task" to taskbar right-click**<br>`taskbar.endtask` · Windows 11 (build 22631+) | Right-clicking an app on the taskbar offers End task to close a frozen app without Task Manager.<br>`Set HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced\TaskbarDeveloperSettings\TaskbarEndTask = 1` | WinUtil, Win11Debloat, Sophia Script | Safe | Yes |
 | **Show seconds in the taskbar clock**<br>`taskbar.seconds` · Windows 11 (build 22621+) | The clock shows seconds. Uses a little more power on laptops.<br>`Set HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced\ShowSecondsInSystemClock = 1` | Sophia Script | Safe | Yes |

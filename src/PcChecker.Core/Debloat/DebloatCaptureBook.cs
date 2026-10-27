@@ -34,9 +34,20 @@ public sealed class DebloatCaptureBook
             {
                 if (File.Exists(path))
                 {
-                    foreach (var (id, values) in Deserialize(File.ReadAllText(path)))
+                    string json = File.ReadAllText(path);
+                    if (TryDeserialize(json, out var loaded))
                     {
-                        _captures[id] = values;
+                        foreach (var (id, values) in loaded)
+                        {
+                            _captures[id] = values;
+                        }
+                    }
+                    else
+                    {
+                        // Keep the unreadable file so the next save does not silently destroy the original values.
+                        BackupPath = $"{path}.unreadable-{DateTime.Now:yyyyMMdd-HHmmss}";
+                        File.Copy(path, BackupPath, overwrite: true);
+                        LoadWarning = $"The saved undo values could not be read; the file was kept as {Path.GetFileName(BackupPath)}.";
                     }
                 }
             }
@@ -48,6 +59,12 @@ public sealed class DebloatCaptureBook
             }
         }
     }
+
+    /// <summary>Set when the capture file existed but could not be parsed; explains where the copy was kept.</summary>
+    public string? LoadWarning { get; private set; }
+
+    /// <summary>Where an unreadable capture file was copied before it could be overwritten, or null.</summary>
+    public string? BackupPath { get; private set; }
 
     public static string DefaultPath(string settingsDirectory) => Path.Combine(settingsDirectory, FileName);
 
@@ -91,19 +108,42 @@ public sealed class DebloatCaptureBook
             }
 
             _captures[tweakId] = new Dictionary<string, string?>(values, StringComparer.OrdinalIgnoreCase);
-            Save();
+            try
+            {
+                Save();
+            }
+            catch
+            {
+                _captures.Remove(tweakId);
+                throw;
+            }
+
             return true;
         }
     }
 
-    /// <summary>Forgets a capture after a successful revert. Saves immediately.</summary>
-    public void Remove(string tweakId)
+    /// <summary>
+    /// Forgets a capture after a successful revert and saves. Never throws: returns null on success, or an explanation
+    /// when the file could not be updated (the capture is still forgotten in memory; a stale entry in the file only
+    /// means a later revert restores the same original values again).
+    /// </summary>
+    public string? Remove(string tweakId)
     {
         lock (_gate)
         {
-            if (_captures.Remove(tweakId))
+            if (!_captures.Remove(tweakId))
+            {
+                return null;
+            }
+
+            try
             {
                 Save();
+                return null;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                return $"The saved undo values could not be updated ({ex.Message}).";
             }
         }
     }
@@ -113,10 +153,17 @@ public sealed class DebloatCaptureBook
     /// <summary>Parses a capture file; empty or malformed JSON gives an empty map instead of an exception.</summary>
     public static Dictionary<string, Dictionary<string, string?>> Deserialize(string? json)
     {
-        var result = new Dictionary<string, Dictionary<string, string?>>(StringComparer.OrdinalIgnoreCase);
+        TryDeserialize(json, out var result);
+        return result;
+    }
+
+    /// <summary>Parses a capture file. Returns false (with an empty map) when the JSON is malformed; empty text is valid.</summary>
+    public static bool TryDeserialize(string? json, out Dictionary<string, Dictionary<string, string?>> result)
+    {
+        result = new Dictionary<string, Dictionary<string, string?>>(StringComparer.OrdinalIgnoreCase);
         if (string.IsNullOrWhiteSpace(json))
         {
-            return result;
+            return true;
         }
 
         try
@@ -133,9 +180,10 @@ public sealed class DebloatCaptureBook
         catch (JsonException)
         {
             result.Clear();
+            return false;
         }
 
-        return result;
+        return true;
     }
 
     private void Save()

@@ -22,6 +22,9 @@ public interface IDebloatService
 
     Task<IReadOnlyDictionary<string, TweakState>> GetStatesAsync(CancellationToken cancellationToken);
 
+    /// <summary>States of the given tweaks and of any tweak that changes the same settings (a quick re-check after a run).</summary>
+    Task<IReadOnlyDictionary<string, TweakState>> GetStatesAsync(IEnumerable<string> tweakIds, CancellationToken cancellationToken);
+
     Task<DebloatRunResult> ApplyAsync(IReadOnlyList<string> tweakIds, IProgress<ProgressUpdate>? progress, CancellationToken cancellationToken);
 
     Task<DebloatRunResult> RevertAsync(IReadOnlyList<string> tweakIds, IProgress<ProgressUpdate>? progress, CancellationToken cancellationToken);

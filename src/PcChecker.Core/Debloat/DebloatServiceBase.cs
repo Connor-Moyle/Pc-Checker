@@ -47,6 +47,29 @@ public abstract class DebloatServiceBase : IDebloatService
         return states;
     }
 
+    /// <summary>
+    /// States of <paramref name="tweakIds"/> and of the tweaks that touch the same settings (so a tweak whose value was
+    /// overwritten by another one also shows its new state). Used after a run instead of re-reading everything.
+    /// </summary>
+    public virtual async Task<IReadOnlyDictionary<string, TweakState>> GetStatesAsync(IEnumerable<string> tweakIds, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(tweakIds);
+        var wanted = DebloatRules.WithRelated(tweakIds, Tweaks);
+        var states = new Dictionary<string, TweakState>(StringComparer.OrdinalIgnoreCase);
+        var own = await Task.Run(() => Engine.GetStatesAsync(wanted.Where(t => t.DelegatesToOptimizationId is null), cancellationToken), cancellationToken).ConfigureAwait(false);
+        foreach (var (id, state) in own)
+        {
+            states[id] = state;
+        }
+
+        foreach (var tweak in wanted.Where(t => t.DelegatesToOptimizationId is not null))
+        {
+            states[tweak.Id] = await GetDelegatedStateSafeAsync(tweak, cancellationToken).ConfigureAwait(false);
+        }
+
+        return states;
+    }
+
     public Task<DebloatRunResult> ApplyAsync(IReadOnlyList<string> tweakIds, IProgress<ProgressUpdate>? progress, CancellationToken cancellationToken) =>
         RunBatchAsync(tweakIds, revert: false, progress, cancellationToken);
 
@@ -126,27 +149,36 @@ public abstract class DebloatServiceBase : IDebloatService
         var description = $"{(revert ? "Revert" : "Apply")} {ordered.Count} debloat tweak{(ordered.Count == 1 ? string.Empty : "s")}";
         string? guardNote = null;
 
-        var guarded = await RunGuardedAsync(description, ordered, revert, async ct =>
+        Engine.BeginBatch();
+        OperationResult<IReadOnlyList<TweakRunResult>> guarded;
+        try
         {
-            var batch = new List<TweakRunResult>();
-            for (int i = 0; i < ordered.Count; i++)
+            guarded = await RunGuardedAsync(description, ordered, revert, async ct =>
             {
-                var tweak = ordered[i];
-                if (ct.IsCancellationRequested)
+                var batch = new List<TweakRunResult>();
+                for (int i = 0; i < ordered.Count; i++)
                 {
-                    // Stop between tweaks: the ones already done stay done (and can be reverted), the rest are not started.
-                    batch.AddRange(ordered.Skip(i).Select(t => new TweakRunResult(t.Id, t.Title, TweakOutcome.Skipped, "Cancelled before it started.")));
-                    break;
+                    var tweak = ordered[i];
+                    if (ct.IsCancellationRequested)
+                    {
+                        // Stop between tweaks: the ones already done stay done (and can be reverted), the rest are not started.
+                        batch.AddRange(ordered.Skip(i).Select(t => new TweakRunResult(t.Id, t.Title, TweakOutcome.Skipped, "Cancelled before it started.")));
+                        break;
+                    }
+
+                    progress?.Report(new ProgressUpdate($"{verb} tweaks", 100.0 * i / total, tweak.Title));
+
+                    // A started tweak always runs to the end so it is never left half applied.
+                    batch.Add(await RunTweakAsync(tweak, revert, CancellationToken.None).ConfigureAwait(false));
                 }
 
-                progress?.Report(new ProgressUpdate($"{verb} tweaks", 100.0 * i / total, tweak.Title));
-
-                // A started tweak always runs to the end so it is never left half applied.
-                batch.Add(await RunTweakAsync(tweak, revert, CancellationToken.None).ConfigureAwait(false));
-            }
-
-            return batch;
-        }, progress, cancellationToken).ConfigureAwait(false);
+                return batch;
+            }, progress, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            Engine.EndBatch();
+        }
 
         if (guarded.Value is { } batchResults)
         {
@@ -173,13 +205,15 @@ public abstract class DebloatServiceBase : IDebloatService
 
     private async Task<TweakRunResult> RunTweakAsync(DebloatTweak tweak, bool revert, CancellationToken cancellationToken)
     {
-        if (tweak.DelegatesToOptimizationId is not { } optimizationId)
-        {
-            return revert ? await Engine.RevertAsync(tweak, cancellationToken).ConfigureAwait(false) : await Engine.ApplyAsync(tweak, cancellationToken).ConfigureAwait(false);
-        }
-
         try
         {
+            if (tweak.DelegatesToOptimizationId is not { } optimizationId)
+            {
+                // The engine reports failures as results; this catch only keeps an unexpected error from failing the
+                // whole batch (and marking tweaks that were already applied as failed).
+                return revert ? await Engine.RevertAsync(tweak, cancellationToken).ConfigureAwait(false) : await Engine.ApplyAsync(tweak, cancellationToken).ConfigureAwait(false);
+            }
+
             var result = await RunDelegatedAsync(optimizationId, revert, cancellationToken).ConfigureAwait(false);
             var outcome = result.Success ? (revert ? TweakOutcome.Reverted : TweakOutcome.Applied) : TweakOutcome.Failed;
             return new TweakRunResult(tweak.Id, tweak.Title, outcome, result.Message);

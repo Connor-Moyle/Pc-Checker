@@ -117,14 +117,22 @@ public sealed partial class DebloatViewModel : ViewModelBase
         }
     }
 
-    private void ApplyStates(IReadOnlyDictionary<string, TweakState> states)
+    /// <summary>Shows the read states. With <paramref name="partial"/>, rows missing from <paramref name="states"/> keep their state.</summary>
+    private void ApplyStates(IReadOnlyDictionary<string, TweakState> states, bool partial = false)
     {
         _suppressCounts = true;
         try
         {
             foreach (var row in _rows.Values)
             {
-                row.Apply(states.TryGetValue(row.Id, out var state) ? state : TweakState.Unknown(row.Id));
+                if (states.TryGetValue(row.Id, out var state))
+                {
+                    row.Apply(state);
+                }
+                else if (!partial)
+                {
+                    row.Apply(TweakState.Unknown(row.Id));
+                }
             }
         }
         finally

@@ -27,6 +27,25 @@ public sealed class DebloatEngine
     public IDebloatSystem System => _system;
     public DebloatCaptureBook Captures => _captures;
 
+    private bool _inBatch;
+    private IReadOnlySet<string>? _batchInstalledApps;
+
+    /// <summary>
+    /// Starts a batch: the installed-app list is read once for the whole batch instead of once per app removal (each
+    /// read is a PowerShell query). Call <see cref="EndBatch"/> when the batch is done.
+    /// </summary>
+    public void BeginBatch()
+    {
+        _inBatch = true;
+        _batchInstalledApps = null;
+    }
+
+    public void EndBatch()
+    {
+        _inBatch = false;
+        _batchInstalledApps = null;
+    }
+
     /// <summary>When true, app removal also removes the app for other users and new accounts.</summary>
     public bool RemoveAppsForAllUsers { get; set; }
 
@@ -123,7 +142,7 @@ public sealed class DebloatEngine
 
         if (changed == 0 && newCapture)
         {
-            _captures.Remove(tweak.Id);
+            _captures.Remove(tweak.Id); // best effort; a leftover entry is harmless
         }
 
         if (errors.Count == 0)
@@ -172,10 +191,11 @@ public sealed class DebloatEngine
             return Result(tweak, TweakOutcome.Failed, (changed > 0 ? $"{changed} of {changed + errors.Count} values restored. " : string.Empty) + errors[0]);
         }
 
-        _captures.Remove(tweak.Id);
-        return Result(tweak, TweakOutcome.Reverted, capture is null
+        string? saveNote = _captures.Remove(tweak.Id);
+        string reverted = capture is null
             ? "Reverted to the Windows default (no values had been saved before the change)."
-            : "Restored the values saved before the change.");
+            : "Restored the values saved before the change.";
+        return Result(tweak, TweakOutcome.Reverted, saveNote is null ? reverted : $"{reverted} {saveNote}");
     }
 
     /// <summary>How to undo a one-way tweak by hand.</summary>
@@ -277,7 +297,7 @@ public sealed class DebloatEngine
 
             case AppxRemovalOp app:
             {
-                var installed = await SafeAsync(() => _system.GetInstalledAppsAsync(cancellationToken), null).ConfigureAwait(false);
+                var installed = await InstalledAppsAsync(cancellationToken).ConfigureAwait(false);
                 if (installed is not null && !installed.Contains(app.PackageName))
                 {
                     return (null, null);
@@ -402,6 +422,22 @@ public sealed class DebloatEngine
     }
 
     // ---- helpers -------------------------------------------------------------------------------------------------
+
+    private async Task<IReadOnlySet<string>?> InstalledAppsAsync(CancellationToken cancellationToken)
+    {
+        if (_inBatch && _batchInstalledApps is not null)
+        {
+            return _batchInstalledApps;
+        }
+
+        var installed = await SafeAsync(() => _system.GetInstalledAppsAsync(cancellationToken), null).ConfigureAwait(false);
+        if (_inBatch)
+        {
+            _batchInstalledApps = installed;
+        }
+
+        return installed;
+    }
 
     private async Task<IReadOnlyDictionary<string, bool>?> ReadTasksAsync(DebloatTweak tweak, CancellationToken cancellationToken)
     {

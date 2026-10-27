@@ -59,6 +59,20 @@ public static class DebloatRules
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 
+    /// <summary>
+    /// Turns a printer-connection key name (",,server,printer", how Windows stores \\server\printer under
+    /// Printers\Connections) back into the UNC name the user knows. Other names are returned unchanged.
+    /// </summary>
+    public static string ConnectionKeyToPrinterName(string keyName)
+    {
+        if (string.IsNullOrWhiteSpace(keyName) || !keyName.StartsWith(",,", StringComparison.Ordinal))
+        {
+            return keyName;
+        }
+
+        return @"\\" + keyName[2..].Replace(',', '\\');
+    }
+
     /// <summary>Returns a reason the tweak must not be applied now, or null when it may.</summary>
     public static string? PreconditionFailure(DebloatTweak tweak, IReadOnlyList<string> printerNames)
     {
@@ -71,6 +85,24 @@ public static class DebloatRules
         return physical.Count == 0
             ? null
             : $"{physical.Count} printer{(physical.Count == 1 ? string.Empty : "s")} installed ({string.Join(", ", physical.Take(3))}); left on so printing keeps working.";
+    }
+
+    /// <summary>The tweaks named by <paramref name="ids"/> plus every tweak with an operation on the same setting.</summary>
+    public static IReadOnlyList<DebloatTweak> WithRelated(IEnumerable<string> ids, IEnumerable<DebloatTweak> all)
+    {
+        var allList = all.ToList();
+        var idSet = new HashSet<string>(ids, StringComparer.OrdinalIgnoreCase);
+        var keys = new HashSet<string>(allList.Where(t => idSet.Contains(t.Id)).SelectMany(t => t.Operations).Select(o => o.Key), StringComparer.OrdinalIgnoreCase);
+        return allList.Where(t => idSet.Contains(t.Id) || t.Operations.Any(o => keys.Contains(o.Key))).ToList();
+    }
+
+    /// <summary>
+    /// Pairs from <paramref name="selected"/> that conflict (see <see cref="Conflicts"/>), as readable titles.
+    /// </summary>
+    public static IReadOnlyList<(DebloatTweak A, DebloatTweak B)> ConflictingPairs(IReadOnlyCollection<DebloatTweak> selected)
+    {
+        var byId = selected.ToDictionary(t => t.Id, StringComparer.OrdinalIgnoreCase);
+        return Conflicts(selected).Select(p => (byId[p.A], byId[p.B])).ToList();
     }
 
     /// <summary>

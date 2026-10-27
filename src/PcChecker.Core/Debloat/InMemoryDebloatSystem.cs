@@ -182,8 +182,12 @@ public sealed class InMemoryDebloatSystem : IDebloatSystem
         }
     }
 
+    /// <summary>How many times the installed-app list was queried (for tests).</summary>
+    public int AppQueries { get; private set; }
+
     public Task<IReadOnlySet<string>?> GetInstalledAppsAsync(CancellationToken cancellationToken)
     {
+        AppQueries++;
         if (FailQueries)
         {
             return Task.FromResult<IReadOnlySet<string>?>(null);

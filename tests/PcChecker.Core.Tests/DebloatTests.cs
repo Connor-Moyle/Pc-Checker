@@ -820,3 +820,137 @@ public class DebloatBatchTests
         }
     }
 }
+
+public class DebloatReviewFixTests
+{
+    private static DebloatTweak Tweak(string id) => DebloatCatalog.Find(id)!;
+
+    [Fact]
+    public void Network_printer_connections_are_named_and_hold_back_the_spooler()
+    {
+        Assert.Equal(@"\\printsrv\Floor2-Laser", DebloatRules.ConnectionKeyToPrinterName(",,printsrv,Floor2-Laser"));
+        Assert.Equal("Brother HL-L2350DW", DebloatRules.ConnectionKeyToPrinterName("Brother HL-L2350DW"));
+
+        var blocked = DebloatRules.PreconditionFailure(Tweak("svc.spooler"),
+            ["Microsoft Print to PDF", DebloatRules.ConnectionKeyToPrinterName(",,printsrv,Floor2-Laser")]);
+        Assert.NotNull(blocked);
+        Assert.Contains(@"\\printsrv\Floor2-Laser", blocked);
+    }
+
+    [Fact]
+    public void Unreadable_capture_file_is_kept_instead_of_overwritten()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "pcchecker-debloat-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        try
+        {
+            var path = DebloatCaptureBook.DefaultPath(dir);
+            File.WriteAllText(path, "{ \"explorer.thispc\": { broken");
+            var book = new DebloatCaptureBook(path);
+            Assert.NotNull(book.LoadWarning);
+            Assert.NotNull(book.BackupPath);
+            Assert.Equal("{ \"explorer.thispc\": { broken", File.ReadAllText(book.BackupPath!));
+            Assert.False(DebloatCaptureBook.TryDeserialize("{ not json", out _));
+            Assert.True(DebloatCaptureBook.TryDeserialize("", out var empty));
+            Assert.Empty(empty);
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task Capture_save_failure_on_revert_does_not_fail_the_tweak()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "pcchecker-debloat-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var path = DebloatCaptureBook.DefaultPath(dir);
+            var system = new InMemoryDebloatSystem();
+            system.Memory.SetDword(DebloatHive.CurrentUser, DebloatCatalog.ExplorerAdvanced, "LaunchTo", 2);
+            var engine = new DebloatEngine(system, new DebloatCaptureBook(path));
+            Assert.Equal(TweakOutcome.Applied, (await engine.ApplyAsync(Tweak("explorer.thispc"), default)).Outcome);
+
+            // Make the next save fail: the capture file's place is taken by a folder.
+            File.Delete(path);
+            Directory.CreateDirectory(path);
+
+            var revert = await engine.RevertAsync(Tweak("explorer.thispc"), default);
+            Assert.Equal(TweakOutcome.Reverted, revert.Outcome);
+            Assert.Contains("could not be updated", revert.Message);
+            Assert.Equal("2", system.Registry.Read(DebloatHive.CurrentUser, DebloatCatalog.ExplorerAdvanced, "LaunchTo")!.Value);
+        }
+        finally
+        {
+            if (Directory.Exists(dir))
+            {
+                Directory.Delete(dir, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public void Feature_changes_and_one_way_changes_need_the_restore_point()
+    {
+        Assert.True(WindowsDebloatService.RequiresRestorePoint([Tweak("ai.recallfeature")], revert: false));
+        Assert.True(WindowsDebloatService.RequiresRestorePoint([Tweak("ai.recallfeature")], revert: true));
+        Assert.True(WindowsDebloatService.RequiresRestorePoint([Tweak("apps.clipchamp")], revert: false));
+        Assert.False(WindowsDebloatService.RequiresRestorePoint([Tweak("explorer.thispc"), Tweak("privacy.telemetry")], revert: false));
+    }
+
+    [Fact]
+    public void Conflicting_selection_is_detected_and_related_tweaks_are_rechecked()
+    {
+        var pairs = DebloatRules.ConflictingPairs([Tweak("taskbar.searchicon"), Tweak("taskbar.searchhide"), Tweak("explorer.thispc")]);
+        var (a, b) = Assert.Single(pairs);
+        Assert.Equal("taskbar.searchicon", a.Id);
+        Assert.Equal("taskbar.searchhide", b.Id);
+
+        var related = DebloatRules.WithRelated(["taskbar.searchicon"], DebloatCatalog.All).Select(t => t.Id).ToList();
+        Assert.Contains("taskbar.searchhide", related);
+        Assert.Contains("taskbar.searchbox", related);
+        Assert.Contains("taskbar.searchlabel", related);
+        Assert.DoesNotContain("explorer.thispc", related);
+    }
+
+    [Fact]
+    public void Brief_options_are_offered()
+    {
+        Assert.Contains("ai.copilotapp", DebloatPresets.Find(DebloatPresets.ConsumerAppsId)!.TweakIds);
+        Assert.NotNull(DebloatCatalog.Find("taskbar.aligncenter"));
+        Assert.NotNull(DebloatCatalog.Find("taskbar.searchbox"));
+        Assert.NotNull(DebloatCatalog.Find("taskbar.searchlabel"));
+    }
+
+    [Fact]
+    public async Task OneDrive_switched_off_in_task_manager_counts_as_applied()
+    {
+        var system = new InMemoryDebloatSystem();
+        var engine = new DebloatEngine(system, new DebloatCaptureBook());
+        system.Memory.Write(DebloatHive.CurrentUser, @"Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run", "OneDrive",
+            new RegistryData(DebloatValueKind.Binary, "0300000066A9C2D4E5F6D901"));
+        var tweak = Tweak("onedrive.autostart");
+        Assert.Equal(TweakStatus.Applied, (await engine.GetStatesAsync([tweak], default))[tweak.Id].Status);
+    }
+
+    [Fact]
+    public async Task Batch_reads_the_installed_apps_once()
+    {
+        var svc = new DemoDebloatService(new DemoOptimizationService([]));
+        var appIds = DebloatCatalog.PreselectedAppIds.Take(6).ToList();
+        foreach (var id in appIds)
+        {
+            svc.SampleSystem.Apps.Add(Tweak(id).Operations.OfType<AppxRemovalOp>().Single().PackageName);
+        }
+
+        svc.SampleSystem.DelayMs = 0;
+        int before = svc.SampleSystem.AppQueries;
+        var result = await svc.ApplyAsync(appIds, null, default);
+        Assert.All(result.Results, r => Assert.Equal(TweakOutcome.Applied, r.Outcome));
+        Assert.Equal(before + 1, svc.SampleSystem.AppQueries);
+
+        var states = await svc.GetStatesAsync(appIds.Take(1).ToList(), default);
+        Assert.Equal(TweakStatus.Applied, states[appIds[0]].Status);
+    }
+}

@@ -4,6 +4,7 @@ using PcChecker.Core.Logging;
 using PcChecker.Core.Optimization;
 using PcChecker.Core.Restore;
 using PcChecker.Core.Settings;
+using PcChecker.Core.Startup;
 using PcChecker.Core.WindowsFeatures;
 
 namespace PcChecker.Core.Debloat;
@@ -12,8 +13,9 @@ namespace PcChecker.Core.Debloat;
 /// Windows implementation of <see cref="IDebloatService"/>. Every batch runs as one <see cref="IChangeGuard"/> change
 /// that always asks for a restore point first (whatever the global setting says), with the previous values captured to
 /// <c>debloat-capture.json</c>. A batch that removes apps or runs another one-way change is not started when that
-/// restore point cannot be created. App and Windows feature removals in the batch go through a Windows Features service
-/// that shares this restore point instead of creating one per app; Optimize page actions run through that service.
+/// restore point cannot be created; the same holds for batches that change a Windows optional feature, as the Windows
+/// Features page does. App and feature removals and the linked Optimize page actions in the batch go through instances
+/// of those services that share the batch's restore point instead of each trying to create their own.
 /// Each tweak gets its own action journal record with the values before and after.
 /// </summary>
 public sealed class WindowsDebloatService : DebloatServiceBase
@@ -23,17 +25,31 @@ public sealed class WindowsDebloatService : DebloatServiceBase
     private readonly IChangeGuard _guard;
     private readonly IActionJournal _journal;
     private readonly IOptimizationService _optimization;
+    private readonly IOptimizationService _batchOptimization;
     private readonly ILogger<WindowsDebloatService> _logger;
 
     public WindowsDebloatService(IChangeGuard guard, IActionJournal journal, IOptimizationService optimization, IWindowsFeatureService features,
-        ISettingsService settings, ILogger<WindowsDebloatService> logger, ILogger<WindowsFeatureService> featureLogger)
+        IStartupService startup, ISettingsService settings, ILogger<WindowsDebloatService> logger, ILogger<WindowsFeatureService> featureLogger,
+        ILogger<WindowsOptimizationService> optimizationLogger)
         : base(new DebloatEngine(new WindowsDebloatSystem(BatchFeatures(features, guard, featureLogger), logger), new DebloatCaptureBook(CapturePath(settings, logger))))
     {
         _guard = guard;
         _journal = journal;
         _optimization = optimization;
+        _batchOptimization = BatchOptimization(optimization, guard, startup, optimizationLogger);
         _logger = logger;
+        if (Engine.Captures.LoadWarning is { } warning)
+        {
+            _logger.LogWarning("Debloat: {Warning}", warning);
+        }
     }
+
+    /// <summary>
+    /// True when the batch must not run without its restore point: one-way changes (app or OneDrive removal) and Windows
+    /// optional feature changes (Recall), which the Windows Features page also never makes without one.
+    /// </summary>
+    public static bool RequiresRestorePoint(IReadOnlyList<DebloatTweak> tweaks, bool revert) =>
+        tweaks.Any(t => t.Operations.Any(o => o is OptionalFeatureOp)) || (!revert && tweaks.Any(t => !t.Reversible));
 
     public override async Task<IReadOnlyDictionary<string, TweakState>> GetStatesAsync(CancellationToken cancellationToken)
     {
@@ -47,6 +63,18 @@ public sealed class WindowsDebloatService : DebloatServiceBase
             states.Values.Count(s => s.Status == TweakStatus.Applied), states.Values.Count(s => s.Status == TweakStatus.Partial),
             states.Values.Count(s => s.Status == TweakStatus.NotApplied), states.Values.Count(s => s.Status == TweakStatus.NotApplicable));
         return states;
+    }
+
+    public override Task<IReadOnlyDictionary<string, TweakState>> GetStatesAsync(IEnumerable<string> tweakIds, CancellationToken cancellationToken)
+    {
+        if (!PlatformGuard.IsWindows)
+        {
+            IReadOnlyDictionary<string, TweakState> unknown = DebloatRules.WithRelated(tweakIds, Tweaks)
+                .ToDictionary(t => t.Id, t => TweakState.Unknown(t.Id, "Only available on Windows"), StringComparer.OrdinalIgnoreCase);
+            return Task.FromResult(unknown);
+        }
+
+        return base.GetStatesAsync(tweakIds, cancellationToken);
     }
 
     public override async Task<OperationResult> RestartExplorerAsync(CancellationToken cancellationToken)
@@ -85,13 +113,14 @@ public sealed class WindowsDebloatService : DebloatServiceBase
     {
         var target = string.Join(", ", tweaks.Select(t => t.Id));
         bool oneWay = !revert && tweaks.Any(t => !t.Reversible);
+        bool mustHaveRestorePoint = RequiresRestorePoint(tweaks, revert);
         var options = new ChangeOptions(CreateBefore: true, CreateAfter: null, ModuleName, target, Reversible: !oneWay,
             UndoHint: revert
                 ? "Apply the tweaks again on the Debloat page."
                 : "Select the tweaks on the Debloat page and choose Revert (previous values are saved in debloat-capture.json), or use the restore point.")
         {
-            // One-way changes (app removal, OneDrive removal) only run with a restore point behind them.
-            OnRestorePointFailed = oneWay ? RestorePointFailedBehavior.Abort : RestorePointFailedBehavior.Continue,
+            // One-way changes (app removal, OneDrive removal) and optional feature changes only run with a restore point behind them.
+            OnRestorePointFailed = mustHaveRestorePoint ? RestorePointFailedBehavior.Abort : RestorePointFailedBehavior.Continue,
         };
 
         return await _guard.RunGuardedAsync<IReadOnlyList<TweakRunResult>>(description, options, async ct =>
@@ -105,7 +134,7 @@ public sealed class WindowsDebloatService : DebloatServiceBase
     }
 
     protected override Task<OperationResult> RunDelegatedAsync(string optimizationId, bool revert, CancellationToken cancellationToken) =>
-        revert ? _optimization.RevertAsync(optimizationId, cancellationToken) : _optimization.ApplyAsync(optimizationId, cancellationToken);
+        revert ? _batchOptimization.RevertAsync(optimizationId, cancellationToken) : _batchOptimization.ApplyAsync(optimizationId, cancellationToken);
 
     protected override Task<ActionState> GetDelegatedStateAsync(string optimizationId, CancellationToken cancellationToken) =>
         _optimization.GetStateAsync(optimizationId, cancellationToken);
@@ -146,6 +175,16 @@ public sealed class WindowsDebloatService : DebloatServiceBase
     /// </summary>
     private static IWindowsFeatureService BatchFeatures(IWindowsFeatureService features, IChangeGuard guard, ILogger<WindowsFeatureService> featureLogger) =>
         features is WindowsFeatureService ? new WindowsFeatureService(new DebloatBatchChangeGuard(guard), featureLogger) : features;
+
+    /// <summary>
+    /// The Optimize service used for linked actions inside a batch: a Windows one behind the batch guard (the linked
+    /// actions are built-in catalog actions, so no providers are needed), or the given service as is.
+    /// </summary>
+    private static IOptimizationService BatchOptimization(IOptimizationService optimization, IChangeGuard guard, IStartupService startup,
+        ILogger<WindowsOptimizationService> optimizationLogger) =>
+        optimization is WindowsOptimizationService
+            ? new WindowsOptimizationService(new DebloatBatchChangeGuard(guard), startup, [], optimizationLogger)
+            : optimization;
 
     private static string? CapturePath(ISettingsService settings, ILogger logger)
     {
