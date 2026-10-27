@@ -306,6 +306,48 @@ public class NetshCommandBuilderTests
     }
 }
 
+public class WlanProfileListReaderTests
+{
+    private static byte[] List(int itemSize, params byte[][] items)
+    {
+        var buffer = new byte[WlanProfileListReader.ListSize(items.Length, itemSize)];
+        BitConverter.GetBytes(items.Length).CopyTo(buffer, 0);
+        for (int i = 0; i < items.Length; i++)
+        {
+            items[i].CopyTo(buffer, WlanProfileListReader.HeaderSize + (i * itemSize));
+        }
+
+        return buffer;
+    }
+
+    private static byte[] Profile(string name)
+    {
+        var item = new byte[WlanProfileListReader.ProfileInfoSize];
+        System.Text.Encoding.Unicode.GetBytes(name).CopyTo(item, 0);
+        return item;
+    }
+
+    [Fact]
+    public void Profile_names_keep_characters_outside_the_oem_code_page_and_their_order()
+    {
+        var names = WlanProfileListReader.ProfileNames(List(WlanProfileListReader.ProfileInfoSize, Profile("Connor’s iPhone"), Profile("Café ☕"), Profile("*")));
+        Assert.Equal(["Connor’s iPhone", "Café ☕", "*"], names);
+    }
+
+    [Fact]
+    public void Interface_ids_are_read_and_short_buffers_are_safe()
+    {
+        var id = Guid.Parse("4d36e972-e325-11ce-bfc1-08002be10318");
+        var item = new byte[WlanProfileListReader.InterfaceInfoSize];
+        id.ToByteArray().CopyTo(item, 0);
+        Assert.Equal([id], WlanProfileListReader.InterfaceIds(List(WlanProfileListReader.InterfaceInfoSize, item)));
+
+        var truncated = List(WlanProfileListReader.ProfileInfoSize, Profile("Home"), Profile("Work"))[..(WlanProfileListReader.HeaderSize + WlanProfileListReader.ProfileInfoSize)];
+        Assert.Equal(["Home"], WlanProfileListReader.ProfileNames(truncated));
+        Assert.Empty(WlanProfileListReader.ProfileNames([]));
+    }
+}
+
 public class DnsCommandsTests
 {
     [Fact]

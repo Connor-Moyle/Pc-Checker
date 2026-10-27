@@ -18,10 +18,17 @@ public sealed partial class WindowsNetworkTuningService
 
         try
         {
-            var interfacesRun = await LatencyProbes.RunAsync("netsh.exe", "wlan show interfaces", cancellationToken, 20).ConfigureAwait(false);
-            var interfaces = NetshWlanParser.ParseInterfaces(interfacesRun.Output).Select(i => i.Name).ToList();
-            var listRun = await LatencyProbes.RunAsync("netsh.exe", "wlan show profiles", cancellationToken, 20).ConfigureAwait(false);
-            var entries = NetshProfileParser.ParseProfileList(listRun.Output, interfaces);
+            // The WLAN API gives the exact names; netsh writes them in the OEM code page, which mangles names such as
+            // "Connor’s iPhone", and every later command would then target a name that does not exist (or another one).
+            var entries = NativeProfileEntries();
+            if (entries is null)
+            {
+                var interfacesRun = await LatencyProbes.RunAsync("netsh.exe", "wlan show interfaces", cancellationToken, 20).ConfigureAwait(false);
+                var interfaces = NetshWlanParser.ParseInterfaces(interfacesRun.Output).Select(i => i.Name).ToList();
+                var listRun = await LatencyProbes.RunAsync("netsh.exe", "wlan show profiles", cancellationToken, 20).ConfigureAwait(false);
+                entries = NetshProfileParser.ParseProfileList(listRun.Output, interfaces);
+            }
+
             var result = new List<WifiProfileInfo>();
             foreach (var entry in entries.Take(MaxProfiles))
             {
@@ -262,6 +269,49 @@ public sealed partial class WindowsNetworkTuningService
         var profiles = await GetSavedNetworksAsync(cancellationToken).ConfigureAwait(false);
         return profiles.FirstOrDefault(p => p.Name.Equals(profileName, StringComparison.Ordinal))
             ?? profiles.FirstOrDefault(p => p.Name.Equals(profileName, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// Saved profiles from the WLAN API with the adapter's connection name ("Wi-Fi") that netsh takes as interface=;
+    /// null when the API or an adapter name is unavailable, so the caller falls back to netsh.
+    /// </summary>
+    private IReadOnlyList<WifiProfileEntry>? NativeProfileEntries()
+    {
+        try
+        {
+            var lists = WlanProfileList.Read();
+            if (lists is null)
+            {
+                return null;
+            }
+
+            var names = new Dictionary<Guid, string>();
+            foreach (var nic in System.Net.NetworkInformation.NetworkInterface.GetAllNetworkInterfaces())
+            {
+                if (Guid.TryParse(nic.Id, out var id))
+                {
+                    names[id] = nic.Name;
+                }
+            }
+
+            var entries = new List<WifiProfileEntry>();
+            foreach (var (interfaceId, profiles) in lists)
+            {
+                if (!names.TryGetValue(interfaceId, out var interfaceName))
+                {
+                    return null;
+                }
+
+                entries.AddRange(profiles.Select((name, i) => new WifiProfileEntry(interfaceName, name, i + 1)));
+            }
+
+            return entries;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogDebug(ex, "The WLAN API could not list saved networks; using netsh.");
+            return null;
+        }
     }
 
     private Task<OperationResult> RunNetshGuardedAsync(string description, ChangeOptions options, string arguments, string successMessage, CancellationToken cancellationToken) =>
