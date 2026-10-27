@@ -16,6 +16,90 @@ public sealed partial class WindowsHealthService
 {
     // ---------------------------------------------------------------- disks
 
+    /// <summary>
+    /// Drive health from the shared drive inventory (every drive once, SMART read per drive, sleeping drives not woken).
+    /// Falls back to the WMI collectors below when the inventory is not available or lists nothing.
+    /// </summary>
+    private async Task CollectDisksAsync(AnalysisContext ctx, CancellationToken ct)
+    {
+        IReadOnlyList<Storage.PhysicalDrive> drives = [];
+        if (_drives is not null)
+        {
+            try
+            {
+                drives = await _drives.GetDrivesAsync(Storage.DriveReadMode.Routine, ct).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Drive inventory failed; using the WMI drive collectors.");
+            }
+        }
+
+        if (drives.Count == 0)
+        {
+            await Task.Run(() => CollectDisks(ctx, ct), ct).ConfigureAwait(false);
+            return;
+        }
+
+        await Task.Run(() => CollectDisksFromInventory(ctx, drives), ct).ConfigureAwait(false);
+    }
+
+    private void CollectDisksFromInventory(AnalysisContext ctx, IReadOnlyList<Storage.PhysicalDrive> drives)
+    {
+        int hidden = 1000;
+        foreach (var drive in drives)
+        {
+            if (drive.Role == Storage.DriveRole.StorageSpace)
+            {
+                continue; // a storage space is made from its member drives, which are judged one by one
+            }
+
+            var builder = new DiskBuilder
+            {
+                Index = drive.Number >= 0 ? drive.Number : hidden++,
+                Model = drive.Model,
+                Serial = drive.Serial,
+                Firmware = drive.Firmware,
+                SizeBytes = drive.SizeBytes,
+                PnpId = drive.PnpDeviceId,
+                MediaType = Storage.DriveMediaRules.Label(drive.Media),
+                BusType = drive.BusType,
+                PhysicalDiskHealth = drive.WindowsHealth,
+                Asleep = drive.Power == Storage.DrivePowerState.Asleep,
+                Note = drive.SmartAccess == Storage.SmartAccess.Read ? null : drive.SmartNote,
+            };
+
+            if (drive.Smart is { } smart)
+            {
+                var v = smart.Values;
+                builder.SmartSupported = true;
+                builder.PredictFailure = smart.PredictsFailure;
+                builder.Attributes = smart.Source.Contains("NVMe", StringComparison.Ordinal) ? [] : smart.Attributes.ToList();
+                builder.SmartTemperatureC = v.TemperatureC;
+                builder.PowerOnHours = v.PowerOnHours;
+                builder.Reallocated = v.ReallocatedSectors;
+                builder.Pending = v.PendingSectors;
+                builder.Uncorrectable = v.OfflineUncorrectable ?? (v.MediaErrors is > 0 ? v.MediaErrors : null);
+                builder.WearPercent = v.WearPercent;
+                builder.HostWritesGb = v.HostWritesGb;
+            }
+
+            ctx.DiskBuilders.Add(builder);
+        }
+
+        // Temperatures and NVMe wear from the hardware monitor fill gaps; sleeping drives are skipped there too.
+        var local = new List<string>();
+        TryStep(local, "drive sensors", () => ReadMonitorSensors(ctx));
+        foreach (var note in local)
+        {
+            ctx.Warnings.Add("Drive health: " + note);
+        }
+    }
+
     private void CollectDisks(AnalysisContext ctx, CancellationToken ct)
     {
         var local = new List<string>();
@@ -27,15 +111,17 @@ public sealed partial class WindowsHealthService
                 continue; // card readers and empty USB bays
             }
 
+            int index = (int)(Long(row, "Index") ?? -1);
             ctx.DiskBuilders.Add(new DiskBuilder
             {
-                Index = (int)(Long(row, "Index") ?? -1),
+                Index = index,
                 Model = Str(row, "Model") ?? "Unknown drive",
-                Serial = Str(row, "SerialNumber"),
+                Serial = Storage.DriveSerial.Clean(Str(row, "SerialNumber")),
                 Firmware = Str(row, "FirmwareRevision"),
                 SizeBytes = size,
                 PnpId = Str(row, "PNPDeviceID"),
                 MediaType = HealthCodes.GuessMediaType(Str(row, "Model"), Str(row, "InterfaceType"), null),
+                Asleep = Storage.DrivePowerProbe.IsAsleep(index),
             });
         }
 
@@ -43,6 +129,13 @@ public sealed partial class WindowsHealthService
         {
             ctx.Warnings.Add("Drive health: Windows did not list any fixed drives.");
             return;
+        }
+
+        // The WMI SMART classes query every drive at once, which would spin a sleeping hard disk back up.
+        bool anyAsleep = ctx.DiskBuilders.Any(d => d.Asleep);
+        if (anyAsleep)
+        {
+            ctx.Warnings.Add("Drive health: SMART was not read because a drive is asleep. PC Checker does not wake sleeping drives; use Read now on the Storage page.");
         }
 
         TryStep(local, "physical disk status", () =>
@@ -70,6 +163,11 @@ public sealed partial class WindowsHealthService
 
         TryStep(local, "SMART failure prediction", () =>
         {
+            if (anyAsleep)
+            {
+                return;
+            }
+
             foreach (var row in Query(WmiRoot, "SELECT InstanceName, PredictFailure, Reason FROM MSStorageDriver_FailurePredictStatus", ct))
             {
                 var disk = FindByInstance(ctx, Str(row, "InstanceName"));
@@ -90,6 +188,11 @@ public sealed partial class WindowsHealthService
         // (the latter is the older name of the same ATA SMART READ DATA buffer), so only one of them is queried.
         TryStep(local, "SMART attributes", () =>
         {
+            if (anyAsleep)
+            {
+                return;
+            }
+
             var thresholds = new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
             try
             {
@@ -165,9 +268,9 @@ public sealed partial class WindowsHealthService
                 }
 
                 var disk = FindByModel(ctx, hardware.Name);
-                if (disk is null)
+                if (disk is null || disk.Asleep || Storage.DrivePowerProbe.ShouldSkipMonitorUpdate(hardware.Identifier.ToString()))
                 {
-                    continue;
+                    continue; // updating a sleeping drive's sensors would send it a SMART command and spin it up
                 }
 
                 try
@@ -226,7 +329,10 @@ public sealed partial class WindowsHealthService
             return;
         }
 
-        const string script = "Get-PhysicalDisk | ForEach-Object { $c = $_ | Get-StorageReliabilityCounter -ErrorAction SilentlyContinue; " +
+        // Reading the counters sends commands to the drive, so sleeping drives are left out.
+        var asleep = ctx.DiskBuilders.Where(d => d.Asleep && d.Index is >= 0 and < 1000).Select(d => PowerShellRunner.Quote(d.Index.ToString(CultureInfo.InvariantCulture))).ToList();
+        string skip = asleep.Count == 0 ? string.Empty : "Where-Object { @(" + string.Join(",", asleep) + ") -notcontains [string]$_.DeviceId } | ";
+        string script = "Get-PhysicalDisk | " + skip + "ForEach-Object { $c = $_ | Get-StorageReliabilityCounter -ErrorAction SilentlyContinue; " +
                               "[pscustomobject]@{ DeviceId = [string]$_.DeviceId; SerialNumber = [string]$_.SerialNumber; " +
                               "Temperature = $c.Temperature; TemperatureMax = $c.TemperatureMax; Wear = $c.Wear; PowerOnHours = $c.PowerOnHours; " +
                               "ReadErrorsTotal = $c.ReadErrorsTotal; WriteErrorsTotal = $c.WriteErrorsTotal; " +
@@ -287,7 +393,14 @@ public sealed partial class WindowsHealthService
             var status = anyData ? verdict.Status : HealthStatus.Unknown;
             var disk = draft with { Status = status };
             ctx.Disks.Add(disk);
-            ctx.Items.Add(HealthItemRules.Disk(disk, anyData ? verdict : new SmartRules.Verdict(HealthStatus.Unknown, "No health data was available for this drive.", [])));
+            var item = HealthItemRules.Disk(disk, anyData ? verdict : new SmartRules.Verdict(HealthStatus.Unknown, b.Note ?? "No health data was available for this drive.", []));
+            if (b.Note is { } note && anyData)
+            {
+                // "Asleep, last reading at 14:05…", "The USB enclosure does not pass SMART through…"
+                item = item with { Detail = note + " " + item.Detail };
+            }
+
+            ctx.Items.Add(item);
         }
     }
 
@@ -345,6 +458,8 @@ public sealed partial class WindowsHealthService
         public string? Firmware { get; set; }
         public long SizeBytes { get; set; }
         public string? PnpId { get; set; }
+        public bool Asleep { get; set; }
+        public string? Note { get; set; }
         public string MediaType { get; set; } = "Unknown";
         public string? BusType { get; set; }
         public string? PhysicalDiskHealth { get; set; }
