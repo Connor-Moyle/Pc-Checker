@@ -52,6 +52,21 @@ public class ChangeGuardTests : IDisposable
     }
 
     [Fact]
+    public async Task A_running_change_is_reported_so_the_update_restart_waits()
+    {
+        var (guard, _, _, _) = Create(before: false, after: false);
+        bool runningInside = false;
+        await guard.RunGuardedAsync("Long change", ChangeOptions.For("Tests", "target", reversible: false, undoHint: null),
+            _ =>
+            {
+                runningInside = ChangeGuard.IsAnyChangeRunning;
+                return Task.FromResult(OperationResult.Ok());
+            }, null, CancellationToken.None);
+
+        Assert.True(runningInside);
+    }
+
+    [Fact]
     public async Task Options_override_settings_policy()
     {
         var (guard, restore, _, _) = Create(before: true, after: false);

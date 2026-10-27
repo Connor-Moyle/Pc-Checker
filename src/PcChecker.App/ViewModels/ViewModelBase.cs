@@ -52,7 +52,12 @@ public abstract partial class ViewModelBase : ObservableObject
         settings.Changed += OnSettingsChanged;
     }
 
+    private static int s_runningBusyWork;
+
     public bool IsNotBusy => !IsBusy;
+
+    /// <summary>True while any page is inside <see cref="RunBusyAsync"/> (a scan, install or other long task).</summary>
+    public static bool IsAnyBusyWorkRunning => Volatile.Read(ref s_runningBusyWork) > 0;
 
     /// <summary>
     /// True once <see cref="InitializeAsync"/> has completed (successfully or with an error shown). Stays false when the
@@ -96,6 +101,7 @@ public abstract partial class ViewModelBase : ObservableObject
         BusyText = busyText;
         CanCancelBusy = cancellable;
         IsBusy = true;
+        Interlocked.Increment(ref s_runningBusyWork);
         try
         {
             await work(token);
@@ -115,6 +121,7 @@ public abstract partial class ViewModelBase : ObservableObject
         }
         finally
         {
+            Interlocked.Decrement(ref s_runningBusyWork);
             IsBusy = false;
             BusyText = null;
             CanCancelBusy = true;

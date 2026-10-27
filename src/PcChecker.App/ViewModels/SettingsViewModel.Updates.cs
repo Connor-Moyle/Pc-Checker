@@ -222,6 +222,12 @@ public sealed partial class SettingsViewModel
             return;
         }
 
+        if (Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetRequiredService<AppUpdateFlow>(App.Services).WorkStillRunning() is { } busy)
+        {
+            _notifications.Info(Localization.Loc.T("Update ready"), busy + " " + Localization.Loc.T("Install the update once it has finished."));
+            return;
+        }
+
         var result = _updates.ApplyAndRestart();
         if (!result.Success)
         {
