@@ -26,7 +26,7 @@ Delete the `%LOCALAPPDATA%\PcChecker` folder to reset the app completely.
 
 | Purpose | Where | When |
 |---|---|---|
-| Update check | GitHub Releases for this repository (through Velopack when installed, or the GitHub REST API for the portable build) | On start if *Check for updates automatically* is on, or when you click *Check now* |
+| Update check | GitHub Releases for this repository (the GitHub REST API; updates download `PcChecker.exe` from the release) | On start if *Check for updates automatically* is on, or when you click *Check now* |
 | Driver updates | Windows Update, through the Windows Update Agent | Only when you click *Check for updates* on the Drivers page, and *Download* / *Install* when you choose them |
 | Latency check | ICMP ping to your default gateway, `1.1.1.1`, `8.8.8.8` and any targets you add in Settings; one DNS lookup of `www.microsoft.com` to time your resolver | Only when you run a latency check with *include network* on |
 | Claude assistant | Anthropic API | Only when you have entered an API key and send a message, ask for an explanation or request an overclock plan |

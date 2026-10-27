@@ -75,8 +75,9 @@ otherwise.
 
 - Secrets are protected with Windows DPAPI scoped to the current user and are
   never written to logs, reports or the diagnostics zip.
-- Updates are fetched only from this repository's GitHub Releases, through
-  Velopack or the GitHub REST API.
+- Updates are fetched only from this repository's GitHub Releases, and a
+  downloaded `PcChecker.exe` is used only if its SHA-256 matches the one GitHub
+  publishes for the release asset (or the one in the release notes).
 - Every system change runs through `IChangeGuard`: a confirmation dialog, a
   restore point (per settings), an Action Journal entry and a log line.
 - Cleanup never follows reparse points and refuses paths outside the category

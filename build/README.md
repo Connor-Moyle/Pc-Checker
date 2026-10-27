@@ -30,45 +30,36 @@ Tooling that is not part of the app itself.
 It will:
 
 1. `dotnet build` and `dotnet test` the solution in Release.
-2. `dotnet publish` a self-contained, single-file win-x64 build into
-   `artifacts\publish`.
-3. `vpk pack` it into `artifacts\Releases` (installer, update package,
-   `releases.win.json`) unless `-SkipPack` is given or `vpk` is not installed.
-4. Zip the publish folder as
-   `artifacts\PcChecker-<version>-portable-win-x64.zip`.
-5. Write `artifacts\SHA256SUMS.txt`.
-6. With `-Screenshots`, run the published exe with `--screenshots --demo` and
+2. `dotnet publish` one self-contained, compressed, single-file
+   `PcChecker.exe` into `artifacts\publish`.
+3. Write its SHA-256 to `artifacts\SHA256.txt`.
+4. With `-Screenshots`, run the published exe with `--screenshots --demo` and
    leave the PNGs in `artifacts\screenshots`.
 
 Parameters:
 
 | Parameter | Default | Meaning |
 |---|---|---|
-| `-Version` | `VersionPrefix` from `Directory.Build.props` | Version baked into the binaries and the package |
+| `-Version` | `VersionPrefix` from `Directory.Build.props` | Version baked into the exe |
 | `-Configuration` | `Release` | Build configuration |
 | `-Runtime` | `win-x64` | Runtime identifier |
 | `-OutputRoot` | `artifacts` | Where everything lands |
 | `-SkipTests` | off | Skip `dotnet test` |
-| `-SkipPack` | off | Skip Velopack packaging |
 | `-Screenshots` | off | Capture demo-mode screenshots after publishing |
-
-Install the Velopack CLI once with `dotnet tool install -g vpk`.
 
 ## Packaging notes
 
-- Releases are self-contained so users do not need a .NET install. The
-  single-file build extracts native libraries to a temp folder on first run
-  (`IncludeNativeLibrariesForSelfExtract`), which LibreHardwareMonitor,
-  NvAPIWrapper and OpenRGB.NET need.
-- Velopack installs per user under `%LOCALAPPDATA%\PcChecker` and the app's
-  in-app updater reads `releases.win.json` from GitHub Releases. Keep the
-  `--packId` (`PcChecker`) stable forever; changing it orphans existing
-  installs.
-- The portable zip is the same single `PcChecker.exe`; it cannot self-update
-  because Velopack is not managing it, and the app detects that and only
-  links the release page.
-- Nothing is code-signed yet. When a certificate is available, add
-  `--signParams` to `vpk pack` (it signs the exe, the installer and the
-  update package in one go) and the SmartScreen note in the README can go.
-- The app manifest requires administrator rights; the installer itself does
-  not.
+- A release is exactly one file, `PcChecker.exe`, self-contained so users do
+  not need a .NET install. The single-file build extracts native libraries to a
+  temp folder on first run (`IncludeNativeLibrariesForSelfExtract`), which
+  LibreHardwareMonitor, NvAPIWrapper and OpenRGB.NET need. Licence texts are
+  embedded resources (Settings > About > Show licence texts).
+- The app updates itself: it downloads the new `PcChecker.exe` from the latest
+  release, verifies the SHA-256, swaps the file and restarts. Keep the asset
+  name `PcChecker.exe` stable; the updater looks for it.
+- Nothing is code-signed yet. When a certificate is available, sign
+  `PcChecker.exe` in the release workflow (for example with `signtool` or Azure
+  Trusted Signing) before computing the SHA-256, and the SmartScreen note in the
+  README can go.
+- The app manifest requires administrator rights, so Windows shows a UAC
+  prompt on every start.

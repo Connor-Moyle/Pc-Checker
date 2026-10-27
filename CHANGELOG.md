@@ -96,8 +96,9 @@ Initial release.
   Action Journal with undo hints, overclock and fan watchdogs.
 - **Demo mode** (`--demo`) with realistic sample data and a screenshot runner
   (`--screenshots <dir>`) that CI uses to capture every page.
-- Self-update from GitHub Releases (Velopack) with Stable and Beta channels,
-  an installer and a portable build.
+- Released as one self-contained `PcChecker.exe` (no installer). It updates
+  itself from GitHub Releases with Stable and Beta channels and verifies every
+  download against its published SHA-256.
 
 [Unreleased]: https://github.com/Connor-Moyle/test-pcchecker/compare/v0.1.0...HEAD
 [0.1.0]: https://github.com/Connor-Moyle/test-pcchecker/releases/tag/v0.1.0

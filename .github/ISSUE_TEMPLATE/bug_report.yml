@@ -26,10 +26,9 @@ body:
   - type: dropdown
     id: install
     attributes:
-      label: How did you install it?
+      label: Where did you get it?
       options:
-        - Setup.exe installer
-        - Portable zip
+        - PcChecker.exe from the Releases page
         - Built from source
     validations:
       required: true

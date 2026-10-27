@@ -16,9 +16,8 @@ background service and nothing runs when it is closed.
 
 Releases are not yet signed with a certificate SmartScreen trusts. Click
 **More info → Run anyway**. You can verify the download came from this
-repository's Releases page by comparing its SHA-256 with `SHA256SUMS.txt`
-attached to the release (`Get-FileHash .\PcChecker-win-Setup.exe` in
-PowerShell).
+repository's Releases page by comparing its SHA-256 with the one printed in
+the release notes (`Get-FileHash .\PcChecker.exe` in PowerShell).
 
 ### Does it send my data anywhere?
 
@@ -166,9 +165,9 @@ Delete the folder to reset the app.
 
 ### Can I run it without installing?
 
-Yes. Download the portable zip from Releases and run `PcChecker.exe` from any
-folder. It cannot self-update; it tells you when a new version is out and
-links the release page.
+Yes, that is the only way it ships. Download `PcChecker.exe` from Releases and
+run it from any folder; there is nothing to install. It updates itself in
+place when a new version is out.
 
 ### Can I look around without changing anything?
 

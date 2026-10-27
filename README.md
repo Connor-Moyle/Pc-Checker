@@ -36,20 +36,19 @@ point and written to a journal with an undo hint.
 
 ## Download
 
-Go to the [Releases page](https://github.com/Connor-Moyle/test-pcchecker/releases/latest)
-and pick one:
+**[Download PcChecker.exe](https://github.com/Connor-Moyle/test-pcchecker/releases/latest/download/PcChecker.exe)**
+and double-click it. That is the whole install: one file, nothing to set up, and .NET is built in. Run it from
+your Downloads folder, a tools folder or a USB stick.
 
-| File | What it is | Pick it when |
-|---|---|---|
-| `PcChecker-win-Setup.exe` | Installer. Installs per user, adds a Start menu entry and **updates itself** from GitHub Releases. | You want the normal experience. |
-| `PcChecker-<version>-portable-win-x64.zip` | A single `PcChecker.exe` you can run from anywhere (a USB stick, a tools folder). Tells you when a new version is out but does not update itself. | You do not want to install anything. |
-| `SHA256SUMS.txt` | Checksums for every release file. | You want to verify a download. |
-| `PcChecker-<version>-full.nupkg`, `*-delta.nupkg`, `RELEASES`, `releases.win.json`, `assets.win.json` | Update packages and feed files. The installed app downloads these by itself when it updates. | Never; you do not need to download them. |
+Every release on the [Releases page](https://github.com/Connor-Moyle/test-pcchecker/releases) is that single
+`PcChecker.exe`, with its SHA-256 checksum in the release notes. The app **updates itself**: when a new version is
+out it downloads the new exe, checks the checksum, swaps it in and restarts (Settings → Updates; pick the Beta
+channel to get pre-releases).
 
 **Requirements**
 
 - Windows 11, or Windows 10 version 22H2. 64-bit only.
-- No separate .NET install: both downloads bundle the .NET 8 runtime.
+- No separate .NET install: the .NET 8 runtime is built into `PcChecker.exe`.
 - Administrator rights. The app asks for them on every start because reading
   SMART data, controlling fans, installing drivers, cleaning system folders,
   changing services, scheduling `chkdsk` and applying GPU clocks all need
@@ -58,7 +57,8 @@ and pick one:
 **About SmartScreen.** Releases are not yet signed with a code-signing
 certificate, so the first time you run a new version Windows may show
 *Windows protected your PC*. Click **More info → Run anyway**. You can confirm
-the file came from this repository by checking it against `SHA256SUMS.txt`.
+the file came from this repository by comparing its SHA-256 (`Get-FileHash .\PcChecker.exe`) with the one in
+the release notes.
 
 **First run**
 
@@ -250,8 +250,8 @@ dotnet run --project src/PcChecker.App
 ```
 
 You need the .NET 8 SDK. The solution also builds, and the Core tests run, on
-Linux and macOS; only the app itself needs Windows. Publishing, Velopack
-packaging, versioning and the local `build/publish.ps1` script are covered in
+Linux and macOS; only the app itself needs Windows. Publishing the single
+`PcChecker.exe`, versioning and the local `build/publish.ps1` script are covered in
 [docs/BUILDING.md](docs/BUILDING.md).
 
 ## Project structure
@@ -321,7 +321,6 @@ PC Checker stands on the shoulders of these projects:
 - [System.Diagnostics.PerformanceCounter](https://www.nuget.org/packages/System.Diagnostics.PerformanceCounter) (MIT): DPC, interrupt and memory counters
 - [WPF UI](https://github.com/lepoco/wpfui) (MIT): the Fluent look
 - [CommunityToolkit.Mvvm](https://github.com/CommunityToolkit/dotnet) (MIT): view models
-- [Velopack](https://velopack.io) (MIT): installer and self-update
 - [Serilog](https://serilog.net) (Apache-2.0): logging
 - [Anthropic C# SDK](https://www.nuget.org/packages/Anthropic) (MIT): the assistant
 

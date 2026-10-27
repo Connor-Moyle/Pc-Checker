@@ -11,7 +11,6 @@
   `EnableWindowsTargeting`. Only running the app itself needs Windows. CI
   builds on both.
 - Optional, for the icon script: Python 3 with Pillow.
-- Optional, for packaging: the Velopack CLI (`dotnet tool install -g vpk`).
 
 ## Build
 
@@ -62,30 +61,24 @@ dotnet publish src/PcChecker.App/PcChecker.App.csproj -c Release -r win-x64 --se
   -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o publish/win-x64
 ```
 
-## Installer and updates (Velopack)
+## Releases and self-update
 
-Releases are packaged with [Velopack](https://velopack.io), which gives us a
-setup exe, delta updates and in-app self-update from GitHub Releases.
+A release is one file: a self-contained, compressed, single-file `PcChecker.exe` (win-x64, .NET 8 runtime
+included). There is no installer and no zip.
 
 ```powershell
-dotnet tool install -g vpk
 dotnet publish src/PcChecker.App/PcChecker.App.csproj -c Release -r win-x64 --self-contained true `
-  -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o publish
-vpk pack --packId PcChecker --packVersion 0.1.0 --packDir publish --mainExe PcChecker.exe `
-  --packTitle "PC Checker" --packAuthors "PC Checker contributors" `
-  --icon src/PcChecker.App/Assets/icon.ico --outputDir Releases
+  -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true `
+  -p:IncludeAllContentForSelfExtract=true -p:EnableCompressionInSingleFile=true -p:DebugType=None -o publish
 ```
 
-`build/publish.ps1` does all of that in one go and also zips a portable build
-and writes `SHA256SUMS.txt`:
+`build/publish.ps1` does the same locally and writes the SHA-256 next to the exe.
 
-```powershell
-.\build\publish.ps1 -Version 0.1.0            # publish + vpk pack + zip + checksums
-.\build\publish.ps1 -Version 0.1.0 -SkipPack  # publish + zip only (no Velopack)
-.\build\publish.ps1 -Version 0.1.0 -Screenshots  # also capture demo screenshots
-```
-
-See [`build/README.md`](../build/README.md).
+The app updates itself from GitHub Releases: it reads the releases list, picks the newest release for the chosen
+channel (Stable skips pre-releases), downloads the `PcChecker.exe` asset, verifies it against GitHub's asset
+digest or the `SHA-256` line in the release notes, renames the running exe to `PcChecker.exe.old`, puts the new file
+in its place and starts it with `--wait-pid <old pid>` so the new copy waits for the old one to close. The `.old` file
+is deleted on the next start. A download that does not match the checksum is deleted and never run.
 
 ## Releasing
 
@@ -101,9 +94,9 @@ See [`build/README.md`](../build/README.md).
    Use `v0.2.0-beta.1` for a pre-release; the in-app updater on the Beta
    channel will pick it up and the Stable channel will ignore it.
 3. `.github/workflows/release.yml` builds and tests, publishes a
-   self-contained build, packs it with Velopack, zips the portable build,
-   computes `SHA256SUMS.txt` and creates the GitHub release with generated
-   notes and every file attached.
+   single-file `PcChecker.exe`, writes its SHA-256 into the release notes and
+   creates the GitHub release with that one file attached. An annotated tag's
+   message becomes the release codename (`git tag -a v0.2.0 -m "Codename"`).
 
 ## Versioning
 
@@ -150,5 +143,3 @@ directly so the tests keep running on Linux.
 - **CA1416 warnings**: suppressed on purpose; every project is Windows-only.
 - **The tests fail to run on Linux with a Windows Forms error**: something
   pulled in the `NAudio` meta-package. Reference `NAudio.Wasapi` instead.
-- **`vpk` is not found**: `dotnet tool install -g vpk` and make sure
-  `%USERPROFILE%\.dotnet\tools` is on your `PATH`.
