@@ -71,7 +71,7 @@ public sealed class WelcomeService
             _logger.LogInformation("Welcome closed with {Choice}.", result == ContentDialogResult.Primary ? "full scan" : "look around");
             if (result == ContentDialogResult.Primary)
             {
-                await _services.GetRequiredService<QuickActionRunner>().RunAsync(QuickActionIds.FullScan);
+                await _services.GetRequiredService<QuickActionRunner>().RunAsync(QuickActionIds.FullScan, waitWhileBusy: true);
             }
         }
         catch (Exception ex)

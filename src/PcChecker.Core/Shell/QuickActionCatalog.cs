@@ -28,7 +28,7 @@ public static class QuickActionCatalog
     public static IReadOnlyList<QuickActionDefinition> All { get; } =
     [
         new(QuickActionIds.FullScan, T("Run a full scan"), "dashboard", T("check everything hardware health performance drivers apps")),
-        new(QuickActionIds.CleanTempFiles, T("Clean temporary files"), "cleanup", T("junk temp cache free space disk cleanup")),
+        new(QuickActionIds.CleanTempFiles, T("Find temporary files to clean"), "cleanup", T("clean junk temp cache free space disk cleanup")),
         new(QuickActionIds.CheckDrivers, T("Check for driver updates"), "drivers", T("drivers windows update outdated")),
         new(QuickActionIds.Optimize, T("Optimize this PC"), "optimize", T("tweaks faster speed up performance")),
         new(QuickActionIds.ExportReport, T("Export a full report"), "dashboard", T("html json markdown save share")),

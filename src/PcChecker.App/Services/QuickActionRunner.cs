@@ -22,6 +22,9 @@ public sealed class QuickActionRunner
     private static readonly TimeSpan BusyPollInterval = TimeSpan.FromMilliseconds(250);
     private static readonly TimeSpan BusyWaitLimit = TimeSpan.FromSeconds(30);
 
+    /// <summary>How long a queued action (see <c>waitWhileBusy</c>) waits for the page, e.g. for a slow start-up check.</summary>
+    private static readonly TimeSpan QueuedWaitLimit = TimeSpan.FromMinutes(15);
+
     private readonly IServiceProvider _services;
     private readonly INavigationService _navigation;
     private readonly INotificationService _notifications;
@@ -35,12 +38,16 @@ public sealed class QuickActionRunner
         _logger = logger;
     }
 
-    /// <summary>Runs the action with <paramref name="actionId"/> (a <see cref="QuickActionIds"/> value). Never throws.</summary>
-    public async Task RunAsync(string actionId)
+    /// <summary>
+    /// Runs the action with <paramref name="actionId"/> (a <see cref="QuickActionIds"/> value). Never throws.
+    /// With <paramref name="waitWhileBusy"/> the action is queued while its page is busy (for instance with the
+    /// start-up health check) and runs as soon as the page is free, instead of giving up after a short wait.
+    /// </summary>
+    public async Task RunAsync(string actionId, bool waitWhileBusy = false)
     {
         try
         {
-            await RunCoreAsync(actionId);
+            await RunCoreAsync(actionId, waitWhileBusy);
         }
         catch (Exception ex)
         {
@@ -49,38 +56,39 @@ public sealed class QuickActionRunner
         }
     }
 
-    private Task RunCoreAsync(string actionId)
+    private Task RunCoreAsync(string actionId, bool waitWhileBusy)
     {
+        var busyWait = waitWhileBusy ? QueuedWaitLimit : BusyWaitLimit;
         switch (actionId)
         {
             case QuickActionIds.FullScan:
-                return RunOnPageAsync<DashboardViewModel>(typeof(DashboardPage), vm => vm.FullScanCommand);
+                return RunOnPageAsync<DashboardViewModel>(typeof(DashboardPage), vm => vm.FullScanCommand, busyWait);
             case QuickActionIds.ExportReport:
-                return RunOnPageAsync<DashboardViewModel>(typeof(DashboardPage), vm => vm.ExportReportCommand);
+                return RunOnPageAsync<DashboardViewModel>(typeof(DashboardPage), vm => vm.ExportReportCommand, busyWait);
 
             // The first visit to Cleanup and Drivers already scans, so the command only runs on later visits.
             case QuickActionIds.CleanTempFiles:
-                return RunOnPageAsync<CleanupViewModel>(typeof(CleanupPage), vm => vm.ScanCommand, firstVisitDoesIt: true);
+                return RunOnPageAsync<CleanupViewModel>(typeof(CleanupPage), vm => vm.ScanCommand, busyWait, firstVisitDoesIt: true);
             case QuickActionIds.CheckDrivers:
                 // In demo mode the first visit also checks for updates.
-                return RunOnPageAsync<DriversViewModel>(typeof(DriversPage), vm => vm.CheckForUpdatesCommand, firstVisitDoesIt: AppOptions.Current.IsDemo);
+                return RunOnPageAsync<DriversViewModel>(typeof(DriversPage), vm => vm.CheckForUpdatesCommand, busyWait, firstVisitDoesIt: AppOptions.Current.IsDemo);
 
             // Health, Speed check and Latency scan on their first visit only when there is no earlier result.
             case QuickActionIds.HealthCheck:
-                return RunOnPageAsync<HealthViewModel>(typeof(HealthPage), vm => vm.AnalyzeCommand,
+                return RunOnPageAsync<HealthViewModel>(typeof(HealthPage), vm => vm.AnalyzeCommand, busyWait,
                     firstVisitDoesIt: _services.GetRequiredService<IHealthService>().Last is null);
             case QuickActionIds.SpeedCheck:
-                return RunOnPageAsync<PerformanceViewModel>(typeof(PerformancePage), vm => vm.ScanCommand,
+                return RunOnPageAsync<PerformanceViewModel>(typeof(PerformancePage), vm => vm.ScanCommand, busyWait,
                     firstVisitDoesIt: _services.GetRequiredService<IPerformanceAnalyzer>().Last is null);
             case QuickActionIds.LatencyCheck:
-                return RunOnPageAsync<LatencyViewModel>(typeof(LatencyPage), vm => vm.RunCheckCommand,
+                return RunOnPageAsync<LatencyViewModel>(typeof(LatencyPage), vm => vm.RunCheckCommand, busyWait,
                     firstVisitDoesIt: _services.GetRequiredService<ILatencyService>().Last is null);
 
             // Asks for confirmation on the Storage page before writing its test file.
             case QuickActionIds.DiskBenchmark:
-                return RunOnPageAsync<StorageViewModel>(typeof(StoragePage), vm => vm.RunBenchmarkCommand);
+                return RunOnPageAsync<StorageViewModel>(typeof(StoragePage), vm => vm.RunBenchmarkCommand, busyWait);
             case QuickActionIds.CheckAppUpdates:
-                return RunOnPageAsync<SettingsViewModel>(typeof(SettingsPage), vm => vm.CheckForUpdatesCommand);
+                return RunOnPageAsync<SettingsViewModel>(typeof(SettingsPage), vm => vm.CheckForUpdatesCommand, busyWait);
 
             case QuickActionIds.Optimize:
                 _navigation.Navigate(typeof(OptimizePage));
@@ -100,7 +108,7 @@ public sealed class QuickActionRunner
     /// Opens the page, waits for its first load (and for anything else the page is busy with), then runs
     /// <paramref name="command"/> unless that first load already did the same work (<paramref name="firstVisitDoesIt"/>).
     /// </summary>
-    private async Task RunOnPageAsync<TViewModel>(Type pageType, Func<TViewModel, ICommand> command, bool firstVisitDoesIt = false)
+    private async Task RunOnPageAsync<TViewModel>(Type pageType, Func<TViewModel, ICommand> command, TimeSpan busyWait, bool firstVisitDoesIt = false)
         where TViewModel : ViewModelBase
     {
         var viewModel = _services.GetRequiredService<TViewModel>();
@@ -112,7 +120,12 @@ public sealed class QuickActionRunner
             return;
         }
 
-        if (!await WaitUntilIdleAsync(viewModel))
+        if (viewModel.IsBusy && busyWait > BusyWaitLimit)
+        {
+            _notifications.Info(Localization.Loc.T("Starting soon"), Localization.Loc.T("This page is still working on something. Your request starts as soon as it has finished."));
+        }
+
+        if (!await WaitUntilIdleAsync(viewModel, busyWait))
         {
             _notifications.Info(Localization.Loc.T("Still busy"), Localization.Loc.T("This page is still working on something. Try again when it has finished."));
             return;
@@ -135,12 +148,12 @@ public sealed class QuickActionRunner
         }
     }
 
-    private static async Task<bool> WaitUntilIdleAsync(ViewModelBase viewModel)
+    private static async Task<bool> WaitUntilIdleAsync(ViewModelBase viewModel, TimeSpan limit)
     {
         var waited = TimeSpan.Zero;
         while (viewModel.IsBusy)
         {
-            if (waited >= BusyWaitLimit)
+            if (waited >= limit)
             {
                 return false;
             }

@@ -1108,7 +1108,8 @@ navigation pane, to open a search box over the page.
 - **What it finds**: every page and tab, every option on the Settings page
   (plus a few that live on their own pages: the overlay hotkey and opacity,
   the logging level, hiding serial numbers in logs and the cleanup dry run),
-  and quick actions: *Run a full scan*, *Clean temporary files*, *Check for
+  and quick actions: *Run a full scan*, *Find temporary files to clean*
+  (opens Cleanup and scans; nothing is removed until you confirm), *Check for
   driver updates*, *Optimize this PC*, *Export a full report*, *Show or hide
   the overlay*, *Run a latency check*, *Run a disk benchmark*, *Check health
   now*, *Run a speed check*, *Check for PC Checker updates* and *Show the

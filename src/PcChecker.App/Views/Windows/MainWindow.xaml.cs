@@ -58,6 +58,13 @@ public partial class MainWindow : FluentWindow
     /// <summary>Ctrl+K opens quick search from anywhere in the window, or closes it again; not while a dialog is open.</summary>
     private void OnPreviewKeyDown(object sender, KeyEventArgs e)
     {
+        // While the palette is open, its keys (Esc, arrows, Enter) work even when focus is outside it.
+        if (ViewModel.QuickSearch.IsOpen && !QuickSearchPalette.IsKeyboardFocusWithin && QuickSearchPalette.HandleKey(e.Key))
+        {
+            e.Handled = true;
+            return;
+        }
+
         if (e.Key != Key.K || Keyboard.Modifiers != ModifierKeys.Control || DialogHost.Content is not null)
         {
             return;

@@ -59,6 +59,9 @@ public sealed partial class QuickSearchViewModel : ObservableObject
     /// <summary>Raised after the palette opens, so the view can put the cursor in the search box.</summary>
     public event EventHandler? Opened;
 
+    /// <summary>Raised when the palette is closed without choosing anything (Esc, Ctrl+K, a click outside), so the view can give focus back.</summary>
+    public event EventHandler? Dismissed;
+
     /// <summary>Every page, setting and action; built on first use from <see cref="NavigationCatalog"/> and the Core catalogs.</summary>
     public IReadOnlyList<SearchItem> Index => _index ??= QuickSearchIndex.Build(
         NavigationCatalog.Pages.Select(p => new SearchPageInfo(p.Section, p.Title, p.FileName)),
@@ -84,7 +87,16 @@ public sealed partial class QuickSearchViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void Close() => IsOpen = false;
+    private void Close()
+    {
+        if (!IsOpen)
+        {
+            return;
+        }
+
+        IsOpen = false;
+        Dismissed?.Invoke(this, EventArgs.Empty);
+    }
 
     partial void OnQueryChanged(string value) => UpdateResults();
 
