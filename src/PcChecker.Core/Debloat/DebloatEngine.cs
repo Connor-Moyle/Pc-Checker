@@ -80,7 +80,7 @@ public sealed class DebloatEngine
 
         var taskPaths = ops.OfType<ScheduledTaskOp>().Select(t => t.Path).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
         var tasksTask = taskPaths.Count > 0 ? _system.GetTaskStatesAsync(taskPaths, cancellationToken) : Task.FromResult<IReadOnlyDictionary<string, bool>?>(null);
-        var appsTask = ops.OfType<AppxRemovalOp>().Any() ? _system.GetInstalledAppsAsync(cancellationToken) : Task.FromResult<IReadOnlySet<string>?>(null);
+        var appsTask = ops.OfType<AppxRemovalOp>().Any() || supported.Any(t => t.OnlyWithoutApp is not null) ? _system.GetInstalledAppsAsync(cancellationToken) : Task.FromResult<IReadOnlySet<string>?>(null);
 
         var features = new Dictionary<string, FeatureState>(StringComparer.OrdinalIgnoreCase);
         foreach (var feature in ops.OfType<OptionalFeatureOp>().DistinctBy(f => f.FeatureName, StringComparer.OrdinalIgnoreCase))
@@ -125,6 +125,22 @@ public sealed class DebloatEngine
         if (DebloatRules.PreconditionFailure(tweak, SafePrinters()) is string blocked)
         {
             return Result(tweak, TweakOutcome.Skipped, blocked);
+        }
+
+        if (DebloatRules.RequirementFailure(tweak, _system.Registry) is string requirementMissing)
+        {
+            return Result(tweak, TweakOutcome.Skipped, requirementMissing + ": nothing to change.");
+        }
+
+        if (tweak.OnlyWithoutApp is { } requiredAbsent)
+        {
+            var installed = await InstalledAppsAsync(allUsers: false, cancellationToken).ConfigureAwait(false);
+            if (installed is null || DebloatRules.IsAppInstalled(requiredAbsent, installed))
+            {
+                return Result(tweak, TweakOutcome.Skipped, installed is null
+                    ? "Installed apps could not be read, so this was left alone."
+                    : DebloatRules.AppStillInstalledText(requiredAbsent));
+            }
         }
 
         var tasks = await ReadTasksAsync(tweak, cancellationToken).ConfigureAwait(false);
@@ -264,6 +280,14 @@ public sealed class DebloatEngine
                     break;
                 }
 
+                case RegistryKeyRemovalOp keyOp:
+                {
+                    bool exists = SafeKeyExists(keyOp.Hive, keyOp.Path);
+                    capture[keyOp.Key] = exists ? "1" : null;
+                    before.Add($"{keyOp.Path}={(exists ? "present" : "absent")}");
+                    break;
+                }
+
                 case ServiceOp svc:
                 {
                     var mode = DebloatStateEvaluator.ReadStartMode(_system.Registry, svc.Name);
@@ -330,6 +354,17 @@ public sealed class DebloatEngine
                 return (ok ? OpOutcome.Changed : OpOutcome.Failed, message);
             }
 
+            case RegistryKeyRemovalOp keyOp:
+            {
+                if (!SafeKeyExists(keyOp.Hive, keyOp.Path))
+                {
+                    return (OpOutcome.AlreadyInPlace, null);
+                }
+
+                var (ok, message) = Try(() => _system.Registry.DeleteKeyTree(keyOp.Hive, keyOp.Path), keyOp.Hive, keyOp.Path);
+                return (ok ? OpOutcome.Changed : OpOutcome.Failed, message);
+            }
+
             case ServiceOp svc:
             {
                 var mode = DebloatStateEvaluator.ReadStartMode(_system.Registry, svc.Name);
@@ -367,7 +402,7 @@ public sealed class DebloatEngine
                 // A removal for all users also acts on other accounts and the provisioned package, so the app counts as
                 // present when any of those still has it, even if the current account removed it already.
                 var installed = await InstalledAppsAsync(RemoveAppsForAllUsers, cancellationToken).ConfigureAwait(false);
-                if (installed is not null && !installed.Contains(app.PackageName))
+                if (installed is not null && !DebloatRules.IsAppInstalled(app.PackageName, installed))
                 {
                     return (OpOutcome.NotPresent, null);
                 }
@@ -418,6 +453,19 @@ public sealed class DebloatEngine
             {
                 var (ok, message) = Try(() => RevertRegistry(reg, capture), reg);
                 return (ok, message);
+            }
+
+            case RegistryKeyRemovalOp keyOp:
+            {
+                // Recreate the key unless it was captured as absent; with no capture, Windows' default is "present".
+                bool existedBefore = capture is null || !capture.TryGetValue(keyOp.Key, out var saved) || saved is not null;
+                if (!existedBefore || SafeKeyExists(keyOp.Hive, keyOp.Path))
+                {
+                    return (null, null);
+                }
+
+                return Try(() => _system.Registry.Write(keyOp.Hive, keyOp.Path, string.Empty, new RegistryData(DebloatValueKind.String, keyOp.RestoredDefaultValue)),
+                    keyOp.Hive, keyOp.Path);
             }
 
             case ServiceOp svc:
@@ -571,7 +619,9 @@ public sealed class DebloatEngine
         }
     }
 
-    private static (bool Ok, string? Message) Try(Action action, RegistryValueOp reg)
+    private static (bool Ok, string? Message) Try(Action action, RegistryValueOp reg) => Try(action, reg.Hive, reg.Path);
+
+    private static (bool Ok, string? Message) Try(Action action, DebloatHive hive, string path)
     {
         try
         {
@@ -580,7 +630,7 @@ public sealed class DebloatEngine
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            var where = $"{RegistryValueCodec.HiveName(reg.Hive)}\\{reg.Path}";
+            var where = $"{RegistryValueCodec.HiveName(hive)}\\{path}";
             return (false, ex is UnauthorizedAccessException or global::System.Security.SecurityException
                 ? $"Windows blocked the change to {where} (access denied)."
                 : $"Could not change {where}: {ex.Message}");

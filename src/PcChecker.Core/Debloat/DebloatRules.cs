@@ -98,6 +98,102 @@ public static class DebloatRules
         return tweak.Operations.Any(o => o is OptionalFeatureOp) || (!revert && !tweak.Reversible);
     }
 
+    /// <summary>
+    /// Returns why the tweak does not apply because the software it configures is missing (none of
+    /// <see cref="DebloatTweak.Requires"/>'s keys exist), or null when it applies. A key that cannot be read counts as
+    /// present, so a read error never hides a tweak.
+    /// </summary>
+    public static string? RequirementFailure(DebloatTweak tweak, IRegistryAccessor registry)
+    {
+        ArgumentNullException.ThrowIfNull(tweak);
+        ArgumentNullException.ThrowIfNull(registry);
+        if (tweak.Requires is not { } requirement || requirement.AnyOf.Count == 0)
+        {
+            return null;
+        }
+
+        foreach (var key in requirement.AnyOf)
+        {
+            try
+            {
+                if (registry.KeyExists(key.Hive, key.Path))
+                {
+                    return null;
+                }
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
+
+        return requirement.MissingText;
+    }
+
+    /// <summary>
+    /// True when a Store package name matches a catalog name. Catalog names are exact package names, or patterns with
+    /// <c>*</c> wildcards (as <c>Get-AppxPackage -Name</c> accepts) for promotional apps whose publisher prefix varies.
+    /// Case-insensitive.
+    /// </summary>
+    public static bool AppNameMatches(string pattern, string packageName)
+    {
+        ArgumentNullException.ThrowIfNull(pattern);
+        ArgumentNullException.ThrowIfNull(packageName);
+        if (!pattern.Contains('*'))
+        {
+            return pattern.Equals(packageName, StringComparison.OrdinalIgnoreCase);
+        }
+
+        var parts = pattern.Split('*');
+        int position = 0;
+        for (int i = 0; i < parts.Length; i++)
+        {
+            var part = parts[i];
+            if (part.Length == 0)
+            {
+                continue;
+            }
+
+            if (i == 0)
+            {
+                if (!packageName.StartsWith(part, StringComparison.OrdinalIgnoreCase))
+                {
+                    return false;
+                }
+
+                position = part.Length;
+            }
+            else if (i == parts.Length - 1)
+            {
+                return packageName.Length - part.Length >= position && packageName.EndsWith(part, StringComparison.OrdinalIgnoreCase);
+            }
+            else
+            {
+                int found = packageName.IndexOf(part, position, StringComparison.OrdinalIgnoreCase);
+                if (found < 0)
+                {
+                    return false;
+                }
+
+                position = found + part.Length;
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>Why a tweak that fills the gap of a removed app does not apply yet.</summary>
+    public static string AppStillInstalledText(string packageName) =>
+        $"Only needed after removing {WindowsFeatures.InboxAppCatalog.FriendlyName(packageName)}";
+
+    /// <summary>True when any installed package matches <paramref name="pattern"/> (see <see cref="AppNameMatches"/>).</summary>
+    public static bool IsAppInstalled(string pattern, IReadOnlySet<string> installed)
+    {
+        ArgumentNullException.ThrowIfNull(pattern);
+        ArgumentNullException.ThrowIfNull(installed);
+        return pattern.Contains('*') ? installed.Any(name => AppNameMatches(pattern, name)) : installed.Contains(pattern);
+    }
+
     /// <summary>The tweaks named by <paramref name="ids"/> plus every tweak with an operation on the same setting.</summary>
     public static IReadOnlyList<DebloatTweak> WithRelated(IEnumerable<string> ids, IEnumerable<DebloatTweak> all)
     {

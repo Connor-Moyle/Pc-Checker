@@ -142,8 +142,29 @@ public sealed class DemoDebloatService : DebloatServiceBase
             system.Apps.Add(app);
         }
 
+        system.SetService("lfsvc", DebloatStartMode.Manual);
+        system.SetService("CscService", DebloatStartMode.Manual);
+        system.SetService("diagnosticshub.standardcollector.service", DebloatStartMode.Manual);
+
+        // Software the other-apps tweaks look for: Chrome, OneDrive for this account and the NVIDIA driver (the sample
+        // PC has a GeForce card); Office, Brave and Firefox are not installed, so those rows show "Not available".
+        reg.CreateKey(DebloatHive.LocalMachine, @"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\chrome.exe");
+        reg.CreateKey(DebloatHive.LocalMachine, @"SOFTWARE\NVIDIA Corporation\Global");
+        reg.SetDword(DebloatHive.CurrentUser, @"Software\Classes\CLSID\{018D5C66-4533-4307-9B53-224DE2ED1FE6}", "System.IsPinnedToNameSpaceTree", 1);
+        foreach (var root in new[] { @"SOFTWARE\", @"SOFTWARE\WOW6432Node\" })
+        {
+            reg.Write(DebloatHive.LocalMachine, root + @"Microsoft\Windows\CurrentVersion\Explorer\Desktop\NameSpace\DelegateFolders\{F5FB2C77-0E2F-4A16-A381-3E560C68BC83}",
+                string.Empty, new RegistryData(DebloatValueKind.String, "Removable Drives"));
+        }
+
+        system.Apps.Add("MicrosoftWindows.Client.WebExperience");
+        system.Apps.Add("Microsoft.ZuneMusic");
+        system.Apps.Add("Microsoft.WindowsAlarms");
+        system.Apps.Add("Flipboard.Flipboard");
         system.Features["Recall"] = FeatureState.Enabled;
         system.Detections["ps:onedrive.uninstall"] = false;
+        system.Detections["ps:fax.queue"] = false;
+        system.Detections["ps:reservedstorage"] = false;
         system.Printers.AddRange(["Microsoft Print to PDF", "Microsoft XPS Document Writer", "HP OfficeJet Pro 9010 series"]);
         return system;
     }

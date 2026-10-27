@@ -77,6 +77,16 @@ public static class InboxAppCatalog
         new("Microsoft.UI.Xaml", "UI library (Microsoft.UI.Xaml)", RiskLevel.Advanced, "Do not remove. Shared library used by many apps.", true),
         new("Microsoft.VCLibs", "Visual C++ runtime (Store)", RiskLevel.Advanced, "Do not remove. Shared library used by many apps.", true),
         new("Microsoft.NET.Native", ".NET Native runtime", RiskLevel.Advanced, "Do not remove. Shared library used by many apps.", true),
+        new("AdvancedMicroDevicesInc-2.AMDRadeonSoftware", "AMD Radeon Software", RiskLevel.Advanced, "Do not remove. The AMD graphics driver's control panel (FreeSync, display and game settings).", true),
+        new("AdvancedMicroDevicesInc", "AMD software", RiskLevel.Advanced, "Do not remove. AMD driver software (graphics, chipset or laptop control panel).", true),
+        new("NVIDIACorp.NVIDIAControlPanel", "NVIDIA Control Panel", RiskLevel.Advanced, "Do not remove. The NVIDIA graphics driver's control panel.", true),
+        new("AppUp.IntelGraphicsExperience", "Intel Graphics Command Center", RiskLevel.Advanced, "Do not remove. The Intel graphics driver's control panel.", true),
+        new("AppUp.IntelArcSoftware", "Intel Arc Control", RiskLevel.Advanced, "Do not remove. The Intel Arc graphics driver's control panel.", true),
+        new("AppUp.ThunderboltControlCenter", "Thunderbolt Control Center", RiskLevel.Advanced, "Do not remove. Approves Thunderbolt and USB4 devices.", true),
+        new("RealtekSemiconductorCorp.RealtekAudioControl", "Realtek Audio Console", RiskLevel.Advanced, "Do not remove. The Realtek audio driver's control panel.", true),
+        new("DolbyLaboratories.DolbyAudio", "Dolby Audio", RiskLevel.Advanced, "Do not remove. The Dolby audio driver's control panel.", true),
+        new("WavesAudio.MaxxAudio", "Waves MaxxAudio", RiskLevel.Advanced, "Do not remove. The Waves audio driver's control panel.", true),
+        new("WavesAudio.WavesMaxxAudio", "Waves MaxxAudio", RiskLevel.Advanced, "Do not remove. The Waves audio driver's control panel.", true),
     ];
 
     /// <summary>Packages that must never be offered for removal, even in advanced mode.</summary>
@@ -91,17 +101,43 @@ public static class InboxAppCatalog
         "Microsoft.UI.Xaml",
         "Microsoft.VCLibs",
         "Microsoft.NET.Native",
+
+        // Driver control panels: removing them loses display, audio or Thunderbolt settings the driver needs.
+        // Every AMD package: Radeon Software ships under different AdvancedMicroDevicesInc* names on OEM laptops
+        // (for example AdvancedMicroDevicesInc-RSXCM), so the whole publisher prefix is protected.
+        "AdvancedMicroDevicesInc",
+        "AdvancedMicroDevicesInc-2.AMDRadeonSoftware",
+        "AdvancedMicroDevicesInc-RSXCM",
+        "NVIDIACorp.NVIDIAControlPanel",
+        "AppUp.IntelGraphicsExperience",
+        "AppUp.IntelArcSoftware", // Defensive: the Arc control panel is usually a desktop app, but block it if a Store build appears.
+        "AppUp.ThunderboltControlCenter",
+        "RealtekSemiconductorCorp.RealtekAudioControl",
+        "DolbyLaboratories.DolbyAudio",
+        "WavesAudio.MaxxAudio",
+        "WavesAudio.WavesMaxxAudio",
     };
 
     /// <summary>
     /// Whether the app can be offered for removal: Windows must not mark it NonRemovable and it must not be on the
-    /// <see cref="NeverRemove"/> list.
+    /// <see cref="NeverRemove"/> list. A name with <c>*</c> wildcards (used by the Debloat page for promotional apps) is
+    /// refused when it is too vague or could match a never-remove package.
     /// </summary>
     public static bool IsRemovable(string? packageName, bool nonRemovable)
     {
         if (nonRemovable || string.IsNullOrWhiteSpace(packageName))
         {
             return false;
+        }
+
+        if (packageName.Contains('*'))
+        {
+            if (packageName.Replace("*", string.Empty, StringComparison.Ordinal).Length < 5)
+            {
+                return false;
+            }
+
+            return !NeverRemove.Any(n => Debloat.DebloatRules.AppNameMatches(packageName, n) || Debloat.DebloatRules.AppNameMatches(packageName, n + ".Package"));
         }
 
         return !NeverRemove.Any(n => packageName.StartsWith(n, StringComparison.OrdinalIgnoreCase));

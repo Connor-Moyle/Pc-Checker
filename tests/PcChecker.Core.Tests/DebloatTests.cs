@@ -346,7 +346,8 @@ public class DebloatEngineTests
         var tweak = Tweak("svc.mapsbroker");
         var before = (await engine.GetStatesAsync([tweak], default))[tweak.Id];
         Assert.Equal(TweakStatus.NotApplied, before.Status);
-        Assert.Equal("Automatic (delayed start)", before.Detail);
+        var service = tweak.Operations.OfType<ServiceOp>().Single();
+        Assert.Equal((OperationState.NotApplied, "Automatic (delayed start)"), DebloatStateEvaluator.EvaluateOperation(service, system.Registry, DebloatSnapshot.Empty()));
 
         await engine.ApplyAsync(tweak, default);
         Assert.Equal(DebloatStartMode.Manual, DebloatStateEvaluator.ReadStartMode(system.Registry, "MapsBroker"));
@@ -380,7 +381,8 @@ public class DebloatEngineTests
     {
         var (engine, system) = Create();
         system.FailQueries = true;
-        var states = await engine.GetStatesAsync([Tweak("privacy.ceiptasks"), Tweak("apps.news")], default);
+        var tasksOnly = Tweak("privacy.ceiptasks") with { Operations = Tweak("privacy.ceiptasks").Operations.OfType<ScheduledTaskOp>().ToList() };
+        var states = await engine.GetStatesAsync([tasksOnly, Tweak("apps.news")], default);
         Assert.Equal(TweakStatus.Unknown, states["privacy.ceiptasks"].Status);
         Assert.Equal(TweakStatus.Unknown, states["apps.news"].Status);
     }

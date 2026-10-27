@@ -113,21 +113,35 @@ public sealed class WindowsFeatureService : IWindowsFeatureService
         var name = PowerShellRunner.Quote(packageName);
         var app = string.IsNullOrWhiteSpace(displayName) ? packageName : displayName.Trim();
         const string done = "[pscustomobject]@{ RestartNeeded = $false; Removed = $true } | ConvertTo-Json -Compress";
+
+        // A wildcard name (promotional apps whose publisher prefix varies) matches with -like. Packages Windows marks
+        // as non-removable and every package on the never-remove list are left out of the matches, so a pattern can
+        // never take a system package or a driver control panel with it, whatever it matches.
+        bool wildcard = packageName.Contains('*');
+        string compare = wildcard ? "-like" : "-eq";
+        string keep = wildcard ? $" | Where-Object {{ -not $_.NonRemovable -and {NeverRemoveFilter("Name")} }}" : string.Empty;
+        string keepProvisioned = wildcard ? $" -and {NeverRemoveFilter("DisplayName")}" : string.Empty;
         if (allUsers)
         {
             var none = PowerShellRunner.Quote($"{app} is not installed for any account on this PC, so nothing was removed.");
-            return $"$ErrorActionPreference = 'Stop'; $p = @(Get-AppxPackage -AllUsers -Name {name}); " +
-                   $"$v = @(Get-AppxProvisionedPackage -Online | Where-Object {{ $_.DisplayName -eq {name} }}); " +
+            return $"$ErrorActionPreference = 'Stop'; $p = @(Get-AppxPackage -AllUsers -Name {name}{keep}); " +
+                   $"$v = @(Get-AppxProvisionedPackage -Online | Where-Object {{ $_.DisplayName {compare} {name}{keepProvisioned} }}); " +
                    $"if ($p.Count -eq 0 -and $v.Count -eq 0) {{ throw {none} }}; " +
                    "$p | Remove-AppxPackage -AllUsers; $v | Remove-AppxProvisionedPackage -Online | Out-Null; " + done;
         }
 
         var before = PowerShellRunner.Quote($"{app} is not installed for the account PC Checker runs as (");
         var after = PowerShellRunner.Quote("), so nothing was removed. It is installed for another account; remove it for all users to take it off that account.");
-        return $"$ErrorActionPreference = 'Stop'; $p = @(Get-AppxPackage -Name {name}); " +
+        return $"$ErrorActionPreference = 'Stop'; $p = @(Get-AppxPackage -Name {name}{keep}); " +
                $"if ($p.Count -eq 0) {{ throw ({before} + $env:USERNAME + {after}) }}; " +
                "$p | Remove-AppxPackage; " + done;
     }
+
+    /// <summary>A PowerShell condition that is false for any package whose name starts with a never-remove name.</summary>
+    private static string NeverRemoveFilter(string property) =>
+        "(" + string.Join(" -and ", InboxAppCatalog.NeverRemove
+            .Order(StringComparer.OrdinalIgnoreCase)
+            .Select(n => $"$_.{property} -notlike {PowerShellRunner.Quote(n + "*")}")) + ")";
 
     private Task<OperationResult> RunChangeAsync(string description, WindowsFeature feature, string command, string undoHint, CancellationToken cancellationToken)
     {

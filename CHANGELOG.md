@@ -137,6 +137,18 @@ All notable changes to PC Checker are recorded here. The format follows
 - The Temperatures page no longer claims the motherboard sensor chip was
   found when only the board name was read, and its *Retry* no longer leaves
   the Fans page driving fans through a closed hardware monitor.
+- **Debloat** catches up with current WinUtil, Win11Debloat, ShutUp10++,
+  Sophia Script, AtlasOS, ReviOS, Tiny11 and xd-AntiSpy releases: Edge AI and
+  more Edge nag policies, Settings Home and account ads, phone suggestions,
+  desktop Spotlight, Find my device, the full location service, more
+  telemetry policies and tasks, personal-data app permissions, settings sync,
+  Remote Assistance, Windows preferences (dark mode, Sticky Keys shortcut,
+  snapping, Alt+Tab, taskbar combining, Num Lock), Start and File Explorer
+  options, Office, Outlook, Chrome, Brave, Firefox, developer-tool and NVIDIA
+  telemetry (only when installed), WPBT and device co-installer blocks,
+  Reserved Storage, Modern Standby networking, and more than 110 more removable
+  apps including PC-maker apps. AMD, NVIDIA, Intel and audio driver control
+  panels can never be removed. See `docs/DEBLOAT.md`.
 
 ## [0.4.0] - 2026-10-27
 

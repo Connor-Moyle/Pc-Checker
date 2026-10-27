@@ -49,6 +49,21 @@ public static class DebloatStateEvaluator
 
         var states = tweak.Operations.Select(op => EvaluateOperation(op, registry, snapshot)).ToList();
         var status = Aggregate(states.Select(s => s.State));
+
+        // A tweak whose software is missing (Requires) or whose app is installed again (OnlyWithoutApp) is not offered,
+        // but only while none of its changes are in place: an applied or partly applied tweak stays revertible.
+        if (status is not (TweakStatus.Applied or TweakStatus.Partial))
+        {
+            if (DebloatRules.RequirementFailure(tweak, registry) is string missing)
+            {
+                return new TweakState(tweak.Id, TweakStatus.NotApplicable, missing);
+            }
+
+            if (tweak.OnlyWithoutApp is { } requiredAbsent && snapshot.InstalledApps is not null && DebloatRules.IsAppInstalled(requiredAbsent, snapshot.InstalledApps))
+            {
+                return new TweakState(tweak.Id, TweakStatus.NotApplicable, DebloatRules.AppStillInstalledText(requiredAbsent));
+            }
+        }
         string detail = status switch
         {
             TweakStatus.Applied when tweak.Operations.All(o => o is AppxRemovalOp) => "Not installed",
@@ -106,6 +121,7 @@ public static class DebloatStateEvaluator
         operation switch
         {
             RegistryValueOp reg => EvaluateRegistry(reg, registry),
+            RegistryKeyRemovalOp keyOp => EvaluateKeyRemoval(keyOp, registry),
             ServiceOp svc => EvaluateService(svc, registry),
             ScheduledTaskOp task => snapshot.TaskStates is null
                 ? (OperationState.Unknown, "Scheduled tasks could not be read")
@@ -114,7 +130,7 @@ public static class DebloatStateEvaluator
                     : (OperationState.NotApplicable, "Task not present"),
             AppxRemovalOp app => snapshot.InstalledApps is null
                 ? (OperationState.Unknown, "Installed apps could not be read")
-                : snapshot.InstalledApps.Contains(app.PackageName)
+                : DebloatRules.IsAppInstalled(app.PackageName, snapshot.InstalledApps)
                     ? (OperationState.NotApplied, "Installed")
                     : (OperationState.Applied, "Not installed"),
             OptionalFeatureOp feature => snapshot.Features.TryGetValue(feature.FeatureName, out var state)
@@ -153,6 +169,18 @@ public static class DebloatStateEvaluator
         // A value with the right number but the wrong type (REG_SZ "0" where Windows reads a DWORD) is ignored by
         // Windows, so it counts as not applied and says why; applying writes it again with the right type.
         return (OperationState.NotApplied, current is null ? "Windows default" : RegistryValueCodec.WrongTypeDetail(current, op.Kind));
+    }
+
+    private static (OperationState, string?) EvaluateKeyRemoval(RegistryKeyRemovalOp op, IRegistryAccessor registry)
+    {
+        try
+        {
+            return registry.KeyExists(op.Hive, op.Path) ? (OperationState.NotApplied, "Windows default") : (OperationState.Applied, null);
+        }
+        catch (Exception)
+        {
+            return (OperationState.Unknown, "Registry key could not be read");
+        }
     }
 
     private static (OperationState, string?) EvaluateService(ServiceOp op, IRegistryAccessor registry)

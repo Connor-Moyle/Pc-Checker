@@ -194,6 +194,11 @@ public sealed class WindowsRegistryAccessor : IRegistryAccessor
             return (RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry64), path);
         }
 
+        if (hive == DebloatHive.Users)
+        {
+            return (RegistryKey.OpenBaseKey(RegistryHive.Users, RegistryView.Registry64), path);
+        }
+
         if (Target.Sid is not { } sid)
         {
             return (RegistryKey.OpenBaseKey(RegistryHive.CurrentUser, RegistryView.Registry64), path);

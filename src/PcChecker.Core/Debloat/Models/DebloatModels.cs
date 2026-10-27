@@ -32,6 +32,20 @@ public sealed record DebloatTweak(
     /// <summary>A condition checked on this PC before applying.</summary>
     public DebloatPrecondition Precondition { get; init; } = DebloatPrecondition.None;
 
+    /// <summary>
+    /// Something that must be installed for the tweak to mean anything (a browser, Office, a vendor control panel).
+    /// When none of its keys exist the row shows "Not available" with <see cref="DebloatRequirement.MissingText"/>
+    /// and Apply skips it, so policies for absent software are never written.
+    /// </summary>
+    public DebloatRequirement? Requires { get; init; }
+
+    /// <summary>
+    /// A Store package that must be absent: the tweak only fills a gap the app leaves when it has been removed (for
+    /// example the ms-gamebar link handler after removing Xbox Game Bar). While the app is installed the row shows
+    /// "Not available" and Apply skips it.
+    /// </summary>
+    public string? OnlyWithoutApp { get; init; }
+
     /// <summary>False when at least one operation cannot be undone here (app removal, OneDrive uninstall).</summary>
     public bool Reversible => DelegatesToOptimizationId is not null || Operations.All(o => o.Reversible);
 
@@ -47,6 +61,12 @@ public enum DebloatPrecondition
     /// <summary>Only apply when no physical printer is installed (print spooler and fax).</summary>
     NoPhysicalPrinters,
 }
+
+/// <summary>A registry key, used to detect installed software.</summary>
+public sealed record DebloatKeyRef(DebloatHive Hive, string Path);
+
+/// <summary>The tweak only applies when at least one of <see cref="AnyOf"/> exists; otherwise <see cref="MissingText"/> explains why.</summary>
+public sealed record DebloatRequirement(string MissingText, IReadOnlyList<DebloatKeyRef> AnyOf);
 
 /// <summary>How a tweak currently looks on this PC.</summary>
 public enum TweakStatus
