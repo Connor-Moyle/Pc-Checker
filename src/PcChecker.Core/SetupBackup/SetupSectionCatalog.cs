@@ -20,6 +20,7 @@ public static class SetupSectionCatalog
                 nameof(AppSettings.Monitoring), nameof(AppSettings.Logging), nameof(AppSettings.Claude),
                 nameof(AppSettings.Cleanup), nameof(AppSettings.Network), nameof(AppSettings.Latency),
                 nameof(AppSettings.Startup), nameof(AppSettings.History), nameof(AppSettings.DriverSources),
+                nameof(AppSettings.Processes),
             ]),
         new(SetupSectionIds.Fans, "Fans", "Fan profiles and curves, the lowest speed and start-up options.", [nameof(AppSettings.Fans)]),
         new(SetupSectionIds.Lighting, "Lighting", "Lighting profiles and the OpenRGB connection.", [nameof(AppSettings.Lighting)]),

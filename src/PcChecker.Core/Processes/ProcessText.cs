@@ -77,6 +77,16 @@ public static class ProcessText
         Line("Disk read", ProcessMath.FormatRate(process.ReadBytesPerSecond));
         Line("Disk write", ProcessMath.FormatRate(process.WriteBytesPerSecond));
         Line("GPU", process.GpuPercent is { } gpu ? ProcessMath.FormatPercent(gpu) : null);
+        Line("Status", ProcessStatusRules.Label(process.State, process.EfficiencyMode) is { Length: > 0 } status ? status : "Running");
+        Line("Description", process.Description);
+        Line("Window", process.WindowTitle);
+        Line("Architecture", ProcessArchitectureRules.Label(process.Architecture));
+        Line("Administrator rights", process.IsElevated switch { true => "Yes", false => "No", _ => null });
+        Line("Session", process.SessionId?.ToString(CultureInfo.InvariantCulture));
+        Line("Threads", process.ThreadCount?.ToString(CultureInfo.InvariantCulture));
+        Line("Handles", process.HandleCount?.ToString(CultureInfo.InvariantCulture));
+        Line("Network connections", process.ConnectionCount?.ToString(CultureInfo.InvariantCulture));
+        Line("Command line", process.CommandLine);
         foreach (string flag in flags)
         {
             Line("Note", flag);
