@@ -41,6 +41,12 @@ public static class DriverCleanupRules
         "{f2e7dd72-6468-4e36-b6f1-6488f42c1b52}", // Firmware
     };
 
+    /// <summary>
+    /// Class GUID of extension INFs (class "Extension"). Windows applies them on top of a device's base driver, and
+    /// <c>Win32_PnPSignedDriver</c> only reports the base INF, so whether an extension is in use cannot be read.
+    /// </summary>
+    public const string ExtensionClassGuid = "{e2f84ce7-8efa-411c-aa69-97454ca4cb57}";
+
     /// <summary>Default backup root: <c>%LOCALAPPDATA%\PcChecker\driver-backups</c>.</summary>
     public static string DefaultBackupRoot =>
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "PcChecker", BackupFolderName);
@@ -62,6 +68,23 @@ public static class DriverCleanupRules
         }
 
         return !string.IsNullOrWhiteSpace(className) && ProtectedClassNames.Contains(className.Trim());
+    }
+
+    /// <summary>
+    /// True for an extension INF package (by class GUID, or by the English class name when the GUID is missing). Its use
+    /// cannot be told from the installed-driver list, so it is never classed as unused.
+    /// </summary>
+    public static bool IsExtensionPackage(DriverPackage package)
+    {
+        ArgumentNullException.ThrowIfNull(package);
+        var guid = NormalizeGuid(package.ClassGuid);
+        if (guid is not null)
+        {
+            return guid == ExtensionClassGuid;
+        }
+
+        var name = package.ClassName?.Trim();
+        return string.Equals(name, "Extension", StringComparison.OrdinalIgnoreCase) || string.Equals(name, "Extensions", StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>Only third-party packages (<c>oemN.inf</c>) can ever be removed; inbox packages belong to Windows.</summary>
@@ -179,7 +202,8 @@ public static class DriverCleanupRules
     /// Builds the findings. Packages are listed when they are superseded or unused (a current package in use is just a
     /// normal driver); inbox packages are never listed. Disconnected devices are listed when they use a third-party
     /// package. When <paramref name="usageKnown"/> is false (the device list could not be read) every package is Keep,
-    /// because "not in use" cannot be told apart from "not checked".
+    /// because "not in use" cannot be told apart from "not checked". Extension INFs are always Keep for the same reason:
+    /// the device list names only each device's base driver, never the extensions applied to it.
     /// </summary>
     public static IReadOnlyList<DriverCleanupItem> Analyze(
         IEnumerable<DriverPackage> packages,
@@ -221,10 +245,11 @@ public static class DriverCleanupRules
             }
 
             bool prot = IsProtectedClass(p.ClassName, p.ClassGuid);
+            bool extension = IsExtensionPackage(p);
             var myGhosts = ghostsByPackage.GetValueOrDefault(name) ?? [];
-            var status = usageKnown ? Classify(false, used, prot, newer is not null) : DriverCleanupStatus.Keep;
+            var status = usageKnown && !extension ? Classify(false, used, prot, newer is not null) : DriverCleanupStatus.Keep;
             items.Add(new DriverCleanupItem(DriverCleanupKind.Package, name, PackageTitle(p, users, myGhosts), status,
-                PackageReason(p, users, newer, prot, myGhosts, usageKnown))
+                PackageReason(p, users, newer, prot, myGhosts, usageKnown, extension))
             {
                 Package = p,
                 InUse = used,
@@ -242,7 +267,8 @@ public static class DriverCleanupRules
             bool prot = IsProtectedClass(g.ClassName, g.ClassGuid);
             byName.TryGetValue(g.DriverName!.Trim(), out var package);
             bool packageUsed = inUse.ContainsKey(g.DriverName.Trim());
-            bool packageGoesToo = usageKnown && package is not null && !packageUsed && !IsProtectedClass(package.ClassName, package.ClassGuid);
+            bool packageGoesToo = usageKnown && package is not null && !packageUsed && !IsProtectedClass(package.ClassName, package.ClassGuid)
+                && !IsExtensionPackage(package);
             items.Add(new DriverCleanupItem(DriverCleanupKind.DisconnectedDevice, g.InstanceId.Trim(), g.DisplayName,
                 prot ? DriverCleanupStatus.Keep : DriverCleanupStatus.ProbablySafe,
                 DeviceReason(g, prot, packageUsed, packageGoesToo))
@@ -428,11 +454,16 @@ public static class DriverCleanupRules
     }
 
     private static string PackageReason(DriverPackage p, IReadOnlyList<string> users, DriverPackage? newer, bool prot,
-        IReadOnlyList<DisconnectedDevice> ghosts, bool usageKnown)
+        IReadOnlyList<DisconnectedDevice> ghosts, bool usageKnown, bool extension)
     {
         if (!usageKnown)
         {
             return "PC Checker could not read which devices use this driver, so it is kept.";
+        }
+
+        if (extension && users.Count == 0)
+        {
+            return "An extension driver: Windows adds it on top of a device's main driver, and PC Checker cannot tell which devices use it, so it is kept.";
         }
 
         if (users.Count > 0)

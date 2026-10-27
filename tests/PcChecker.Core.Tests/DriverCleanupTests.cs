@@ -278,6 +278,33 @@ public class DriverCleanupRulesTests
         Assert.All(items, i => Assert.Contains("could not read", i.Reason));
     }
 
+    [Fact]
+    public void Extension_packages_are_kept_because_their_use_cannot_be_read()
+    {
+        const string extensionGuid = "{E2F84CE7-8EFA-411C-AA69-97454CA4CB57}";
+        var packages = new[]
+        {
+            Pkg("oem40.inf", "1.0", new DateTime(2024, 1, 1), original: "nvhdaext.inf", cls: "Extensions", guid: extensionGuid),
+            Pkg("oem41.inf", "1.0", new DateTime(2022, 1, 1), original: "realtekext.inf", provider: "Realtek", cls: "Erweiterungen", guid: extensionGuid),
+            Pkg("oem42.inf", "2.0", new DateTime(2024, 1, 1), original: "realtekext.inf", provider: "Realtek", cls: "Erweiterungen", guid: extensionGuid),
+            Pkg("oem43.inf", "1.0", new DateTime(2024, 1, 1), original: "intelext.inf", provider: "Intel", cls: "Extension", guid: null),
+            Pkg("oem44.inf", "1.0", new DateTime(2024, 1, 1), original: "other.inf", provider: "Other", cls: "Sound", guid: MediaGuid),
+        };
+        var items = DriverCleanupRules.Analyze(packages, [Device("GPU", "oem12.inf")], []);
+
+        foreach (var id in new[] { "oem40.inf", "oem41.inf", "oem42.inf", "oem43.inf" })
+        {
+            var item = Assert.Single(items, i => i.Id == id);
+            Assert.Equal(DriverCleanupStatus.Keep, item.Status);
+            Assert.Contains("extension driver", item.Reason);
+            Assert.False(DriverCleanupRules.CanSelect(item, advancedMode: false));
+        }
+
+        Assert.Equal(DriverCleanupStatus.ProbablySafe, Assert.Single(items, i => i.Id == "oem44.inf").Status);
+        Assert.True(DriverCleanupRules.IsExtensionPackage(packages[0]));
+        Assert.False(DriverCleanupRules.IsExtensionPackage(packages[4]));
+    }
+
     // ---- removal plan -----------------------------------------------------------------------------------------------------
 
     [Fact]
