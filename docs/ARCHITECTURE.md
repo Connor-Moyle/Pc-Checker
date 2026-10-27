@@ -32,7 +32,7 @@ Every project targets `net8.0-windows10.0.19041.0`. `EnableWindowsTargeting` is 
 | `Hardware` | `HardwareInventory`, typed device records, `IHardwareInventoryService`, `WmiPropertyMapper` |
 | `Sensors` | `ISensorService`, `SensorReading`/`SensorSnapshot`, `SensorMath` |
 | `Health` | `HealthReport`, `IHealthService`, `HealthScoring`, `SmartRules`, `DeviceProblemCodes` |
-| `Drivers` | `IDriverService`, driver and update records, `DriverRules`, `IDriverCleanupService` and `DriverCleanupRules` (old and unused drivers) |
+| `Drivers` | `IDriverService`, driver and update records, `DriverRules`, `IDriverCleanupService` and `DriverCleanupRules` (old and unused drivers); `Drivers/Sources`: `IDriverSourceService` and the `IDriverUpdateProvider`s (Windows Update, NVIDIA, AMD, Intel, PC maker tools), `DriverVersionMath`, `DriverDeviceMapper`, `NvidiaDriverLookup`, `AmdDriverLookup`, `VendorDownloadRules`, `OemToolCatalog`, `DriverOfferMerger` |
 | `WindowsUpdate` | `IWindowsUpdateService` (software updates, history, pause, active hours), `UpdateClassifier`, `UpdatePauseRules`, `ActiveHoursRules`, `UpdateHistoryMapper`, `UpdatePolicyRules`; shares `WuaCom` and `WuaResultCodes` with `Drivers` |
 | `Software` | `ISoftwareInventoryService`, `IUninstallService`, `BundleDetector`, `UninstallCommandBuilder`, `ProtectedSoftwareRules` |
 | `Leftovers` | `ILeftoverService` (uninstall leftovers), `LeftoverNameMatcher`, `LeftoverProgramIndex`, `LeftoverAllowList`, `LeftoverPathRules`, `LeftoverScoring`, `LeftoverBackupNaming`, `LeftoverTaskXml`, `LeftoverScanQueue` (Apps → Leftovers hand-off); shares `RegistryBackupStore` with `Registry` |

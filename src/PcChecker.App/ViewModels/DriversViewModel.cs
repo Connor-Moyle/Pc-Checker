@@ -8,6 +8,7 @@ using PcChecker.App.Services;
 using PcChecker.App.Views.Pages;
 using PcChecker.Core.Common;
 using PcChecker.Core.Drivers;
+using PcChecker.Core.Drivers.Sources;
 using PcChecker.Core.Settings;
 using Wpf.Ui;
 
@@ -15,12 +16,14 @@ namespace PcChecker.App.ViewModels;
 
 /// <summary>
 /// Drivers page: installed driver inventory with search and filters, driver backup, .inf install, rollback and the
-/// advanced driver-store listing. The Windows Update part (check, download, install, restart) lives in
-/// <c>DriversViewModel.Updates.cs</c>. Every change confirms first and runs guarded.
+/// advanced driver-store listing. The update search across sources and the Windows Update download and install live
+/// in <c>DriversViewModel.Updates.cs</c>; vendor packages, PC maker tools and the source options in
+/// <c>DriversViewModel.Sources.cs</c>. Every change confirms first and runs guarded.
 /// </summary>
 public sealed partial class DriversViewModel : ViewModelBase
 {
     private readonly IDriverService _drivers;
+    private readonly IDriverSourceService _sources;
     private readonly IDialogService _dialogs;
     private readonly INotificationService _notifications;
     private readonly INavigationService _navigation;
@@ -94,17 +97,23 @@ public sealed partial class DriversViewModel : ViewModelBase
     [NotifyPropertyChangedFor(nameof(InstalledTabHeader))]
     private int _visibleDriverCount;
 
-    public DriversViewModel(ISettingsService settings, IDriverService drivers, IDialogService dialogs, INotificationService notifications,
-        INavigationService navigation, ILogger<DriversViewModel> logger)
+    public DriversViewModel(ISettingsService settings, IDriverService drivers, IDriverSourceService sources, IDialogService dialogs,
+        INotificationService notifications, INavigationService navigation, ILogger<DriversViewModel> logger)
         : base(settings)
     {
         _drivers = drivers;
+        _sources = sources;
         _dialogs = dialogs;
         _notifications = notifications;
         _navigation = navigation;
         _logger = logger;
-        Updates.CollectionChanged += (_, _) => OnPropertyChanged(nameof(SelectedUpdateCount));
+        DeviceOffers.CollectionChanged += (_, _) =>
+        {
+            OnPropertyChanged(nameof(SelectedUpdateCount));
+            OnPropertyChanged(nameof(HasDeviceOffers));
+        };
         VendorLinks.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasVendorLinks));
+        LoadSourceSettings();
         PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(IsAdvancedMode))

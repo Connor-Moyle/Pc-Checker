@@ -26,7 +26,7 @@
     </Grid.RowDefinitions>
 
     <!-- Header with the main actions -->
-    <controls:SectionHeader Grid.Row="0" Title="Drivers" Subtitle="Every installed driver, the ones that need attention, and driver updates.">
+    <controls:SectionHeader Grid.Row="0" Title="Drivers" Subtitle="Every installed driver, the ones that need attention, and updates from every source.">
       <controls:SectionHeader.Actions>
         <StackPanel Orientation="Horizontal">
           <ui:DropDownButton Content="More" Icon="{ui:SymbolIcon MoreHorizontal24}" Margin="0,0,8,0">
@@ -51,6 +51,9 @@
                      ToolTip="Reads every installed driver from Windows and flags problems, old or unsigned drivers.">
             <AccessText Text="_Scan drivers" />
           </ui:Button>
+                     ToolTip="Searches Windows Update, NVIDIA, AMD, Intel and your PC maker for newer drivers. This can take a minute." />
+          <ui:Button Content="Scan drivers" Icon="{ui:SymbolIcon ArrowSync24}" Appearance="Primary" Command="{Binding ScanCommand}"
+                     ToolTip="Reads every installed driver from Windows and flags problems, old or unsigned drivers." />
         </StackPanel>
       </controls:SectionHeader.Actions>
     </controls:SectionHeader>
@@ -80,38 +83,40 @@
     <!-- Main content: Updates / Installed -->
     <TabControl Grid.Row="3" Padding="0,8,0,0">
 
-      <!-- Tab 1: Updates available -->
+      <!-- Tab 1: Updates from every source, grouped by device -->
       <TabItem Header="{Binding UpdatesTabHeader}">
         <Grid Margin="0,8,0,0">
           <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
           </Grid.RowDefinitions>
           <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*" />
-            <ColumnDefinition Width="340" />
+            <ColumnDefinition Width="320" />
           </Grid.ColumnDefinitions>
 
-          <Grid Grid.Row="0" Grid.Column="0" Margin="0,0,0,8">
+          <Grid Grid.Row="0" Grid.Column="0" Margin="0,0,12,8">
             <Grid.ColumnDefinitions>
               <ColumnDefinition Width="*" />
               <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
-            <StackPanel Grid.Column="0" Orientation="Horizontal">
-              <ui:Button Content="Install selected" Icon="{ui:SymbolIcon ArrowDownload24}" Appearance="Primary" Command="{Binding InstallSelectedCommand}" Margin="0,0,8,0"
-                         ToolTip="Downloads (if needed) and installs the ticked updates after creating a restore point when that option is on in Settings." />
-              <ui:Button Content="Download only" Icon="{ui:SymbolIcon CloudArrowDown24}" Command="{Binding DownloadSelectedCommand}" Margin="0,0,8,0"
-                         ToolTip="Fetches the ticked updates now so they install faster later." />
-              <ui:Button Content="Select all" Command="{Binding SelectAllUpdatesCommand}" Margin="0,0,4,0" />
-              <ui:Button Content="Clear" Command="{Binding ClearUpdateSelectionCommand}" Margin="0,0,12,0" />
-              <ui:TextBlock Style="{StaticResource Muted}" VerticalAlignment="Center">
+            <WrapPanel Grid.Column="0" Orientation="Horizontal">
+              <ui:Button Content="Install selected" Icon="{ui:SymbolIcon ArrowDownload24}" Appearance="Primary" Command="{Binding InstallSelectedCommand}" Margin="0,0,8,4"
+                         ToolTip="Downloads (if needed) and installs the ticked Windows Update drivers after creating a restore point when that option is on in Settings. Vendor drivers and tools use each device's own button." />
+              <ui:Button Content="Download only" Icon="{ui:SymbolIcon CloudArrowDown24}" Command="{Binding DownloadSelectedCommand}" Margin="0,0,8,4"
+                         ToolTip="Fetches the ticked Windows Update drivers now so they install faster later." />
+              <ui:Button Content="Select all" Command="{Binding SelectAllUpdatesCommand}" Margin="0,0,4,4" />
+              <ui:Button Content="Clear" Command="{Binding ClearUpdateSelectionCommand}" Margin="0,0,12,4" />
+              <ui:TextBlock Style="{StaticResource Muted}" VerticalAlignment="Center" Margin="0,0,0,4">
                 <Run Text="{Binding SelectedUpdateCount, Mode=OneWay}" /><Run Text=" selected" />
               </ui:TextBlock>
-            </StackPanel>
-            <ui:Button Grid.Column="1" Content="Optional updates" Icon="{ui:SymbolIcon Open24}" Command="{Binding OpenOptionalUpdatesCommand}" Margin="8,0,0,0"
+            </WrapPanel>
+            <ui:Button Grid.Column="1" Content="Optional updates" Icon="{ui:SymbolIcon Open24}" Command="{Binding OpenOptionalUpdatesCommand}" Margin="8,0,0,4" VerticalAlignment="Top"
                        ToolTip="Opens the Windows Update page in Settings that lists optional driver updates." />
           </Grid>
 
+          <!-- Devices with each source's newest driver -->
           <Grid Grid.Row="1" Grid.Column="0" Margin="0,0,12,0">
             <ui:DataGrid AutomationProperties.Name="Driver updates" ItemsSource="{Binding Updates}"
                          AutoGenerateColumns="False"
@@ -151,14 +156,95 @@
                 </DataTemplate>
               </ui:DataGrid.RowDetailsTemplate>
             </ui:DataGrid>
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                          Visibility="{Binding HasDeviceOffers, Converter={StaticResource BoolToVisibility}}">
+              <ItemsControl ItemsSource="{Binding DeviceOffers}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <ui:Card Padding="12" Margin="0,0,0,8">
+                      <Grid>
+                        <Grid.RowDefinitions>
+                          <RowDefinition Height="Auto" />
+                          <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions>
+                          <ColumnDefinition Width="32" />
+                          <ColumnDefinition Width="*" />
+                          <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
 
-            <ui:Card Visibility="{Binding HasUpdates, Converter={StaticResource InverseBoolToVisibility}}" VerticalAlignment="Stretch">
+                        <CheckBox Grid.Row="0" Grid.Column="0" VerticalAlignment="Center"
+                                  IsChecked="{Binding IsSelected, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                  IsEnabled="{Binding CanBatchInstall}"
+                                  ToolTip="Include in 'Install selected' (Windows Update choices only)." />
+                        <StackPanel Grid.Row="0" Grid.Column="1" VerticalAlignment="Center">
+                          <TextBlock TextWrapping="Wrap">
+                            <Run Text="{Binding DeviceName, Mode=OneWay}" FontWeight="SemiBold" /><Run Text="   " /><Run Text="{Binding SummaryText, Mode=OneWay}" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                          </TextBlock>
+                          <ui:TextBlock Style="{StaticResource Caption}" Text="{Binding InstalledText}" TextWrapping="Wrap" />
+                          <ui:TextBlock Style="{StaticResource Caption}" Text="{Binding StateText}" TextWrapping="Wrap"
+                                        Visibility="{Binding StateText, Converter={StaticResource NullToVisibility}}" />
+                        </StackPanel>
+                        <ui:Button Grid.Row="0" Grid.Column="2" Content="{Binding ActionText}" VerticalAlignment="Center" Margin="12,0,0,0"
+                                   ToolTip="{Binding ActionTip}"
+                                   Command="{Binding DataContext.RunOfferCommand, RelativeSource={RelativeSource AncestorType=Page}}"
+                                   CommandParameter="{Binding}" />
+
+                        <!-- One row per source; the radio button picks the source for this device -->
+                        <ItemsControl Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" ItemsSource="{Binding Offers}" Margin="0,8,0,0">
+                          <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                              <Grid Margin="0,2">
+                                <Grid.ColumnDefinitions>
+                                  <ColumnDefinition Width="28" />
+                                  <ColumnDefinition Width="120" />
+                                  <ColumnDefinition Width="*" />
+                                  <ColumnDefinition Width="150" />
+                                  <ColumnDefinition Width="92" />
+                                  <ColumnDefinition Width="76" />
+                                  <ColumnDefinition Width="80" />
+                                </Grid.ColumnDefinitions>
+                                <RadioButton Grid.Column="0" GroupName="{Binding GroupName}" IsChecked="{Binding IsChosen, Mode=TwoWay}" VerticalAlignment="Top" MinWidth="0" Padding="0"
+                                             ToolTip="Use this source for this device." />
+                                <ui:TextBlock Grid.Column="1" Text="{Binding SourceText}" FontTypography="BodyStrong" VerticalAlignment="Top" Margin="0,2,8,0" />
+                                <StackPanel Grid.Column="2" Margin="0,2,8,0">
+                                  <ui:TextBlock Text="{Binding Title}" TextWrapping="Wrap" />
+                                  <ui:TextBlock Style="{StaticResource Caption}" Text="{Binding Note}" TextWrapping="Wrap"
+                                                Visibility="{Binding HasNote, Converter={StaticResource BoolToVisibility}}" />
+                                  <ui:HyperlinkButton Content="Release notes" Padding="0" Margin="0,2,0,0" HorizontalAlignment="Left"
+                                                      Command="{Binding DataContext.OpenOfferDetailsCommand, RelativeSource={RelativeSource AncestorType=Page}}"
+                                                      CommandParameter="{Binding}"
+                                                      Visibility="{Binding HasDetails, Converter={StaticResource BoolToVisibility}}" />
+                                </StackPanel>
+                                <ui:TextBlock Grid.Column="3" Text="{Binding VersionText}" Margin="0,2,8,0" TextWrapping="Wrap" ToolTip="Version in the maker's own numbering." />
+                                <ui:TextBlock Grid.Column="4" Text="{Binding DateText}" Margin="0,2,8,0" ToolTip="Release date" />
+                                <ui:TextBlock Grid.Column="5" Text="{Binding SizeText}" Margin="0,2,8,0" Style="{StaticResource Muted}" />
+                                <StackPanel Grid.Column="6" Margin="0,2,0,0">
+                                  <Border Background="{StaticResource AccentGreenBrush}" CornerRadius="4" Padding="6,1" HorizontalAlignment="Left"
+                                          Visibility="{Binding ShowNewest, Converter={StaticResource BoolToVisibility}}"
+                                          ToolTip="The newest version any source offers for this device.">
+                                    <TextBlock Text="Newest" Foreground="White" FontSize="11" FontWeight="SemiBold" />
+                                  </Border>
+                                  <ui:TextBlock Style="{StaticResource Caption}" Text="{Binding ComparisonText}" />
+                                </StackPanel>
+                              </Grid>
+                            </DataTemplate>
+                          </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                      </Grid>
+                    </ui:Card>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </ScrollViewer>
+
+            <ui:Card Visibility="{Binding HasDeviceOffers, Converter={StaticResource InverseBoolToVisibility}}" VerticalAlignment="Stretch">
               <Grid>
-                <controls:EmptyState Icon="CheckmarkCircle24" Title="No driver updates waiting"
-                                     Message="Windows Update has nothing new for your devices. Graphics and peripheral makers often publish newer drivers on their own sites: see the links on the right."
+                <controls:EmptyState Icon="CheckmarkCircle24" Title="No driver updates found"
+                                     Message="None of the sources has anything for your devices. Graphics and peripheral makers also publish drivers on their own sites: see the links on the right."
                                      Visibility="{Binding UpdatesChecked, Converter={StaticResource BoolToVisibility}}" />
                 <controls:EmptyState Icon="CloudArrowDown24" Title="Not checked yet"
-                                     Message="Use 'Check for updates' to ask Windows Update for driver updates. Nothing is installed until you choose to."
+                                     Message="Use 'Check for updates' to search Windows Update, NVIDIA, AMD, Intel and your PC maker. Nothing is installed until you choose to."
                                      Visibility="{Binding UpdatesChecked, Converter={StaticResource InverseBoolToVisibility}}" />
               </Grid>
             </ui:Card>
@@ -196,9 +282,69 @@
               </StackPanel>
             </ScrollViewer>
           </ui:Card>
+
+          <!-- Sources searched and their options -->
+          <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" Margin="0,8,0,0">
+            <ui:TextBlock Style="{StaticResource Caption}" Text="{Binding SourcesText}" TextWrapping="Wrap" Margin="0,0,0,8"
+                          Visibility="{Binding SourcesText, Converter={StaticResource NullToVisibility}}" />
+            <ui:CardExpander Header="Update sources" Icon="{ui:SymbolIcon Settings24}" IsExpanded="False" ContentPadding="16">
+              <StackPanel>
+                <controls:AdaptiveGrid MinItemWidth="220" MaxColumns="5">
+                  <StackPanel Orientation="Horizontal">
+                    <ui:ToggleSwitch IsChecked="{Binding UseWindowsUpdate}" />
+                    <ui:TextBlock Text="Windows Update" VerticalAlignment="Center" Margin="8,0,0,0" />
+                  </StackPanel>
+                  <StackPanel Orientation="Horizontal" ToolTip="Asks NVIDIA's driver service for your GeForce, RTX or Quadro card. Sends the card's device id only.">
+                    <ui:ToggleSwitch IsChecked="{Binding UseNvidia}" />
+                    <ui:TextBlock Text="NVIDIA" VerticalAlignment="Center" Margin="8,0,0,0" />
+                  </StackPanel>
+                  <StackPanel Orientation="Horizontal" ToolTip="Reads the current Adrenalin release from AMD's driver page.">
+                    <ui:ToggleSwitch IsChecked="{Binding UseAmd}" />
+                    <ui:TextBlock Text="AMD" VerticalAlignment="Center" Margin="8,0,0,0" />
+                  </StackPanel>
+                  <StackPanel Orientation="Horizontal" ToolTip="Links Intel graphics, Wi-Fi and Bluetooth to their Intel download pages.">
+                    <ui:ToggleSwitch IsChecked="{Binding UseIntel}" />
+                    <ui:TextBlock Text="Intel" VerticalAlignment="Center" Margin="8,0,0,0" />
+                  </StackPanel>
+                  <StackPanel Orientation="Horizontal" ToolTip="Dell, HP, Lenovo, ASUS, MSI and GIGABYTE update tools and support pages for your model.">
+                    <ui:ToggleSwitch IsChecked="{Binding UsePcMakerTools}" />
+                    <ui:TextBlock Text="PC maker tools" VerticalAlignment="Center" Margin="8,0,0,0" />
+                  </StackPanel>
+                </controls:AdaptiveGrid>
+                <controls:AdaptiveGrid MinItemWidth="260" MaxColumns="3" Margin="0,16,0,0">
+                  <StackPanel>
+                    <ui:TextBlock Text="NVIDIA driver type" Margin="0,0,0,4" />
+                    <ComboBox SelectedIndex="{Binding NvidiaBranchIndex, Mode=TwoWay}" HorizontalAlignment="Stretch">
+                      <ComboBoxItem Content="Game Ready" />
+                      <ComboBoxItem Content="Studio" />
+                    </ComboBox>
+                    <ui:TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,4,0,0" Text="Game Ready comes first for new games; Studio is tested with creative apps." />
+                  </StackPanel>
+                  <StackPanel>
+                    <ui:TextBlock Text="NVIDIA installer" Margin="0,0,0,4" />
+                    <ComboBox SelectedIndex="{Binding NvidiaInstallModeIndex, Mode=TwoWay}" HorizontalAlignment="Stretch">
+                      <ComboBoxItem Content="Open the installer" />
+                      <ComboBoxItem Content="Silent" />
+                      <ComboBoxItem Content="Silent clean install" />
+                    </ComboBox>
+                    <ui:TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,4,0,0" Text="Silent uses NVIDIA's own switches. A clean install resets NVIDIA settings. AMD's installer always opens." />
+                  </StackPanel>
+                  <StackPanel>
+                    <ui:TextBlock Text="Vendor downloads" Margin="0,0,0,4" />
+                    <ComboBox SelectedIndex="{Binding VendorDownloadsIndex, Mode=TwoWay}" HorizontalAlignment="Stretch">
+                      <ComboBoxItem Content="Ask each time" />
+                      <ComboBoxItem Content="Never (open the vendor page)" />
+                    </ComboBox>
+                    <ui:TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,4,0,0" Text="Only from the maker's own servers, and only files signed by the maker run." />
+                  </StackPanel>
+                </controls:AdaptiveGrid>
+                <ui:TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,12,0,0"
+                              Text="Only your graphics card's device id is sent (to NVIDIA). Support pages open in your browser with your PC's model in the address. Changes apply to the next search." />
+              </StackPanel>
+            </ui:CardExpander>
+          </StackPanel>
         </Grid>
       </TabItem>
-
       <!-- Tab 2: Installed drivers -->
       <TabItem Header="{Binding InstalledTabHeader}">
         <Grid Margin="0,8,0,0">

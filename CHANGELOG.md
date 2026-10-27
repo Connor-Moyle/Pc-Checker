@@ -76,6 +76,18 @@ All notable changes to PC Checker are recorded here. The format follows
   a File Explorer restart, a sign-out or a Windows restart; a number stored as
   text no longer counts as applied; and a briefly locked undo file no longer
   fails the tweak. See DEBLOAT.md, *Troubleshooting*.
+- **Drivers from more than Windows Update**: *Check for updates* now also
+  asks NVIDIA's driver service (Game Ready or Studio, by the card's device
+  id), reads the current AMD Adrenalin release from AMD's driver page, links
+  Intel graphics, Wi-Fi and Bluetooth to their Intel download pages, and finds
+  the PC maker's update tool (Dell, HP, Lenovo, ASUS, MSI, GIGABYTE) with
+  *Open*, *Install with winget* or the support page for your exact model.
+  Results are one list grouped by device with each source's newest version,
+  release date and size, the newest marked, and the source chosen per device.
+  NVIDIA and AMD packages download only from the makers' own HTTPS servers,
+  run only when their signature is valid and signed by the maker, and install
+  after a confirmation and a restore point. Each source can be switched off
+  under *Update sources*.
 
 ## [0.4.0] - 2026-10-27
 

@@ -28,13 +28,24 @@ Delete the `%LOCALAPPDATA%\PcChecker` folder to reset the app completely.
 |---|---|---|
 | Update check | GitHub Releases for this repository (the GitHub REST API; updates download `PcChecker.exe` from the release) | On start if *Check for updates automatically* is on, or when you click *Check now* |
 | Driver updates | Windows Update, through the Windows Update Agent | Only when you click *Check for updates* on the Drivers page, and *Download* / *Install* when you choose them |
+| NVIDIA driver lookup | `gfwsl.geforce.com` (NVIDIA's driver service). Sent: the graphics card's PCI device id (for example `2786_10DE`), Windows 10/11 64-bit, US English, whether the PC is a laptop and the branch (Game Ready or Studio) | When you click *Check for updates* with an NVIDIA card and the NVIDIA source on |
+| AMD driver page | `www.amd.com/en/support/download/drivers.html` (a normal page request; nothing about your PC is sent) | When you click *Check for updates* with an AMD Radeon GPU and the AMD source on |
+| Vendor driver packages | `download.nvidia.com`, `drivers.amd.com` (and Intel's `downloadmirror.intel.com`); only these servers, over HTTPS | Only when you choose *Download and install* on a device and confirm; vendor downloads can be turned off |
+| winget | The Windows Package Manager's own sources | Only when you choose *Install with winget* for a PC maker tool and confirm |
 | Latency check | ICMP ping to your default gateway, `1.1.1.1`, `8.8.8.8` and any targets you add in Settings; one DNS lookup of `www.microsoft.com` to time your resolver | Only when you run a latency check with *include network* on |
 | Claude assistant | Anthropic API | Only when you have entered an API key and send a message, ask for an explanation or request an overclock plan |
 
 Nothing else. In particular:
 
 - Vendor links (driver pages, storage tools, peripheral software, OpenRGB
-  download) open your browser; the app does not fetch those pages itself.
+  download) open your browser; the app does not fetch those pages itself. The
+  PC maker support links contain your PC's maker and model (or motherboard
+  model) in the address so the page opens on your model; they are only opened
+  when you click them.
+- The driver search never sends serial numbers, service tags, the computer
+  name or a list of your devices: NVIDIA receives one graphics card's device
+  id per card, AMD's page is fetched like any browser would, and Intel and PC
+  maker results are built on your PC. The PC maker tools are detected locally.
 - The Lighting page talks to OpenRGB over a socket on your own PC
   (`127.0.0.1:6742` by default). You can point it at another machine in
   Settings, in which case that traffic goes where you sent it.

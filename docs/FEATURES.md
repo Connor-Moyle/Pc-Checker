@@ -548,10 +548,59 @@ cosmetic, so they are journaled but do not create restore points.
   version, date, age, signature, status and problem code. Filters for
   third-party only, problems only and old only; a search box; a row expander
   with hardware ids, `.inf` name and location.
-- **Check for updates**: asks the Windows Update driver catalog through the
-  Windows Update Agent and lists what is available with size and date.
-  *Download selected* and *Install selected* (confirmed; restore point;
-  reboot bar afterwards with *Restart now* or *Later*).
+- **Check for updates** searches several sources side by side and shows one
+  list grouped by device. Each device shows its installed version and every
+  source's newest version, release date, size and source; the newest is
+  marked *Newest*, and a radio button picks the source per device (the newest
+  is chosen by default; on a tie Windows Update wins). Versions are compared
+  in each maker's own numbering: NVIDIA's 560.94 is the last five digits of
+  the Windows version 32.0.15.6094; AMD's Adrenalin version (24.12.1) cannot
+  be derived from the Windows version (32.0.21013.1000), so the app reads the
+  `RadeonSoftwareVersion` the AMD driver records and otherwise says it cannot
+  compare.
+  - **Windows Update**: the driver catalog through the Windows Update Agent.
+    *Download only* and *Install selected* work on the ticked devices whose
+    chosen source is Windows Update (confirmed; restore point; reboot bar
+    afterwards with *Restart now* or *Later*).
+  - **NVIDIA**: NVIDIA's driver service (the one behind the NVIDIA app and
+    nvidia.com's driver search) is asked by the card's PCI device id, so
+    GeForce, RTX/Quadro and notebook GPUs all get their own package. *Game
+    Ready* or *Studio* is chosen under *Update sources*.
+  - **AMD**: the current AMD Software: Adrenalin Edition release from AMD's
+    official driver page; the package is AMD's auto-detect installer, which
+    picks the driver for the Radeon GPU or Ryzen APU while it runs.
+  - **Intel**: Intel publishes no public version feed, so Intel graphics (Arc
+    and Iris Xe, or the 7th–10th gen package), Wi-Fi and Bluetooth link to
+    their exact Intel download page with your installed version alongside.
+    Intel's Driver & Support Assistant is offered too (open it, or install it
+    with winget).
+  - **PC maker tools**: Dell Command | Update and SupportAssist, HP Support
+    Assistant and HP Image Assistant, Lenovo Vantage and System Update,
+    MyASUS and Armoury Crate, MSI Center and GIGABYTE Control Center are
+    found by their uninstall entries, program folders and Store packages.
+    Installed ones get *Open*; missing ones get *Install with winget* where
+    the tool is on winget (the exact command is shown, and it only runs when
+    winget's own program is found in its protected folder), and every maker
+    gets its support page for your exact model (from the PC's maker and model,
+    or the motherboard on self-built PCs).
+- **Download and install** (NVIDIA and AMD packages): asks every time and
+  shows the file, its size and the server. The file is only fetched over
+  HTTPS from the maker's own download servers (every redirect is checked
+  against the same list), into a fresh folder only administrators can change.
+  Before it runs, Windows checks its Authenticode signature with the full
+  certificate chain and revocation, and the signer must be NVIDIA Corporation,
+  Advanced Micro Devices, Inc. or Intel Corporation; anything else is deleted
+  without running. A restore point is created, then the maker's installer
+  runs: NVIDIA's can run silently or as a silent clean install with NVIDIA's
+  documented switches (`-s`, `-clean`, `-noreboot`), AMD's always opens.
+  Afterwards the download folder is removed and the driver list refreshed.
+- **Update sources** (collapsed at the end of the Updates tab): turn each
+  source on or off (all on by default), pick the NVIDIA branch and installer
+  mode, and choose whether vendor downloads ask each time (default) or never
+  happen (the vendor's page opens instead).
+- When a source cannot be reached, its page changed or it does not know a
+  device, the other sources still show, a note says what happened, and the
+  device gets *Open the vendor page*.
 - **Back up all drivers** to a folder you pick (`pnputil /export-driver`).
 - **Old drivers** (its own tab): superseded driver-store packages (same
   original INF, provider and class with a newer date or version), packages no
@@ -570,8 +619,10 @@ cosmetic, so they are journaled but do not create restore points.
 - Summary tiles: total, third-party, with problems, older than three years,
   unsigned, updates available.
 
-Limitations: updates come only from Windows Update; the app never downloads
-from third-party driver sites.
+Limitations: Intel versions are not compared automatically (no public feed);
+AMD versions are only compared when the AMD driver records its Adrenalin
+version; vendor packages are never run unless signed by the maker. The app
+never downloads from third-party driver sites.
 
 ### Windows Update
 

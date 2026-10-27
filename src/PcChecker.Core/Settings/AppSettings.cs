@@ -1,4 +1,5 @@
 using PcChecker.Core.Displays;
+using PcChecker.Core.Drivers.Sources;
 using PcChecker.Core.Fans;
 using PcChecker.Core.Gaming;
 using PcChecker.Core.History;
@@ -35,6 +36,7 @@ public sealed class AppSettings
     public TraySettings Tray { get; set; } = new();
     public SchedulesSettings Schedules { get; set; } = new();
     public HistorySettings History { get; set; } = new();
+    public DriverSourceSettings DriverSources { get; set; } = new();
 
     /// <summary>Returns a fresh instance with every value at its default.</summary>
     public static AppSettings CreateDefault() => new();

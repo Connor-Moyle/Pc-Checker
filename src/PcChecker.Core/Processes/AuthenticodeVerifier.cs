@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.Win32.SafeHandles;
 
@@ -22,6 +23,8 @@ internal static class AuthenticodeVerifier
     private const uint WtdStateActionClose = 2;
     private const uint WtdRevocationCheckNone = 0x00000010;
     private const uint WtdCacheOnlyUrlRetrieval = 0x00001000;
+    private const uint WtdRevokeWholeChain = 1;
+    private const uint WtdRevocationCheckChainExcludeRoot = 0x00000080;
 
     /// <summary>Checks <paramref name="path"/> and names the signer.</summary>
     public static SignatureInfo Verify(string path)
@@ -53,7 +56,41 @@ internal static class AuthenticodeVerifier
         }
     }
 
-    private static int VerifyEmbedded(string path)
+    /// <summary>
+    /// Strict check of a downloaded installer before it runs: the file's own (embedded) signature only, never a
+    /// catalog; the whole certificate chain is checked for revocation online. Returns the WinVerifyTrust HRESULT and
+    /// the signing certificate's subject (null when there is none). Never throws.
+    /// </summary>
+    public static (int Result, string? Subject) VerifyDownloadedInstaller(string path)
+    {
+        try
+        {
+            if (!File.Exists(path))
+            {
+                return (SignatureRules.CryptEFileError, null);
+            }
+
+            int result = VerifyEmbedded(path, strict: true);
+            string? subject = null;
+            try
+            {
+                using var certificate = new X509Certificate2(X509Certificate.CreateFromSignedFile(path));
+                subject = certificate.Subject;
+            }
+            catch (CryptographicException)
+            {
+                // No signature: the result already says so.
+            }
+
+            return (result, subject);
+        }
+        catch (Exception)
+        {
+            return (SignatureRules.CryptEFileError, null);
+        }
+    }
+
+    private static int VerifyEmbedded(string path, bool strict = false)
     {
         IntPtr filePath = Marshal.StringToHGlobalUni(path);
         IntPtr fileInfo = IntPtr.Zero;
@@ -66,7 +103,9 @@ internal static class AuthenticodeVerifier
             };
             fileInfo = Marshal.AllocHGlobal(Marshal.SizeOf<WintrustFileInfo>());
             Marshal.StructureToPtr(info, fileInfo, false);
-            return Run(WtdChoiceFile, fileInfo);
+            return strict
+                ? Run(WtdChoiceFile, fileInfo, WtdRevokeWholeChain, WtdRevocationCheckChainExcludeRoot)
+                : Run(WtdChoiceFile, fileInfo);
         }
         finally
         {
@@ -192,17 +231,20 @@ internal static class AuthenticodeVerifier
         }
     }
 
-    private static int Run(uint unionChoice, IntPtr union)
+    private static int Run(uint unionChoice, IntPtr union) =>
+        Run(unionChoice, union, WtdRevokeNone, WtdRevocationCheckNone | WtdCacheOnlyUrlRetrieval);
+
+    private static int Run(uint unionChoice, IntPtr union, uint revocationChecks, uint providerFlags)
     {
         var data = new WintrustData
         {
             cbStruct = (uint)Marshal.SizeOf<WintrustData>(),
             dwUIChoice = WtdUiNone,
-            fdwRevocationChecks = WtdRevokeNone,
+            fdwRevocationChecks = revocationChecks,
             dwUnionChoice = unionChoice,
             pUnion = union,
             dwStateAction = WtdStateActionVerify,
-            dwProvFlags = WtdRevocationCheckNone | WtdCacheOnlyUrlRetrieval,
+            dwProvFlags = providerFlags,
         };
 
         IntPtr dataPtr = Marshal.AllocHGlobal(Marshal.SizeOf<WintrustData>());

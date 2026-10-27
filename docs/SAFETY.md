@@ -265,7 +265,22 @@ damage hardware. PC Checker reduces the risk; it cannot remove it.
 ## Driver rules
 
 - Updates come from the Windows Update driver catalog through the Windows
-  Update Agent, the same source Windows itself uses.
+  Update Agent, the same source Windows itself uses, and from the chip makers
+  themselves (NVIDIA, AMD). Searching never changes anything.
+- A vendor package is only downloaded after you confirm, over HTTPS and only
+  from the maker's own download servers (`download.nvidia.com`,
+  `drivers.amd.com`, Intel's download mirror); every redirect is checked
+  against the same list. It is saved in a new folder only administrators can
+  change, its Authenticode signature is checked with the full certificate
+  chain and revocation, and the signer must be NVIDIA Corporation, Advanced
+  Micro Devices, Inc. or Intel Corporation. Anything unsigned, tampered with
+  or signed by someone else is deleted without running. The installer then
+  runs through the change guard (restore point first, journaled); silent
+  options are only used where the maker documents them (NVIDIA), and an
+  installer is never stopped half way.
+- PC maker tools are only started from Program Files or as installed Store
+  apps; winget is only run from its own protected install folder, never the
+  per-user alias, with the exact command shown first.
 - Vendor links take you to the vendor site; the app does not download from
   third-party driver sites.
 - A `.inf` install only happens for a file you picked explicitly (Advanced).
