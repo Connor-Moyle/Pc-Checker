@@ -777,6 +777,52 @@ public class OverclockWatchdogOnceTests
         }
     }
 
+    [Fact]
+    public async Task Failed_reset_without_a_reboot_is_reported_as_a_failure()
+    {
+        string dir = Path.Combine(Path.GetTempPath(), "pcchecker-watchdog-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        try
+        {
+            var settings = new CountingSettings(dir);
+            settings.Current.Overclock.LastSessionClean = false;
+            string sessionPath = OverclockSessionStore.PathFor(dir);
+            Assert.True(OverclockSessionStore.Save(sessionPath, new OverclockSession
+            {
+                Clean = false,
+                Profile = new OverclockProfile { Name = "Daily", GpuCoreOffsetMhz = 100 },
+                AppliedUtc = DateTimeOffset.UtcNow,
+                BootUtc = OverclockSessionStore.CurrentBootUtc(),
+            }));
+
+            using var service = new WindowsOverclockService(settings, new DemoSensorService(), new PcChecker.Core.Sensors.DemoHardwareMonitorHost(),
+                new DemoHardwareInventoryService(), new PcChecker.Core.Fans.DemoFanControlService(), new RejectingGuard(),
+                Microsoft.Extensions.Logging.Abstractions.NullLogger<WindowsOverclockService>.Instance);
+
+            var result = await service.CheckUncleanShutdownAndRevertAsync(CancellationToken.None);
+
+            Assert.False(result.Success);
+            Assert.Contains("driver rejected the reset", result.Message);
+            Assert.DoesNotContain("at stock", result.Message);
+            Assert.NotNull(OverclockSessionStore.Load(sessionPath));
+        }
+        finally
+        {
+            try { Directory.Delete(dir, true); } catch (IOException) { }
+        }
+    }
+
+    private sealed class RejectingGuard : PcChecker.Core.Restore.IChangeGuard
+    {
+        public Task<OperationResult<T>> RunGuardedAsync<T>(string description, PcChecker.Core.Restore.ChangeOptions options,
+            Func<CancellationToken, Task<OperationResult<T>>> change, IProgress<ProgressUpdate>? progress, CancellationToken cancellationToken) =>
+            Task.FromResult(OperationResult<T>.Fail("The driver rejected the reset."));
+
+        public Task<OperationResult> RunGuardedAsync(string description, PcChecker.Core.Restore.ChangeOptions options,
+            Func<CancellationToken, Task<OperationResult>> change, IProgress<ProgressUpdate>? progress, CancellationToken cancellationToken) =>
+            Task.FromResult(OperationResult.Fail("The driver rejected the reset."));
+    }
+
     private sealed class CountingSettings(string directory) : ISettingsService
     {
         private int _saves;

@@ -79,6 +79,21 @@ public static class BcdEditParser
     public static bool? GetFlag(IReadOnlyDictionary<string, string> values, string key) =>
         values is null || !values.ContainsKey(key) ? false : GetBool(values, key);
 
+    /// <summary>
+    /// Turns a boolean value read from <c>bcdedit /enum</c> (possibly a localized Yes/No) into the "yes"/"no" that
+    /// <c>bcdedit /set</c> accepts on every Windows language. Null stays null; an unrecognised word is returned trimmed.
+    /// </summary>
+    public static string? ToBcdBool(string? value)
+    {
+        if (value is null)
+        {
+            return null;
+        }
+
+        var word = value.Trim();
+        return YesWords.Contains(word) ? "yes" : NoWords.Contains(word) ? "no" : word;
+    }
+
     public static int? GetInt(IReadOnlyDictionary<string, string> values, string key) =>
         values is not null && values.TryGetValue(key, out var v) && int.TryParse(v.Trim(), out int n) ? n : null;
 }

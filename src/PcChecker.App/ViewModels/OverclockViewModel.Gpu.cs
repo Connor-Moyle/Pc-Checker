@@ -168,7 +168,17 @@ public sealed partial class OverclockViewModel
     }
 
     [RelayCommand]
-    private Task ApplyGpu() => ApplyProfileAsync(BuildProfile(SelectedProfile?.Name ?? "Custom"), gpuOnly: true);
+    private async Task ApplyGpu()
+    {
+        // Only the GPU values from this card are sent; the CPU keeps whatever is applied right now. A profile without
+        // CPU values would return CPU settings an earlier apply left live (Intel XTU) to their defaults.
+        var profile = BuildProfile(SelectedProfile?.Name ?? "Custom");
+        var current = await CurrentlyAppliedAsync();
+        profile.CpuAllCoreRatio = current.CpuAllCoreRatio;
+        profile.CpuVoltageOffsetMv = current.CpuVoltageOffsetMv;
+        profile.CpuPowerLimitW = current.CpuPowerLimitW;
+        await ApplyProfileAsync(profile, gpuOnly: true);
+    }
 
     [RelayCommand]
     private async Task ApplyCpu()
@@ -187,6 +197,7 @@ public sealed partial class OverclockViewModel
         profile.GpuPowerLimitPercent = current.GpuPowerLimitPercent;
         profile.GpuTempLimitC = current.GpuTempLimitC;
         profile.GpuFanPercent = current.GpuFanPercent;
+        profile.GpuVoltageOffsetMv = current.GpuVoltageOffsetMv;
         await ApplyProfileAsync(profile, gpuOnly: false, cpuOnly: true);
     }
 
@@ -205,13 +216,6 @@ public sealed partial class OverclockViewModel
 
     private async Task ApplyProfileAsync(OverclockProfile profile, bool gpuOnly, bool cpuOnly = false)
     {
-        if (gpuOnly)
-        {
-            profile.CpuAllCoreRatio = null;
-            profile.CpuVoltageOffsetMv = null;
-            profile.CpuPowerLimitW = null;
-        }
-
         var caps = Capabilities;
         if (caps is null)
         {
@@ -236,6 +240,15 @@ public sealed partial class OverclockViewModel
             described.GpuPowerLimitPercent = 100;
             described.GpuTempLimitC = null;
             described.GpuFanPercent = null;
+            described.GpuVoltageOffsetMv = 0;
+        }
+        else if (gpuOnly)
+        {
+            // The CPU values are the ones already live and stay as they are.
+            described = profile.Clone();
+            described.CpuAllCoreRatio = null;
+            described.CpuVoltageOffsetMv = null;
+            described.CpuPowerLimitW = null;
         }
 
         var changes = string.Join("\n• ", OverclockPresets.Describe(described));
@@ -243,6 +256,7 @@ public sealed partial class OverclockViewModel
         bool ryzenAdj = caps.CpuMethod == CpuControlMethod.RyzenAdj;
         string message = $"PC Checker will apply:\n\n• {changes}\n\n"
             + (cpuOnly ? "The GPU keeps its current settings. " : string.Empty)
+            + (gpuOnly && (profile.CpuAllCoreRatio is not null || profile.CpuVoltageOffsetMv is not null || profile.CpuPowerLimitW is not null) ? "The CPU keeps its current settings. " : string.Empty)
             + (ryzenAdj && !gpuOnly && profile.CpuPowerLimitW is not null ? "CPU power limits set through ryzenadj stay until the next reboot; Reset cannot undo them. " : string.Empty)
             + (restore ? "A restore point is created first. " : string.Empty)
             + "A watchdog file is written so the change is undone automatically if the PC crashes and restarts. "
