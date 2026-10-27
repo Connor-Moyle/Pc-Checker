@@ -237,6 +237,24 @@ A Task Manager replacement (Processes, Live usage, Services, Users), every fan, 
   Update speed High, Normal, Low or Paused; Enter, Delete, Ctrl+F and the
   arrow keys work like in Task Manager. Windows' own processes are never
   suspended or throttled, and every change is confirmed and journaled.
+- **Clean up → Right-click menu**: lists what programs added to File
+  Explorer's right-click menu (shell verbs and shell extensions for files,
+  folders, drives, the desktop and 20 common file types, Send to items and
+  Windows 11 packaged app entries) with the text Explorer shows, the program,
+  publisher and where it appears, and turns entries off and on without
+  deleting them: `LegacyDisable` for commands, the Shell Extensions Blocked
+  list for extensions, a hidden backup folder for Send to items. Windows' own
+  entries are read-only, Microsoft apps need Advanced mode, entries whose
+  program is gone are marked, and every change is confirmed, guarded,
+  journaled and undoable. Includes the Windows 11 full (classic) menu switch
+  and Restart File Explorer.
+- **Network → Hosts file**: the hosts file as a table and as text with add,
+  edit, turn off and remove, flags for entries malware typically adds
+  (redirected well-known or bank sites, blocked security updates), warnings
+  for read-only, hidden, very large or relocated files, and saves that ask
+  first, refuse a file changed elsewhere, keep a timestamped backup, keep the
+  encoding and comments, go through the change guard and clear the DNS cache.
+  Undo last save, restore a backup and reset to the Windows default.
 
 ### Fixed
 - **Debloat tweaks that did not seem to apply.** Batches that need a restore

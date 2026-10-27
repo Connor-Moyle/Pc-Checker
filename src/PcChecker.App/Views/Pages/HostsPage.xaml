@@ -1,0 +1,364 @@
+<Page x:Class="PcChecker.App.Views.Pages.HostsPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+      xmlns:controls="clr-namespace:PcChecker.App.Controls"
+      xmlns:vm="clr-namespace:PcChecker.App.ViewModels"
+      xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+      d:DataContext="{d:DesignInstance vm:HostsViewModel}"
+      mc:Ignorable="d"
+      Title="Hosts file"
+      ScrollViewer.CanContentScroll="False">
+  <Page.Resources>
+    <Style x:Key="HostsGrid" TargetType="ui:DataGrid" BasedOn="{StaticResource DefaultUiDataGridStyle}">
+      <Setter Property="AutoGenerateColumns" Value="False" />
+      <Setter Property="IsReadOnly" Value="True" />
+      <Setter Property="CanUserAddRows" Value="False" />
+      <Setter Property="CanUserDeleteRows" Value="False" />
+      <Setter Property="CanUserResizeRows" Value="False" />
+      <Setter Property="CanUserReorderColumns" Value="False" />
+      <Setter Property="HeadersVisibility" Value="Column" />
+      <Setter Property="GridLinesVisibility" Value="None" />
+      <Setter Property="SelectionMode" Value="Single" />
+      <Setter Property="SelectionUnit" Value="FullRow" />
+      <Setter Property="MaxHeight" Value="520" />
+      <Setter Property="RowHeight" Value="40" />
+      <Setter Property="ScrollViewer.CanContentScroll" Value="True" />
+      <Setter Property="VirtualizingPanel.IsVirtualizing" Value="True" />
+      <Setter Property="VirtualizingPanel.VirtualizationMode" Value="Recycling" />
+      <Setter Property="VerticalScrollBarVisibility" Value="Auto" />
+      <Setter Property="HorizontalScrollBarVisibility" Value="Auto" />
+    </Style>
+    <Style x:Key="TextCell" TargetType="TextBlock">
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+    </Style>
+    <Style x:Key="Tile" TargetType="controls:StatCard">
+      <Setter Property="Margin" Value="0" />
+    </Style>
+
+    <DataTemplate x:Key="OnCell" DataType="{x:Type vm:HostsEntryRow}">
+      <CheckBox IsChecked="{Binding IsEnabled, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Center" VerticalAlignment="Center"
+                AutomationProperties.Name="{Binding AccessibleName}"
+                ToolTip="Untick to turn the entry off (it stays in the file behind a #). Save to apply." />
+    </DataTemplate>
+
+    <DataTemplate x:Key="CheckCell" DataType="{x:Type vm:HostsEntryRow}">
+      <StackPanel Orientation="Horizontal" VerticalAlignment="Center" ToolTip="{Binding FlagReason}"
+                  Visibility="{Binding HasFlag, Converter={StaticResource BoolToVisibility}}">
+        <controls:IconGlyph Symbol="ShieldError24" FontSize="14" Margin="0,0,6,0" Foreground="{DynamicResource AccentOrangeBrush}" />
+        <ui:TextBlock Text="{Binding FlagText}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+      </StackPanel>
+    </DataTemplate>
+
+    <!-- The same actions in the table's right-click menu and the header More menu. -->
+    <ContextMenu x:Key="EntryActions" x:Shared="False"
+                 DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+      <MenuItem Header="Edit…" Command="{Binding EditEntryCommand}" InputGestureText="Enter">
+        <MenuItem.Icon>
+          <controls:IconGlyph Symbol="Edit24" />
+        </MenuItem.Icon>
+      </MenuItem>
+      <MenuItem Header="Turn on or off" Command="{Binding ToggleEntryCommand}" InputGestureText="Space">
+        <MenuItem.Icon>
+          <controls:IconGlyph Symbol="ToggleLeft24" />
+        </MenuItem.Icon>
+      </MenuItem>
+      <MenuItem Header="Remove" Command="{Binding RemoveEntryCommand}" InputGestureText="Del">
+        <MenuItem.Icon>
+          <controls:IconGlyph Symbol="Delete24" />
+        </MenuItem.Icon>
+      </MenuItem>
+      <MenuItem Header="Copy the line" Command="{Binding CopyLineCommand}" InputGestureText="Ctrl+C">
+        <MenuItem.Icon>
+          <controls:IconGlyph Symbol="Copy24" />
+        </MenuItem.Icon>
+      </MenuItem>
+      <Separator />
+      <MenuItem Header="Add an entry…" Command="{Binding AddEntryCommand}" InputGestureText="Ctrl+N">
+        <MenuItem.Icon>
+          <controls:IconGlyph Symbol="Add24" />
+        </MenuItem.Icon>
+      </MenuItem>
+    </ContextMenu>
+  </Page.Resources>
+
+  <Page.InputBindings>
+    <KeyBinding Key="S" Modifiers="Control" Command="{Binding SaveCommand}" />
+    <KeyBinding Key="N" Modifiers="Control" Command="{Binding AddEntryCommand}" />
+    <KeyBinding Key="F5" Command="{Binding ReloadCommand}" />
+  </Page.InputBindings>
+
+  <Grid Style="{StaticResource PageRoot}">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="*" />
+    </Grid.RowDefinitions>
+
+    <controls:SectionHeader Grid.Row="0" Title="Hosts file" Subtitle="{Binding Subtitle}">
+      <controls:SectionHeader.Actions>
+        <StackPanel Orientation="Horizontal">
+          <ui:DropDownButton Content="More" Icon="{ui:SymbolIcon MoreHorizontal24}" Margin="0,0,8,0">
+            <ui:DropDownButton.Flyout>
+              <ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+                <MenuItem Header="Read the file again" Command="{Binding ReloadCommand}" InputGestureText="F5" />
+                <MenuItem Header="Undo last save" Command="{Binding UndoLastSaveCommand}"
+                          ToolTip="Puts back the file as it was before your last save on this page." />
+                <MenuItem Header="Clear the DNS cache" Command="{Binding FlushDnsCommand}"
+                          ToolTip="Makes Windows look names up again. Done for you after every save." />
+                <Separator />
+                <MenuItem Header="Open the hosts folder" Command="{Binding OpenHostsFolderCommand}" />
+                <MenuItem Header="Open the backup folder" Command="{Binding OpenBackupFolderCommand}"
+                          ToolTip="A copy of the file is kept here before every save." />
+                <Separator />
+                <MenuItem Header="Reset to Windows default…" Command="{Binding ResetToDefaultCommand}"
+                          ToolTip="Removes every entry and puts back Microsoft's default text. A backup is kept." />
+              </ContextMenu>
+            </ui:DropDownButton.Flyout>
+          </ui:DropDownButton>
+          <ui:Button Content="Add entry" Icon="{ui:SymbolIcon Add24}" Margin="0,0,8,0" Command="{Binding AddEntryCommand}"
+                     ToolTip="Block a site or point a name at an address (Ctrl+N)." />
+          <ui:Button Appearance="Primary" Icon="{ui:SymbolIcon Save24}" Command="{Binding SaveCommand}"
+                     ToolTip="Writes your changes after you confirm (Ctrl+S). A backup is kept and the DNS cache is cleared.">
+            <AccessText Text="_Save" />
+          </ui:Button>
+        </StackPanel>
+      </controls:SectionHeader.Actions>
+    </controls:SectionHeader>
+
+    <StackPanel Grid.Row="1">
+      <ui:InfoBar Severity="Error" Title="Something went wrong" Message="{Binding ErrorMessage}"
+                  IsOpen="{Binding HasError, Mode=OneWay}" IsClosable="True" Margin="0,0,0,12" />
+      <ui:InfoBar Severity="Error" Title="The hosts file was not saved" Message="{Binding SaveError}"
+                  IsOpen="{Binding HasSaveError, Mode=OneWay}" IsClosable="True" Margin="0,0,0,12" />
+      <ui:InfoBar Severity="Warning" Title="About this file" Message="{Binding FileWarnings}"
+                  IsOpen="{Binding HasFileWarnings, Mode=OneWay}" IsClosable="True" Margin="0,0,0,12" />
+      <ui:Card Style="{StaticResource CardSpacing}" Visibility="{Binding HasUnwanted, Converter={StaticResource BoolToVisibility}}">
+        <Grid>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
+          </Grid.ColumnDefinitions>
+          <controls:IconGlyph Grid.Column="0" Symbol="ShieldError24" FontSize="22" Margin="0,0,12,0" VerticalAlignment="Center" Foreground="{DynamicResource AccentOrangeBrush}" />
+          <StackPanel Grid.Column="1" VerticalAlignment="Center">
+            <ui:TextBlock FontTypography="BodyStrong" Text="Some entries look unwanted" />
+            <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Text="{Binding UnwantedMessage}" />
+          </StackPanel>
+          <ui:Button Grid.Column="2" Content="Show them" Command="{Binding ShowUnwantedCommand}" VerticalAlignment="Center" />
+        </Grid>
+      </ui:Card>
+      <ui:Card Style="{StaticResource CardSpacing}" Visibility="{Binding IsDirty, Converter={StaticResource BoolToVisibility}}">
+        <Grid>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
+          </Grid.ColumnDefinitions>
+          <controls:IconGlyph Grid.Column="0" Symbol="Edit24" FontSize="22" Margin="0,0,12,0" VerticalAlignment="Center" Foreground="{DynamicResource AccentCyanBrush}" />
+          <StackPanel Grid.Column="1" VerticalAlignment="Center">
+            <ui:TextBlock FontTypography="BodyStrong" Text="You have unsaved changes" />
+            <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Text="Nothing is written until you Save. Discard puts the page back to the file as it is." />
+          </StackPanel>
+          <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+            <ui:Button Content="Discard" Command="{Binding DiscardCommand}" Margin="0,0,8,0" />
+            <ui:Button Appearance="Primary" Content="Save" Icon="{ui:SymbolIcon Save24}" Command="{Binding SaveCommand}" />
+          </StackPanel>
+        </Grid>
+      </ui:Card>
+    </StackPanel>
+
+    <controls:EmptyState Grid.Row="2" Icon="DocumentText24" Title="Reading the hosts file"
+                         Message="The hosts file lets Windows send a name such as example.com to an address you choose, or block it. Nothing changes until you Save."
+                         Visibility="{Binding HasLoaded, Converter={StaticResource InverseBoolToVisibility}}">
+      <controls:EmptyState.Action>
+        <ui:Button Content="Read the file" Appearance="Primary" Icon="{ui:SymbolIcon DocumentText24}" Command="{Binding ReloadCommand}" />
+      </controls:EmptyState.Action>
+    </controls:EmptyState>
+
+    <ScrollViewer Grid.Row="2" Style="{StaticResource PageScroll}"
+                  Visibility="{Binding HasLoaded, Converter={StaticResource BoolToVisibility}}">
+      <StackPanel>
+        <controls:AdaptiveGrid MinItemWidth="200" MaxColumns="4" Margin="0,0,0,12">
+          <controls:StatCard Style="{StaticResource Tile}" Title="Entries on" Value="{Binding ActiveText}" Icon="CheckmarkCircle24"
+                             Accent="{DynamicResource AccentGreenBrush}" Subtitle="Windows uses these" />
+          <controls:StatCard Style="{StaticResource Tile}" Title="Turned off" Value="{Binding OffText}" Icon="EyeOff24"
+                             Accent="{DynamicResource AccentGreyBrush}" Subtitle="Kept behind a #" />
+          <controls:StatCard Style="{StaticResource Tile}" Title="Blocked sites" Value="{Binding BlockedText}" Icon="Prohibited24"
+                             Accent="{DynamicResource AccentPurpleBrush}" Subtitle="Sent to 0.0.0.0 or this PC" />
+          <controls:StatCard Style="{StaticResource Tile}" Title="Possibly unwanted" Value="{Binding UnwantedText}" Icon="ShieldError24"
+                             Accent="{DynamicResource AccentOrangeBrush}" Subtitle="Malware makes changes like these" />
+        </controls:AdaptiveGrid>
+
+        <ui:Card Style="{StaticResource CardSpacing}">
+          <TabControl Background="Transparent" BorderThickness="0" SelectedIndex="{Binding SelectedViewIndex}">
+            <TabItem>
+              <TabItem.Header>
+                <StackPanel Orientation="Horizontal">
+                  <controls:IconGlyph Symbol="Table24" Margin="0,0,8,0" />
+                  <TextBlock Text="Table" />
+                </StackPanel>
+              </TabItem.Header>
+              <StackPanel Margin="0,12,0,0">
+                <Grid Margin="0,0,0,8">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                  </Grid.ColumnDefinitions>
+                  <ui:TextBlock Grid.Column="0" Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,12,0" VerticalAlignment="Center"
+                                Text="Untick to turn an entry off, double-click or Enter to edit, right-click for more. Comments and blank lines stay as they are." />
+                  <StackPanel Grid.Column="1" Orientation="Horizontal">
+                    <ComboBox Width="170" Margin="0,0,12,0" VerticalAlignment="Center" AutomationProperties.Name="Filter entries"
+                              ItemsSource="{Binding FilterOptions}" SelectedIndex="{Binding SelectedFilterIndex}" />
+                    <ui:TextBox Width="220" PlaceholderText="Search name or address" Icon="{ui:SymbolIcon Search24}"
+                                AutomationProperties.Name="Search entries"
+                                Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" ClearButtonEnabled="True" />
+                  </StackPanel>
+                </Grid>
+
+                <ui:DataGrid AutomationProperties.Name="Hosts file entries" Style="{StaticResource HostsGrid}"
+                             ItemsSource="{Binding Rows}" SelectedItem="{Binding SelectedRow, Mode=TwoWay}"
+                             ContextMenu="{StaticResource EntryActions}"
+                             IsReadOnly="True" KeyboardNavigation.TabNavigation="Once"
+                             PreviewMouseRightButtonDown="OnGridRightButtonDown"
+                             MouseDoubleClick="OnGridDoubleClick"
+                             Visibility="{Binding HasNoRows, Converter={StaticResource InverseBoolToVisibility}}">
+                  <ui:DataGrid.InputBindings>
+                    <KeyBinding Key="Delete" Command="{Binding RemoveEntryCommand}" />
+                    <KeyBinding Key="Enter" Command="{Binding EditEntryCommand}" />
+                    <KeyBinding Key="F2" Command="{Binding EditEntryCommand}" />
+                    <KeyBinding Key="Space" Command="{Binding ToggleEntryCommand}" />
+                    <KeyBinding Key="C" Modifiers="Control" Command="{Binding CopyLineCommand}" />
+                  </ui:DataGrid.InputBindings>
+                  <ui:DataGrid.Columns>
+                    <DataGridTemplateColumn Header="On" Width="56" CellTemplate="{StaticResource OnCell}" />
+                    <DataGridTextColumn Header="Address" Width="150" Binding="{Binding Address}" ElementStyle="{StaticResource TextCell}" />
+                    <DataGridTextColumn Header="Host names" Width="2*" MinWidth="200" Binding="{Binding NamesText}" ElementStyle="{StaticResource TextCell}" />
+                    <DataGridTextColumn Header="Note" Width="1.2*" MinWidth="120" Binding="{Binding Comment}" ElementStyle="{StaticResource TextCell}" />
+                    <DataGridTemplateColumn Header="Check" Width="1.4*" MinWidth="160" CellTemplate="{StaticResource CheckCell}" />
+                    <DataGridTextColumn Header="Line" Width="56" Binding="{Binding LineText}" ElementStyle="{StaticResource TextCell}" />
+                  </ui:DataGrid.Columns>
+                </ui:DataGrid>
+                <controls:EmptyState Icon="DocumentText24" Title="No entries to show"
+                                     Message="Nothing matches the search or filter, or the file only has comments. Use Add entry to block a site or point a name at an address."
+                                     Visibility="{Binding HasNoRows, Converter={StaticResource BoolToVisibility}}" MinHeight="120" />
+                <ui:TextBlock Style="{StaticResource Muted}" Margin="0,8,0,0" TextWrapping="Wrap" Text="{Binding RowLimitText}"
+                              Visibility="{Binding HasRowLimit, Converter={StaticResource BoolToVisibility}}" />
+              </StackPanel>
+            </TabItem>
+
+            <TabItem>
+              <TabItem.Header>
+                <StackPanel Orientation="Horizontal">
+                  <controls:IconGlyph Symbol="Code24" Margin="0,0,8,0" />
+                  <TextBlock Text="Text" />
+                </StackPanel>
+              </TabItem.Header>
+              <StackPanel Margin="0,12,0,0">
+                <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,8"
+                              Text="The whole file as Windows reads it. Lines starting with # are comments. Edit here if you prefer; Save works the same way." />
+                <TextBox Text="{Binding RawText, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" AcceptsTab="True"
+                         AutomationProperties.Name="Hosts file text"
+                         FontFamily="Cascadia Mono, Consolas, Courier New" FontSize="13"
+                         MinHeight="320" MaxHeight="560" TextWrapping="NoWrap"
+                         VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" />
+              </StackPanel>
+            </TabItem>
+          </TabControl>
+        </ui:Card>
+
+        <ui:TextBlock Style="{StaticResource Caption}" Text="{Binding FileInfoText}" TextWrapping="Wrap" Margin="0,0,0,12" />
+
+        <!-- Selected entry -->
+        <ui:Card Style="{StaticResource CardSpacing}" Visibility="{Binding HasSelection, Converter={StaticResource BoolToVisibility}}">
+          <StackPanel>
+            <ui:TextBlock Style="{StaticResource CardTitle}" Text="{Binding SelectedRow.NamesText}" TextWrapping="Wrap" />
+            <ui:TextBlock Style="{StaticResource Muted}" Margin="0,0,0,10">
+              <Run Text="{Binding SelectedRow.ActionText, Mode=OneWay}" />
+              <Run Text=" " />
+              <Run Text="{Binding SelectedRow.Address, Mode=OneWay}" />
+            </ui:TextBlock>
+            <Border Margin="0,0,0,10" Padding="12,8" CornerRadius="6" Background="{DynamicResource ControlFillColorSecondaryBrush}"
+                    Visibility="{Binding SelectedRow.HasFlag, Converter={StaticResource BoolToVisibility}, FallbackValue=Collapsed}">
+              <StackPanel Orientation="Horizontal">
+                <controls:IconGlyph Symbol="ShieldError24" Margin="0,0,8,0" VerticalAlignment="Top" Foreground="{DynamicResource AccentOrangeBrush}" />
+                <ui:TextBlock Text="{Binding SelectedRow.FlagReason}" TextWrapping="Wrap" MaxWidth="900" />
+              </StackPanel>
+            </Border>
+            <StackPanel Orientation="Horizontal">
+              <ui:Button Content="Edit" Icon="{ui:SymbolIcon Edit24}" Margin="0,0,8,0" Command="{Binding EditEntryCommand}" />
+              <ui:Button Content="Turn on or off" Icon="{ui:SymbolIcon ToggleLeft24}" Margin="0,0,8,0" Command="{Binding ToggleEntryCommand}" />
+              <ui:Button Content="Remove" Icon="{ui:SymbolIcon Delete24}" Command="{Binding RemoveEntryCommand}"
+                         ToolTip="Takes the line out. Nothing is written until you Save." />
+            </StackPanel>
+          </StackPanel>
+        </ui:Card>
+
+        <!-- Backups -->
+        <ui:CardExpander Margin="0,0,0,12" ContentPadding="16" IsExpanded="False" Icon="{ui:SymbolIcon History24}">
+          <ui:CardExpander.Header>
+            <StackPanel>
+              <ui:TextBlock FontTypography="BodyStrong" Text="Backups" />
+              <ui:TextBlock Style="{StaticResource Muted}" Text="A copy is kept before every save. Restore one to go back." TextWrapping="Wrap" />
+            </StackPanel>
+          </ui:CardExpander.Header>
+          <StackPanel>
+            <ui:TextBlock Style="{StaticResource Muted}" Text="No backups yet. One is made the first time you save here."
+                          Visibility="{Binding HasNoBackups, Converter={StaticResource BoolToVisibility}}" />
+            <ItemsControl ItemsSource="{Binding Backups}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate DataType="{x:Type vm:HostsBackupRow}">
+                  <Border BorderThickness="0,0,0,1" BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}" Padding="0,6">
+                    <Grid>
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                      </Grid.ColumnDefinitions>
+                      <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                        <ui:TextBlock Text="{Binding CreatedText}" FontWeight="SemiBold" />
+                        <ui:TextBlock Style="{StaticResource Caption}" TextTrimming="CharacterEllipsis" ToolTip="{Binding Path}">
+                          <Run Text="{Binding SizeText, Mode=OneWay}" />
+                          <Run Text=" · " />
+                          <Run Text="{Binding Path, Mode=OneWay}" />
+                        </ui:TextBlock>
+                      </StackPanel>
+                      <ui:Button Grid.Column="1" Content="Restore" Icon="{ui:SymbolIcon ArrowReset24}" VerticalAlignment="Center"
+                                 Command="{Binding DataContext.RestoreBackupCommand, RelativeSource={RelativeSource AncestorType=Page}}"
+                                 CommandParameter="{Binding}" />
+                    </Grid>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <ui:Button Content="Open the backup folder" Icon="{ui:SymbolIcon FolderOpen24}" Margin="0,10,0,0" Command="{Binding OpenBackupFolderCommand}" />
+          </StackPanel>
+        </ui:CardExpander>
+
+        <ui:CardExpander Margin="0,0,0,12" ContentPadding="16" IsExpanded="False" Icon="{ui:SymbolIcon Info24}">
+          <ui:CardExpander.Header>
+            <StackPanel>
+              <ui:TextBlock FontTypography="BodyStrong" Text="About the hosts file" />
+              <ui:TextBlock Style="{StaticResource Muted}" Text="What it does, and what to do when saving is blocked." TextWrapping="Wrap" />
+            </StackPanel>
+          </ui:CardExpander.Header>
+          <StackPanel>
+            <ui:TextBlock TextWrapping="Wrap" Margin="0,0,0,8"
+                          Text="Before Windows asks the internet where a site lives, it looks in this file. An entry such as 0.0.0.0 ads.example.com blocks that name; 192.168.1.20 nas.home gives a name to a device at home." />
+            <ui:TextBlock TextWrapping="Wrap" Margin="0,0,0,8"
+                          Text="Malware sometimes adds entries that send banking or Microsoft sites to its own servers, or block antivirus updates. PC Checker marks those as possibly unwanted; turn them off or remove them, then run a malware scan." />
+            <ui:TextBlock TextWrapping="Wrap" Margin="0,0,0,8"
+                          Text="Many antivirus programs lock the hosts file to protect it. If saving is refused, turn off the hosts file protection in your security program for a moment, save again, then turn it back on." />
+            <ui:TextBlock TextWrapping="Wrap"
+                          Text="Every save asks first, keeps a dated copy in the backup folder, creates a restore point per your settings, is recorded in the Action Journal and clears the DNS cache. The file keeps its encoding and line endings." />
+          </StackPanel>
+        </ui:CardExpander>
+      </StackPanel>
+    </ScrollViewer>
+
+    <controls:BusyOverlay Grid.Row="0" Grid.RowSpan="3"
+                          IsBusy="{Binding IsBusy}" Text="{Binding BusyText}"
+                          CancelCommand="{Binding CancelCommand}" CanCancel="{Binding CanCancelBusy}" />
+  </Grid>
+</Page>

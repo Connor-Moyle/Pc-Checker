@@ -1373,6 +1373,47 @@ checked again right before it moves. Every move is written to the Action
 Journal; no restore point is made because the Recycle Bin is the undo. The
 space comes back when the Recycle Bin is emptied (Cleanup page).
 
+### Right-click menu
+
+The entries programs add to File Explorer's right-click menu (Clean up →
+Right-click menu), and a way to turn off the ones you never use without
+deleting anything.
+
+- **What is listed**: commands (shell verbs) and shell extensions
+  (ContextMenuHandlers) for files, files and folders, folders, inside a
+  folder, drives and the desktop, plus the 20 most common file types
+  (`.txt`, `.pdf`, pictures, music, video, Office, archives, `.exe`),
+  including the program classes those types are linked to (the verb a
+  double-click runs is left out so files always open); the
+  items in **Send to**; and the Windows 11 entries of packaged apps (read
+  from their manifests). Each line shows the text as Explorer shows it
+  (resource strings such as `@shell32.dll,-8506` are resolved), the program
+  and publisher, where it appears, its kind and whether it is on. Entries
+  whose program is missing are marked *Not working*.
+- **Turn off / Turn on** (Del and Ctrl+E, the right-click menu, or the
+  buttons under the list) after a confirmation that says what changes.
+  Commands get a `LegacyDisable` value in their own key; shell extensions and
+  Windows 11 app entries are added to the current user's Shell Extensions
+  *Blocked* list (turning on removes them from every Blocked list that holds
+  them); Send to shortcuts move to a hidden backup folder in PC Checker's data
+  folder and back. Ctrl+Z undoes the last change made on the page.
+- **Windows' own entries** (files in the Windows folder, signed with
+  Windows' certificate, or known built-in verbs and handlers) are hidden
+  unless *Show Windows entries* is ticked, and then read-only. Entries from
+  Microsoft apps outside the Windows folder (OneDrive, Office, Visual Studio
+  Code, Notepad, Terminal) can be changed in Advanced mode. Graphics driver
+  extensions in the driver store count as the hardware maker's.
+- **Show the full (classic) right-click menu** on Windows 11: the per-user
+  switch that removes *Show more options*, and back.
+- **Restart File Explorer** is offered after a change, since Explorer reads
+  its menu when it starts.
+- Search, filters (on, off, files, folders, desktop and drives, Send to,
+  Windows 11 apps, not working), *Open file location*, *Copy where it is
+  registered* and *Search the name online*.
+
+Every change asks first, goes through the change guard (restore point per
+your settings, Action Journal entry with how to undo it) and is reversible.
+
 ### Registry
 
 - **Honest intro**: registry "errors" rarely slow Windows down; the page
@@ -1584,6 +1625,33 @@ section.
 No geo-IP or other outside service is used; the country of an address is
 not shown.
 
+### Hosts file
+The Windows hosts file (Network → Hosts file), found through `%SystemRoot%`
+and the Tcpip `DataBasePath` setting, as a table and as text.
+- **Table**: address, host names, note and a tick box per entry, with search
+  and filters (on, off, blocked sites, possibly unwanted). Add (Ctrl+N), edit
+  (Enter or double-click), turn on or off (Space) and remove (Del); the add
+  box has *Block* (0.0.0.0) and *This PC* (127.0.0.1) buttons, cuts pasted
+  web addresses down to the name and explains invalid input such as
+  wildcards. Comments, blank lines and lines Windows cannot use are kept
+  exactly as they are; only edited lines are rewritten.
+- **Text** view of the whole file for people who prefer to type.
+- **Possibly unwanted (malware does this)**: entries that send well-known
+  sites (Microsoft, Google, Apple, social networks, shops, game stores) or
+  bank and payment sites to another address, and entries that block Windows
+  Update, Microsoft Defender, SmartScreen or security vendors' update sites.
+  Ordinary blocking of ads, trackers and telemetry is not flagged.
+- **File checks**: read-only, hidden or system attributes, a file over 1 MB,
+  a missing file, and Windows reading the file from an unusual folder.
+- **Save** (Ctrl+S) asks first with a summary of what changed, refuses when
+  another program changed the file since it was read, keeps a timestamped
+  copy in `%LOCALAPPDATA%\PcChecker\backup\hosts`, lifts read-only only
+  while writing, keeps the encoding (UTF-8 with or without BOM, ANSI, UTF-16)
+  and line endings, goes through the change guard and clears the DNS cache.
+  **Undo last save**, a **Backups** list with *Restore*, and **Reset to
+  Windows default** (Microsoft's default text, with a backup).
+- When security software locks the file, the page says so and how to save
+  anyway (pause its hosts file protection for a moment).
 ### Overclock
 
 Behind a one-time **consent gate** that explains the risks (instability,
