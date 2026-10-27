@@ -82,7 +82,7 @@ public sealed partial class WindowsInputService : IInputService
 
         var target = InputMath.Normalize(settings);
         return _guard.RunGuardedAsync("Apply mouse settings", Options("Mouse settings"),
-            ct => Task.Run(() => WriteMouse(target), ct), null, cancellationToken);
+            ct => Task.Run(() => ElevatedUserScope.Annotate(WriteMouse(target)), ct), null, cancellationToken);
     }
 
     public Task<OperationResult> ApplyKeyboardAsync(KeyboardSettings settings, CancellationToken cancellationToken)
@@ -95,7 +95,7 @@ public sealed partial class WindowsInputService : IInputService
 
         var target = InputMath.Normalize(settings);
         return _guard.RunGuardedAsync("Apply keyboard settings", Options("Keyboard settings"),
-            ct => Task.Run(() => WriteKeyboard(target), ct), null, cancellationToken);
+            ct => Task.Run(() => ElevatedUserScope.Annotate(WriteKeyboard(target)), ct), null, cancellationToken);
     }
 
     public Task<OperationResult> ApplyProfileAsync(InputProfile profile, CancellationToken cancellationToken)
@@ -115,7 +115,8 @@ public sealed partial class WindowsInputService : IInputService
                 var keyboardResult = WriteKeyboard(keyboard);
                 if (mouseResult.Success && keyboardResult.Success)
                 {
-                    return OperationResult.Ok($"Profile \"{profile.Name}\" applied.");
+                    // Mouse and keyboard settings are saved in the profile of the account the app runs as.
+                    return ElevatedUserScope.Annotate(OperationResult.Ok($"Profile \"{profile.Name}\" applied."));
                 }
 
                 var problems = new List<string>();

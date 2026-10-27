@@ -348,6 +348,11 @@ public sealed class LatencyActionsProvider : IOptimizationActionProvider
         }
 
         string message = apply ? $"{action.Title}: done." : $"{action.Title}: reverted.";
+        if (action.Id is (LatencyActionIds.GameModeOn or LatencyActionIds.PointerPrecisionOff) && ElevatedUserScope.Note is { } scopeNote)
+        {
+            // Both live in the profile of the account the app runs as, which may be an administrator, not the signed-in user.
+            message += " " + scopeNote;
+        }
         if (!string.IsNullOrWhiteSpace(result.Message) && result.Message.StartsWith("Updated", StringComparison.Ordinal))
         {
             message += " " + result.Message;
