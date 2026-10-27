@@ -34,10 +34,15 @@
       <Setter Property="Margin" Value="0,4,0,0" />
     </Style>
     <Style x:Key="CardIcon" TargetType="ui:SymbolIcon">
-      <Setter Property="FontSize" Value="22" />
+      <Setter Property="FontSize" Value="20" />
       <Setter Property="Margin" Value="0,0,10,0" />
       <Setter Property="VerticalAlignment" Value="Center" />
       <Setter Property="Foreground" Value="{StaticResource AccentCyanBrush}" />
+    </Style>
+    <!-- Card title next to a CardIcon: the CardTitle look, centred on the icon. -->
+    <Style x:Key="IconCardTitle" TargetType="ui:TextBlock" BasedOn="{StaticResource CardTitle}">
+      <Setter Property="Margin" Value="0" />
+      <Setter Property="VerticalAlignment" Value="Center" />
     </Style>
     <Style x:Key="ClickResult" TargetType="ui:TextBlock" BasedOn="{StaticResource Muted}">
       <Setter Property="TextWrapping" Value="Wrap" />
@@ -57,45 +62,42 @@
     </Grid.RowDefinitions>
 
     <controls:SectionHeader Grid.Row="0" Title="Keyboard &amp; Mouse"
-                            Subtitle="Pointer speed and acceleration, double-click, keyboard repeat, polling rate, profiles and your detected devices.">
+                            Subtitle="Pointer, double-click and key repeat settings, polling rate and profiles.">
       <controls:SectionHeader.Actions>
         <StackPanel Orientation="Horizontal">
-          <ui:Button Content="Refresh" Icon="{ui:SymbolIcon ArrowSync24}" Command="{Binding RefreshNowCommand}" Margin="0,0,8,0"
+          <ui:DropDownButton Content="More" Icon="{ui:SymbolIcon MoreHorizontal24}" Margin="0,0,8,0">
+            <ui:DropDownButton.Flyout>
+              <ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+                <MenuItem Header="Windows mouse settings" Command="{Binding OpenMouseSettingsCommand}"
+                          ToolTip="Opens Settings → Bluetooth &amp; devices → Mouse." />
+                <MenuItem Header="Windows typing settings" Command="{Binding OpenKeyboardSettingsCommand}"
+                          ToolTip="Opens Settings → Time &amp; language → Typing." />
+                <MenuItem Header="Classic Mouse control panel" Command="{Binding OpenMouseControlPanelCommand}"
+                          ToolTip="For pointer schemes, cursor images and the hardware tab (main.cpl)." />
+              </ContextMenu>
+            </ui:DropDownButton.Flyout>
+          </ui:DropDownButton>
+          <ui:Button Content="Refresh" Appearance="Primary" Icon="{ui:SymbolIcon ArrowSync24}" Command="{Binding RefreshNowCommand}"
                      ToolTip="Re-read the current Windows settings and devices." />
-          <ui:Button Content="Windows mouse settings" Icon="{ui:SymbolIcon Open24}" Command="{Binding OpenMouseSettingsCommand}" Margin="0,0,8,0"
-                     ToolTip="Opens Settings → Bluetooth &amp; devices → Mouse." />
-          <ui:Button Content="Typing settings" Icon="{ui:SymbolIcon Keyboard24}" Command="{Binding OpenKeyboardSettingsCommand}"
-                     ToolTip="Opens Settings → Time &amp; language → Typing." />
         </StackPanel>
       </controls:SectionHeader.Actions>
     </controls:SectionHeader>
 
-    <ui:InfoBar Grid.Row="1"
-                Severity="Error"
-                Title="Something went wrong"
-                Message="{Binding ErrorMessage}"
-                IsOpen="{Binding HasError, Mode=OneWay}"
-                IsClosable="True"
-                Margin="0,0,0,12" />
+    <StackPanel Grid.Row="1">
+      <ui:InfoBar Severity="Error" Title="Something went wrong" Message="{Binding ErrorMessage}"
+                  IsOpen="{Binding HasError, Mode=OneWay}" IsClosable="True" Margin="0,0,0,12" />
+      <ui:InfoBar Severity="Informational" Title="Status" Message="{Binding StatusMessage}"
+                  IsOpen="True" IsClosable="False" Margin="0,0,0,12"
+                  Visibility="{Binding StatusMessage, Converter={StaticResource NullToVisibility}}" />
+    </StackPanel>
 
     <ScrollViewer Grid.Row="2" Style="{StaticResource PageScroll}">
       <StackPanel>
-        <ui:InfoBar Severity="Informational"
-                    Title="Status"
-                    Message="{Binding StatusMessage}"
-                    IsOpen="True"
-                    IsClosable="False"
-                    Margin="0,0,0,12"
-                    Visibility="{Binding StatusMessage, Converter={StaticResource NullToVisibility}}" />
-
-        <Grid>
-          <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="*" MinWidth="420" />
-            <ColumnDefinition Width="*" MinWidth="380" />
-          </Grid.ColumnDefinitions>
+        <!-- Two columns side by side; they stack when the window is narrow. -->
+        <controls:AdaptiveGrid MinItemWidth="420" MaxColumns="2" Margin="0,0,0,12">
 
           <!-- ===================== Left column: mouse + keyboard ===================== -->
-          <StackPanel Grid.Column="0" Margin="0,0,12,0">
+          <StackPanel>
 
             <!-- Mouse -->
             <ui:Card Style="{StaticResource CardSpacing}">
@@ -105,9 +107,10 @@
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                   </Grid.ColumnDefinitions>
-                  <StackPanel Orientation="Horizontal">
+                  <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                     <ui:SymbolIcon Symbol="CursorClick24" Style="{StaticResource CardIcon}" />
-                    <ui:TextBlock FontTypography="Subtitle" Text="Mouse" VerticalAlignment="Center" />
+                    <ui:TextBlock Style="{StaticResource IconCardTitle}" Text="Mouse"
+                                  ToolTip="The same settings as the Windows Mouse control panel, explained. Everything can be undone with the Windows default profile." />
                   </StackPanel>
                   <StackPanel Grid.Column="1" Orientation="Horizontal">
                     <ui:Button Content="Defaults" Icon="{ui:SymbolIcon ArrowReset24}" Command="{Binding ResetMouseToDefaultsCommand}" Margin="0,0,8,0"
@@ -118,8 +121,6 @@
                                ToolTip="Applies the mouse settings to Windows after a confirmation." />
                   </StackPanel>
                 </Grid>
-                <ui:TextBlock Style="{StaticResource SettingHint}" Margin="0,0,0,8"
-                              Text="These are the same settings as the Windows Mouse control panel, explained. Apply asks for confirmation; everything can be undone with the Windows default profile." />
 
                 <!-- Pointer speed -->
                 <Grid Style="{StaticResource SettingRow}">
@@ -142,10 +143,10 @@
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                   </Grid.ColumnDefinitions>
-                  <StackPanel Margin="0,0,16,0">
-                    <ui:TextBlock Style="{StaticResource SettingLabel}" Text="Enhance pointer precision (mouse acceleration)" />
-                    <ui:TextBlock Style="{StaticResource SettingHint}"
-                                  Text="On: fast flicks move the pointer further than slow movements. Gamers usually turn this off so the same hand movement always moves the same distance; it is fine to keep on for desktop work." />
+                  <StackPanel Margin="0,0,16,0"
+                              ToolTip="On: fast flicks move the pointer further than slow movements. Off: the same hand movement always moves the same distance. Fine to keep on for desktop work.">
+                    <ui:TextBlock Style="{StaticResource SettingLabel}" Text="Enhance pointer precision (mouse acceleration)" TextWrapping="Wrap" />
+                    <ui:TextBlock Style="{StaticResource SettingHint}" Text="Gamers usually turn this off." />
                   </StackPanel>
                   <ui:ToggleSwitch Grid.Column="1" IsChecked="{Binding EnhancePointerPrecision}" VerticalAlignment="Center" />
                 </Grid>
@@ -196,75 +197,86 @@
                   <Slider Grid.Row="1" Style="{StaticResource SettingSlider}" Minimum="1" Maximum="20" Value="{Binding ScrollLines}" IsEnabled="{Binding ScrollLinesEnabled}" />
                 </Grid>
 
-                <!-- Pointer trails -->
-                <Grid Style="{StaticResource SettingRow}">
-                  <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                  </Grid.RowDefinitions>
-                  <StackPanel Orientation="Horizontal">
-                    <ui:TextBlock Style="{StaticResource SettingLabel}" Text="Pointer trails" ToolTip="Draws ghost copies behind the pointer so it is easier to see. Off is best for gaming." />
-                    <ui:TextBlock Style="{StaticResource ValueText}" Text="{Binding TrailsText}" />
-                  </StackPanel>
-                  <Slider Grid.Row="1" Style="{StaticResource SettingSlider}" Minimum="0" Maximum="7" Value="{Binding PointerTrails}" />
-                </Grid>
+                <!-- Less common pointer options, still applied by the Apply button above. -->
+                <ui:CardExpander Margin="0,8,0,0" IsExpanded="False" ContentPadding="16,4,16,8" Icon="{ui:SymbolIcon Options24}">
+                  <ui:CardExpander.Header>
+                    <StackPanel>
+                      <ui:TextBlock FontTypography="BodyStrong" Text="More pointer options" />
+                      <ui:TextBlock Style="{StaticResource Muted}" Text="Trails, left-handed buttons, hiding while typing, snap to default." />
+                    </StackPanel>
+                  </ui:CardExpander.Header>
+                  <StackPanel>
+                    <!-- Pointer trails -->
+                    <Grid Style="{StaticResource SettingRow}">
+                      <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                      </Grid.RowDefinitions>
+                      <StackPanel Orientation="Horizontal">
+                        <ui:TextBlock Style="{StaticResource SettingLabel}" Text="Pointer trails" ToolTip="Draws ghost copies behind the pointer so it is easier to see. Off is best for gaming." />
+                        <ui:TextBlock Style="{StaticResource ValueText}" Text="{Binding TrailsText}" />
+                      </StackPanel>
+                      <Slider Grid.Row="1" Style="{StaticResource SettingSlider}" Minimum="0" Maximum="7" Value="{Binding PointerTrails}" />
+                    </Grid>
 
-                <!-- Toggles -->
-                <Grid Style="{StaticResource SettingRow}">
-                  <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                  </Grid.ColumnDefinitions>
-                  <StackPanel Margin="0,0,16,0">
-                    <ui:TextBlock Style="{StaticResource SettingLabel}" Text="Swap primary and secondary buttons" />
-                    <ui:TextBlock Style="{StaticResource SettingHint}" Text="For left-handed use: the right button becomes the main click." />
+                    <!-- Toggles -->
+                    <Grid Style="{StaticResource SettingRow}">
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                      </Grid.ColumnDefinitions>
+                      <StackPanel Margin="0,0,16,0">
+                        <ui:TextBlock Style="{StaticResource SettingLabel}" Text="Swap primary and secondary buttons" TextWrapping="Wrap" />
+                        <ui:TextBlock Style="{StaticResource SettingHint}" Text="For left-handed use: the right button becomes the main click." />
+                      </StackPanel>
+                      <ui:ToggleSwitch Grid.Column="1" IsChecked="{Binding SwapButtons}" VerticalAlignment="Center" />
+                    </Grid>
+                    <Grid Style="{StaticResource SettingRow}">
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                      </Grid.ColumnDefinitions>
+                      <StackPanel Margin="0,0,16,0">
+                        <ui:TextBlock Style="{StaticResource SettingLabel}" Text="Hide the pointer while typing" TextWrapping="Wrap" />
+                        <ui:TextBlock Style="{StaticResource SettingHint}" Text="Keeps the pointer out of the way of the text you are writing." />
+                      </StackPanel>
+                      <ui:ToggleSwitch Grid.Column="1" IsChecked="{Binding HidePointerWhileTyping}" VerticalAlignment="Center" />
+                    </Grid>
+                    <Grid Style="{StaticResource SettingRow}">
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                      </Grid.ColumnDefinitions>
+                      <StackPanel Margin="0,0,16,0">
+                        <ui:TextBlock Style="{StaticResource SettingLabel}" Text="Snap the pointer to the default button in dialogs" TextWrapping="Wrap" />
+                        <ui:TextBlock Style="{StaticResource SettingHint}" Text="Jumps onto OK / Yes when a dialog opens. Most people leave this off." />
+                      </StackPanel>
+                      <ui:ToggleSwitch Grid.Column="1" IsChecked="{Binding SnapToDefaultButton}" VerticalAlignment="Center" />
+                    </Grid>
                   </StackPanel>
-                  <ui:ToggleSwitch Grid.Column="1" IsChecked="{Binding SwapButtons}" VerticalAlignment="Center" />
-                </Grid>
-                <Grid Style="{StaticResource SettingRow}">
-                  <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                  </Grid.ColumnDefinitions>
-                  <StackPanel Margin="0,0,16,0">
-                    <ui:TextBlock Style="{StaticResource SettingLabel}" Text="Hide the pointer while typing" />
-                    <ui:TextBlock Style="{StaticResource SettingHint}" Text="Keeps the pointer out of the way of the text you are writing." />
-                  </StackPanel>
-                  <ui:ToggleSwitch Grid.Column="1" IsChecked="{Binding HidePointerWhileTyping}" VerticalAlignment="Center" />
-                </Grid>
-                <Grid Style="{StaticResource SettingRow}">
-                  <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                  </Grid.ColumnDefinitions>
-                  <StackPanel Margin="0,0,16,0">
-                    <ui:TextBlock Style="{StaticResource SettingLabel}" Text="Snap the pointer to the default button in dialogs" />
-                    <ui:TextBlock Style="{StaticResource SettingHint}" Text="Jumps the pointer onto OK / Yes when a dialog opens. Most people leave this off." />
-                  </StackPanel>
-                  <ui:ToggleSwitch Grid.Column="1" IsChecked="{Binding SnapToDefaultButton}" VerticalAlignment="Center" />
-                </Grid>
-
-                <ui:Button Content="Open the classic Mouse control panel" Icon="{ui:SymbolIcon Settings24}" Command="{Binding OpenMouseControlPanelCommand}" Margin="0,8,0,0"
-                           ToolTip="For pointer schemes, cursor images and the hardware tab (main.cpl)." />
+                </ui:CardExpander>
               </StackPanel>
             </ui:Card>
 
             <!-- Keyboard -->
-            <ui:Card Style="{StaticResource CardSpacing}">
+            <ui:Card Padding="16" Margin="0">
               <StackPanel>
                 <Grid Margin="0,0,0,8">
                   <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                   </Grid.ColumnDefinitions>
-                  <StackPanel Orientation="Horizontal">
+                  <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                     <ui:SymbolIcon Symbol="Keyboard24" Style="{StaticResource CardIcon}" />
-                    <ui:TextBlock FontTypography="Subtitle" Text="Keyboard" VerticalAlignment="Center" />
+                    <ui:TextBlock Style="{StaticResource IconCardTitle}" Text="Keyboard" />
                   </StackPanel>
                   <StackPanel Grid.Column="1" Orientation="Horizontal">
-                    <ui:Button Content="Defaults" Icon="{ui:SymbolIcon ArrowReset24}" Command="{Binding ResetKeyboardToDefaultsCommand}" Margin="0,0,8,0" />
-                    <ui:Button Content="Revert" Icon="{ui:SymbolIcon ArrowUndo24}" Command="{Binding RevertKeyboardCommand}" Margin="0,0,8,0" />
-                    <ui:Button Content="Apply" Appearance="Primary" Icon="{ui:SymbolIcon Checkmark24}" Command="{Binding ApplyKeyboardCommand}" />
+                    <ui:Button Content="Defaults" Icon="{ui:SymbolIcon ArrowReset24}" Command="{Binding ResetKeyboardToDefaultsCommand}" Margin="0,0,8,0"
+                               ToolTip="Load the Windows defaults into the sliders. Nothing changes until you press Apply." />
+                    <ui:Button Content="Revert" Icon="{ui:SymbolIcon ArrowUndo24}" Command="{Binding RevertKeyboardCommand}" Margin="0,0,8,0"
+                               ToolTip="Discard your edits and show what Windows is using right now." />
+                    <ui:Button Content="Apply" Appearance="Primary" Icon="{ui:SymbolIcon Checkmark24}" Command="{Binding ApplyKeyboardCommand}"
+                               ToolTip="Applies the keyboard settings to Windows after a confirmation." />
                   </StackPanel>
                 </Grid>
 
@@ -280,7 +292,7 @@
                     <ui:TextBlock Style="{StaticResource ValueText}" Text="{Binding RepeatDelayText}" />
                   </StackPanel>
                   <Slider Grid.Row="1" Style="{StaticResource SettingSlider}" Minimum="0" Maximum="3" Value="{Binding RepeatDelay}" TickPlacement="BottomRight" />
-                  <ui:TextBlock Grid.Row="2" Style="{StaticResource SettingHint}" Text="Short is handy for gaming and quick navigation; longer avoids accidental repeats." />
+                  <ui:TextBlock Grid.Row="2" Style="{StaticResource SettingHint}" Text="Short suits gaming; longer avoids accidental repeats." />
                 </Grid>
 
                 <!-- Repeat rate -->
@@ -303,7 +315,8 @@
                     <ColumnDefinition Width="Auto" />
                   </Grid.ColumnDefinitions>
                   <ui:TextBox Text="{Binding KeyboardTestText, UpdateSourceTrigger=PropertyChanged}"
-                              PlaceholderText="Click here and hold a key to feel the delay and rate (uses the values Windows has now, not unapplied edits)"
+                              PlaceholderText="Hold a key here to feel the delay and rate"
+                              ToolTip="Uses the values Windows has now, not unapplied edits."
                               ClearButtonEnabled="True" />
                   <ui:Button Grid.Column="1" Content="Clear" Icon="{ui:SymbolIcon Dismiss24}" Command="{Binding ClearKeyboardTestCommand}" Margin="8,0,0,0" />
                 </Grid>
@@ -321,56 +334,67 @@
                   <Slider Grid.Row="1" Style="{StaticResource SettingSlider}" Minimum="200" Maximum="1200" TickFrequency="10" Value="{Binding CursorBlinkMs}" />
                 </Grid>
 
-                <ui:TextBlock FontTypography="BodyStrong" Text="Accessibility" Margin="0,12,0,4" />
-                <Grid Style="{StaticResource SettingRow}">
-                  <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                  </Grid.ColumnDefinitions>
-                  <StackPanel Margin="0,0,16,0">
-                    <ui:TextBlock Style="{StaticResource SettingLabel}" Text="Sticky Keys" />
-                    <ui:TextBlock Style="{StaticResource SettingHint}" Text="Press Shift, Ctrl, Alt or Win one at a time instead of holding them. Also toggled by pressing Shift five times." />
+                <!-- Accessibility keys, still applied by the Apply button above. -->
+                <ui:CardExpander Margin="0,8,0,0" IsExpanded="False" ContentPadding="16,4,16,8" Icon="{ui:SymbolIcon Accessibility24}">
+                  <ui:CardExpander.Header>
+                    <StackPanel>
+                      <ui:TextBlock FontTypography="BodyStrong" Text="Accessibility keys" />
+                      <ui:TextBlock Style="{StaticResource Muted}" Text="Sticky Keys, Filter Keys and Toggle Keys." />
+                    </StackPanel>
+                  </ui:CardExpander.Header>
+                  <StackPanel>
+                    <Grid Style="{StaticResource SettingRow}">
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                      </Grid.ColumnDefinitions>
+                      <StackPanel Margin="0,0,16,0" ToolTip="Also toggled by pressing Shift five times.">
+                        <ui:TextBlock Style="{StaticResource SettingLabel}" Text="Sticky Keys" />
+                        <ui:TextBlock Style="{StaticResource SettingHint}" Text="Press Shift, Ctrl, Alt or Win one at a time instead of holding them." />
+                      </StackPanel>
+                      <ui:ToggleSwitch Grid.Column="1" IsChecked="{Binding StickyKeys}" VerticalAlignment="Center" />
+                    </Grid>
+                    <Grid Style="{StaticResource SettingRow}">
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                      </Grid.ColumnDefinitions>
+                      <StackPanel Margin="0,0,16,0" ToolTip="Turn off if keys seem to be missed while gaming or typing fast.">
+                        <ui:TextBlock Style="{StaticResource SettingLabel}" Text="Filter Keys" />
+                        <ui:TextBlock Style="{StaticResource SettingHint}" Text="Ignores brief or repeated key presses." />
+                      </StackPanel>
+                      <ui:ToggleSwitch Grid.Column="1" IsChecked="{Binding FilterKeys}" VerticalAlignment="Center" />
+                    </Grid>
+                    <Grid Style="{StaticResource SettingRow}">
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                      </Grid.ColumnDefinitions>
+                      <StackPanel Margin="0,0,16,0">
+                        <ui:TextBlock Style="{StaticResource SettingLabel}" Text="Toggle Keys" />
+                        <ui:TextBlock Style="{StaticResource SettingHint}" Text="Plays a sound when Caps Lock, Num Lock or Scroll Lock is pressed." />
+                      </StackPanel>
+                      <ui:ToggleSwitch Grid.Column="1" IsChecked="{Binding ToggleKeys}" VerticalAlignment="Center" />
+                    </Grid>
                   </StackPanel>
-                  <ui:ToggleSwitch Grid.Column="1" IsChecked="{Binding StickyKeys}" VerticalAlignment="Center" />
-                </Grid>
-                <Grid Style="{StaticResource SettingRow}">
-                  <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                  </Grid.ColumnDefinitions>
-                  <StackPanel Margin="0,0,16,0">
-                    <ui:TextBlock Style="{StaticResource SettingLabel}" Text="Filter Keys" />
-                    <ui:TextBlock Style="{StaticResource SettingHint}" Text="Ignores brief or repeated key presses. Turn off if keys seem to be missed while gaming or typing fast." />
-                  </StackPanel>
-                  <ui:ToggleSwitch Grid.Column="1" IsChecked="{Binding FilterKeys}" VerticalAlignment="Center" />
-                </Grid>
-                <Grid Style="{StaticResource SettingRow}">
-                  <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                  </Grid.ColumnDefinitions>
-                  <StackPanel Margin="0,0,16,0">
-                    <ui:TextBlock Style="{StaticResource SettingLabel}" Text="Toggle Keys" />
-                    <ui:TextBlock Style="{StaticResource SettingHint}" Text="Plays a sound when Caps Lock, Num Lock or Scroll Lock is pressed." />
-                  </StackPanel>
-                  <ui:ToggleSwitch Grid.Column="1" IsChecked="{Binding ToggleKeys}" VerticalAlignment="Center" />
-                </Grid>
+                </ui:CardExpander>
               </StackPanel>
             </ui:Card>
           </StackPanel>
 
           <!-- ===================== Right column: polling, profiles, devices ===================== -->
-          <StackPanel Grid.Column="1">
+          <StackPanel>
 
             <!-- Polling rate -->
             <ui:Card Style="{StaticResource CardSpacing}">
               <StackPanel>
                 <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
                   <ui:SymbolIcon Symbol="TopSpeed24" Style="{StaticResource CardIcon}" />
-                  <ui:TextBlock FontTypography="Subtitle" Text="Mouse polling rate" VerticalAlignment="Center" />
+                  <ui:TextBlock Style="{StaticResource IconCardTitle}" Text="Mouse polling rate" />
                 </StackPanel>
                 <ui:TextBlock Style="{StaticResource SettingHint}" Margin="0,0,0,10"
-                              Text="How many times per second the mouse reports its position. Higher is smoother and lower-latency; 1000 Hz is the gaming standard. The rate is set in the mouse's own software, not in Windows." />
+                              Text="Reports per second; 1000 Hz is the gaming standard."
+                              ToolTip="How many times per second the mouse reports its position. Higher is smoother and lower-latency. The rate is set in the mouse's own software, not in Windows." />
                 <Grid>
                   <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
@@ -386,14 +410,14 @@
                     </StackPanel>
                   </Border>
                   <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                    <StackPanel Orientation="Horizontal">
+                    <WrapPanel>
                       <ui:Button Content="Measure (5 s)" Appearance="Primary" Icon="{ui:SymbolIcon Play24}" Command="{Binding MeasurePollingRateCommand}" Margin="0,0,8,0" />
                       <ui:Button Content="Stop" Icon="{ui:SymbolIcon Stop24}" Command="{Binding StopPollingRateCommand}" />
                       <ui:TextBlock Style="{StaticResource Muted}" VerticalAlignment="Center" Margin="12,0,0,0"
                                     Visibility="{Binding IsMeasuring, Converter={StaticResource BoolToVisibility}}">
                         <Run Text="{Binding SecondsLeft, Mode=OneWay}" /><Run Text=" s left" />
                       </ui:TextBlock>
-                    </StackPanel>
+                    </WrapPanel>
                     <ui:TextBlock Style="{StaticResource SettingHint}" Text="{Binding PollingStatus}" Margin="0,8,0,0" />
                   </StackPanel>
                 </Grid>
@@ -435,10 +459,11 @@
               <StackPanel>
                 <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
                   <ui:SymbolIcon Symbol="PersonAccounts24" Style="{StaticResource CardIcon}" />
-                  <ui:TextBlock FontTypography="Subtitle" Text="Profiles" VerticalAlignment="Center" />
+                  <ui:TextBlock Style="{StaticResource IconCardTitle}" Text="Profiles" />
                 </StackPanel>
                 <ui:TextBlock Style="{StaticResource SettingHint}" Margin="0,0,0,8"
-                              Text="One-click bundles of mouse and keyboard settings. Apply writes them to Windows (after confirming); Edit loads them into the cards on the left so you can tweak them first." />
+                              Text="One-click bundles of mouse and keyboard settings."
+                              ToolTip="Apply writes a profile to Windows after you confirm. Edit loads it into the Mouse and Keyboard cards so you can tweak it first." />
                 <ItemsControl ItemsSource="{Binding Profiles}">
                   <ItemsControl.ItemTemplate>
                     <DataTemplate>
@@ -483,7 +508,8 @@
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                   </Grid.ColumnDefinitions>
-                  <ui:TextBox Text="{Binding NewProfileName, UpdateSourceTrigger=PropertyChanged}" PlaceholderText="Save the current editor values as a profile… (name)" />
+                  <ui:TextBox Text="{Binding NewProfileName, UpdateSourceTrigger=PropertyChanged}" PlaceholderText="Name for the current editor values"
+                              ToolTip="Saves what the Mouse and Keyboard cards show now as a custom profile." />
                   <ui:Button Grid.Column="1" Content="Save profile" Icon="{ui:SymbolIcon Save24}" Command="{Binding SaveProfileCommand}" Margin="8,0,0,0" />
                 </Grid>
               </StackPanel>
@@ -497,14 +523,14 @@
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                   </Grid.ColumnDefinitions>
-                  <StackPanel Orientation="Horizontal">
+                  <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                     <ui:SymbolIcon Symbol="UsbPlug24" Style="{StaticResource CardIcon}" />
-                    <ui:TextBlock FontTypography="Subtitle" Text="Detected keyboards and mice" VerticalAlignment="Center" />
+                    <ui:TextBlock Style="{StaticResource IconCardTitle}" Text="Detected keyboards and mice" />
                   </StackPanel>
                   <ui:Button Grid.Column="1" Content="Detect again" Icon="{ui:SymbolIcon ArrowSync24}" Command="{Binding DetectDevicesCommand}" />
                 </Grid>
                 <ui:TextBlock Style="{StaticResource SettingHint}" Margin="0,0,0,8"
-                              Text="DPI, extra buttons, macros and on-board profiles live in the maker's software. The links below match the devices found on this PC." />
+                              Text="DPI, extra buttons, macros and on-board profiles live in the maker's software." />
                 <ItemsControl ItemsSource="{Binding Devices}" Visibility="{Binding HasDevices, Converter={StaticResource BoolToVisibility}}">
                   <ItemsControl.ItemTemplate>
                     <DataTemplate>
@@ -528,10 +554,11 @@
                     </DataTemplate>
                   </ItemsControl.ItemTemplate>
                 </ItemsControl>
-                <ui:TextBlock Style="{StaticResource SettingHint}" Text="No keyboards or mice have been listed yet. Press Detect again, or run a scan on the Hardware page."
+                <ui:TextBlock Style="{StaticResource SettingHint}" Text="No keyboards or mice listed yet. Press Detect again, or run a scan on the Hardware page."
                               Visibility="{Binding HasDevices, Converter={StaticResource InverseBoolToVisibility}}" />
 
-                <ui:TextBlock FontTypography="BodyStrong" Text="Maker software" Margin="0,12,0,4" />
+                <ui:TextBlock FontTypography="BodyStrong" Text="Maker software" Margin="0,12,0,4"
+                              ToolTip="Links that match the devices found on this PC." />
                 <ItemsControl ItemsSource="{Binding VendorLinks}">
                   <ItemsControl.ItemTemplate>
                     <DataTemplate>
@@ -550,7 +577,7 @@
             </ui:Card>
 
             <!-- RGB note -->
-            <ui:Card Style="{StaticResource CardSpacing}">
+            <ui:Card Padding="16" Margin="0">
               <Grid>
                 <Grid.ColumnDefinitions>
                   <ColumnDefinition Width="Auto" />
@@ -558,15 +585,16 @@
                   <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <ui:SymbolIcon Symbol="ColorFill24" Style="{StaticResource CardIcon}" Foreground="{StaticResource AccentPurpleBrush}" />
-                <StackPanel Grid.Column="1" Margin="0,0,12,0">
-                  <ui:TextBlock FontTypography="BodyStrong" Text="Keyboard and mouse lighting (RGB)" />
-                  <ui:TextBlock Style="{StaticResource SettingHint}" Text="Colours, effects and lighting profiles for RGB keyboards and mice are on the Lighting page, which talks to OpenRGB so one place controls every device." />
+                <StackPanel Grid.Column="1" Margin="0,0,12,0" VerticalAlignment="Center">
+                  <ui:TextBlock FontTypography="BodyStrong" Text="Keyboard and mouse lighting (RGB)" TextWrapping="Wrap" />
+                  <ui:TextBlock Style="{StaticResource SettingHint}" Text="Colours and effects are on the Lighting page."
+                                ToolTip="The Lighting page talks to OpenRGB so one place controls every RGB device." />
                 </StackPanel>
                 <ui:Button Grid.Column="2" Content="Go to Lighting" Icon="{ui:SymbolIcon Lightbulb24}" Command="{Binding GoToLightingCommand}" VerticalAlignment="Center" />
               </Grid>
             </ui:Card>
           </StackPanel>
-        </Grid>
+        </controls:AdaptiveGrid>
       </StackPanel>
     </ScrollViewer>
 
