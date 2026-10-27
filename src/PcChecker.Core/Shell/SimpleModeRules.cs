@@ -26,9 +26,11 @@ public static class SimpleModeRules
     public static bool IsAdvancedPage(string? pageKey) => pageKey is not null && AdvancedSet.Contains(pageKey);
 
     /// <summary>
-    /// The hint shows while Advanced mode is off, until the user closes it once. Screenshot runs never show it, so the
-    /// README images stay clean.
+    /// The hint shows in Simple mode during the first session in which it appears, and never again: it is marked as seen
+    /// (<paramref name="seenBefore"/>, saved in settings) the moment it shows, stays up for the rest of that session
+    /// (<paramref name="shownThisSession"/>) unless the user closes it, and later sessions skip it. Advanced mode and
+    /// screenshot runs never show it, so the README images stay clean.
     /// </summary>
-    public static bool ShowSimpleModeHint(bool advancedMode, bool dismissed, bool screenshotRun) =>
-        !advancedMode && !dismissed && !screenshotRun;
+    public static bool ShowSimpleModeHint(bool advancedMode, bool seenBefore, bool shownThisSession, bool closedThisSession, bool screenshotRun) =>
+        !advancedMode && !screenshotRun && !closedThisSession && (!seenBefore || shownThisSession);
 }

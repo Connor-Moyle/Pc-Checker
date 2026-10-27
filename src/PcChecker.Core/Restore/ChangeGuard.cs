@@ -135,7 +135,7 @@ public sealed class ChangeGuard : IChangeGuard, IChangeBatchRunner
     /// <summary>
     /// Registers the change for the success notification's Undo button when it is reversible, says how to undo it
     /// (<see cref="ChangeOptions.Undo"/> or an open <see cref="ChangeUndo.Offer"/>), is not part of a batch and is not
-    /// itself an undo.
+    /// itself an undo. Only a success notification from the same undo flow (<see cref="ChangeUndo.BeginFlow"/>) offers it.
     /// </summary>
     private void OfferUndo(string description, ChangeOptions options, bool inBatch)
     {
@@ -153,7 +153,8 @@ public sealed class ChangeGuard : IChangeGuard, IChangeBatchRunner
 
         try
         {
-            _undo.Register(new UndoableChange(Guid.NewGuid(), scope?.Id ?? Guid.NewGuid(), description, options.Module, options.Target, DateTimeOffset.Now, undo));
+            _undo.Register(new UndoableChange(Guid.NewGuid(), scope?.Id ?? Guid.NewGuid(), description, options.Module, options.Target, DateTimeOffset.Now, undo,
+                scope?.FlowId ?? ChangeUndo.CurrentFlow));
             scope?.MarkRegistered();
         }
         catch (Exception ex)

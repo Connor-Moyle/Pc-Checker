@@ -10,25 +10,23 @@
       <ColumnDefinition Width="Auto" />
     </Grid.ColumnDefinitions>
     <StackPanel Grid.Column="0" VerticalAlignment="Center">
-      <Grid>
-        <Grid.ColumnDefinitions>
-          <ColumnDefinition Width="Auto" />
-          <ColumnDefinition Width="*" />
-        </Grid.ColumnDefinitions>
-        <ui:TextBlock Grid.Column="0" FontTypography="Title" Text="{Binding Title, ElementName=Root}" TextWrapping="Wrap" VerticalAlignment="Center" />
+      <!-- The "?" sits inline after the last word, so a long (translated) title still wraps instead of being clipped. -->
+      <ui:TextBlock FontTypography="Title" TextWrapping="Wrap" VerticalAlignment="Center">
+        <Run Text="{Binding Title, ElementName=Root, Mode=OneWay}" />
         <!-- "?": what this page does, the safest first step and a link to the docs (also F1). Text comes from Core/Shell/HelpCatalog.cs. -->
-        <ui:Button x:Name="HelpButton" Grid.Column="1"
-                   Appearance="Transparent"
-                   Icon="{ui:SymbolIcon QuestionCircle24}"
-                   Padding="6"
-                   Margin="8,2,0,0"
-                   VerticalAlignment="Center"
-                   HorizontalAlignment="Left"
-                   Visibility="Collapsed"
-                   Click="OnHelpClick"
-                   ToolTip="What this page does and the safest first step (F1)"
-                   AutomationProperties.Name="Help for this page" />
-      </Grid>
+        <InlineUIContainer BaselineAlignment="Center">
+          <ui:Button x:Name="HelpButton"
+                     Appearance="Transparent"
+                     Icon="{ui:SymbolIcon QuestionCircle24}"
+                     Padding="6"
+                     Margin="4,0,0,0"
+                     VerticalAlignment="Center"
+                     Visibility="Collapsed"
+                     Click="OnHelpClick"
+                     ToolTip="What this page does and the safest first step (F1)"
+                     AutomationProperties.Name="Help for this page" />
+        </InlineUIContainer>
+      </ui:TextBlock>
       <ui:TextBlock Appearance="Secondary"
                     Text="{Binding Subtitle, ElementName=Root}"
                     TextWrapping="Wrap"

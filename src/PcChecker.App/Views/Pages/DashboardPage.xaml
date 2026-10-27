@@ -76,10 +76,13 @@
     <ScrollViewer Grid.Row="2" Style="{StaticResource PageScroll}">
       <StackPanel>
 
-        <!-- One-time hint for new users: Advanced mode hides the riskier tools. -->
+        <!-- One-time hint for new users: Simple mode hides some riskier options. -->
         <ui:InfoBar Severity="Informational" Title="You're in Simple mode"
-                    Message="Advanced tools are hidden to keep things safe. Turn on Advanced mode at the bottom of the menu when you need them."
-                    IsOpen="{Binding SimpleModeHint.IsOpen, Mode=TwoWay}" IsClosable="True" Margin="0,0,0,12" />
+                    Message="Some advanced options are hidden to keep things safe. Menu items marked Advanced are mostly for experienced users. Turn on Advanced mode at the bottom of the menu when you need more."
+                    IsOpen="{Binding SimpleModeHint.IsOpen, Mode=TwoWay}" IsClosable="True" Margin="0,0,0,12">
+          <ui:Button Content="Turn on Advanced mode" Command="{Binding SimpleModeHint.TurnOnAdvancedModeCommand}" Margin="0,8,0,4"
+                     ToolTip="Shows the extra options. Every change still asks first." />
+        </ui:InfoBar>
 
         <!-- What needs attention: up to five recommendations, each with one button (Core/Shell/AttentionRules.cs). -->
         <ui:Card Padding="16" Margin="0,0,0,12">

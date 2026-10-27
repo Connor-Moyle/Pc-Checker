@@ -1946,16 +1946,22 @@ Small things that make the app easier for someone who is not a PC expert.
   Speed check and Logs. It does nothing while the page is busy, and anything
   that changes the PC still asks first.
 - **Undo**: after a reversible change succeeds (turning a startup app on or
-  off, a service's startup type on the Startup page, one Optimize tweak), the
-  green notification has an **Undo** button for 10 seconds. Undo does the
-  change the other way round through the same safety steps, and both are in
-  the Action Journal. Changes made together (Check-up's *Fix selected*,
+  off on the Startup or Performance page, a service's startup type there, a
+  new power plan, one Optimize tweak that needs no restart), the green
+  notification has an **Undo** button for 10 seconds. Undo asks first, then
+  does the change the other way round through the same safety steps, and both
+  are in the Action Journal. Only the notification about that change carries
+  the button. Changes made together (Check-up's *Fix selected*,
   *Apply all safe*) are not offered; the Action Journal says how to undo them.
 - **Simple and Advanced mode**: tabs for pages that mostly matter to
   experienced users (Services, Old drivers, Windows Features, Registry,
   Overclock, Latency) carry a small *Advanced* chip; every page stays open to
-  everyone. New users see a one-time, closable *You're in Simple mode* hint on
-  the Dashboard and in Settings.
+  everyone. In their first session, new users see a closable *You're in Simple
+  mode* hint on the Dashboard and in Settings, with a button to turn on
+  Advanced mode.
+- **What needs attention** follows what you do: the startup list is read
+  live, and the card is read again when you come back to the Dashboard, so an
+  app you turned off or space you freed drops out straight away.
 - **Tray menu**: *Run a check-up* opens PC Checker and starts one.
 
 ## Accessibility

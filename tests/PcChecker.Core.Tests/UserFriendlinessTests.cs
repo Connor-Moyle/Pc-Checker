@@ -118,12 +118,15 @@ public class HelpAndShortcutTests
     }
 
     [Theory]
-    [InlineData(false, false, false, true)]
-    [InlineData(true, false, false, false)]
-    [InlineData(false, true, false, false)]
-    [InlineData(false, false, true, false)]
-    public void The_simple_mode_hint_shows_once_in_simple_mode_only(bool advanced, bool dismissed, bool screenshots, bool shows) =>
-        Assert.Equal(shows, SimpleModeRules.ShowSimpleModeHint(advanced, dismissed, screenshots));
+    // advanced, seen before, shown this session, closed this session, screenshots → shows
+    [InlineData(false, false, false, false, false, true)]   // first launch in Simple mode
+    [InlineData(false, true, true, false, false, true)]     // still up later in that same session
+    [InlineData(false, true, false, false, false, false)]   // a later launch: shown once already
+    [InlineData(false, true, true, true, false, false)]     // closed by the user
+    [InlineData(true, false, false, false, false, false)]   // Advanced mode
+    [InlineData(false, false, false, false, true, false)]   // screenshot run
+    public void The_simple_mode_hint_shows_once_in_simple_mode_only(bool advanced, bool seen, bool shownNow, bool closed, bool screenshots, bool shows) =>
+        Assert.Equal(shows, SimpleModeRules.ShowSimpleModeHint(advanced, seen, shownNow, closed, screenshots));
 
     [Fact]
     public async Task The_hint_flag_and_check_up_time_survive_a_save_but_stay_out_of_setup_files()
@@ -194,6 +197,29 @@ public class AttentionRulesTests
         PawnIo = PawnIoState.Running,
         DeviceProblems = 0,
     };
+
+    [Fact]
+    public void Heavy_startup_apps_follow_the_live_list_with_the_check_ups_estimate()
+    {
+        var steam = new PcChecker.Core.Performance.StartupItem("Steam", "C:\\Steam\\steam.exe", "HKCU Run", true, null, "Registry");
+        var helper = new PcChecker.Core.Performance.StartupItem("Tiny helper", "C:\\Tools\\tinyhelper.exe", "HKCU Run", true, null, "Registry");
+        var fromCheckup = new List<CheckupStartupEntry>
+        {
+            new(steam, new PcChecker.Core.Startup.StartupInsight(null, true, null, PcChecker.Core.Startup.StartupImpactRules.High, "big")),
+            new(helper, new PcChecker.Core.Startup.StartupInsight(null, true, null, PcChecker.Core.Startup.StartupImpactRules.High, "measured")),
+        };
+
+        // Both on: the check-up's estimate counts both as heavy.
+        Assert.Equal(2, AttentionRules.CountHeavyStartupApps([steam, helper], fromCheckup));
+
+        // The user turned Steam off on the Startup page after the check-up: the card drops it straight away.
+        Assert.Equal(1, AttentionRules.CountHeavyStartupApps([steam with { Enabled = false }, helper], fromCheckup));
+
+        // No live list (the read failed): the check-up's own count; nothing known: null.
+        Assert.Equal(2, AttentionRules.CountHeavyStartupApps(null, fromCheckup));
+        Assert.Null(AttentionRules.CountHeavyStartupApps(null, null));
+        Assert.Equal(0, AttentionRules.CountHeavyStartupApps([], fromCheckup));
+    }
 
     [Fact]
     public void A_healthy_pc_needs_nothing()
@@ -397,21 +423,35 @@ public sealed class UndoTests : IDisposable
         }
     }
 
+    private static readonly Guid Flow = Guid.NewGuid();
+
     [Fact]
     public void One_fresh_change_is_offered()
     {
         var entry = Entry(T0);
-        Assert.Same(entry, UndoOfferRules.PickOffer([entry], T0.AddSeconds(1)));
+        Assert.Same(entry, UndoOfferRules.PickOffer([entry], T0.AddSeconds(1), Flow));
     }
 
     [Fact]
     public void Nothing_is_offered_for_old_offered_used_or_several_changes()
     {
-        Assert.Null(UndoOfferRules.PickOffer([Entry(T0)], T0.AddSeconds(6)));
-        Assert.Null(UndoOfferRules.PickOffer([Entry(T0) with { OfferedAt = T0 }], T0.AddSeconds(1)));
-        Assert.Null(UndoOfferRules.PickOffer([Entry(T0) with { Used = true }], T0.AddSeconds(1)));
-        Assert.Null(UndoOfferRules.PickOffer([Entry(T0), Entry(T0.AddSeconds(1))], T0.AddSeconds(2)));
-        Assert.Null(UndoOfferRules.PickOffer([], T0));
+        Assert.Null(UndoOfferRules.PickOffer([Entry(T0)], T0.AddSeconds(6), Flow));
+        Assert.Null(UndoOfferRules.PickOffer([Entry(T0) with { OfferedAt = T0 }], T0.AddSeconds(1), Flow));
+        Assert.Null(UndoOfferRules.PickOffer([Entry(T0) with { Used = true }], T0.AddSeconds(1), Flow));
+        Assert.Null(UndoOfferRules.PickOffer([Entry(T0), Entry(T0.AddSeconds(1))], T0.AddSeconds(2), Flow));
+        Assert.Null(UndoOfferRules.PickOffer([], T0, Flow));
+    }
+
+    [Fact]
+    public void A_notification_from_somewhere_else_never_carries_the_undo()
+    {
+        var entry = Entry(T0);
+        Assert.Null(UndoOfferRules.PickOffer([entry], T0.AddSeconds(1), null));
+        Assert.Null(UndoOfferRules.PickOffer([entry], T0.AddSeconds(1), Guid.NewGuid()));
+
+        // A change from another flow does not stop this flow's own change from being offered.
+        var other = Entry(T0) with { Change = Entry(T0).Change with { FlowId = Guid.NewGuid() } };
+        Assert.Same(entry, UndoOfferRules.PickOffer([entry, other], T0.AddSeconds(1), Flow));
     }
 
     [Fact]
@@ -422,6 +462,20 @@ public sealed class UndoTests : IDisposable
         Assert.False(UndoOfferRules.CanUndo(offered, T0.AddSeconds(11)));
         Assert.False(UndoOfferRules.CanUndo(offered with { Used = true }, T0.AddSeconds(1)));
         Assert.False(UndoOfferRules.CanUndo(Entry(T0), T0.AddSeconds(1)));
+    }
+
+    [Fact]
+    public void The_window_starts_when_the_notification_appears()
+    {
+        // Picked at T0, but queued behind another notification until T0+8 s.
+        var shown = Entry(T0) with { OfferedAt = T0, ShownAt = T0.AddSeconds(8) };
+        Assert.True(UndoOfferRules.CanUndo(shown, T0.AddSeconds(17)));
+        Assert.False(UndoOfferRules.CanUndo(shown, T0.AddSeconds(19)));
+
+        var picked = Entry(T0) with { OfferedAt = T0 };
+        Assert.True(UndoOfferRules.CanShow(picked, T0.AddSeconds(20)));
+        Assert.False(UndoOfferRules.CanShow(picked, T0.AddSeconds(31)));
+        Assert.False(UndoOfferRules.CanShow(Entry(T0), T0));
     }
 
     [Fact]
@@ -440,16 +494,36 @@ public sealed class UndoTests : IDisposable
         {
             undone++;
             return Task.FromResult(OperationResult.Ok("Back on."));
-        });
+        }, Flow);
         tracker.Register(change);
 
-        Assert.Same(change, tracker.TakeOffer(T0.AddSeconds(1)));
-        Assert.Null(tracker.TakeOffer(T0.AddSeconds(2)));
+        Assert.Null(tracker.TakeOffer(T0.AddSeconds(1), Guid.NewGuid()));
+        Assert.Same(change, tracker.TakeOffer(T0.AddSeconds(1), Flow));
+        Assert.Null(tracker.TakeOffer(T0.AddSeconds(2), Flow));
         Assert.True(tracker.CanUndo(change.Id, T0.AddSeconds(5)));
 
         Assert.True((await tracker.UndoAsync(change.Id, T0.AddSeconds(5), CancellationToken.None)).Success);
         Assert.False((await tracker.UndoAsync(change.Id, T0.AddSeconds(6), CancellationToken.None)).Success);
         Assert.Equal(1, undone);
+    }
+
+    [Fact]
+    public async Task The_tracker_starts_the_window_when_shown()
+    {
+        var tracker = new ChangeUndoTracker();
+        var change = new UndoableChange(Guid.NewGuid(), Guid.NewGuid(), "x", "m", "t", T0, _ => Task.FromResult(OperationResult.Ok()), Flow);
+        tracker.Register(change);
+        tracker.TakeOffer(T0, Flow);
+
+        Assert.True(tracker.MarkShown(change.Id, T0.AddSeconds(12)));
+        Assert.True(tracker.CanUndo(change.Id, T0.AddSeconds(20)));
+        Assert.True((await tracker.UndoAsync(change.Id, T0.AddSeconds(20), CancellationToken.None)).Success);
+
+        var late = new UndoableChange(Guid.NewGuid(), Guid.NewGuid(), "y", "m", "t", T0, _ => Task.FromResult(OperationResult.Ok()), Flow);
+        tracker.Register(late);
+        tracker.TakeOffer(T0, Flow);
+        Assert.False(tracker.MarkShown(late.Id, T0.AddSeconds(40)));
+        Assert.False(tracker.MarkShown(Guid.NewGuid(), T0));
     }
 
     [Fact]
@@ -461,9 +535,9 @@ public sealed class UndoTests : IDisposable
         {
             ran = true;
             return Task.FromResult(OperationResult.Ok());
-        });
+        }, Flow);
         tracker.Register(change);
-        tracker.TakeOffer(T0);
+        tracker.TakeOffer(T0, Flow);
 
         var result = await tracker.UndoAsync(change.Id, T0.AddSeconds(30), CancellationToken.None);
         Assert.False(result.Success);
@@ -475,9 +549,9 @@ public sealed class UndoTests : IDisposable
     public async Task A_failing_undo_is_reported_not_thrown()
     {
         var tracker = new ChangeUndoTracker();
-        var change = new UndoableChange(Guid.NewGuid(), Guid.NewGuid(), "x", "m", "t", T0, _ => throw new InvalidOperationException("boom"));
+        var change = new UndoableChange(Guid.NewGuid(), Guid.NewGuid(), "x", "m", "t", T0, _ => throw new InvalidOperationException("boom"), Flow);
         tracker.Register(change);
-        tracker.TakeOffer(T0);
+        tracker.TakeOffer(T0, Flow);
         var result = await tracker.UndoAsync(change.Id, T0.AddSeconds(1), CancellationToken.None);
         Assert.False(result.Success);
         Assert.Contains("boom", result.Message);
@@ -488,28 +562,59 @@ public sealed class UndoTests : IDisposable
     {
         var tracker = new ChangeUndoTracker();
         var scope = Guid.NewGuid();
-        tracker.Register(new UndoableChange(Guid.NewGuid(), scope, "a", "m", "t", T0, _ => Task.FromResult(OperationResult.Ok())));
-        tracker.Register(new UndoableChange(Guid.NewGuid(), scope, "b", "m", "t", T0.AddSeconds(1), _ => Task.FromResult(OperationResult.Ok())));
-        Assert.Equal("b", tracker.TakeOffer(T0.AddSeconds(2))?.Description);
+        tracker.Register(new UndoableChange(Guid.NewGuid(), scope, "a", "m", "t", T0, _ => Task.FromResult(OperationResult.Ok()), Flow));
+        tracker.Register(new UndoableChange(Guid.NewGuid(), scope, "b", "m", "t", T0.AddSeconds(1), _ => Task.FromResult(OperationResult.Ok()), Flow));
+        Assert.Equal("b", tracker.TakeOffer(T0.AddSeconds(2), Flow)?.Description);
     }
 
     [Fact]
     public async Task The_guard_registers_a_reversible_change_made_inside_an_offer()
     {
         var (guard, tracker) = Create();
+        var flow = ChangeUndo.BeginFlow();
         using (ChangeUndo.Offer(_ => Task.FromResult(OperationResult.Ok())))
         {
             await guard.RunGuardedAsync("Disable Steam", ChangeOptions.For("Startup", "Steam", reversible: true), _ => Task.FromResult(OperationResult.Ok()), null, CancellationToken.None);
         }
 
-        Assert.Equal("Disable Steam", tracker.TakeOffer(DateTimeOffset.Now)?.Description);
+        Assert.Equal(flow, ChangeUndo.CurrentFlow);
+        Assert.Null(tracker.TakeOffer(DateTimeOffset.Now, null));
+        Assert.Equal("Disable Steam", tracker.TakeOffer(DateTimeOffset.Now, flow)?.Description);
         Assert.Null(ChangeUndo.Current);
+    }
+
+    [Fact]
+    public async Task A_flow_started_by_a_helper_lasts_for_the_calling_method_only()
+    {
+        var flow = await CallerAsync();
+
+        // The method that made the change (and showed its notification) has ended: its flow is gone here.
+        Assert.NotEqual(flow, ChangeUndo.CurrentFlow);
+
+        static async Task<Guid> CallerAsync()
+        {
+            var started = StartFlow();                   // like UndoOffers.RunAsync: not async, so it sets the caller's flow
+            await Task.Yield();
+            Assert.Equal(started, ChangeUndo.CurrentFlow); // still there for the notification after the change
+            await NestedAsync();                          // a nested method's own flow does not leak back
+            Assert.Equal(started, ChangeUndo.CurrentFlow);
+            return started;
+        }
+
+        static Guid StartFlow() => ChangeUndo.BeginFlow();
+
+        static async Task NestedAsync()
+        {
+            ChangeUndo.BeginFlow();
+            await Task.Yield();
+        }
     }
 
     [Fact]
     public async Task The_guard_skips_failed_irreversible_and_unexplained_changes()
     {
         var (guard, tracker) = Create();
+        var flow = ChangeUndo.BeginFlow();
         await guard.RunGuardedAsync("No undo given", ChangeOptions.For("Startup", "a", reversible: true), _ => Task.FromResult(OperationResult.Ok()), null, CancellationToken.None);
         using (ChangeUndo.Offer(_ => Task.FromResult(OperationResult.Ok())))
         {
@@ -517,41 +622,43 @@ public sealed class UndoTests : IDisposable
             await guard.RunGuardedAsync("Failed", ChangeOptions.For("Startup", "c", reversible: true), _ => Task.FromResult(OperationResult.Fail("no")), null, CancellationToken.None);
         }
 
-        Assert.Null(tracker.TakeOffer(DateTimeOffset.Now));
+        Assert.Null(tracker.TakeOffer(DateTimeOffset.Now, flow));
     }
 
     [Fact]
     public async Task The_guard_uses_the_undo_in_the_options_and_never_inside_a_batch()
     {
         var (guard, tracker) = Create();
+        var flow = ChangeUndo.BeginFlow();
         var options = ChangeOptions.For("Power", "plan", reversible: true) with { Undo = _ => Task.FromResult(OperationResult.Ok()) };
         await guard.RunBatchAsync("Fixes", true, async ct =>
         {
             await guard.RunGuardedAsync("In a batch", options, _ => Task.FromResult(OperationResult.Ok()), null, ct);
         }, null, CancellationToken.None);
-        Assert.Null(tracker.TakeOffer(DateTimeOffset.Now));
+        Assert.Null(tracker.TakeOffer(DateTimeOffset.Now, flow));
 
         await guard.RunGuardedAsync("On its own", options, _ => Task.FromResult(OperationResult.Ok()), null, CancellationToken.None);
-        Assert.Equal("On its own", tracker.TakeOffer(DateTimeOffset.Now)?.Description);
+        Assert.Equal("On its own", tracker.TakeOffer(DateTimeOffset.Now, flow)?.Description);
     }
 
     [Fact]
     public async Task Changes_made_by_an_undo_are_not_offered_again()
     {
         var (guard, tracker) = Create();
+        var flow = ChangeUndo.BeginFlow();
         var options = ChangeOptions.For("Startup", "Steam", reversible: true);
         Func<CancellationToken, Task<OperationResult>> undo = ct =>
             guard.RunGuardedAsync("Enable Steam", options with { Undo = _ => Task.FromResult(OperationResult.Ok()) }, _ => Task.FromResult(OperationResult.Ok()), null, ct);
 
         await guard.RunGuardedAsync("Disable Steam", options with { Undo = undo }, _ => Task.FromResult(OperationResult.Ok()), null, CancellationToken.None);
-        var offer = tracker.TakeOffer(DateTimeOffset.Now);
+        var offer = tracker.TakeOffer(DateTimeOffset.Now, flow);
         Assert.NotNull(offer);
         Assert.True((await tracker.UndoAsync(offer!.Id, DateTimeOffset.Now, CancellationToken.None)).Success);
-        Assert.Null(tracker.TakeOffer(DateTimeOffset.Now));
+        Assert.Null(tracker.TakeOffer(DateTimeOffset.Now, flow));
     }
 
     private static UndoEntry Entry(DateTimeOffset completed) =>
-        new(new UndoableChange(Guid.NewGuid(), Guid.NewGuid(), "change", "Tests", "t", completed, _ => Task.FromResult(OperationResult.Ok())));
+        new(new UndoableChange(Guid.NewGuid(), Guid.NewGuid(), "change", "Tests", "t", completed, _ => Task.FromResult(OperationResult.Ok()), Flow));
 
     private (ChangeGuard Guard, ChangeUndoTracker Tracker) Create()
     {

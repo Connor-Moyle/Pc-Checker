@@ -107,17 +107,13 @@ public sealed class OptimizationActionRunner
             {
                 result = await _optimization.RevertAsync(action.Id, cancellationToken);
             }
-            else if (confirm && action.Reversible)
+            else if (confirm && action.Reversible && !action.RequiresRestart)
             {
-                // One tweak applied on its own: the "Applied" notification offers Undo for a few seconds.
+                // One tweak applied on its own: the "Applied" notification offers Undo for a few seconds. Not for tweaks
+                // that need a restart (the Action Journal and the Revert button cover those).
                 result = await UndoOffers.RunAsync(
                     () => _optimization.ApplyAsync(action.Id, cancellationToken),
-                    async undoCt =>
-                    {
-                        var back = await _optimization.RevertAsync(action.Id, undoCt);
-                        DispatcherHelper.PostToUi(() => ActionCompleted?.Invoke(this, new OptimizationRunResult(action.Id, true, back)));
-                        return back;
-                    },
+                    undoCt => RevertFromUndoAsync(action, undoCt),
                     action.Title);
             }
             else
@@ -156,6 +152,43 @@ public sealed class OptimizationActionRunner
 
         ActionCompleted?.Invoke(this, new OptimizationRunResult(action.Id, revert, result));
         return result.Success;
+    }
+
+    /// <summary>
+    /// The Undo button on the "Applied" notification (the notification asked first): the same revert as the Revert
+    /// button, one action at a time, with the running flag and restart flag kept right.
+    /// </summary>
+    private async Task<OperationResult> RevertFromUndoAsync(OptimizationAction action, CancellationToken cancellationToken)
+    {
+        if (!await _gate.WaitAsync(0, cancellationToken))
+        {
+            return OperationResult.Fail("Another optimization is still running. Try again when it has finished; the Revert button undoes this one.");
+        }
+
+        OperationResult back;
+        SetRunning(true);
+        try
+        {
+            _logger.LogInformation("Undoing optimization {Action} from the notification.", action.Id);
+            back = await _optimization.RevertAsync(action.Id, cancellationToken);
+        }
+        finally
+        {
+            SetRunning(false);
+            _gate.Release();
+        }
+
+        DispatcherHelper.PostToUi(() =>
+        {
+            if (back.Success && back.RebootRequired)
+            {
+                IsRebootRequired = true;
+                RebootRequiredChanged?.Invoke(this, EventArgs.Empty);
+            }
+
+            ActionCompleted?.Invoke(this, new OptimizationRunResult(action.Id, true, back));
+        });
+        return back;
     }
 
     private void SetRunning(bool running)

@@ -14,7 +14,8 @@ All notable changes to PC Checker are recorded here. The format follows
   F1) with what the page does, the safest first step and a docs link; a
   keyboard shortcuts list on **?**; F5 to refresh or scan the page; an
   **Undo** button for 10 seconds on the notification after a reversible
-  change (startup apps, service startup types, single Optimize tweaks); an
+  change (startup apps, service startup types, power plans, single Optimize
+  tweaks); an
   *Advanced* chip on tabs for expert pages and a one-time "You're in Simple
   mode" hint; *Run a check-up* in the tray menu; empty states on Temperatures
   and Fans with a next step; Settings' *Reset to defaults* moved under *More*.

@@ -175,8 +175,10 @@ The UI must also ask for confirmation before invoking a guarded change and expla
 
 A reversible change can also say how to take it back straight away (`ChangeOptions.Undo`, or a `ChangeUndo.Offer`
 scope opened by the caller, usually through the app's `UndoOffers.RunAsync`). The guard then registers it with
-`IChangeUndoTracker` (not inside a batch, never for a change made by an undo), and the app's `NotificationService` adds
-an **Undo** button to the next success notification for 10 seconds. `UndoOfferRules` holds the decisions and is tested.
+`IChangeUndoTracker` (not inside a batch, never for a change made by an undo) together with its undo flow
+(`ChangeUndo.BeginFlow`, an `AsyncLocal` started in the method that makes the change). The app's `NotificationService`
+adds an **Undo** button only to a success notification shown from that same flow, for 10 seconds from when it appears,
+and asks before running it. `UndoOfferRules` holds the decisions and is tested.
 
 ### `ISettingsService`
 

@@ -6,6 +6,8 @@ namespace PcChecker.Core.Restore;
 /// A guarded change that finished and can be taken back straight away. <see cref="Undo"/> must itself go through
 /// <see cref="IChangeGuard"/> (call the same service the other way round), so the undo is journaled too.
 /// <see cref="ScopeId"/> ties together the guarded changes made under one <see cref="ChangeUndo.Offer"/> scope.
+/// <see cref="FlowId"/> is the undo flow (<see cref="ChangeUndo.BeginFlow"/>) of the code that made the change: only a
+/// success notification shown from that same flow offers the Undo, so an unrelated notification never carries it.
 /// </summary>
 public sealed record UndoableChange(
     Guid Id,
@@ -14,10 +16,14 @@ public sealed record UndoableChange(
     string Module,
     string Target,
     DateTimeOffset CompletedAt,
-    Func<CancellationToken, Task<OperationResult>> Undo);
+    Func<CancellationToken, Task<OperationResult>> Undo,
+    Guid? FlowId = null);
 
-/// <summary>Where one undoable change stands: offered (with the time the Undo button appeared) and used.</summary>
-public sealed record UndoEntry(UndoableChange Change, DateTimeOffset? OfferedAt = null, bool Used = false);
+/// <summary>
+/// Where one undoable change stands: picked for a notification (<see cref="OfferedAt"/>), on screen with its Undo
+/// button (<see cref="ShownAt"/>, which starts the undo window) and used.
+/// </summary>
+public sealed record UndoEntry(UndoableChange Change, DateTimeOffset? OfferedAt = null, bool Used = false, DateTimeOffset? ShownAt = null);
 
 /// <summary>
 /// Lets the code that starts a change say how to take it back, without changing the service it calls: inside
@@ -28,6 +34,22 @@ public static class ChangeUndo
 {
     private static readonly AsyncLocal<OfferScope?> CurrentScope = new();
     private static readonly AsyncLocal<bool> Suppressed = new();
+    private static readonly AsyncLocal<Guid?> Flow = new();
+
+    /// <summary>The undo flow of the running code, or null (see <see cref="BeginFlow"/>).</summary>
+    public static Guid? CurrentFlow => Flow.Value;
+
+    /// <summary>
+    /// Starts a new undo flow for the rest of the calling method. Call it directly (it is not async on purpose) from the
+    /// method that makes the change and then shows the success notification: the flow reaches the change below it and
+    /// the notification after it, and ends with that method. <c>UndoOffers.RunAsync</c> in the app calls it for you.
+    /// </summary>
+    public static Guid BeginFlow()
+    {
+        var id = Guid.NewGuid();
+        Flow.Value = id;
+        return id;
+    }
 
     /// <summary>The innermost open offer, or null.</summary>
     public static OfferScope? Current => CurrentScope.Value;
@@ -35,11 +57,14 @@ public static class ChangeUndo
     /// <summary>True while an undo runs: changes made by it are not offered for undo again.</summary>
     public static bool IsSuppressed => Suppressed.Value;
 
-    /// <summary>Opens a scope: guarded changes inside it can be undone with <paramref name="undo"/>.</summary>
-    public static OfferScope Offer(Func<CancellationToken, Task<OperationResult>> undo)
+    /// <summary>
+    /// Opens a scope: guarded changes inside it can be undone with <paramref name="undo"/>. They belong to
+    /// <paramref name="flowId"/>, or to the current flow.
+    /// </summary>
+    public static OfferScope Offer(Func<CancellationToken, Task<OperationResult>> undo, Guid? flowId = null)
     {
         ArgumentNullException.ThrowIfNull(undo);
-        var scope = new OfferScope(Guid.NewGuid(), undo, CurrentScope.Value);
+        var scope = new OfferScope(Guid.NewGuid(), undo, CurrentScope.Value, flowId ?? Flow.Value);
         CurrentScope.Value = scope;
         return scope;
     }
@@ -66,14 +91,18 @@ public static class ChangeUndo
         private readonly OfferScope? _outer;
         private bool _disposed;
 
-        internal OfferScope(Guid id, Func<CancellationToken, Task<OperationResult>> undo, OfferScope? outer)
+        internal OfferScope(Guid id, Func<CancellationToken, Task<OperationResult>> undo, OfferScope? outer, Guid? flowId)
         {
             Id = id;
             Undo = undo;
             _outer = outer;
+            FlowId = flowId;
         }
 
         public Guid Id { get; }
+
+        /// <summary>The undo flow the changes in this scope belong to (null: no notification will offer them).</summary>
+        public Guid? FlowId { get; }
 
         public Func<CancellationToken, Task<OperationResult>> Undo { get; }
 
@@ -107,28 +136,52 @@ public static class UndoOfferRules
     /// <summary>How long the Undo button works after it appears.</summary>
     public static readonly TimeSpan UndoWindow = TimeSpan.FromSeconds(10);
 
+    /// <summary>A notification queued behind others longer than this shows without its Undo button.</summary>
+    public static readonly TimeSpan MaxQueueDelay = TimeSpan.FromSeconds(30);
+
     /// <summary>Entries older than this are forgotten.</summary>
     public static readonly TimeSpan KeepFor = TimeSpan.FromMinutes(1);
 
     /// <summary>
-    /// The change a success notification shown at <paramref name="now"/> should offer to undo: the one fresh change
-    /// that has not been offered or used. Null when there is none, or when several changes finished together (one Undo
-    /// button for several changes would be misleading; the Action Journal lists them).
+    /// The change a success notification shown at <paramref name="now"/> from undo flow <paramref name="flowId"/> should
+    /// offer to undo: the one fresh change of that same flow that has not been offered or used. Null when the
+    /// notification is not part of a flow (a background job, the tray, another page), when there is no such change, or
+    /// when several finished together (one Undo button for several changes would be misleading; the Action Journal lists
+    /// them).
     /// </summary>
-    public static UndoEntry? PickOffer(IEnumerable<UndoEntry> entries, DateTimeOffset now)
+    public static UndoEntry? PickOffer(IEnumerable<UndoEntry> entries, DateTimeOffset now, Guid? flowId)
     {
         ArgumentNullException.ThrowIfNull(entries);
+        if (flowId is null)
+        {
+            return null;
+        }
+
         var fresh = entries
-            .Where(e => e.OfferedAt is null && !e.Used && now - e.Change.CompletedAt <= Freshness && now >= e.Change.CompletedAt - Freshness)
+            .Where(e => e.Change.FlowId == flowId && e.OfferedAt is null && !e.Used
+                        && now - e.Change.CompletedAt <= Freshness && now >= e.Change.CompletedAt - Freshness)
             .ToList();
         return fresh.Count == 1 ? fresh[0] : null;
     }
 
-    /// <summary>True when the Undo button for <paramref name="entry"/> still works at <paramref name="now"/>.</summary>
+    /// <summary>
+    /// True when the notification that picked <paramref name="entry"/> may still show its Undo button when it appears at
+    /// <paramref name="now"/> (it may have waited behind other notifications).
+    /// </summary>
+    public static bool CanShow(UndoEntry entry, DateTimeOffset now)
+    {
+        ArgumentNullException.ThrowIfNull(entry);
+        return !entry.Used && entry.OfferedAt is { } offered && now >= offered && now - offered <= MaxQueueDelay;
+    }
+
+    /// <summary>
+    /// True when the Undo button for <paramref name="entry"/> still works at <paramref name="now"/>: the window runs from
+    /// when the button appeared (or, if that was never reported, from when it was picked).
+    /// </summary>
     public static bool CanUndo(UndoEntry entry, DateTimeOffset now)
     {
         ArgumentNullException.ThrowIfNull(entry);
-        return !entry.Used && entry.OfferedAt is { } offered && now >= offered && now - offered <= UndoWindow;
+        return !entry.Used && (entry.ShownAt ?? entry.OfferedAt) is { } start && now >= start && now - start <= UndoWindow;
     }
 
     /// <summary>Drops entries older than <see cref="KeepFor"/>.</summary>
@@ -145,8 +198,17 @@ public interface IChangeUndoTracker
     /// <summary>Remembers a finished change. A second change from the same offer scope replaces the first.</summary>
     void Register(UndoableChange change);
 
-    /// <summary>The change a success notification at <paramref name="now"/> should offer, marked as offered; or null.</summary>
-    UndoableChange? TakeOffer(DateTimeOffset now);
+    /// <summary>
+    /// The change a success notification at <paramref name="now"/> from undo flow <paramref name="flowId"/> should offer,
+    /// marked as offered; or null.
+    /// </summary>
+    UndoableChange? TakeOffer(DateTimeOffset now, Guid? flowId);
+
+    /// <summary>
+    /// The notification with the Undo button for <paramref name="id"/> appeared at <paramref name="now"/>: the undo
+    /// window starts. False when it came too late to offer Undo (the button should then be hidden).
+    /// </summary>
+    bool MarkShown(Guid id, DateTimeOffset now);
 
     /// <summary>True when the Undo button for <paramref name="id"/> still works.</summary>
     bool CanUndo(Guid id, DateTimeOffset now);
@@ -173,12 +235,12 @@ public sealed class ChangeUndoTracker : IChangeUndoTracker
         }
     }
 
-    public UndoableChange? TakeOffer(DateTimeOffset now)
+    public UndoableChange? TakeOffer(DateTimeOffset now, Guid? flowId)
     {
         lock (_gate)
         {
             _entries = UndoOfferRules.Prune(_entries, now).ToList();
-            var pick = UndoOfferRules.PickOffer(_entries, now);
+            var pick = UndoOfferRules.PickOffer(_entries, now, flowId);
             if (pick is null)
             {
                 return null;
@@ -186,6 +248,30 @@ public sealed class ChangeUndoTracker : IChangeUndoTracker
 
             Replace(pick, pick with { OfferedAt = now });
             return pick.Change;
+        }
+    }
+
+    public bool MarkShown(Guid id, DateTimeOffset now)
+    {
+        lock (_gate)
+        {
+            if (Find(id) is not { } entry)
+            {
+                return false;
+            }
+
+            if (entry.ShownAt is not null)
+            {
+                return UndoOfferRules.CanUndo(entry, now);
+            }
+
+            if (!UndoOfferRules.CanShow(entry, now))
+            {
+                return false;
+            }
+
+            Replace(entry, entry with { ShownAt = now });
+            return true;
         }
     }
 

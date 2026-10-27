@@ -36,8 +36,9 @@ public sealed class NotificationService : INotificationService
             return;
         }
 
-        // Decide now, while the change is fresh; the snackbar itself may be shown a moment later.
-        var undoable = kind == NotificationKind.Success ? _undo?.TakeOffer(DateTimeOffset.Now) : null;
+        // Decide now, while the change is fresh and from the code that made it (its undo flow): a notification from
+        // anywhere else never carries the Undo. The snackbar itself may be shown a moment later.
+        var undoable = kind == NotificationKind.Success ? _undo?.TakeOffer(DateTimeOffset.Now, ChangeUndo.CurrentFlow) : null;
 
         void Post()
         {
@@ -73,7 +74,11 @@ public sealed class NotificationService : INotificationService
         }
     }
 
-    /// <summary>The success snackbar with an Undo button that runs the change's undo once, within the undo window.</summary>
+    /// <summary>
+    /// The success snackbar with an Undo button. The 10-second window starts when the snackbar actually appears (it may
+    /// wait behind others; if it waited too long the button is hidden). A click asks first, then runs the change's undo
+    /// once.
+    /// </summary>
     private void ShowWithUndo(SnackbarPresenter presenter, string title, string message, ControlAppearance appearance, SymbolRegular symbol, UndoableChange change)
     {
         var undoButton = new Wpf.Ui.Controls.Button
@@ -103,11 +108,32 @@ public sealed class NotificationService : INotificationService
             Timeout = UndoOfferRules.UndoWindow,
         };
 
+        snackbar.Loaded += (_, _) =>
+        {
+            if (!_undo!.MarkShown(change.Id, DateTimeOffset.Now))
+            {
+                undoButton.Visibility = Visibility.Collapsed;
+            }
+        };
+
         undoButton.Click += async (_, _) =>
         {
+            var clickedAt = DateTimeOffset.Now;
+            if (!_undo!.CanUndo(change.Id, clickedAt))
+            {
+                undoButton.Visibility = Visibility.Collapsed;
+                return;
+            }
+
             undoButton.IsEnabled = false;
             _ = presenter.HideCurrent();
-            var result = await _undo!.UndoAsync(change.Id, DateTimeOffset.Now, CancellationToken.None);
+            if (!await ConfirmUndoAsync(change))
+            {
+                return;
+            }
+
+            // The click time counts, so reading the question does not use up the window.
+            var result = await _undo!.UndoAsync(change.Id, clickedAt, CancellationToken.None);
             if (result.Success)
             {
                 Show(Localization.Loc.T("Undone"), Localization.Loc.F("{0} was taken back.", change.Description));
@@ -119,5 +145,24 @@ public sealed class NotificationService : INotificationService
         };
 
         snackbar.Show();
+    }
+
+    /// <summary>Every change asks first, an undo too. Without a dialog service (tests, early start-up) it goes ahead.</summary>
+    private static async Task<bool> ConfirmUndoAsync(UndoableChange change)
+    {
+        IDialogService? dialogs;
+        try
+        {
+            dialogs = App.Services.GetService(typeof(IDialogService)) as IDialogService;
+        }
+        catch (InvalidOperationException)
+        {
+            dialogs = null;
+        }
+
+        return dialogs is null || await dialogs.ConfirmAsync(
+            Localization.Loc.F("Undo \"{0}\"?", change.Description),
+            Localization.Loc.T("PC Checker puts this back the way it was a moment ago. The undo is recorded in the Action Journal too."),
+            Localization.Loc.T("Undo"));
     }
 }

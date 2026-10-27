@@ -1,4 +1,6 @@
 using PcChecker.Core.Checkup;
+using PcChecker.Core.Performance;
+using PcChecker.Core.Startup;
 using PcChecker.Core.Sensors.PawnIo;
 using static PcChecker.Core.Shell.SearchText;
 
@@ -122,6 +124,31 @@ public static class AttentionRules
     /// <summary>Orders items by level, then by each rule's priority, then by id so the order never flickers.</summary>
     public static IEnumerable<AttentionItem> Rank(IEnumerable<AttentionItem> items) =>
         items.OrderBy(i => i.Level).ThenBy(i => i.Priority).ThenBy(i => i.Id, StringComparer.Ordinal);
+
+    /// <summary>
+    /// How many heavy apps start with Windows right now. Whether an app is on comes from the live startup list
+    /// (<paramref name="live"/>), so turning apps off on the Startup page is reflected straight away. How heavy it is
+    /// comes from the last check-up when it saw the same entry (its estimate is better informed), otherwise from the
+    /// name and command. Without a live list, the check-up's own count is used; with neither, null.
+    /// </summary>
+    public static int? CountHeavyStartupApps(IReadOnlyList<StartupItem>? live, IReadOnlyList<CheckupStartupEntry>? fromCheckup)
+    {
+        if (live is null)
+        {
+            return fromCheckup?.Count(e => e.Item.Enabled && e.Insight.Impact == StartupImpactRules.High);
+        }
+
+        var known = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var entry in fromCheckup ?? [])
+        {
+            known[CheckupItemMapper.StartupKey(entry.Item)] = entry.Insight.Impact;
+        }
+
+        return live.Count(item => item.Enabled
+            && (known.TryGetValue(CheckupItemMapper.StartupKey(item), out var impact)
+                ? impact
+                : StartupImpactRules.Estimate(item.Name, item.Command, null).Impact) == StartupImpactRules.High);
+    }
 
     /// <summary>True when there is no check-up or the last one is older than <see cref="CheckupStaleAfter"/>.</summary>
     public static bool IsCheckupStale(DateTimeOffset? lastCheckup, DateTimeOffset now) =>

@@ -89,8 +89,11 @@ Every page follows the same order, top to bottom:
   its tab: add its key to `SimpleModeRules.AdvancedPageKeys`
   (`src/PcChecker.Core/Shell/SimpleModeRules.cs`). The page itself stays open
   to everyone.
-- New users see a one-time *You're in Simple mode* hint on the Dashboard and in
-  Settings (`SimpleModeHintViewModel`); do not add more hints like it.
+- The chip is a label only; it promises nothing about what Simple mode hides.
+  Hide a page's riskier controls behind `IsAdvancedMode` where that matters.
+- New users see a *You're in Simple mode* hint on the Dashboard and in Settings
+  (`SimpleModeHintViewModel`) during their first session only, with a *Turn on
+  Advanced mode* button; do not add more hints like it.
 
 ## Keyboard
 
@@ -111,10 +114,15 @@ Every page follows the same order, top to bottom:
 - After a change succeeds, show `INotificationService.Success(...)` with what
   happened in plain words.
 - When the same service can take the change straight back, run it through
-  `UndoOffers.RunAsync(change, undo, description)` (or set
-  `ChangeOptions.Undo` in the service). The success notification then offers
-  **Undo** for 10 seconds. The undo must call the service again (so it is
-  guarded and journaled) and put the page's row back.
+  `UndoOffers.RunAsync(change, undo, description)` and show the success
+  notification from that same method. The notification then offers **Undo**
+  for 10 seconds from when it appears. The undo must call the service again (so
+  it is guarded and journaled) and put the page's row back.
+- Only the notification shown by the code that made the change carries its
+  Undo (`UndoOffers.RunAsync` starts an undo flow in the calling method; with
+  `ChangeOptions.Undo` call `ChangeUndo.BeginFlow()` first). A notification from
+  a background job, the tray or another page never does.
+- Clicking **Undo** asks first, like every change.
 - Do not offer Undo for batches, deletions, uninstalls or anything that needs a
   restart; the Action Journal says how to undo those.
 

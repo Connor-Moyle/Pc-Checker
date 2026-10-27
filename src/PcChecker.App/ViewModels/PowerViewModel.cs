@@ -174,9 +174,31 @@ public sealed partial class PowerViewModel : ViewModelBase
             return;
         }
 
+        var previous = Plans.FirstOrDefault(p => p.IsActive);
         await RunBusyAsync(async ct =>
         {
-            var result = await _power.SetActivePowerPlanAsync(plan.Id, ct);
+            var result = previous is null
+                ? await _power.SetActivePowerPlanAsync(plan.Id, ct)
+                : await UndoOffers.RunAsync(
+                    () => _power.SetActivePowerPlanAsync(plan.Id, ct),
+                    async undoCt =>
+                    {
+                        // Undo from the success notification: back to the plan that was active, and the list re-read.
+                        var back = await _power.SetActivePowerPlanAsync(previous.Id, undoCt);
+                        DispatcherHelper.PostToUi(async () =>
+                        {
+                            try
+                            {
+                                await LoadPlansAsync(CancellationToken.None);
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.LogDebug(ex, "Could not re-read the power plans after an undo.");
+                            }
+                        });
+                        return back;
+                    },
+                    plan.Name);
             if (result.Success)
             {
                 _notifications.Success("Power plan changed", result.Message);
