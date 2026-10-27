@@ -56,7 +56,9 @@ public sealed partial class SettingsViewModel
         try
         {
             var start = new ProcessStartInfo(exe) { UseShellExecute = false };
-            foreach (var arg in Environment.GetCommandLineArgs().Skip(1).Where(a => a is not "--minimized"))
+            // Only --demo/--real carry over: --tray (Start with Windows) would hide the new window, and the old
+            // hand-over switches no longer apply.
+            foreach (var arg in PcChecker.Core.Common.CommandLineOptions.ArgumentsForRestart(Environment.GetCommandLineArgs().Skip(1)))
             {
                 start.ArgumentList.Add(arg);
             }
@@ -64,7 +66,7 @@ public sealed partial class SettingsViewModel
             start.ArgumentList.Add("--wait-pid");
             start.ArgumentList.Add(Environment.ProcessId.ToString(CultureInfo.InvariantCulture));
             Process.Start(start);
-            Application.Current?.Shutdown();
+            App.ExitApplication();
         }
         catch (Exception ex)
         {

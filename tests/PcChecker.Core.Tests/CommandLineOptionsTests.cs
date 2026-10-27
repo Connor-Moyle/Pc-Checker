@@ -118,4 +118,20 @@ public class CommandLineOptionsTests
     {
         Assert.Equal(expected, CommandLineOptions.Parse(args).Language);
     }
+
+    [Fact]
+    public void Restart_keeps_only_the_data_mode_switches()
+    {
+        var args = CommandLineOptions.ArgumentsForRestart(
+            ["--tray", "--minimized", "--demo", "--wait-pid", "1234", "--updated-from", "0.5.0", "--taskmgr", @"C:\Windows\system32\taskmgr.exe", "--language", "de"]);
+        Assert.Equal(new[] { "--demo" }, args);
+    }
+
+    [Fact]
+    public void Restart_keeps_real_in_any_form_and_handles_no_arguments()
+    {
+        Assert.Equal(new[] { "/real" }, CommandLineOptions.ArgumentsForRestart(["/real", "--real=yes"]));
+        Assert.Empty(CommandLineOptions.ArgumentsForRestart(null));
+        Assert.Empty(CommandLineOptions.ArgumentsForRestart(["--tray"]));
+    }
 }

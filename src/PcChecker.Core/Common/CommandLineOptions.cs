@@ -178,6 +178,15 @@ public sealed record CommandLineOptions(
         };
     }
 
+    /// <summary>
+    /// The arguments a copy restarted from inside the app (for a new language) keeps: only the data mode switches
+    /// <c>--demo</c> and <c>--real</c>. Start-up and hand-over switches (<c>--tray</c>, <c>--minimized</c>,
+    /// <c>--taskmgr</c>, <c>--wait-pid</c>, <c>--updated-from</c>, <c>--language</c>…) and their values are dropped, so
+    /// the new copy shows its window in the language chosen in Settings.
+    /// </summary>
+    public static IReadOnlyList<string> ArgumentsForRestart(IEnumerable<string>? args) =>
+        (args ?? []).Where(a => a is not null && SplitSwitch(a.Trim()) is ("demo" or "real", null)).Select(a => a.Trim()).ToList();
+
     private static bool IsSwitch(string value)
     {
         var v = value.Trim();

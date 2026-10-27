@@ -34,6 +34,27 @@ public partial class App : Application
 
     public static IServiceProvider Services => ((App)Current)._services ?? throw new InvalidOperationException("Services are not built yet.");
 
+    /// <summary>
+    /// Closes the app on purpose (restarting for an update or a new language) through the tray's exit path, so "Close
+    /// to tray" does not hide the window and announce that PC Checker keeps running.
+    /// </summary>
+    public static void ExitApplication()
+    {
+        if (Current is not App app)
+        {
+            return;
+        }
+
+        if (app._services?.GetService<TrayIconService>() is { } tray)
+        {
+            tray.ExitApplication();
+        }
+        else
+        {
+            app.Shutdown();
+        }
+    }
+
     /// <summary>The parsed command line for this run.</summary>
     public static CommandLineOptions Options => AppOptions.Current;
 
@@ -166,7 +187,7 @@ public partial class App : Application
         logService.Export.JournalPath = _services.GetRequiredService<IActionJournal>().JournalPath;
         _logger = logService.CreateLogger<App>();
         _services.GetRequiredService<PcChecker.Core.Updates.IAppUpdateService>().RestartRequested +=
-            (_, _) => Dispatcher.BeginInvoke(() => Shutdown());
+            (_, _) => Dispatcher.BeginInvoke(() => ExitApplication());
         _logger.LogInformation("Application started v{Version} in {Mode} mode. Settings: {Path}", appVersion, options.Mode, settings.SettingsFilePath);
         if (options.UnknownArguments.Count > 0)
         {
