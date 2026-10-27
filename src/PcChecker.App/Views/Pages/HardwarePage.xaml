@@ -11,6 +11,9 @@
       Title="Hardware"
       ScrollViewer.CanContentScroll="False">
   <Page.Resources>
+    <Style x:Key="Tile" TargetType="controls:StatCard">
+      <Setter Property="Margin" Value="0" />
+    </Style>
     <!-- One device card: header with icon, name, subtitle and status; body with typed fields and the raw bag. -->
     <DataTemplate x:Key="HardwareItemTemplate" DataType="{x:Type vm:HardwareItemViewModel}">
       <ui:CardExpander Margin="0,0,0,8" IsExpanded="{Binding IsExpanded, Mode=TwoWay}" ContentPadding="16,8,16,12">
@@ -60,15 +63,20 @@
       <RowDefinition Height="*" />
     </Grid.RowDefinitions>
 
-    <controls:SectionHeader Grid.Row="0" Title="Hardware" Subtitle="Every connected component and all the information Windows has about it.">
+    <controls:SectionHeader Grid.Row="0" Title="Overview"
+                            Subtitle="{Binding CapturedText, TargetNullValue='Every component in this PC and what Windows knows about it.'}">
       <controls:SectionHeader.Actions>
         <StackPanel Orientation="Horizontal">
-          <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding CapturedText}" VerticalAlignment="Center" Margin="0,0,12,0"
-                        Visibility="{Binding CapturedText, Converter={StaticResource NullToVisibility}}" />
+          <ui:DropDownButton Content="More" Icon="{ui:SymbolIcon MoreHorizontal24}" Margin="0,0,8,0">
+            <ui:DropDownButton.Flyout>
+              <ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+                <MenuItem Header="Export JSON…" Command="{Binding ExportJsonCommand}"
+                          ToolTip="Saves the complete inventory, including every raw property, as a JSON file." />
+              </ContextMenu>
+            </ui:DropDownButton.Flyout>
+          </ui:DropDownButton>
           <ui:Button Content="Copy summary" Icon="{ui:SymbolIcon Copy24}" Command="{Binding CopySummaryCommand}" Margin="0,0,8,0"
                      ToolTip="Puts a short plain-text list of your parts on the clipboard, handy for support requests." />
-          <ui:Button Content="Export JSON" Icon="{ui:SymbolIcon ArrowDownload24}" Command="{Binding ExportJsonCommand}" Margin="0,0,8,0"
-                     ToolTip="Saves the complete inventory, including every raw property, as a JSON file." />
           <ui:Button Content="Scan" Appearance="Primary" Icon="{ui:SymbolIcon ArrowSync24}" Command="{Binding ScanCommand}"
                      ToolTip="Re-reads every device. Takes a few seconds." />
         </StackPanel>
@@ -91,24 +99,24 @@
     </StackPanel>
 
     <!-- Summary strip -->
-    <UniformGrid Grid.Row="2" Columns="5" Margin="-6,0,-6,12" Visibility="{Binding HasInventory, Converter={StaticResource BoolToVisibility}}">
-      <controls:StatCard Margin="6,0" Title="Processor" Icon="TopSpeed24" Accent="{StaticResource AccentCyanBrush}"
+    <controls:AdaptiveGrid Grid.Row="2" MinItemWidth="200" MaxColumns="5" Margin="0,0,0,12" Visibility="{Binding HasInventory, Converter={StaticResource BoolToVisibility}}">
+      <controls:StatCard Style="{StaticResource Tile}" Title="Processor" Icon="TopSpeed24" Accent="{StaticResource AccentCyanBrush}"
                          Value="{Binding Overview.Cpu, FallbackValue=—}" Subtitle="{Binding Overview.CpuDetail}" />
-      <controls:StatCard Margin="6,0" Title="Graphics" Icon="Games24" Accent="{StaticResource AccentGreenBrush}"
+      <controls:StatCard Style="{StaticResource Tile}" Title="Graphics" Icon="Games24" Accent="{StaticResource AccentGreenBrush}"
                          Value="{Binding Overview.Gpu, FallbackValue=—}" Subtitle="{Binding Overview.GpuDetail}" />
-      <controls:StatCard Margin="6,0" Title="Memory" Icon="Memory16" Accent="{StaticResource AccentPurpleBrush}"
+      <controls:StatCard Style="{StaticResource Tile}" Title="Memory" Icon="Memory16" Accent="{StaticResource AccentPurpleBrush}"
                          Value="{Binding Overview.Memory, FallbackValue=—}" Subtitle="{Binding Overview.MemoryDetail}" />
-      <controls:StatCard Margin="6,0" Title="Storage" Icon="HardDrive20" Accent="{StaticResource AccentOrangeBrush}"
+      <controls:StatCard Style="{StaticResource Tile}" Title="Storage" Icon="HardDrive20" Accent="{StaticResource AccentOrangeBrush}"
                          Value="{Binding Overview.Storage, FallbackValue=—}" Subtitle="{Binding Overview.StorageDetail}" />
-      <controls:StatCard Margin="6,0" Title="Windows" Icon="Window24" Accent="{StaticResource AccentYellowBrush}"
+      <controls:StatCard Style="{StaticResource Tile}" Title="Windows" Icon="Window24" Accent="{StaticResource AccentYellowBrush}"
                          Value="{Binding Overview.Os, FallbackValue=—}" Subtitle="{Binding Overview.OsDetail}" />
-    </UniformGrid>
+    </controls:AdaptiveGrid>
 
     <!-- Empty state before the first scan -->
     <controls:EmptyState Grid.Row="3" Grid.RowSpan="2"
                          Icon="DeveloperBoard24"
                          Title="No scan yet"
-                         Message="Press Scan to read every component in this PC. Nothing is changed; the scan only reads information."
+                         Message="Press Scan to read every component in this PC. The scan only reads; nothing is changed."
                          Visibility="{Binding HasNoInventory, Converter={StaticResource BoolToVisibility}}">
       <controls:EmptyState.Action>
         <ui:Button Content="Scan now" Appearance="Primary" Icon="{ui:SymbolIcon ArrowSync24}" Command="{Binding ScanCommand}" />
@@ -119,7 +127,7 @@
     <Grid Grid.Row="4" Visibility="{Binding HasInventory, Converter={StaticResource BoolToVisibility}}">
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="236" />
-        <ColumnDefinition Width="16" />
+        <ColumnDefinition Width="12" />
         <ColumnDefinition Width="*" />
       </Grid.ColumnDefinitions>
 
@@ -170,7 +178,8 @@
         <!-- Category heading -->
         <StackPanel Grid.Row="0" Margin="0,0,0,8">
           <ui:TextBlock FontTypography="Subtitle" Text="{Binding ItemsHeader}" />
-          <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding SelectedCategory.Description}" TextWrapping="Wrap" />
+          <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding SelectedCategory.Description}" TextTrimming="CharacterEllipsis"
+                        ToolTip="{Binding SelectedCategory.Description}" />
         </StackPanel>
 
         <!-- Search and list tools -->
@@ -183,7 +192,8 @@
           </Grid.ColumnDefinitions>
           <ui:TextBox Grid.Column="0"
                       Icon="{ui:SymbolIcon Search24}"
-                      PlaceholderText="Search names, values and raw properties (e.g. “serial”, “DDR5”, “VEN_10DE”)"
+                      PlaceholderText="Search names, values and raw properties"
+                      ToolTip="For example “serial”, “DDR5” or “VEN_10DE”."
                       Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged, Delay=200}"
                       ClearButtonEnabled="True" />
           <ComboBox Grid.Column="1" MinWidth="200" Margin="8,0,0,0"
@@ -220,7 +230,7 @@
         <controls:EmptyState Grid.Row="2"
                              Icon="Search24"
                              Title="Nothing to show"
-                             Message="No device in this category matches the current search. Clear the search or pick another category."
+                             Message="No device in this category matches the search."
                              Visibility="{Binding HasNoItems, Converter={StaticResource BoolToVisibility}}">
           <controls:EmptyState.Action>
             <ui:Button Content="Clear search" Command="{Binding ClearSearchCommand}" />
