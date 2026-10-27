@@ -39,6 +39,7 @@ public partial class MainWindow : FluentWindow
         _navigation.SetNavigationControl(NavigationView);
         _snackbar.SetSnackbarPresenter(SnackbarPresenter);
         _dialogs.SetDialogHost(DialogHost);
+        ShellRequests.ShortcutsRequested += (_, _) => ShowShortcuts();
     }
 
     public MainWindowViewModel ViewModel { get; }
@@ -76,6 +77,18 @@ public partial class MainWindow : FluentWindow
             return;
         }
 
+        // The shortcuts list closes with Esc (the overlay also handles it when it has focus).
+        if (ShortcutsOverlay.IsOpen)
+        {
+            if (e.Key == Key.Escape)
+            {
+                ShortcutsOverlay.Close();
+                e.Handled = true;
+            }
+
+            return;
+        }
+
         // While the palette is open, its keys (Esc, arrows, Enter) work even when focus is outside it.
         if (ViewModel.QuickSearch.IsOpen && !QuickSearchPalette.IsKeyboardFocusWithin && QuickSearchPalette.HandleKey(e.Key))
         {
@@ -103,6 +116,25 @@ public partial class MainWindow : FluentWindow
                 e.Handled = true;
                 return;
             }
+
+            // F1: the help of the page on screen (the "?" button in its header).
+            if (key == Key.F1 && modifiers == ModifierKeys.None)
+            {
+                e.Handled = PageHelpLocator.FindDescendant<Controls.SectionHeader>(_currentPage)?.OpenHelp(focus: true) == true;
+                return;
+            }
+
+            // F5: the page's refresh or scan button, when it has one (IRefreshablePage).
+            if (key == Key.F5 && modifiers == ModifierKeys.None)
+            {
+                if (_currentPage?.DataContext is IRefreshablePage { RefreshKeyCommand: { } refresh } && refresh.CanExecute(null))
+                {
+                    refresh.Execute(null);
+                }
+
+                e.Handled = true;
+                return;
+            }
         }
 
         if (e.Key != Key.K || Keyboard.Modifiers != ModifierKeys.Control)
@@ -122,6 +154,38 @@ public partial class MainWindow : FluentWindow
         }
     }
 
+    /// <summary>
+    /// "?" opens the keyboard shortcuts list. Typed text is used (not a key code) so it works on every keyboard layout, and
+    /// never while the user types into a text box.
+    /// </summary>
+    private void OnPreviewTextInput(object sender, TextCompositionEventArgs e)
+    {
+        if (e.Text != "?" || DialogHost.Content is ContentDialog || ViewModel.QuickSearch.IsOpen || ShortcutsOverlay.IsOpen || IsTextInput(Keyboard.FocusedElement))
+        {
+            return;
+        }
+
+        ShowShortcuts();
+        e.Handled = true;
+    }
+
+    private static bool IsTextInput(IInputElement? element) =>
+        element is System.Windows.Controls.Primitives.TextBoxBase or System.Windows.Controls.PasswordBox or System.Windows.Controls.ComboBox { IsEditable: true };
+
+    /// <summary>Shows the shortcuts list for the page on screen (from "?", the help flyout or quick search).</summary>
+    public void ShowShortcuts()
+    {
+        if (ViewModel.QuickSearch.IsOpen)
+        {
+            ViewModel.QuickSearch.CloseCommand.Execute(null);
+        }
+
+        var pageType = _currentPage?.GetType();
+        var entry = NavigationCatalog.Pages.FirstOrDefault(p => p.PageType == pageType);
+        bool canRefresh = _currentPage?.DataContext is IRefreshablePage;
+        ShortcutsOverlay.Open(entry?.FileName, entry is null ? null : Localization.Loc.T(entry.Title), canRefresh);
+    }
+
     /// <summary>One menu item per section; pages inside a section are reached through the tabs above the content.</summary>
     private void BuildMenu()
     {
@@ -132,7 +196,9 @@ public partial class MainWindow : FluentWindow
                 Content = Localization.Loc.T(section.Title),
                 Icon = new SymbolIcon { Symbol = section.Icon },
                 TargetPageType = section.FirstPage,
-                ToolTip = section.HasTabs ? string.Join(", ", section.Pages.Select(p => Localization.Loc.T(p.Title))) : null,
+                ToolTip = section.HasTabs || section.Pages.Any(p => p.IsAdvanced)
+                    ? string.Join(", ", section.Pages.Select(p => Localization.Loc.T(p.Title) + (p.IsAdvanced ? " (" + Localization.Loc.T("Advanced") + ")" : string.Empty)))
+                    : null,
             };
             (section.IsFooter ? NavigationView.FooterMenuItems : NavigationView.MenuItems).Add(item);
         }

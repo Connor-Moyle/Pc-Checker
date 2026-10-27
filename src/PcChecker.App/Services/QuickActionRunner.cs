@@ -107,6 +107,9 @@ public sealed class QuickActionRunner
                 return Task.CompletedTask;
             case QuickActionIds.ShowWelcome:
                 return _services.GetRequiredService<WelcomeService>().ShowAsync();
+            case QuickActionIds.ShowShortcuts:
+                ShellRequests.ShowShortcuts();
+                return Task.CompletedTask;
             default:
                 _logger.LogDebug("Unknown quick action {Action}.", actionId);
                 return Task.CompletedTask;

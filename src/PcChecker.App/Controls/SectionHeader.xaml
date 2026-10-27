@@ -10,7 +10,25 @@
       <ColumnDefinition Width="Auto" />
     </Grid.ColumnDefinitions>
     <StackPanel Grid.Column="0" VerticalAlignment="Center">
-      <ui:TextBlock FontTypography="Title" Text="{Binding Title, ElementName=Root}" TextWrapping="Wrap" />
+      <Grid>
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="Auto" />
+          <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        <ui:TextBlock Grid.Column="0" FontTypography="Title" Text="{Binding Title, ElementName=Root}" TextWrapping="Wrap" VerticalAlignment="Center" />
+        <!-- "?": what this page does, the safest first step and a link to the docs (also F1). Text comes from Core/Shell/HelpCatalog.cs. -->
+        <ui:Button x:Name="HelpButton" Grid.Column="1"
+                   Appearance="Transparent"
+                   Icon="{ui:SymbolIcon QuestionCircle24}"
+                   Padding="6"
+                   Margin="8,2,0,0"
+                   VerticalAlignment="Center"
+                   HorizontalAlignment="Left"
+                   Visibility="Collapsed"
+                   Click="OnHelpClick"
+                   ToolTip="What this page does and the safest first step (F1)"
+                   AutomationProperties.Name="Help for this page" />
+      </Grid>
       <ui:TextBlock Appearance="Secondary"
                     Text="{Binding Subtitle, ElementName=Root}"
                     TextWrapping="Wrap"
@@ -21,5 +39,35 @@
                       Content="{Binding Actions, ElementName=Root}"
                       VerticalAlignment="Center"
                       Margin="16,0,0,0" />
+
+    <Popup x:Name="HelpPopup"
+           PlacementTarget="{Binding ElementName=HelpButton}"
+           Placement="Bottom"
+           StaysOpen="False"
+           AllowsTransparency="True"
+           PopupAnimation="Fade"
+           VerticalOffset="6"
+           Opened="OnHelpOpened">
+      <Border Width="400" Padding="16" CornerRadius="8" Margin="0,0,12,12"
+              Background="{DynamicResource ApplicationBackgroundBrush}"
+              BorderBrush="{DynamicResource SurfaceStrokeColorFlyoutBrush}"
+              BorderThickness="1"
+              PreviewKeyDown="OnHelpKeyDown"
+              KeyboardNavigation.TabNavigation="Cycle">
+        <Border.Effect>
+          <DropShadowEffect BlurRadius="16" ShadowDepth="3" Opacity="0.3" />
+        </Border.Effect>
+        <StackPanel>
+          <ui:TextBlock x:Name="HelpTitle" FontTypography="BodyStrong" TextWrapping="Wrap" />
+          <ui:TextBlock x:Name="HelpWhat" TextWrapping="Wrap" Margin="0,6,0,0" />
+          <ui:TextBlock x:Name="HelpFirstStepLabel" FontTypography="BodyStrong" Margin="0,12,0,4" />
+          <ui:TextBlock x:Name="HelpFirstStep" TextWrapping="Wrap" />
+          <WrapPanel Margin="-4,12,0,0">
+            <ui:HyperlinkButton x:Name="HelpDocsLink" Padding="4,2" Margin="0,0,12,0" />
+            <ui:Button x:Name="HelpShortcutsButton" Appearance="Transparent" Padding="4,2" Click="OnShortcutsClick" />
+          </WrapPanel>
+        </StackPanel>
+      </Border>
+    </Popup>
   </Grid>
 </UserControl>
