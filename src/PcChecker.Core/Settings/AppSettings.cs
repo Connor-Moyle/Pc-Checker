@@ -271,6 +271,19 @@ public sealed class ClaudeSettings
 public sealed class CleanupSettings
 {
     public List<string> EnabledCategoryIds { get; set; } = [];
+
+    /// <summary>
+    /// Set once the user changed the selection on the Cleanup page, so an empty <see cref="EnabledCategoryIds"/> means
+    /// "nothing ticked" rather than "never chosen" (which falls back to the catalogue defaults).
+    /// </summary>
+    public bool SelectionCustomized { get; set; }
+
+    /// <summary>
+    /// The user's saved selection, or null when they never chose one. Older settings files have no
+    /// <see cref="SelectionCustomized"/> flag, so a non-empty list counts as chosen too.
+    /// </summary>
+    public IReadOnlyList<string>? SavedSelection() =>
+        SelectionCustomized || EnabledCategoryIds is { Count: > 0 } ? EnabledCategoryIds ?? [] : null;
     public int SkipFilesNewerThanMinutes { get; set; } = 60;
 }
 

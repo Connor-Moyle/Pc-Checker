@@ -109,7 +109,7 @@ public sealed partial class CleanupViewModel : ViewModelBase
         _selectedGroupFilter = GroupFilters[0];
 
         var selected = new HashSet<string>(
-            CleanupRules.ResolveSelection(settings.Current.Cleanup.EnabledCategoryIds, scanner.Categories, IsAdvancedMode),
+            CleanupRules.ResolveSelection(settings.Current.Cleanup.SavedSelection(), scanner.Categories, IsAdvancedMode),
             StringComparer.OrdinalIgnoreCase);
         Categories = new ObservableCollection<CleanupCategoryItem>(
             scanner.Categories.Select(c => new CleanupCategoryItem(c, selected.Contains(c.Id), OnItemSelectionChanged)));
@@ -398,6 +398,7 @@ public sealed partial class CleanupViewModel : ViewModelBase
     private void PersistSelection()
     {
         Settings.Current.Cleanup.EnabledCategoryIds = Categories.Where(c => c.IsSelected).Select(c => c.Id).ToList();
+        Settings.Current.Cleanup.SelectionCustomized = true;
 
         // Ticking several boxes in a row should produce one disk write and one Changed event, not one per click.
         _saveDebounce?.Cancel();

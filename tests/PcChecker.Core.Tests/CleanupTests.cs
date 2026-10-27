@@ -482,6 +482,15 @@ public class CleanupRulesTests
     }
 
     [Fact]
+    public void An_empty_saved_selection_stays_empty()
+    {
+        Assert.Empty(CleanupRules.ResolveSelection([], CleanupCatalog.All, false));
+
+        // Only ids that no longer exist (a renamed category) fall back to the defaults.
+        Assert.Contains("user.temp", CleanupRules.ResolveSelection(["does.not.exist"], CleanupCatalog.All, false));
+    }
+
+    [Fact]
     public void Safe_only_selection_needs_no_restore_point()
     {
         Assert.True(CleanupRules.IsSafeOnly([CleanupCatalog.Find("user.temp")!, CleanupCatalog.Find("thumbnails")!]));
