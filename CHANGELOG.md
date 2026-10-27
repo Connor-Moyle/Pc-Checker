@@ -6,6 +6,10 @@ All notable changes to PC Checker are recorded here. The format follows
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-10-27
+
+A Missing DLLs tab that installs the official runtime packages old games need, an install-in-Program-Files option, and a final pass over the whole app: about 70 bugs found by review and fixed (fans, Task manager, drives, lighting, startup apps, cleanup, overclocking, updates, translations) plus layout fixes.
+
 ### Added
 - **Missing DLLs** (Gaming): about 240 DLLs old games need, each with its
   32-bit and 64-bit state and the official package it comes from; *Scan a
@@ -628,7 +632,8 @@ Initial release.
   itself from GitHub Releases with Stable and Beta channels and verifies every
   download against its published SHA-256.
 
-[Unreleased]: https://github.com/Connor-Moyle/Pc-Checker/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/Connor-Moyle/Pc-Checker/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/Connor-Moyle/Pc-Checker/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/Connor-Moyle/Pc-Checker/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/Connor-Moyle/Pc-Checker/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/Connor-Moyle/Pc-Checker/compare/v0.3.0...v0.4.0

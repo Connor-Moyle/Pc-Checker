@@ -11,6 +11,10 @@
       Title="Missing DLLs"
       ScrollViewer.CanContentScroll="False">
   <Page.Resources>
+    <!-- Text cells centred like the template cells beside them, so each row reads as one line. -->
+    <Style x:Key="CenteredCellText" TargetType="TextBlock" BasedOn="{x:Static DataGridTextColumn.DefaultElementStyle}">
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
     <Style x:Key="Tile" TargetType="controls:StatCard">
       <Setter Property="Margin" Value="0" />
     </Style>
@@ -177,7 +181,7 @@
                     </DataTemplate>
                   </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
-                <DataGridTextColumn Header="For" Width="80" Binding="{Binding ArchText}" />
+                <DataGridTextColumn Header="For" Width="80" Binding="{Binding ArchText}" ElementStyle="{StaticResource CenteredCellText}" />
                 <DataGridTemplateColumn Header="Status" Width="2.4*">
                   <DataGridTemplateColumn.CellTemplate>
                     <DataTemplate DataType="{x:Type vm:GameImportRow}">
@@ -185,7 +189,7 @@
                     </DataTemplate>
                   </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
-                <DataGridTextColumn Header="Needed by" Width="1.2*" Binding="{Binding ImportedBy}" />
+                <DataGridTextColumn Header="Needed by" Width="1.2*" Binding="{Binding ImportedBy}" ElementStyle="{StaticResource CenteredCellText}" />
               </ui:DataGrid.Columns>
             </ui:DataGrid>
           </StackPanel>
@@ -223,7 +227,7 @@
                          MaxHeight="520" Visibility="{Binding HasNoDlls, Converter={StaticResource InverseBoolToVisibility}}"
                          EnableRowVirtualization="True">
               <ui:DataGrid.Columns>
-                <DataGridTextColumn Header="DLL" Width="1.3*" Binding="{Binding Name}" />
+                <DataGridTextColumn Header="DLL" Width="1.3*" Binding="{Binding Name}" ElementStyle="{StaticResource CenteredCellText}" />
                 <DataGridTemplateColumn Header="32-bit" Width="110">
                   <DataGridTemplateColumn.CellTemplate>
                     <DataTemplate DataType="{x:Type vm:MissingDllRow}">
@@ -242,7 +246,7 @@
                     </DataTemplate>
                   </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
-                <DataGridTextColumn Header="Comes with" Width="1.6*" Binding="{Binding PackageName}" />
+                <DataGridTextColumn Header="Comes with" Width="1.6*" Binding="{Binding PackageName}" ElementStyle="{StaticResource CenteredCellText}" />
                 <DataGridTemplateColumn Header="" Width="110">
                   <DataGridTemplateColumn.CellTemplate>
                     <DataTemplate DataType="{x:Type vm:MissingDllRow}">
