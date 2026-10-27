@@ -37,13 +37,28 @@
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto" />
       <RowDefinition Height="Auto" />
-      <RowDefinition Height="Auto" />
       <RowDefinition Height="*" />
     </Grid.RowDefinitions>
 
-    <controls:SectionHeader Grid.Row="0" Title="Displays" Subtitle="Resolution, refresh rate, brightness, HDR and monitor layouts.">
+    <controls:SectionHeader Grid.Row="0" Title="Displays" Subtitle="Resolution, refresh rate, brightness, HDR and saved layouts.">
       <controls:SectionHeader.Actions>
         <StackPanel Orientation="Horizontal">
+          <ui:DropDownButton Content="More" Icon="{ui:SymbolIcon MoreHorizontal24}" Margin="0,0,8,0">
+            <ui:DropDownButton.Flyout>
+              <ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+                <MenuItem Header="Windows display settings" Command="{Binding OpenWindowsDisplaySettingsCommand}"
+                          ToolTip="Windows Settings → System → Display: arrange displays, scaling and multiple-display options." />
+                <MenuItem Header="Night light" Command="{Binding OpenNightLightCommand}"
+                          ToolTip="Warmer colours in the evening to reduce blue light." />
+                <MenuItem Header="Graphics control panel" Command="{Binding OpenGpuControlPanelCommand}"
+                          ToolTip="Opens the NVIDIA, AMD or Intel graphics app for colour, scaling and G-Sync / FreeSync options." />
+                <MenuItem Header="Colour calibration" Command="{Binding OpenColorCalibrationCommand}"
+                          ToolTip="The Windows Display Color Calibration wizard (gamma, brightness, contrast, colour balance)." />
+                <MenuItem Header="Advanced graphics settings" Command="{Binding OpenAdvancedGraphicsCommand}"
+                          ToolTip="Variable refresh rate (G-Sync / FreeSync), Auto HDR, hardware-accelerated GPU scheduling and per-app GPU choice are switched here, not in PC Checker." />
+              </ContextMenu>
+            </ui:DropDownButton.Flyout>
+          </ui:DropDownButton>
           <ui:Button Content="Identify"
                      Icon="{ui:SymbolIcon NumberSymbolSquare24}"
                      Command="{Binding IdentifyAllCommand}"
@@ -59,23 +74,14 @@
       </controls:SectionHeader.Actions>
     </controls:SectionHeader>
 
-    <ui:InfoBar Grid.Row="1"
-                Severity="Error"
-                Title="Something went wrong"
-                Message="{Binding ErrorMessage}"
-                IsOpen="{Binding HasError, Mode=OneWay}"
-                IsClosable="True"
-                Margin="0,0,0,12" />
+    <StackPanel Grid.Row="1">
+      <ui:InfoBar Severity="Error" Title="Something went wrong" Message="{Binding ErrorMessage}"
+                  IsOpen="{Binding HasError, Mode=OneWay}" IsClosable="True" Margin="0,0,0,12" />
+      <ui:InfoBar Severity="Warning" Title="Some details could not be read" Message="{Binding WarningText}"
+                  IsOpen="{Binding HasWarning, Mode=OneWay}" IsClosable="True" Margin="0,0,0,12" />
+    </StackPanel>
 
-    <ui:InfoBar Grid.Row="2"
-                Severity="Warning"
-                Title="Some details could not be read"
-                Message="{Binding WarningText}"
-                IsOpen="{Binding HasWarning, Mode=OneWay}"
-                IsClosable="True"
-                Margin="0,0,0,12" />
-
-    <ScrollViewer Grid.Row="3" Style="{StaticResource PageScroll}">
+    <ScrollViewer Grid.Row="2" Style="{StaticResource PageScroll}">
       <StackPanel>
 
         <!-- Arrangement + summary -->
@@ -87,9 +93,16 @@
 
           <ui:Card Grid.Column="0" Padding="16" Margin="0,0,12,0" VerticalAlignment="Stretch">
             <StackPanel>
-              <ui:TextBlock Style="{StaticResource CardTitle}" Text="Arrangement" />
-              <ui:TextBlock Style="{StaticResource Muted}" Margin="0,0,0,8"
-                            Text="How Windows lays out your displays. The highlighted one is the main display." />
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <ui:TextBlock Style="{StaticResource CardTitle}" Text="Arrangement" ToolTip="How Windows lays out your displays." />
+                <ui:HyperlinkButton Grid.Column="1" Content="Rearrange" Command="{Binding OpenWindowsDisplaySettingsCommand}" Padding="4,0" Margin="12,-6,0,0"
+                                    ToolTip="Opens Windows display settings, where you drag displays into a different order." />
+              </Grid>
+              <ui:TextBlock Style="{StaticResource Muted}" Margin="0,0,0,8" Text="The highlighted display is the main one." />
               <Border Background="#22000000" CornerRadius="8"
                       Width="{Binding ArrangementCanvasWidth}" Height="{Binding ArrangementCanvasHeight}">
                 <Grid>
@@ -138,41 +151,30 @@
                                 Visibility="{Binding HasDisplays, Converter={StaticResource InverseBoolToVisibility}}" />
                 </Grid>
               </Border>
-              <ui:TextBlock Style="{StaticResource Caption}" Margin="0,8,0,0" TextWrapping="Wrap"
-                            Text="To drag displays into a different order, use Windows display settings (link below)." />
             </StackPanel>
           </ui:Card>
 
           <ui:Card Grid.Column="1" Padding="16" VerticalAlignment="Stretch">
             <StackPanel>
               <ui:TextBlock Style="{StaticResource CardTitle}" Text="At a glance" />
-              <ui:TextBlock Text="{Binding Summary}" TextWrapping="Wrap" Margin="0,0,0,12" />
-              <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding LastActionMessage}" TextWrapping="Wrap" Margin="0,0,0,12"
+              <ui:TextBlock Text="{Binding Summary}" TextWrapping="Wrap" />
+              <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding LastActionMessage}" TextWrapping="Wrap" Margin="0,12,0,0"
                             Visibility="{Binding LastActionMessage, Converter={StaticResource NullToVisibility}}" />
-              <ui:TextBlock Style="{StaticResource CardTitle}" Text="Open in Windows" />
-              <WrapPanel>
-                <ui:Button Content="Display settings" Icon="{ui:SymbolIcon Desktop24}" Command="{Binding OpenWindowsDisplaySettingsCommand}" Margin="0,0,8,8"
-                           ToolTip="Windows Settings → System → Display: arrange displays, scaling and multiple-display options." />
-                <ui:Button Content="Night light" Icon="{ui:SymbolIcon WeatherMoon24}" Command="{Binding OpenNightLightCommand}" Margin="0,0,8,8"
-                           ToolTip="Warmer colours in the evening to reduce blue light." />
-                <ui:Button Content="Graphics control panel" Icon="{ui:SymbolIcon DeveloperBoard24}" Command="{Binding OpenGpuControlPanelCommand}" Margin="0,0,8,8"
-                           ToolTip="Opens the NVIDIA, AMD or Intel graphics app for colour, scaling and G-Sync / FreeSync options." />
-                <ui:Button Content="Colour calibration" Icon="{ui:SymbolIcon Color24}" Command="{Binding OpenColorCalibrationCommand}" Margin="0,0,8,8"
-                           ToolTip="The Windows Display Color Calibration wizard (gamma, brightness, contrast, colour balance)." />
-                <ui:Button Content="Advanced graphics" Icon="{ui:SymbolIcon Settings24}" Command="{Binding OpenAdvancedGraphicsCommand}" Margin="0,0,8,8"
-                           ToolTip="Windows Graphics settings: variable refresh rate, hardware-accelerated GPU scheduling and per-app GPU choice." />
-              </WrapPanel>
-              <ui:TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,4,0,0"
-                            Text="Variable refresh rate (G-Sync / FreeSync) and Auto HDR are switched in Windows Graphics settings and the graphics control panel, not here." />
             </StackPanel>
           </ui:Card>
         </Grid>
 
         <!-- One card per display -->
-        <ItemsControl ItemsSource="{Binding Displays}">
+        <ItemsControl ItemsSource="{Binding Displays}" Margin="0,0,0,12"
+                      Visibility="{Binding HasDisplays, Converter={StaticResource BoolToVisibility}}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <controls:AdaptiveGrid MinItemWidth="560" MaxColumns="2" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
           <ItemsControl.ItemTemplate>
             <DataTemplate DataType="{x:Type vm:DisplayCardViewModel}">
-              <ui:Card Style="{StaticResource CardSpacing}">
+              <ui:Card Padding="16" Margin="0" VerticalAlignment="Stretch" VerticalContentAlignment="Top">
                 <Grid>
                   <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
@@ -191,8 +193,8 @@
                       <TextBlock Text="{Binding Number}" FontSize="22" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" />
                     </Border>
                     <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                      <StackPanel Orientation="Horizontal">
-                        <ui:TextBlock FontTypography="BodyStrong" FontSize="16" Text="{Binding Name}" />
+                      <WrapPanel>
+                        <ui:TextBlock FontTypography="BodyStrong" FontSize="16" Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
                         <Border Style="{StaticResource Badge}" Visibility="{Binding IsPrimary, Converter={StaticResource BoolToVisibility}}">
                           <TextBlock Style="{StaticResource BadgeText}" Text="Main display" />
                         </Border>
@@ -200,11 +202,12 @@
                                 Visibility="{Binding HdrEnabled, Converter={StaticResource BoolToVisibility}}">
                           <TextBlock Style="{StaticResource BadgeText}" Text="HDR on" />
                         </Border>
-                      </StackPanel>
+                      </WrapPanel>
                       <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding Subtitle}" TextWrapping="Wrap" />
                     </StackPanel>
                     <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Top">
-                      <ui:Button Content="Identify" Icon="{ui:SymbolIcon NumberSymbolSquare24}" Command="{Binding IdentifyCommand}" Margin="0,0,8,0" />
+                      <ui:Button Content="Identify" Icon="{ui:SymbolIcon NumberSymbolSquare24}" Command="{Binding IdentifyCommand}" Margin="8,0,8,0"
+                                 ToolTip="Shows this display's number on its screen for a few seconds." />
                       <ui:Button Content="Set as main display" Icon="{ui:SymbolIcon Star24}" Command="{Binding SetPrimaryCommand}"
                                  Visibility="{Binding IsNotPrimary, Converter={StaticResource BoolToVisibility}}"
                                  ToolTip="The main display holds the taskbar and Start menu, and new windows open on it." />
@@ -236,11 +239,8 @@
                         </ComboBox.ItemTemplate>
                       </ComboBox>
 
-                      <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
-                        <ui:Button Content="Apply" Appearance="Primary" Icon="{ui:SymbolIcon Checkmark24}" Command="{Binding ApplyModeCommand}" />
-                        <ui:TextBlock Style="{StaticResource Caption}" VerticalAlignment="Center" Margin="12,0,0,0" TextWrapping="Wrap"
-                                      Text="You get 15 seconds to keep or revert the change." />
-                      </StackPanel>
+                      <ui:Button Content="Apply" Appearance="Primary" Icon="{ui:SymbolIcon Checkmark24}" Command="{Binding ApplyModeCommand}" Margin="0,12,0,0"
+                                 ToolTip="Applies the resolution and refresh rate. You get 15 seconds to keep or revert the change." />
 
                       <ui:TextBlock Style="{StaticResource FieldLabel}" Text="Orientation" ToolTip="Rotate the picture for a monitor mounted on its side." />
                       <ComboBox ItemsSource="{Binding Orientations}" SelectedItem="{Binding SelectedOrientation}" DisplayMemberPath="Text" HorizontalAlignment="Stretch" />
@@ -311,7 +311,8 @@
           <StackPanel>
             <ui:TextBlock Style="{StaticResource CardTitle}" Text="Saved layouts" />
             <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,8"
-                          Text="Save the current resolution and refresh rate of every display plus which one is main, then bring it back with one click, for example a 'Gaming' layout at 240 Hz and a 'Work' layout at 60 Hz." />
+                          Text="Save every display's mode and the main display, then restore them in one click."
+                          ToolTip="For example a 'Gaming' layout at 240 Hz and a 'Work' layout at 60 Hz." />
             <Grid Margin="0,0,0,12">
               <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
@@ -358,7 +359,7 @@
       </StackPanel>
     </ScrollViewer>
 
-    <controls:BusyOverlay Grid.Row="0" Grid.RowSpan="4"
+    <controls:BusyOverlay Grid.Row="0" Grid.RowSpan="3"
                           IsBusy="{Binding IsBusy}"
                           Text="{Binding BusyText}"
                           CancelCommand="{Binding CancelCommand}" CanCancel="{Binding CanCancelBusy}" />
