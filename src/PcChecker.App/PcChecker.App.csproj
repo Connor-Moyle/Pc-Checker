@@ -34,6 +34,7 @@
     <EmbeddedResource Include="..\..\LICENSE" LogicalName="licenses/LICENSE.txt" />
     <EmbeddedResource Include="..\..\docs\THIRD-PARTY-NOTICES.md" LogicalName="licenses/THIRD-PARTY-NOTICES.md" />
     <EmbeddedResource Include="..\..\docs\licenses\*.txt" LogicalName="licenses/%(Filename)%(Extension)" />
+    <EmbeddedResource Include="Localization\Languages\*.json" LogicalName="lang/%(Filename)%(Extension)" />
   </ItemGroup>
 
 </Project>

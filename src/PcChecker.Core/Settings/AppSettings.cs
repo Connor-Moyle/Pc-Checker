@@ -48,6 +48,10 @@ public enum AppTheme
 public sealed class GeneralSettings
 {
     public AppTheme Theme { get; set; } = AppTheme.System;
+
+    /// <summary>Interface language code from <c>LanguageCatalog</c>, or "system" to follow Windows.</summary>
+    public string Language { get; set; } = "system";
+
     public bool AdvancedMode { get; set; }
     public bool StartMinimized { get; set; }
     public bool MinimizeToTray { get; set; }

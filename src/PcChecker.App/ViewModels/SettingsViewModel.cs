@@ -167,6 +167,7 @@ public sealed partial class SettingsViewModel : ViewModelBase
             LoadSectionSettings(s);
             LoadTraySettings(s);
             LoadScheduleSettings(s);
+            LoadLanguageSettings(s);
         }
         finally
         {

@@ -83,6 +83,9 @@ jobs:
         with:
           dotnet-version: 8.0.x
 
+      - name: Check the list of translatable strings is current
+        run: python3 build/extract-strings.py --check
+
       - name: Restore
         run: dotnet restore PcChecker.sln
 

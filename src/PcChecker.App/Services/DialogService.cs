@@ -19,10 +19,10 @@ public sealed class DialogService : IDialogService
     {
         var dialog = new ContentDialog
         {
-            Title = title,
-            Content = message,
-            PrimaryButtonText = confirmText,
-            CloseButtonText = "Cancel",
+            Title = Localization.Loc.T(title),
+            Content = Localization.Loc.T(message),
+            PrimaryButtonText = Localization.Loc.T(confirmText),
+            CloseButtonText = Localization.Loc.T("Cancel"),
             PrimaryButtonAppearance = isDanger ? ControlAppearance.Danger : ControlAppearance.Primary,
             DefaultButton = isDanger ? ContentDialogButton.Close : ContentDialogButton.Primary,
         };
@@ -35,9 +35,9 @@ public sealed class DialogService : IDialogService
     {
         await ShowAsync(new ContentDialog
         {
-            Title = title,
-            Content = message,
-            CloseButtonText = "OK",
+            Title = Localization.Loc.T(title),
+            Content = Localization.Loc.T(message),
+            CloseButtonText = Localization.Loc.T("OK"),
             DefaultButton = ContentDialogButton.Close,
         });
     }

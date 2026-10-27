@@ -138,6 +138,20 @@
                 </ComboBox.ItemTemplate>
               </ComboBox>
             </ui:CardControl>
+            <ui:CardControl Style="{StaticResource Row}" Icon="{ui:SymbolIcon LocalLanguage24}" Margin="0,4,0,0">
+              <ui:CardControl.Header>
+                <StackPanel>
+                  <ui:TextBlock Text="Language" />
+                  <ui:TextBlock Style="{StaticResource Muted}" Text="The language of PC Checker's menus and pages. Changes after a restart." />
+                </StackPanel>
+              </ui:CardControl.Header>
+              <ComboBox MinWidth="220" ItemsSource="{Binding Languages}" SelectedItem="{Binding SelectedLanguage}" DisplayMemberPath="Display" />
+            </ui:CardControl>
+            <ui:InfoBar Severity="Informational" Title="Restart to switch language" IsClosable="False" Margin="0,4,0,0"
+                        Message="PC Checker shows the new language after it restarts."
+                        IsOpen="{Binding LanguageRestartNeeded, Mode=OneWay}">
+              <ui:Button Content="Restart now" Appearance="Primary" Command="{Binding RestartForLanguageCommand}" Margin="0,4" />
+            </ui:InfoBar>
           </StackPanel>
         </ui:Card>
 

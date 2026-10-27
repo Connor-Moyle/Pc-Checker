@@ -56,10 +56,10 @@ public partial class MainWindow : FluentWindow
         {
             var item = new NavigationViewItem
             {
-                Content = section.Title,
+                Content = Localization.Loc.T(section.Title),
                 Icon = new SymbolIcon { Symbol = section.Icon },
                 TargetPageType = section.FirstPage,
-                ToolTip = section.HasTabs ? string.Join(", ", section.Pages.Select(p => p.Title)) : null,
+                ToolTip = section.HasTabs ? string.Join(", ", section.Pages.Select(p => Localization.Loc.T(p.Title))) : null,
             };
             (section.IsFooter ? NavigationView.FooterMenuItems : NavigationView.MenuItems).Add(item);
         }

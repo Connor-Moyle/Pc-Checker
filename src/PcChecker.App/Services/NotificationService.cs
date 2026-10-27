@@ -16,6 +16,8 @@ public sealed class NotificationService : INotificationService
 
     public void Show(string title, string message, NotificationKind kind = NotificationKind.Info, TimeSpan? duration = null)
     {
+        title = Localization.Loc.T(title);
+        message = Localization.Loc.T(message);
         var dispatcher = Application.Current?.Dispatcher;
         if (dispatcher is null)
         {

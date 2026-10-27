@@ -1,5 +1,7 @@
 using System.IO;
 using System.Windows;
+using PcChecker.App.Localization;
+using PcChecker.Core.Localization;
 using System.Windows.Threading;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -72,6 +74,7 @@ public partial class App : Application
         var settings = _services.GetRequiredService<ISettingsService>();
 
         SettingsViewModel.ApplyTheme(settings.Current.General.Theme);
+        ApplyLanguage(settings.Current.General.Language, options.ScreenshotsRequested);
 
         var window = _services.GetRequiredService<MainWindow>();
         MainWindow = window;
@@ -215,6 +218,25 @@ public partial class App : Application
         catch (Exception)
         {
             return null;
+        }
+    }
+
+    /// <summary>
+    /// Picks the interface language for this run (Settings, or the Windows display language) and starts translating
+    /// the interface. Screenshot runs stay in English so the README images match.
+    /// </summary>
+    private void ApplyLanguage(string? setting, bool screenshots)
+    {
+        try
+        {
+            var code = screenshots ? "en" : LanguageCatalog.Resolve(setting, System.Globalization.CultureInfo.CurrentUICulture);
+            Loc.Load(code);
+            UiTranslator.Register();
+            _logger?.LogInformation("Interface language: {Language} ({Count} translated strings).", code, Loc.Current.Count);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "The interface language could not be loaded; using English.");
         }
     }
 

@@ -124,7 +124,7 @@ public sealed class EnumToStringConverter : IValueConverter
 
         var member = e.GetType().GetField(e.ToString());
         var description = member?.GetCustomAttribute<DescriptionAttribute>()?.Description;
-        return description ?? SplitWords(e.ToString());
+        return Localization.Loc.T(description ?? SplitWords(e.ToString()));
     }
 
     public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => throw new NotSupportedException();
@@ -242,6 +242,15 @@ public sealed class TemperatureToBrushConverter : IValueConverter
 
         return temp < 40 ? Cool : Normal;
     }
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => throw new NotSupportedException();
+}
+
+/// <summary>Translates bound English interface text (for labels that come from code, such as section tabs).</summary>
+public sealed class TranslateConverter : IValueConverter
+{
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture) =>
+        value is string text ? Localization.Loc.T(text) : value ?? string.Empty;
 
     public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => throw new NotSupportedException();
 }
