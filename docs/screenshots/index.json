@@ -1,5 +1,5 @@
 {
-  "generated": "2026-10-27T16:59:06.9988065+00:00",
+  "generated": "2026-10-27T22:29:11.6781483+00:00",
   "width": 1440,
   "height": 900,
   "pages": {
@@ -41,6 +41,7 @@
     "Performance / Overclock": "overclock.png",
     "Gaming / Overlay": "overlay-settings.png",
     "Gaming / Latency": "latency.png",
+    "Gaming / Missing DLLs": "missing-dlls.png",
     "Network / Network": "network.png",
     "Network / Connections": "connections.png",
     "Network / Hosts file": "hosts.png",
