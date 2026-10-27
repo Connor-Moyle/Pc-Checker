@@ -190,7 +190,12 @@ public sealed partial class DriversViewModel
         }
 
         IReadOnlyList<DriverUpdateInfo> hidden = [];
-        await RunBusyAsync(async ct => hidden = await hiding.GetHiddenAsync(ct), Loc.T("Looking for hidden driver updates…"));
+        // A failed or cancelled search is not "nothing is hidden": the failure shows in the page's error bar instead.
+        if (!await RunBusyAsync(async ct => hidden = await hiding.GetHiddenAsync(ct), Loc.T("Looking for hidden driver updates…")))
+        {
+            return;
+        }
+
         if (hidden.Count == 0)
         {
             await _dialogs.ShowMessageAsync(Loc.T("No hidden driver updates"), Loc.T("Windows Update has no hidden driver updates for this PC."));
