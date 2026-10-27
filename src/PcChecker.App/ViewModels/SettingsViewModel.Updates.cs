@@ -177,6 +177,13 @@ public sealed partial class SettingsViewModel
             return;
         }
 
-        _updates.ApplyAndRestart();
+        var result = _updates.ApplyAndRestart();
+        if (!result.Success)
+        {
+            IsUpdateDownloaded = _updates.IsUpdateDownloaded;
+            UpdateStatus = result.Message;
+            UpdateStatusSeverity = InfoBarSeverity.Error;
+            _notifications.Error("Update not installed", result.Message);
+        }
     }
 }

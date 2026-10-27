@@ -72,6 +72,22 @@ public static partial class ExeUpdateRules
         return match.Success ? match.Groups["hash"].Value.ToLowerInvariant() : null;
     }
 
+    /// <summary>
+    /// True when the SHA-256 of <paramref name="stream"/> (read from its current position to the end) equals
+    /// <paramref name="expectedSha256"/> (hex, any case). Used to re-check a download right before it is installed.
+    /// </summary>
+    public static bool MatchesSha256(Stream stream, string? expectedSha256)
+    {
+        ArgumentNullException.ThrowIfNull(stream);
+        if (string.IsNullOrWhiteSpace(expectedSha256))
+        {
+            return false;
+        }
+
+        var actual = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(stream));
+        return string.Equals(actual, expectedSha256.Trim(), StringComparison.OrdinalIgnoreCase);
+    }
+
     /// <summary>Path the running executable is moved to while the new one takes its place.</summary>
     public static string OldFilePath(string currentExePath) => currentExePath + ".old";
 

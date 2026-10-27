@@ -92,6 +92,17 @@ public class ExeUpdateTests
         Assert.Equal(expected, ExeUpdateRules.CanSelfUpdate(path));
 
     [Fact]
+    public void MatchesSha256_rechecks_the_content_before_install()
+    {
+        // Hash is the SHA-256 of "test".
+        Assert.True(ExeUpdateRules.MatchesSha256(new MemoryStream("test"u8.ToArray()), Hash));
+        Assert.True(ExeUpdateRules.MatchesSha256(new MemoryStream("test"u8.ToArray()), Hash.ToUpperInvariant()));
+        Assert.False(ExeUpdateRules.MatchesSha256(new MemoryStream("swapped"u8.ToArray()), Hash));
+        Assert.False(ExeUpdateRules.MatchesSha256(new MemoryStream("test"u8.ToArray()), null));
+        Assert.False(ExeUpdateRules.MatchesSha256(new MemoryStream("test"u8.ToArray()), " "));
+    }
+
+    [Fact]
     public void Download_and_old_paths_are_safe()
     {
         Assert.EndsWith("PcChecker-0.2.0-beta.1.exe", ExeUpdateRules.DownloadFilePath("updates", "0.2.0-beta.1"));

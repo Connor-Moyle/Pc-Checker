@@ -42,8 +42,7 @@ public sealed class DemoAppUpdateService : IAppUpdateService
         return OperationResult.Ok($"PC Checker {LatestVersion} is downloaded. Restart to install it (demo: nothing is installed).");
     }
 
-    public void ApplyAndRestart()
-    {
+    public OperationResult ApplyAndRestart() =>
         // Demo mode never restarts the app.
-    }
+        OperationResult.Ok("Demo mode: nothing is installed.");
 }

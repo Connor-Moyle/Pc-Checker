@@ -24,6 +24,7 @@ public sealed class GitHubExeUpdateService : IAppUpdateService
     private GitHubRelease? _pendingRelease;
     private GitHubReleaseAsset? _pendingAsset;
     private string? _downloadedFile;
+    private string? _downloadedSha256;
 
     public GitHubExeUpdateService(ISettingsService settings, ILogger<GitHubExeUpdateService> logger)
     {
@@ -77,6 +78,7 @@ public sealed class GitHubExeUpdateService : IAppUpdateService
                 if (_pendingRelease?.Version != release.Version)
                 {
                     _downloadedFile = null;
+                    _downloadedSha256 = null;
                 }
 
                 _pendingRelease = info.IsNewer ? release : null;
@@ -181,6 +183,7 @@ public sealed class GitHubExeUpdateService : IAppUpdateService
             lock (_gate)
             {
                 _downloadedFile = target;
+                _downloadedSha256 = expected;
             }
 
             progress?.Report(new ProgressUpdate("Download complete", 100));
@@ -199,39 +202,64 @@ public sealed class GitHubExeUpdateService : IAppUpdateService
         }
     }
 
-    public void ApplyAndRestart()
+    public OperationResult ApplyAndRestart()
     {
         string? downloaded;
+        string? expected;
         string? version;
         lock (_gate)
         {
             downloaded = _downloadedFile;
+            expected = _downloadedSha256;
             version = _pendingRelease?.Version;
         }
 
         var current = Environment.ProcessPath;
-        if (downloaded is null || !File.Exists(downloaded) || current is null || !ExeUpdateRules.CanSelfUpdate(current))
+        if (downloaded is null || expected is null || !File.Exists(downloaded) || current is null || !ExeUpdateRules.CanSelfUpdate(current))
         {
             _logger.LogWarning("ApplyAndRestart was called without a verified download.");
-            return;
+            return OperationResult.Fail("There is no verified update to install. Download the update again, or get it from " + UpdateLinks.ReleasesPage);
         }
 
         var old = ExeUpdateRules.OldFilePath(current);
         try
         {
+            // The download sits in a folder the signed-in user can write to, and this process is elevated. Open it so
+            // nobody can change, rename or delete it while it is open, check its SHA-256 again and copy from that same
+            // handle, so the file that is installed and started is exactly the one that was verified.
+            using var source = new FileStream(downloaded, FileMode.Open, FileAccess.Read, FileShare.Read);
+            if (!ExeUpdateRules.MatchesSha256(source, expected))
+            {
+                _logger.LogWarning("The downloaded update {File} changed after it was verified; it was not installed.", downloaded);
+                source.Dispose();
+                TryDelete(downloaded);
+                lock (_gate)
+                {
+                    _downloadedFile = null;
+                    _downloadedSha256 = null;
+                }
+
+                return OperationResult.Fail("The downloaded update changed after it was verified, so it was deleted and not installed. Download it again, or get it from " + UpdateLinks.ReleasesPage);
+            }
+
+            source.Position = 0;
             TryDelete(old);
 
             // Windows lets a running executable be renamed but not overwritten: move it aside, then put the new file in place.
             File.Move(current, old);
             try
             {
-                File.Copy(downloaded, current, overwrite: false);
+                using var target = new FileStream(current, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+                source.CopyTo(target);
             }
             catch
             {
+                TryDelete(current);
                 File.Move(old, current);
                 throw;
             }
+
+            source.Dispose();
 
             var start = new ProcessStartInfo(current)
             {
@@ -247,10 +275,12 @@ public sealed class GitHubExeUpdateService : IAppUpdateService
             _logger.LogInformation("Updated PcChecker.exe from {From} to {To}; restarting.", CurrentVersion, version);
             TryDelete(downloaded);
             RestartRequested?.Invoke(this, EventArgs.Empty);
+            return OperationResult.Ok($"PC Checker {version} is installed; restarting.");
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Applying the update failed; the current version keeps running.");
+            return OperationResult.Fail($"The update could not be installed ({ex.Message}). This version keeps running. You can download the new version from {UpdateLinks.ReleasesPage}", ex);
         }
     }
 

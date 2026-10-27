@@ -17,5 +17,10 @@ public interface IAppUpdateService
 
     Task<AppUpdateInfo?> CheckAsync(CancellationToken cancellationToken);
     Task<OperationResult> DownloadAsync(IProgress<ProgressUpdate>? progress, CancellationToken cancellationToken);
-    void ApplyAndRestart();
+
+    /// <summary>
+    /// Re-verifies the downloaded executable, swaps it in and starts it. Returns a failure (and keeps the current
+    /// version running) when there is no verified download or the swap fails.
+    /// </summary>
+    OperationResult ApplyAndRestart();
 }

@@ -99,7 +99,11 @@ public sealed class UpdatePrompter
                         "Restart now");
                     if (restart)
                     {
-                        _updates.ApplyAndRestart();
+                        var applied = _updates.ApplyAndRestart();
+                        if (!applied.Success)
+                        {
+                            _notifications.Error("Update not installed", applied.Message);
+                        }
                     }
 
                     return;
