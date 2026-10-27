@@ -160,7 +160,8 @@ internal sealed partial class RegistryChecks
 
     private string Expand(string path) => RegistryPathTools.Expand(path, _probe.Environment);
 
-    private string? PathFrom(string? value) => RegistryPathTools.ExtractPath(value, _probe.Environment);
+    /// <summary>The file a command line refers to, with unquoted paths containing spaces resolved the way Windows reads them.</summary>
+    private string? PathFrom(string? value) => RegistryPathTools.ResolveCommandPath(value, _probe);
 
     private static string Quote(string text) => "“" + text + "”";
 
@@ -190,14 +191,15 @@ internal sealed partial class RegistryChecks
             return null;
         }
 
-        var target = PathFrom(c.ValueName);
+        // The value name is a complete path (files and sometimes folders, often with spaces): never a command line.
+        var target = RegistryPathTools.PlainPath(c.ValueName, _probe.Environment);
         if (!IsReportableMissing(c.Category, target))
         {
             return null;
         }
 
         return RegistryIssueRules.Create(c.Category, c.Hive, c.KeyPath, c.ValueName,
-            $"Installers still keep a usage counter for {RegistryPathTools.FileName(target!)}, which was removed.", Expand(target!));
+            $"Installers still keep a usage counter for {RegistryPathTools.FileName(target!)}, which was removed.", target);
     }
 
     private RegistryIssue? EvaluateRun(RegistryCandidate c)

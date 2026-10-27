@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Security;
 using Microsoft.Win32;
 
@@ -10,14 +11,17 @@ namespace PcChecker.Core.RegistryHealth;
 /// </summary>
 internal sealed class RegistryAccess
 {
+    private readonly ConcurrentDictionary<string, byte> _keysSeen = new(StringComparer.OrdinalIgnoreCase);
     private int _accessDenied;
-    private int _keysOpened;
 
     /// <summary>Keys that could not be read because Windows refused access.</summary>
     public int AccessDenied => _accessDenied;
 
-    /// <summary>Keys opened so far (the "keys scanned" figure).</summary>
-    public int KeysOpened => _keysOpened;
+    /// <summary>
+    /// Distinct keys opened so far (the "keys checked" figure). A key the checks open several times (once per value it
+    /// holds, again right before a fix) is counted once.
+    /// </summary>
+    public int KeysOpened => _keysSeen.Count;
 
     public RegistryKey? Open(string hive, string path, bool writable = false)
     {
@@ -27,7 +31,7 @@ internal sealed class RegistryAccess
             var key = root?.OpenSubKey(path, writable);
             if (key is not null)
             {
-                Interlocked.Increment(ref _keysOpened);
+                Count(key);
             }
 
             return key;
@@ -50,7 +54,7 @@ internal sealed class RegistryAccess
             var key = parent.OpenSubKey(name, writable: false);
             if (key is not null)
             {
-                Interlocked.Increment(ref _keysOpened);
+                Count(key);
             }
 
             return key;
@@ -185,6 +189,18 @@ internal sealed class RegistryAccess
             {
                 AddTree(sub, fullName + "\\" + child, sections, maxKeys);
             }
+        }
+    }
+
+    private void Count(RegistryKey key)
+    {
+        try
+        {
+            _keysSeen.TryAdd(key.Name, 0);
+        }
+        catch (ObjectDisposedException)
+        {
+            // Not countable; harmless.
         }
     }
 

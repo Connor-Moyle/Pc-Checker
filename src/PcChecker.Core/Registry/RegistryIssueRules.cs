@@ -237,6 +237,22 @@ public static class RegistryIssueRules
         return text;
     }
 
+    /// <summary>
+    /// An Explorer MRUList ("cba") without the letter of a removed list entry, so the list no longer refers to it.
+    /// Returns the list unchanged when <paramref name="entryName"/> is not a single letter.
+    /// </summary>
+    public static string RemoveFromMruList(string mruList, string entryName)
+    {
+        ArgumentNullException.ThrowIfNull(mruList);
+        if (string.IsNullOrEmpty(entryName) || entryName.Length != 1 || !char.IsAsciiLetter(entryName[0]))
+        {
+            return mruList;
+        }
+
+        char letter = entryName[0];
+        return new string(mruList.Where(c => char.ToLowerInvariant(c) != char.ToLowerInvariant(letter)).ToArray());
+    }
+
     private static string CountNoun(RegistryIssueCategory category, int count)
     {
         string plural = ShortName(category);

@@ -36,12 +36,90 @@ public static partial class RegistryPathTools
     /// indexes and kernel-style <c>\SystemRoot\…</c> / <c>\??\C:\…</c> paths. Environment variables are expanded.
     /// Returns null when there is no file reference (package resources, empty values).
     /// </summary>
-    public static string? ExtractPath(string? value, Func<string, string?> environment)
+    public static string? ExtractPath(string? value, Func<string, string?> environment) => Parse(value, environment).Path;
+
+    /// <summary>
+    /// The file a command line refers to, resolved against the file system so that unquoted paths with spaces are not
+    /// cut short. Windows itself tries every space-separated prefix of an unquoted command line
+    /// (<c>C:\Program</c>, <c>C:\Program Files\Vendor\tool</c>, …) and the whole text; this does the same. When the
+    /// first guess from <see cref="ExtractPath"/> is missing but any of those other readings exists, that existing
+    /// file is returned (so the entry is not reported). When none of them exists, the most plausible reading is
+    /// returned: the path up to a known file extension, or else the whole value. Null when there is no file reference.
+    /// </summary>
+    public static string? ResolveCommandPath(string? value, PathProbe probe)
+    {
+        ArgumentNullException.ThrowIfNull(probe);
+        var parsed = Parse(value, probe.Environment);
+        if (parsed.Path is null || parsed.Source is null || Evaluate(parsed.Path, probe) != TargetState.Missing)
+        {
+            return parsed.Path;
+        }
+
+        // The guess is missing on a local fixed drive. Try every other way Windows could read the unquoted text.
+        string source = parsed.Source;
+        for (int i = source.IndexOf(' '); i > 0; i = source.IndexOf(' ', i + 1))
+        {
+            var prefix = CleanPath(source[..i]);
+            if (prefix is not null && !prefix.Equals(parsed.Path, StringComparison.OrdinalIgnoreCase) && ExistingFile(prefix, probe) is { } found)
+            {
+                return found;
+            }
+        }
+
+        var whole = CleanPath(source);
+        if (whole is null || whole.Equals(parsed.Path, StringComparison.OrdinalIgnoreCase))
+        {
+            return parsed.Path;
+        }
+
+        var wholeState = Evaluate(whole, probe);
+        if (wholeState == TargetState.Present)
+        {
+            return whole;
+        }
+
+        if (ExistingFile(whole, probe) is { } wholeFound)
+        {
+            return wholeFound;
+        }
+
+        if (wholeState == TargetState.Unknown)
+        {
+            // The longer reading cannot be judged (it contains characters a path cannot have, for example): not provable.
+            return parsed.Path.Length > 3 && parsed.HasKnownExtension ? parsed.Path : null;
+        }
+
+        // Nothing exists under any reading: show the extension-based reading if there is one, otherwise the whole value
+        // (never a fragment such as "C:\Program").
+        return parsed.HasKnownExtension ? parsed.Path : whole;
+    }
+
+    /// <summary>
+    /// A value that is a complete path rather than a command line (SharedDLLs and Installer\Folders value names): the
+    /// whole text, quotes removed and variables expanded, spaces kept. Null unless it is an absolute drive path.
+    /// </summary>
+    public static string? PlainPath(string? value, Func<string, string?> environment)
     {
         ArgumentNullException.ThrowIfNull(environment);
         if (string.IsNullOrWhiteSpace(value))
         {
             return null;
+        }
+
+        var path = Expand(NormalizeKernelPath(value.Trim().TrimEnd('\0').Trim('"').Trim()), environment);
+        return HasDriveRoot(path) ? path : null;
+    }
+
+    /// <summary>
+    /// Pulls the path out of a value; <c>Source</c> is the unquoted text the path was cut from when the cut was a guess
+    /// (unquoted text that continues after the cut), otherwise null.
+    /// </summary>
+    private static (string? Path, string? Source, bool HasKnownExtension) Parse(string? value, Func<string, string?> environment)
+    {
+        ArgumentNullException.ThrowIfNull(environment);
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return (null, null, false);
         }
 
         string text = value.Trim().TrimEnd('\0');
@@ -52,7 +130,7 @@ public static partial class RegistryPathTools
             text = text[1..].Trim();
             if (text.StartsWith('{'))
             {
-                return null;
+                return (null, null, false);
             }
 
             int resourceComma = text.LastIndexOf(',');
@@ -67,20 +145,45 @@ public static partial class RegistryPathTools
         var (candidate, rest) = SplitCommand(text);
         if (candidate is null)
         {
-            return null;
+            return (null, null, false);
         }
 
         // rundll32 hosts a DLL: the interesting file is its first argument, up to the comma before the entry point.
         if (IsRundll(candidate))
         {
-            var dll = ExtractRundllTarget(rest);
+            var (dll, dllSource) = ExtractRundllTarget(rest);
             if (dll is not null)
             {
-                return CleanPath(Expand(NormalizeKernelPath(dll), environment));
+                var dllPath = CleanPath(Expand(NormalizeKernelPath(dll), environment));
+                var source = dllSource is null ? null : Expand(NormalizeKernelPath(dllSource), environment);
+                return (dllPath, source, dllPath is not null && IndexAfterExtension(dllPath) > 0);
             }
         }
 
-        return CleanPath(candidate);
+        var path = CleanPath(candidate);
+        bool guessed = !text.StartsWith('"') && rest.Trim().Length > 0;
+        return (path, guessed ? text.Trim() : null, path is not null && IndexAfterExtension(path) > 0);
+    }
+
+    /// <summary>
+    /// The path as an existing file, checking its 32/64-bit counterpart too and, for a name without extension, the name
+    /// with <c>.exe</c> appended (as Windows tries). Returns the form that exists (<c>tool</c> → <c>tool.exe</c>) or null.
+    /// </summary>
+    private static string? ExistingFile(string path, PathProbe probe)
+    {
+        if (!HasDriveRoot(path) || path.Contains('%') || path.IndexOfAny(InvalidPathChars) >= 0)
+        {
+            return null;
+        }
+
+        var views = new List<string> { path };
+        views.AddRange(Wow64Alternatives(path, probe.Environment));
+        if (views.Any(probe.FileExists))
+        {
+            return path;
+        }
+
+        return !Path.HasExtension(FileName(path)) && views.Any(v => probe.FileExists(v + ".exe")) ? path + ".exe" : null;
     }
 
     /// <summary>
@@ -422,28 +525,36 @@ public static partial class RegistryPathTools
         return name.Equals("rundll32.exe", StringComparison.OrdinalIgnoreCase) || name.Equals("rundll32", StringComparison.OrdinalIgnoreCase);
     }
 
-    private static string? ExtractRundllTarget(string rest)
+    /// <summary>The DLL rundll32 hosts, plus the unquoted text it was cut from when the cut was a guess.</summary>
+    private static (string? Dll, string? Source) ExtractRundllTarget(string rest)
     {
         string r = rest.Trim();
         if (r.Length == 0)
         {
-            return null;
+            return (null, null);
         }
 
         if (r.StartsWith('"'))
         {
             int close = r.IndexOf('"', 1);
-            return close > 1 ? r[1..close] : r.Trim('"');
+            return (close > 1 ? r[1..close] : r.Trim('"'), null);
         }
 
         int comma = r.IndexOf(',');
         if (comma > 0)
         {
-            return r[..comma];
+            return (r[..comma], null);
+        }
+
+        // No entry point comma: end at a known extension, otherwise at the first space (a guess the caller re-checks).
+        int end = IndexAfterExtension(r);
+        if (end > 0)
+        {
+            return (r[..end], r[end..].Trim().Length > 0 ? r : null);
         }
 
         int space = r.IndexOf(' ');
-        return space > 0 ? r[..space] : r;
+        return space > 0 ? (r[..space], r) : (r, null);
     }
 
     private static string? CleanPath(string path)

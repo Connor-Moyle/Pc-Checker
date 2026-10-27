@@ -94,6 +94,7 @@ public sealed partial class RegistryViewModel : ViewModelBase
             if (e.PropertyName == nameof(IsAdvancedMode))
             {
                 ApplyModeVisibility();
+                ApplyFoundCounts();
                 RebuildGroups();
             }
             else if (e.PropertyName == nameof(FilterText))
@@ -325,10 +326,7 @@ public sealed partial class RegistryViewModel : ViewModelBase
     {
         _lastScan = scan;
         _lastScannedCategories = categories;
-        foreach (var c in Categories)
-        {
-            c.FoundCount = scan.CountsByCategory.TryGetValue(c.Category, out var n) ? n : null;
-        }
+        ApplyFoundCounts();
 
         ScanWarnings.Clear();
         foreach (var w in scan.Warnings)
@@ -339,14 +337,33 @@ public sealed partial class RegistryViewModel : ViewModelBase
         OnPropertyChanged(nameof(HasScanWarnings));
         KeysScannedText = scan.KeysScanned.ToString("N0");
         ScanDurationText = $"in {scan.Elapsed.TotalSeconds:0.0} s";
-        RebuildGroups();
+        RebuildGroups(keepState: false);
         LastScanText = scan.Captured.ToLocalTime().ToString("t");
         _logger.LogInformation("Registry scan shown: {Count} leftover(s), {Keys} keys.", scan.Issues.Count, scan.KeysScanned);
     }
 
-    /// <summary>Builds the result groups from the last scan, honouring advanced mode and the search box.</summary>
-    private void RebuildGroups()
+    /// <summary>Per-category "N found" from the entries actually listed (advanced-only entries count only in advanced mode).</summary>
+    private void ApplyFoundCounts()
     {
+        foreach (var c in Categories)
+        {
+            c.FoundCount = _lastScan is not null && _lastScan.CountsByCategory.ContainsKey(c.Category)
+                ? _lastScan.Issues.Count(i => i.Category == c.Category && (IsAdvancedMode || !i.AdvancedOnly))
+                : null;
+        }
+    }
+
+    /// <summary>
+    /// Builds the result groups from the last scan, honouring advanced mode and the search box. Ticked entries and open
+    /// groups stay as they were when the groups are rebuilt (for example when advanced mode is switched).
+    /// </summary>
+    private void RebuildGroups(bool keepState = true)
+    {
+        var selectedIds = keepState
+            ? Groups.SelectMany(g => g.Items).Where(i => i.IsSelected).Select(i => i.Issue.Id).ToHashSet(StringComparer.Ordinal)
+            : [];
+        var expanded = Groups.Where(g => g.IsExpanded).Select(g => g.Info.Category).ToHashSet();
+        bool hadGroups = keepState && Groups.Count > 0;
         Groups.Clear();
         if (_lastScan is null)
         {
@@ -365,7 +382,21 @@ public sealed partial class RegistryViewModel : ViewModelBase
                 continue;
             }
 
-            Groups.Add(new RegistryIssueGroup(group, items) { IsExpanded = Groups.Count < 2 });
+            _bulkSelecting = true;
+            try
+            {
+                foreach (var item in items.Where(i => i.CanSelect && selectedIds.Contains(i.Issue.Id)))
+                {
+                    item.IsSelected = true;
+                }
+            }
+            finally
+            {
+                _bulkSelecting = false;
+            }
+
+            bool open = hadGroups ? expanded.Contains(group.Category) : Groups.Count < 2;
+            Groups.Add(new RegistryIssueGroup(group, items) { IsExpanded = open });
         }
 
         ApplyFilter();

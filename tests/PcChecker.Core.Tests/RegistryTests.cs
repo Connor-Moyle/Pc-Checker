@@ -190,6 +190,82 @@ public class RegistryPathToolsTests
         Assert.Equal(@"HKEY_CURRENT_USER\Software", RegistryPathTools.FullKeyName("hkey_current_user", "Software"));
         Assert.Equal("HKCR", RegistryPathTools.NormalizeHive("HKEY_CLASSES_ROOT"));
     }
+
+    [Theory]
+    [InlineData(@"C:\Program Files\Common Files\Vendor\config.xml")]
+    [InlineData(@"C:\Program Files\Vendor App\launcher.jar")]
+    [InlineData(@"C:\Program Files\Vendor App\Data Files\")]
+    [InlineData(@"C:\Program Files\Vendor App\tool --quiet")]
+    [InlineData(@"C:\Program Files\My.com Tools\app.exe /min")]
+    [InlineData(@"rundll32.exe C:\Program Files\Vendor App\helper.dll")]
+    public void ResolveCommandPath_never_reports_existing_targets_behind_unquoted_spaces(string value)
+    {
+        var probe = FakeMachine.Probe(
+            @"C:\Program Files\Common Files\Vendor\config.xml",
+            @"C:\Program Files\Vendor App\launcher.jar",
+            @"C:\Program Files\Vendor App\Data Files\readme.txt",
+            @"C:\Program Files\Vendor App\tool.exe",
+            @"C:\Program Files\My.com Tools\app.exe",
+            @"C:\Program Files\Vendor App\helper.dll");
+
+        var target = RegistryPathTools.ResolveCommandPath(value, probe);
+        Assert.NotEqual(TargetState.Missing, RegistryPathTools.Evaluate(target, probe));
+        Assert.NotEqual(@"C:\Program", target);
+    }
+
+    [Theory]
+    [InlineData(@"C:\Program Files\Gone Vendor\config.xml", @"C:\Program Files\Gone Vendor\config.xml")]
+    [InlineData(@"C:\Program Files\Gone Vendor\Data Files\", @"C:\Program Files\Gone Vendor\Data Files\")]
+    [InlineData(@"C:\Program Files\Gone Vendor\app.exe --tray", @"C:\Program Files\Gone Vendor\app.exe")]
+    [InlineData("\"C:\\Program Files\\Gone Vendor\\app.exe\" \"%1\"", @"C:\Program Files\Gone Vendor\app.exe")]
+    public void ResolveCommandPath_reports_whole_paths_when_nothing_exists(string value, string expected)
+    {
+        // C:\Program Files exists as a folder: an intermediate folder never counts as the program.
+        var probe = FakeMachine.Probe(@"C:\Program Files\Other\other.exe");
+        var target = RegistryPathTools.ResolveCommandPath(value, probe);
+        Assert.Equal(expected, target);
+        Assert.Equal(TargetState.Missing, RegistryPathTools.Evaluate(target, probe));
+    }
+
+    [Fact]
+    public void ResolveCommandPath_leaves_unprovable_values_alone()
+    {
+        var probe = FakeMachine.Probe();
+        Assert.Null(RegistryPathTools.ResolveCommandPath(@"C:\Program Files\Gone\tool --file=%1", probe));
+        Assert.Equal(TargetState.Unknown, RegistryPathTools.Evaluate(RegistryPathTools.ResolveCommandPath(@"E:\Portable Apps\x", probe), probe));
+        Assert.Null(RegistryPathTools.ResolveCommandPath("  ", probe));
+    }
+
+    [Theory]
+    [InlineData(@"C:\Program Files\Common Files\Vendor\config.xml", @"C:\Program Files\Common Files\Vendor\config.xml")]
+    [InlineData(@"C:\Program Files\Common Files\Vendor\", @"C:\Program Files\Common Files\Vendor\")]
+    [InlineData(@"%ProgramFiles%\Vendor App\shared.dll", @"C:\Program Files\Vendor App\shared.dll")]
+    [InlineData("relative.dll", null)]
+    [InlineData(@"\\server\share\x.dll", null)]
+    public void PlainPath_keeps_spaces_and_needs_a_drive(string value, string? expected)
+    {
+        Assert.Equal(expected, RegistryPathTools.PlainPath(value, FakeMachine.Get));
+    }
+
+    [Theory]
+    [InlineData("cba", "b", "ca")]
+    [InlineData("cba", "B", "ca")]
+    [InlineData("cba", "d", "cba")]
+    [InlineData("a", "a", "")]
+    [InlineData("cba", "MRUList", "cba")]
+    public void RemoveFromMruList_drops_only_the_removed_letter(string mru, string entry, string expected)
+    {
+        Assert.Equal(expected, RegistryIssueRules.RemoveFromMruList(mru, entry));
+    }
+
+    [Fact]
+    public void Shared_dll_style_names_with_spaces_are_present_when_the_file_or_folder_exists()
+    {
+        var probe = FakeMachine.Probe(@"C:\Program Files\Common Files\Vendor\config.xml");
+        Assert.Equal(TargetState.Present, RegistryPathTools.Evaluate(RegistryPathTools.PlainPath(@"C:\Program Files\Common Files\Vendor\config.xml", FakeMachine.Get), probe));
+        Assert.Equal(TargetState.Present, RegistryPathTools.Evaluate(RegistryPathTools.PlainPath(@"C:\Program Files\Common Files\Vendor\", FakeMachine.Get), probe));
+        Assert.Equal(TargetState.Missing, RegistryPathTools.Evaluate(RegistryPathTools.PlainPath(@"C:\Program Files\Common Files\Gone\x.xml", FakeMachine.Get), probe));
+    }
 }
 
 public class RegExportBuilderTests

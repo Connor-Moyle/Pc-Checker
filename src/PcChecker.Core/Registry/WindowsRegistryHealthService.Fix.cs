@@ -58,7 +58,9 @@ public sealed partial class WindowsRegistryHealthService
             var guarded = await _guard.RunGuardedAsync(description, options,
                 ct => Task.Run(() => FixCoreAsync(fixable, progress, ct), ct), progress, cancellationToken).ConfigureAwait(false);
 
-            var value = guarded.Value ?? new RegistryFixResult(0, 0, fixable.Count, null, []);
+            // No result means the guard stopped before the fix ran (restore point failed with the Abort policy, or the
+            // change was cancelled): nothing was attempted, so nothing failed.
+            var value = guarded.Value ?? new RegistryFixResult(0, fixable.Count, 0, null, ["Not started: no registry entry was changed."]);
             var all = new List<string> { guarded.Message };
             all.AddRange(value.Messages);
             all.AddRange(messages);
@@ -212,8 +214,15 @@ public sealed partial class WindowsRegistryHealthService
                 return (null, null);
             }
 
-            var value = new RegExportValue(issue.ValueName, RegistryAccess.Kind(key, issue.ValueName), RegistryAccess.Raw(key, issue.ValueName));
-            return (RegExportBuilder.Build([new RegExportKey(issue.FullKeyPath, [value])]), RegistryAccess.Fingerprint(key, issue.ValueName));
+            var values = new List<RegExportValue> { new(issue.ValueName, RegistryAccess.Kind(key, issue.ValueName), RegistryAccess.Raw(key, issue.ValueName)) };
+
+            // Removing an Open with entry also edits the list's MRUList, so back that up too.
+            if (IsOpenWithListEntry(issue) && RegistryAccess.Raw(key, MruListValue) is string)
+            {
+                values.Add(new RegExportValue(MruListValue, RegistryAccess.Kind(key, MruListValue), RegistryAccess.Raw(key, MruListValue)));
+            }
+
+            return (RegExportBuilder.Build([new RegExportKey(issue.FullKeyPath, values)]), RegistryAccess.Fingerprint(key, issue.ValueName));
         }
 
         // A whole key: reg.exe exports every value type and sub-key exactly.
@@ -304,6 +313,14 @@ public sealed partial class WindowsRegistryHealthService
                 }
 
                 key.DeleteValue(issue.ValueName ?? string.Empty, throwOnMissingValue: false);
+                if (IsOpenWithListEntry(issue) && RegistryAccess.Raw(key, MruListValue) is string mru)
+                {
+                    var updated = RegistryIssueRules.RemoveFromMruList(mru, issue.ValueName!);
+                    if (!string.Equals(updated, mru, StringComparison.Ordinal))
+                    {
+                        key.SetValue(MruListValue, updated, Microsoft.Win32.RegistryValueKind.String);
+                    }
+                }
             }
 
             return null;
@@ -313,6 +330,13 @@ public sealed partial class WindowsRegistryHealthService
             return ex.Message;
         }
     }
+
+    private const string MruListValue = "MRUList";
+
+    /// <summary>A lettered entry of an Explorer <c>FileExts\.ext\OpenWithList</c> key, which MRUList refers to.</summary>
+    private static bool IsOpenWithListEntry(RegistryIssue issue) =>
+        !issue.FixDeletesKey && issue.ValueName is { Length: 1 } &&
+        issue.KeyPath.EndsWith(@"\OpenWithList", StringComparison.OrdinalIgnoreCase);
 
     private static string ValueSuffix(RegistryIssue issue) => issue.FixDeletesKey || issue.ValueName is null ? string.Empty : $" → {issue.ValueName}";
 
