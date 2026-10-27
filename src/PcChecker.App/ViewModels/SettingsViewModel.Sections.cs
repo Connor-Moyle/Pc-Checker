@@ -67,17 +67,19 @@ public sealed partial class SettingsViewModel
         AlertsEnabled = s.Monitoring.AlertsEnabled;
 
         PricePerKwh = s.General.PricePerKwh;
-        CurrencySymbol = s.General.CurrencySymbol;
+        // Free-text boxes keep the user's raw text when it already persists to the stored value, so a reload
+        // triggered by any save never rewrites a box mid-edit (e.g. an emptied box snapping back to "$").
+        CurrencySymbol = SettingsTextFields.Reconcile(CurrencySymbol, s.General.CurrencySymbol, SettingsTextFields.NormalizeCurrencySymbol);
 
         FansRevertToAutoOnExit = s.Fans.RevertToAutoOnExit;
         FansMinimumPercent = s.Fans.MinimumPercent;
         FansApplyOnStartup = s.Fans.ApplyOnStartup;
 
-        OpenRgbHost = s.Lighting.OpenRgbHost;
+        OpenRgbHost = SettingsTextFields.Reconcile(OpenRgbHost, s.Lighting.OpenRgbHost, SettingsTextFields.NormalizeOpenRgbHost);
         OpenRgbPort = s.Lighting.OpenRgbPort;
         OpenRgbAutoConnect = s.Lighting.AutoConnect;
 
-        PingTargets = string.Join(", ", s.Latency.PingTargets);
+        PingTargets = SettingsTextFields.ReconcilePingTargets(PingTargets, s.Latency.PingTargets);
         PingCount = s.Latency.PingCount;
 
         MaxGpuCoreOffsetMhz = s.Overclock.MaxGpuCoreOffsetMhz;
@@ -107,13 +109,13 @@ public sealed partial class SettingsViewModel
     partial void OnAlertsEnabledChanged(bool value) => Persist(s => s.Monitoring.AlertsEnabled = value);
 
     partial void OnPricePerKwhChanged(double value) => Persist(s => s.General.PricePerKwh = Math.Clamp(value, 0, 100));
-    partial void OnCurrencySymbolChanged(string value) => Persist(s => s.General.CurrencySymbol = string.IsNullOrWhiteSpace(value) ? "$" : value.Trim());
+    partial void OnCurrencySymbolChanged(string value) => Persist(s => s.General.CurrencySymbol = SettingsTextFields.NormalizeCurrencySymbol(value));
 
     partial void OnFansRevertToAutoOnExitChanged(bool value) => Persist(s => s.Fans.RevertToAutoOnExit = value);
     partial void OnFansMinimumPercentChanged(double value) => Persist(s => s.Fans.MinimumPercent = Math.Clamp(value, 0, 100));
     partial void OnFansApplyOnStartupChanged(bool value) => Persist(s => s.Fans.ApplyOnStartup = value);
 
-    partial void OnOpenRgbHostChanged(string value) => Persist(s => s.Lighting.OpenRgbHost = string.IsNullOrWhiteSpace(value) ? "127.0.0.1" : value.Trim());
+    partial void OnOpenRgbHostChanged(string value) => Persist(s => s.Lighting.OpenRgbHost = SettingsTextFields.NormalizeOpenRgbHost(value));
     partial void OnOpenRgbPortChanged(double value) => Persist(s => s.Lighting.OpenRgbPort = (int)Math.Clamp(value, 1, 65535));
     partial void OnOpenRgbAutoConnectChanged(bool value) => Persist(s => s.Lighting.AutoConnect = value);
 
@@ -134,12 +136,5 @@ public sealed partial class SettingsViewModel
     partial void OnClaudeShareScanContextChanged(bool value) => Persist(s => s.Claude.ShareScanContext = value);
 
     /// <summary>"gateway, 1.1.1.1; 8.8.8.8" → ["gateway", "1.1.1.1", "8.8.8.8"]; empty input restores the defaults.</summary>
-    public static List<string> ParsePingTargets(string? text)
-    {
-        var targets = (text ?? string.Empty)
-            .Split([',', ';', ' ', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
-        return targets.Count == 0 ? ["gateway", "1.1.1.1", "8.8.8.8"] : targets;
-    }
+    public static List<string> ParsePingTargets(string? text) => SettingsTextFields.ParsePingTargets(text);
 }

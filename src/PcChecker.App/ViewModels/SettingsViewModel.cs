@@ -29,6 +29,8 @@ public sealed partial class SettingsViewModel : ViewModelBase
     private readonly ILogger<SettingsViewModel> _logger;
     private readonly object _saveGate = new();
     private CancellationTokenSource? _saveDebounce;
+    private bool _savePending;
+    private bool _reloadDeferred;
     private bool _loading;
 
     [ObservableProperty]
@@ -69,7 +71,7 @@ public sealed partial class SettingsViewModel : ViewModelBase
         _navigation = navigation;
         _logger = logger;
         LoadFromSettings();
-        settings.Changed += (_, _) => DispatcherHelper.PostToUi(LoadFromSettings);
+        settings.Changed += (_, _) => DispatcherHelper.PostToUi(OnSettingsChanged);
         UpdatePrompter.ResultChanged += (_, _) => DispatcherHelper.PostToUi(() => ShowUpdateResult(UpdatePrompter.LastResult));
     }
 
@@ -114,6 +116,27 @@ public sealed partial class SettingsViewModel : ViewModelBase
     {
         ShowUpdateResult(UpdatePrompter.LastResult);
         return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Reloads the form after any settings save. While one of this page's own edits is still waiting to be saved, the
+    /// reload is deferred: that save raises <see cref="ISettingsService.Changed"/> again once it lands, so nothing is lost,
+    /// and the user's in-progress text is not overwritten mid-edit.
+    /// </summary>
+    private void OnSettingsChanged()
+    {
+        lock (_saveGate)
+        {
+            if (_savePending)
+            {
+                _reloadDeferred = true;
+                return;
+            }
+
+            _reloadDeferred = false;
+        }
+
+        LoadFromSettings();
     }
 
     private void LoadFromSettings()
@@ -174,6 +197,7 @@ public sealed partial class SettingsViewModel : ViewModelBase
             _saveDebounce?.Dispose();
             _saveDebounce = new CancellationTokenSource();
             token = _saveDebounce.Token;
+            _savePending = true;
         }
 
         SaveStatus = "Saving…";
@@ -189,6 +213,16 @@ public sealed partial class SettingsViewModel : ViewModelBase
         catch (OperationCanceledException)
         {
             return;
+        }
+
+        lock (_saveGate)
+        {
+            if (_saveDebounce is null || _saveDebounce.Token != token)
+            {
+                return; // superseded by a newer edit, which will save instead
+            }
+
+            _savePending = false;
         }
 
         await SaveNowAsync();
@@ -208,6 +242,18 @@ public sealed partial class SettingsViewModel : ViewModelBase
             {
                 SaveStatus = null;
                 ErrorMessage = "Settings could not be saved: " + ex.Message;
+
+                // A failed save raises no Changed event, so catch up on any reload that was deferred for it.
+                bool reload;
+                lock (_saveGate)
+                {
+                    reload = _reloadDeferred && !_savePending;
+                }
+
+                if (reload)
+                {
+                    OnSettingsChanged();
+                }
             });
         }
     }
