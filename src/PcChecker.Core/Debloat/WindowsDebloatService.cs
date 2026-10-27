@@ -77,6 +77,31 @@ public sealed class WindowsDebloatService : DebloatServiceBase
         return base.GetStatesAsync(tweakIds, cancellationToken);
     }
 
+    /// <summary>
+    /// Restarts the shell of this session only (other signed-in users keep theirs). Windows restarts the shell itself
+    /// (AutoRestartShell); when it does not come back, it is started through a one-off scheduled task as the user who
+    /// owned it, with a standard (not elevated) token, and never from this elevated process.
+    /// </summary>
+    public const string RestartExplorerScript =
+        "$session = (Get-Process -Id $PID).SessionId; " +
+        "function Get-Shell { @(Get-Process explorer -ErrorAction SilentlyContinue | Where-Object { $_.SessionId -eq $session }) }; " +
+        "$owner = $null; " +
+        "foreach ($p in @(Get-CimInstance Win32_Process -Filter \"Name = 'explorer.exe' AND SessionId = $session\" -ErrorAction SilentlyContinue)) { " +
+        "$o = Invoke-CimMethod -InputObject $p -MethodName GetOwnerSid -ErrorAction SilentlyContinue; " +
+        "if ($o -and $o.ReturnValue -eq 0 -and $o.Sid) { $owner = $o.Sid; break } }; " +
+        "Get-Shell | Stop-Process -Force; " +
+        "for ($i = 0; $i -lt 16; $i++) { Start-Sleep -Milliseconds 500; if (Get-Shell) { break } }; " +
+        "if (-not (Get-Shell)) { " +
+        "if (-not $owner) { exit 2 }; " +
+        "$name = 'PC Checker Explorer restart ' + [guid]::NewGuid().ToString('N'); " +
+        "$action = New-ScheduledTaskAction -Execute (Join-Path $env:SystemRoot 'explorer.exe'); " +
+        "$principal = New-ScheduledTaskPrincipal -UserId $owner -LogonType Interactive -RunLevel Limited; " +
+        "$settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit ([TimeSpan]::Zero); " +
+        "Register-ScheduledTask -TaskName $name -Action $action -Principal $principal -Settings $settings -Force -ErrorAction Stop | Out-Null; " +
+        "try { Start-ScheduledTask -TaskName $name -ErrorAction Stop; for ($i = 0; $i -lt 20; $i++) { Start-Sleep -Milliseconds 500; if (Get-Shell) { break } } } " +
+        "finally { Unregister-ScheduledTask -TaskName $name -Confirm:$false -ErrorAction SilentlyContinue }; " +
+        "if (-not (Get-Shell)) { exit 3 } }";
+
     public override async Task<OperationResult> RestartExplorerAsync(CancellationToken cancellationToken)
     {
         if (!PlatformGuard.IsWindows)
@@ -84,13 +109,7 @@ public sealed class WindowsDebloatService : DebloatServiceBase
             return OperationResult.Fail("Restarting File Explorer is only possible on Windows.");
         }
 
-        // Windows restarts the shell itself (AutoRestartShell); start it only when it did not come back, so it is not
-        // launched from this elevated process unless needed.
-        const string script =
-            "Get-Process explorer -ErrorAction SilentlyContinue | Stop-Process -Force; " +
-            "for ($i = 0; $i -lt 10; $i++) { Start-Sleep -Milliseconds 500; if (Get-Process explorer -ErrorAction SilentlyContinue) { break } }; " +
-            "if (-not (Get-Process explorer -ErrorAction SilentlyContinue)) { Start-Process explorer.exe }";
-        var result = await PowerShellRunner.RunAsync(script, TimeSpan.FromSeconds(30), cancellationToken).ConfigureAwait(false);
+        var result = await PowerShellRunner.RunAsync(RestartExplorerScript, TimeSpan.FromSeconds(45), cancellationToken).ConfigureAwait(false);
         _logger.LogInformation("File Explorer restart requested (exit code {Code}).", result.ExitCode);
         return result.Success
             ? OperationResult.Ok("File Explorer restarted. Taskbar, Start and context menu changes are now visible.")

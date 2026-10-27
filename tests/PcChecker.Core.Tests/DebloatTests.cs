@@ -941,6 +941,18 @@ public class DebloatReviewFixTests
     }
 
     [Fact]
+    public void Explorer_restart_stays_in_this_session_and_never_starts_an_elevated_shell()
+    {
+        var script = WindowsDebloatService.RestartExplorerScript;
+        Assert.Contains("(Get-Process -Id $PID).SessionId", script);
+        Assert.Contains("Get-Shell | Stop-Process -Force", script);
+        Assert.DoesNotContain("Get-Process explorer -ErrorAction SilentlyContinue | Stop-Process", script);
+        Assert.DoesNotContain("Start-Process", script);
+        Assert.Contains("-LogonType Interactive -RunLevel Limited", script);
+        Assert.Contains("Unregister-ScheduledTask", script);
+    }
+
+    [Fact]
     public void Conflicting_selection_is_detected_and_related_tweaks_are_rechecked()
     {
         var pairs = DebloatRules.ConflictingPairs([Tweak("taskbar.searchicon"), Tweak("taskbar.searchhide"), Tweak("explorer.thispc")]);
