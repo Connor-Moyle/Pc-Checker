@@ -70,9 +70,9 @@
 
     <!-- One built-in app card -->
     <DataTemplate x:Key="AppCardTemplate" DataType="{x:Type vm:FeatureRow}">
-      <ui:Card Width="320" Margin="0,0,12,12" Padding="14" VerticalAlignment="Top">
-        <StackPanel>
-          <Grid>
+      <ui:Card Padding="16" VerticalAlignment="Stretch" VerticalContentAlignment="Stretch">
+        <DockPanel LastChildFill="False">
+          <Grid DockPanel.Dock="Top">
             <Grid.ColumnDefinitions>
               <ColumnDefinition Width="*" />
               <ColumnDefinition Width="Auto" />
@@ -83,11 +83,11 @@
               <ui:TextBlock Style="{StaticResource BadgeText}" Text="{Binding RiskText}" />
             </Border>
           </Grid>
-          <ui:TextBlock Style="{StaticResource Caption}" Text="{Binding Name}" TextTrimming="CharacterEllipsis" Margin="0,2,0,6" ToolTip="{Binding TechnicalName}" />
-          <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding Description}" TextWrapping="Wrap" MinHeight="34" />
-          <ui:TextBlock Style="{StaticResource Caption}" Text="{Binding Recommendation}" TextWrapping="Wrap" Margin="0,4,0,0"
+          <ui:TextBlock DockPanel.Dock="Top" Style="{StaticResource Caption}" Text="{Binding Name}" TextTrimming="CharacterEllipsis" Margin="0,2,0,6" ToolTip="{Binding TechnicalName}" />
+          <ui:TextBlock DockPanel.Dock="Top" Style="{StaticResource Muted}" Text="{Binding Description}" TextWrapping="Wrap" />
+          <ui:TextBlock DockPanel.Dock="Top" Style="{StaticResource Caption}" Text="{Binding Recommendation}" TextWrapping="Wrap" Margin="0,4,0,0"
                         Visibility="{Binding HasRecommendation, Converter={StaticResource BoolToVisibility}}" />
-          <Grid Margin="0,10,0,0">
+          <Grid DockPanel.Dock="Bottom" Margin="0,12,0,0">
             <Grid.ColumnDefinitions>
               <ColumnDefinition Width="*" />
               <ColumnDefinition Width="Auto" />
@@ -106,9 +106,12 @@
             <ui:TextBlock Grid.Column="1" Style="{StaticResource Caption}" Text="Reinstall from the Store" VerticalAlignment="Center"
                           Visibility="{Binding IsRemoved, Converter={StaticResource BoolToVisibility}}" />
           </Grid>
-        </StackPanel>
+        </DockPanel>
       </ui:Card>
     </DataTemplate>
+    <Style x:Key="Tile" TargetType="controls:StatCard">
+      <Setter Property="Margin" Value="0" />
+    </Style>
   </Page.Resources>
 
   <Grid Style="{StaticResource PageRoot}">
@@ -119,10 +122,11 @@
     </Grid.RowDefinitions>
 
     <controls:SectionHeader Grid.Row="0" Title="Windows Features"
-                            Subtitle="Turn optional Windows parts on or off and remove built-in apps you never use. Every change asks first and is logged.">
+                            Subtitle="Turn optional parts of Windows on or off and remove built-in apps you never use.">
       <controls:SectionHeader.Actions>
         <StackPanel Orientation="Horizontal">
-          <ui:DropDownButton Content="Windows settings" Icon="{ui:SymbolIcon Open24}" Margin="0,0,8,0">
+          <ui:DropDownButton Content="More" Icon="{ui:SymbolIcon MoreHorizontal24}" Margin="0,0,8,0"
+                             ToolTip="The Windows tools for the same jobs.">
             <ui:DropDownButton.Flyout>
               <ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
                 <MenuItem Header="Optional features (Settings app)" Command="{Binding OpenOptionalFeaturesSettingsCommand}" />
@@ -159,7 +163,7 @@
 
       <ui:InfoBar Severity="Warning"
                   Title="System Protection is off"
-                  Message="Your settings ask for a restore point before every change, but System Protection is turned off, so changes on this page will stop before they start. Turn it on below (recommended) or switch off restore points in Settings."
+                  Message="Your settings ask for a restore point before every change, but System Protection is off, so changes here stop before they start. Turn it on in the Restore points tab (recommended) or switch off restore points in Settings."
                   IsOpen="{Binding IsProtectionOff, Mode=OneWay}"
                   IsClosable="False"
                   Margin="0,0,0,12" />
@@ -171,20 +175,20 @@
                   IsClosable="True"
                   Margin="0,0,0,12" />
 
-      <!-- Headline numbers -->
-      <UniformGrid Columns="4" Margin="0,0,0,12">
-        <controls:StatCard Title="Optional features on" Value="{Binding EnabledFeatureCount}" Unit="{Binding OptionalFeatureCount, StringFormat='of {0}'}"
-                           Icon="WindowApps24" Accent="{StaticResource AccentCyanBrush}" Subtitle="Hyper-V, .NET 3.5, WSL…" Margin="0,0,12,0" />
-        <controls:StatCard Title="Capabilities installed" Value="{Binding InstalledCapabilityCount}" Unit="{Binding CapabilityCount, StringFormat='of {0}'}"
-                           Icon="PuzzlePiece24" Accent="{StaticResource AccentPurpleBrush}" Subtitle="OpenSSH, languages, viewers…" Margin="0,0,12,0" />
-        <controls:StatCard Title="Built-in apps" Value="{Binding InboxAppCount}" Icon="Apps24" Accent="{StaticResource AccentGreenBrush}"
-                           Subtitle="{Binding RemovableAppCount, StringFormat='{}{0} can be removed'}" Margin="0,0,12,0" />
-        <controls:StatCard Title="Restore point first" Value="{Binding RestorePointPolicyText}"
+      <!-- Summary -->
+      <controls:AdaptiveGrid MinItemWidth="200" MaxColumns="4" Margin="0,0,0,12">
+        <controls:StatCard Style="{StaticResource Tile}" Title="Optional features on" Value="{Binding EnabledFeatureCount}" Unit="{Binding OptionalFeatureCount, StringFormat='of {0}'}"
+                           Icon="WindowApps24" Accent="{StaticResource AccentCyanBrush}" Subtitle="Hyper-V, .NET 3.5, WSL…" />
+        <controls:StatCard Style="{StaticResource Tile}" Title="Capabilities installed" Value="{Binding InstalledCapabilityCount}" Unit="{Binding CapabilityCount, StringFormat='of {0}'}"
+                           Icon="PuzzlePiece24" Accent="{StaticResource AccentPurpleBrush}" Subtitle="OpenSSH, languages, viewers…" />
+        <controls:StatCard Style="{StaticResource Tile}" Title="Built-in apps" Value="{Binding InboxAppCount}" Icon="Apps24" Accent="{StaticResource AccentGreenBrush}"
+                           Subtitle="{Binding RemovableAppCount, StringFormat='{}{0} can be removed'}" />
+        <controls:StatCard Style="{StaticResource Tile}" Title="Restore point first" Value="{Binding RestorePointPolicyText}"
                            Icon="History24" Accent="{StaticResource AccentYellowBrush}" Subtitle="Change this in Settings → Restore points" />
-      </UniformGrid>
+      </controls:AdaptiveGrid>
 
       <!-- Search + advanced hint -->
-      <Grid Margin="0,0,0,8">
+      <Grid Margin="0,0,0,4">
         <Grid.ColumnDefinitions>
           <ColumnDefinition Width="*" MaxWidth="480" />
           <ColumnDefinition Width="*" />
@@ -238,7 +242,7 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
           </Grid.RowDefinitions>
-          <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8"
+          <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,12"
                       Visibility="{Binding IsAdvancedMode, Converter={StaticResource BoolToVisibility}}">
             <CheckBox Content="Also remove for all users and new accounts" IsChecked="{Binding RemoveForAllUsers}"
                       ToolTip="Removes the app from every user account on this PC and stops Windows pre-installing it for new accounts (Remove-AppxProvisionedPackage)." />
@@ -247,7 +251,7 @@
             <ItemsControl ItemsSource="{Binding InboxApps}" ItemTemplate="{StaticResource AppCardTemplate}">
               <ItemsControl.ItemsPanel>
                 <ItemsPanelTemplate>
-                  <WrapPanel Orientation="Horizontal" />
+                  <controls:AdaptiveGrid MinItemWidth="320" MaxColumns="4" />
                 </ItemsPanelTemplate>
               </ItemsControl.ItemsPanel>
             </ItemsControl>
