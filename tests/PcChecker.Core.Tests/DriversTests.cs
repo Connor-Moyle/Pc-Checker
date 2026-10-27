@@ -616,7 +616,10 @@ public class WuaResultCodesTests
     [Fact]
     public void Service_id_is_the_public_windows_update_catalog()
     {
-        Assert.Equal("7971f918-a847-4430-9279-4a52d1efe18d", WuaResultCodes.WindowsUpdateServiceId);
+        // Windows Update is registered on every PC; Microsoft Update only when "other Microsoft products" is on.
+        Assert.Equal("9482f4b4-e343-43b6-b170-9a65bc822c77", WuaResultCodes.WindowsUpdateServiceId);
+        Assert.NotEqual(WuaResultCodes.MicrosoftUpdateServiceId, WuaResultCodes.WindowsUpdateServiceId);
+        Assert.True(WuaResultCodes.IsKnown(unchecked((int)0x80248014)));
     }
 }
 

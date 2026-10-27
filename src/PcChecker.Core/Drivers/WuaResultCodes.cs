@@ -15,8 +15,15 @@ public static class WuaResultCodes
     /// <summary><c>WU_E_INVALID_CRITERIA</c>: the search string was rejected by the Windows Update Agent.</summary>
     public const int InvalidCriteria = unchecked((int)0x80240032);
 
-    /// <summary>The Windows Update service id used to search the public driver catalog.</summary>
-    public const string WindowsUpdateServiceId = "7971f918-a847-4430-9279-4a52d1efe18d";
+    /// <summary>
+    /// The Windows Update service id used to search the public driver catalog. It is registered on every PC, unlike the
+    /// Microsoft Update service (<see cref="MicrosoftUpdateServiceId"/>), which only exists once "Receive updates for
+    /// other Microsoft products" is turned on and otherwise makes the search fail with <c>WU_E_DS_UNKNOWNSERVICE</c>.
+    /// </summary>
+    public const string WindowsUpdateServiceId = "9482f4b4-e343-43b6-b170-9a65bc822c77";
+
+    /// <summary>The Microsoft Update service id. Not used for searching: it is not registered on a default install.</summary>
+    public const string MicrosoftUpdateServiceId = "7971f918-a847-4430-9279-4a52d1efe18d";
 
     private static readonly Dictionary<uint, string> KnownHResults = new()
     {
@@ -44,6 +51,7 @@ public static class WuaResultCodes
         [0x80246007] = "The update has not been downloaded yet.",
         [0x80246008] = "The Background Intelligent Transfer Service (BITS) is not running.",
         [0x80248007] = "The update information is missing from the local data store.",
+        [0x80248014] = "The update service PC Checker asked for is not registered with Windows Update.",
         [0x8024A000] = "Windows Update's automatic update agent is not running.",
         [0x8024A105] = "Windows Update needs to be restarted; reboot and try again.",
         [0x80070643] = "The installer reported a fatal error (0x80070643). Restart Windows and try again.",
