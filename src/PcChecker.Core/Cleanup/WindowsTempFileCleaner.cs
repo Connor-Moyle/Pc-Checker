@@ -205,11 +205,14 @@ public sealed class WindowsTempFileCleaner : ITempFileCleaner
                 Target: names,
                 Reversible: false,
                 UndoHint: "Windows removed these files itself; they cannot be restored.");
+            // What the tool really freed is read from the system drive's free space, not taken from the scan estimate
+            // (a Disk Cleanup handler may remove less than was measured, or nothing at all).
+            long? freeBefore = SystemDriveFreeBytes();
             var result = await _guard.RunGuardedAsync(category.Name, options, ct => _commands.RunAsync(category, progress, ct), progress, cancellationToken).ConfigureAwait(false);
             if (result.Success)
             {
                 messages.Add(result.Message);
-                freed += items.Where(i => i.SizeKnown).Sum(i => i.TotalBytes);
+                freed += CleanupRules.FreedByCommand(freeBefore, SystemDriveFreeBytes());
             }
             else
             {
@@ -218,6 +221,19 @@ public sealed class WindowsTempFileCleaner : ITempFileCleaner
         }
 
         return new CleanupRunResult(0, freed, skipped, errors, false) { Messages = messages };
+    }
+
+    private static long? SystemDriveFreeBytes()
+    {
+        try
+        {
+            var drive = Environment.GetEnvironmentVariable("SystemDrive") ?? "C:";
+            return new DriveInfo(drive + "\\").AvailableFreeSpace;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            return null;
+        }
     }
 
     private CleanupRunResult CleanCore(List<CategoryScanResult> selected, IProgress<ProgressUpdate>? progress, CancellationToken cancellationToken)

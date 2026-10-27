@@ -163,6 +163,13 @@ public static partial class CleanupRules
     public static bool ServiceWasPaused(string? scriptOutput) =>
         scriptOutput is not null && scriptOutput.Contains(ServicePausedMarker, StringComparison.Ordinal);
 
+    /// <summary>
+    /// What a Windows tool freed, read from the drive's free space before and after it ran. Unknown readings or a drive
+    /// that filled up meanwhile count as nothing freed rather than the scan estimate.
+    /// </summary>
+    public static long FreedByCommand(long? freeBefore, long? freeAfter) =>
+        freeBefore is long before && freeAfter is long after && after > before ? after - before : 0;
+
     /// <summary>Total count and bytes over a set of files.</summary>
     public static (int Count, long Bytes) Aggregate(IEnumerable<CleanupFile> files)
     {

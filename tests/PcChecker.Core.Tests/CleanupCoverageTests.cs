@@ -8,7 +8,7 @@ namespace PcChecker.Core.Tests;
 /// <summary>The wider cleanup catalog: GPU vendor caches (AMD, NVIDIA, Intel), browsers, apps, launchers and Windows tools.</summary>
 public class CleanupCatalogCoverageTests
 {
-    private static string? Env(string name) => name.ToUpperInvariant() switch
+    internal static string? Env(string name) => name.ToUpperInvariant() switch
     {
         "TEMP" => @"C:\Users\me\AppData\Local\Temp",
         "WINDIR" => @"C:\Windows",
@@ -36,7 +36,18 @@ public class CleanupCatalogCoverageTests
         ["E:\\"] = ["found.000"],
     };
 
-    private static IEnumerable<string> List(string parent) => Tree.TryGetValue(parent, out var names) ? names : [];
+    internal static string RepoRoot()
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root is not null && !File.Exists(Path.Combine(root.FullName, "PcChecker.sln")))
+        {
+            root = root.Parent;
+        }
+
+        return root?.FullName ?? throw new InvalidOperationException("Repository root not found.");
+    }
+
+    internal static IEnumerable<string> List(string parent) => Tree.TryGetValue(parent, out var names) ? names : [];
 
     private static ResolvedRoots Resolve(string id, bool elevated = true, Func<string, IReadOnlyList<string>>? multi = null) =>
         CleanupPathResolver.Resolve(CleanupCatalog.Find(id)!, Env, [], List, multi, elevated);
@@ -617,12 +628,96 @@ public class CleanupCommandRuleTests
         Assert.Equal(7_500, CleanupCommandRules.RestorePointEstimate(10_000, 4));
         Assert.Equal(0, CleanupCommandRules.RestorePointEstimate(10_000, 1));
 
-        Assert.True(CleanupCommandRules.ShouldDeleteAnother(countNow: 4, countBefore: 5, deletionsDone: 0, initialCount: 4));
-        Assert.False(CleanupCommandRules.ShouldDeleteAnother(countNow: 1, countBefore: 2, deletionsDone: 3, initialCount: 4));
-        // Nothing was deleted by the last call: stop instead of looping.
-        Assert.False(CleanupCommandRules.ShouldDeleteAnother(countNow: 3, countBefore: 3, deletionsDone: 1, initialCount: 4));
-        // Never more deletions than the starting count allows, even if new points keep appearing.
-        Assert.False(CleanupCommandRules.ShouldDeleteAnother(countNow: 3, countBefore: 4, deletionsDone: 3, initialCount: 4));
+        Assert.Empty(CleanupCommandRules.RestorePointsToRemove([]));
+        Assert.Empty(CleanupCommandRules.RestorePointsToRemove([42]));
+        // Oldest first, the newest (highest sequence number) always stays, duplicates are ignored.
+        Assert.Equal([12u, 15u, 40u], CleanupCommandRules.RestorePointsToRemove([40, 12, 57, 15, 12]));
+    }
+
+    [Fact]
+    public void Restore_points_are_removed_through_system_restore_not_vssadmin()
+    {
+        var source = File.ReadAllText(Path.Combine(CleanupCatalogCoverageTests.RepoRoot(), "src", "PcChecker.Core", "Cleanup", "WindowsCleanupCommandService.cs"));
+        Assert.DoesNotContain("vssadmin.exe", source, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Win32_ShadowCopy", source, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("FROM SystemRestore", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Windows_logs_never_touch_the_windows_update_database()
+    {
+        var logs = CleanupCatalog.Find("windows.logs")!;
+        Assert.DoesNotContain(logs.Paths, p => p.Template.Contains("DataStore", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(CleanupCatalog.All.SelectMany(c => c.Paths), p => p.Template.Contains(@"SoftwareDistribution\DataStore", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void Privacy_and_office_upload_cache_never_reach_other_accounts()
+    {
+        Assert.All(CleanupCatalog.All.Where(c => c.Group == CleanupGroup.Privacy), c => Assert.True(c.CurrentUserOnly, c.Id));
+        Assert.True(CleanupCatalog.Find("app.office.filecache")!.CurrentUserOnly);
+
+        string[] others = [@"C:\Users\other"];
+        var recent = CleanupPathResolver.Resolve(CleanupCatalog.Find("privacy.recent.items")!, CleanupCatalogCoverageTests.Env, others, CleanupCatalogCoverageTests.List);
+        Assert.Empty(recent.UsersScanned);
+        Assert.DoesNotContain(recent.Roots, r => r.StartsWith(@"C:\Users\other", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(@"C:\Users\me\AppData\Roaming\Microsoft\Windows\Recent", recent.Roots, StringComparer.OrdinalIgnoreCase);
+
+        // An ordinary cache still covers every account when elevated.
+        var temp = CleanupPathResolver.Resolve(CleanupCatalog.Find("user.temp")!, CleanupCatalogCoverageTests.Env, others, CleanupCatalogCoverageTests.List);
+        Assert.Contains(@"C:\Users\other\AppData\Local\Temp", temp.Roots, StringComparer.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Office_upload_cache_is_advanced_and_never_scheduled()
+    {
+        var office = CleanupCatalog.Find("app.office.filecache")!;
+        Assert.Equal(RiskLevel.Advanced, office.Risk);
+        Assert.True(office.NeverScheduled);
+        Assert.False(CleanupRules.IsSchedulable(office));
+        Assert.NotNull(office.ConfirmWarning);
+    }
+
+    [Fact]
+    public void Disk_cleanup_items_are_never_scheduled()
+    {
+        var handlers = CleanupCatalog.All.Where(c => c.Command == CleanupCommand.DiskCleanupHandlers).ToList();
+        Assert.NotEmpty(handlers);
+        Assert.All(handlers, c => Assert.True(c.NeverScheduled, c.Id));
+        var unattended = ScheduleRules.UnattendedCleanupCategories(CleanupCatalog.All, CleanupCatalog.All.Select(c => c.Id).ToList());
+        Assert.DoesNotContain(unattended, id => CleanupCatalog.Find(id)!.Kind == CleanupKind.Command);
+    }
+
+    [Fact]
+    public void Upgrade_leftovers_only_measure_what_disk_cleanup_removes()
+    {
+        var leftovers = CleanupCatalog.Find("windows.upgrade.leftovers")!;
+        Assert.DoesNotContain("Temporary Windows installation files", leftovers.DiskCleanupHandlers);
+        Assert.DoesNotContain(leftovers.PathTemplates, t => t.Contains("WinREAgent", StringComparison.OrdinalIgnoreCase) || t.Contains("Windows10Upgrade", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void Font_cache_needs_administrator_rights()
+    {
+        Assert.True(CleanupCatalog.Find("font.cache")!.Requires.HasFlag(CleanupRequirement.Elevated));
+        Assert.NotNull(CleanupRules.BlockedReason(CleanupCatalog.Find("font.cache")!, CleanupConditions.Clear with { IsElevated = false }));
+    }
+
+    [Fact]
+    public void Command_freed_space_comes_from_the_drive_not_the_estimate()
+    {
+        Assert.Equal(5_000, CleanupRules.FreedByCommand(10_000, 15_000));
+        Assert.Equal(0, CleanupRules.FreedByCommand(10_000, 9_000));
+        Assert.Equal(0, CleanupRules.FreedByCommand(null, 15_000));
+        Assert.Equal(0, CleanupRules.FreedByCommand(10_000, null));
+    }
+
+    [Fact]
+    public void Amd_software_cache_waits_for_ryzen_master_too()
+    {
+        Assert.NotNull(CleanupRules.AppRunningReason("amd.software.cache", [new RunningProcess("AMDRyzenMaster")]));
+        Assert.NotNull(CleanupRules.AppRunningReason("amd.software.cache", [new RunningProcess("RadeonSoftware")]));
+        Assert.Null(CleanupRules.AppRunningReason("amd.software.cache", [new RunningProcess("notepad")]));
     }
 
     [Fact]

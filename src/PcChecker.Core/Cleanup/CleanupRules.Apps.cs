@@ -134,7 +134,7 @@ public static partial class CleanupRules
             ["game.ubisoft.cache"] = new("Ubisoft Connect", Names("UbisoftConnect", "upc"), Tray),
             ["game.ubisoft.installers"] = new("Ubisoft Connect", Names("UbisoftConnect", "upc"), Tray),
             ["game.gog.cache"] = new("GOG Galaxy", Names("GalaxyClient"), Tray),
-            ["amd.software.cache"] = new("AMD Software", Names("RadeonSoftware", "AMDRSServ"), Tray),
+            ["amd.software.cache"] = new("AMD Software or AMD Ryzen Master", Names("RadeonSoftware", "AMDRSServ", "AMDRyzenMaster"), "Close Ryzen Master and exit AMD Software from the system tray"),
             ["nvidia.app.cache"] = new("The NVIDIA app", Names("NVIDIA app", "NVIDIA Overlay")),
             ["driver.leftovers.amd"] = new("An AMD installer", [new("AMDInstallManager"), new("RadeonInstaller"), new("AMD_Chipset*"), new("setup", @"\AMD\")], "Wait for it to finish"),
             ["driver.leftovers.nvidia"] = new("An NVIDIA installer", NvidiaInstallers, "Wait for it to finish"),

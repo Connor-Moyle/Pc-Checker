@@ -83,11 +83,21 @@ follows, so you know what to expect and contributors know what to build.
   Cleanup items are never deleted file by file: DISM or Windows' own Disk
   Cleanup handlers remove them, each as its own guarded change. The Disk
   Cleanup selection flags are removed again after the run.
-- Older restore points: every point except the newest is deleted, one at a
-  time, each one written to the Action Journal. The newest restore point
-  always stays, so guarantee 2 holds.
+- Older restore points: every System Restore point except the newest is
+  deleted by its sequence number through System Restore itself, one at a
+  time, each one written to the Action Journal. Other shadow copies on the
+  drive (for example those of backup software) are never touched, and
+  `vssadmin delete shadows` is never run. The newest restore point always
+  stays, so guarantee 2 holds.
+- When PC Checker runs as administrator, caches are cleaned for every
+  account on the PC, but privacy categories (cookies, history, saved
+  sessions, recent items, jump lists, the clipboard) and the Office upload
+  cache only ever touch the account running PC Checker.
+- The Windows Update database (`SoftwareDistribution\DataStore`, including its
+  `edb*.log` transaction logs) is never touched.
 - Scheduled and tray cleanups only ever take Safe categories, never privacy,
-  developer, Windows tool or other categories marked as never scheduled.
+  developer, Windows tool (DISM, Disk Cleanup, System Restore) or other
+  categories marked as never scheduled.
 
 ### Cleanup: deliberately not offered
 

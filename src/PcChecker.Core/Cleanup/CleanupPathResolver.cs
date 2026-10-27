@@ -177,7 +177,8 @@ public static class CleanupPathResolver
     /// Resolves every concrete root for <paramref name="category"/>: the current user's folders, the same folders for
     /// each profile in <paramref name="otherUserProfiles"/> (pass an empty list when not elevated), with multi-value
     /// variables and wildcards expanded. Folders marked elevated-only are left out unless <paramref name="isElevated"/>.
-    /// Roots inside an excluded folder are dropped.
+    /// Roots inside an excluded folder are dropped. A <see cref="CleanupCategory.CurrentUserOnly"/> category never
+    /// reaches other profiles.
     /// </summary>
     public static ResolvedRoots Resolve(
         CleanupCategory category,
@@ -191,6 +192,11 @@ public static class CleanupPathResolver
         ArgumentNullException.ThrowIfNull(getEnvironmentVariable);
         ArgumentNullException.ThrowIfNull(otherUserProfiles);
         ArgumentNullException.ThrowIfNull(listDirectoryNames);
+
+        if (category.CurrentUserOnly)
+        {
+            otherUserProfiles = [];
+        }
 
         var users = new List<string>();
         var excluded = category.ExcludePathTemplates

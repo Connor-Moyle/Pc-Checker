@@ -270,7 +270,8 @@ public static class CleanupCatalog
         {
             ExtraPaths =
             [
-                new(@"%WINDIR%\SoftwareDistribution\DataStore\Logs", ["*.log"], false),
+                // Never SoftwareDistribution\DataStore\Logs: those edb*.log files are the transaction logs of the
+                // Windows Update database, not text logs.
                 new(@"%WINDIR%\SoftwareDistribution", ["*.log"], false),
                 new(@"%PROGRAMDATA%\USOShared\Logs", ["*.log", "*.etl"], true),
                 new(@"%WINDIR%\ServiceProfiles\NetworkService\AppData\Local\Microsoft\Windows\DeliveryOptimization\Logs", ["*.log", "*.etl"], false),
@@ -289,17 +290,17 @@ public static class CleanupCatalog
             NeverScheduled = true,
             ConfirmWarning = "Windows.old is removed: going back to the previous version of Windows is no longer possible.",
         },
-        new("windows.upgrade.leftovers", "Windows upgrade leftovers", "Setup files left by a feature update ($WINDOWS.~BT, $WINDOWS.~WS, ESD, $GetCurrent, Windows10Upgrade, $WinREAgent), removed through Windows' own Disk Cleanup.",
+        new("windows.upgrade.leftovers", "Windows upgrade leftovers", "Setup files left by a feature update ($WINDOWS.~BT, $WINDOWS.~WS, ESD and $GetCurrent), removed through Windows' own Disk Cleanup.",
             RiskLevel.Advanced,
             [
                 @"%SYSTEMDRIVE%\$WINDOWS.~BT", @"%SYSTEMDRIVE%\$WINDOWS.~WS", @"%SYSTEMDRIVE%\$GetCurrent", @"%SYSTEMDRIVE%\ESD\Download",
-                @"%SYSTEMDRIVE%\ESD\Windows", @"%SYSTEMDRIVE%\Windows10Upgrade", @"%SYSTEMDRIVE%\$WinREAgent",
+                @"%SYSTEMDRIVE%\ESD\Windows",
             ],
             AllFiles, false, true)
         {
             Kind = CleanupKind.Command,
             Command = CleanupCommand.DiskCleanupHandlers,
-            DiskCleanupHandlers = ["Temporary Setup Files", "Temporary Windows installation files", "Windows ESD installation files"],
+            DiskCleanupHandlers = ["Temporary Setup Files", "Windows ESD installation files"],
             Requires = CleanupRequirement.Elevated | CleanupRequirement.NoPendingReboot | CleanupRequirement.NoUpdateInstalling,
             NeverScheduled = true,
             Hint = "$WINDOWS.~BT holds rollback data used together with Windows.old for 10 days after an upgrade.",
@@ -342,6 +343,8 @@ public static class CleanupCatalog
                 new(@"%WINDIR%\ServiceProfiles\LocalService\AppData\Local", ["*FontCache*.dat"], false),
                 new(@"%LOCALAPPDATA%", ["GDIPFONTCACHEV1.DAT"], false),
             ],
+            // The service cache lives in LocalService's profile and the service can only be paused as administrator.
+            Requires = CleanupRequirement.Elevated,
             Hint = "Fonts draw slowly until Windows rebuilds the cache; a restart may be needed.",
         },
         new("temp.internet.files", "Internet temporary files", "Legacy cache used by Internet Explorer mode and some older apps.",
@@ -515,7 +518,7 @@ public static class CleanupCatalog
         {
             ExcludePathTemplates = [@"%APPDATA%\Thunderbird\Profiles\*\Mail", @"%APPDATA%\Thunderbird\Profiles\*\ImapMail"],
         },
-        App("app.discord.cache", "Discord cache", "Cache, logs, crash reports and old update packages of Discord, PTB and Canary. You stay signed in.",
+        App("app.discord.cache", "Discord cache", "Cache, logs, crash reports and update packages of Discord, PTB and Canary. You stay signed in; the next Discord update downloads in full.",
             [
                 @"%APPDATA%\discord*\Cache\Cache_Data", @"%APPDATA%\discord*\Code Cache", @"%APPDATA%\discord*\GPUCache",
                 @"%APPDATA%\discord*\Crashpad\reports", @"%APPDATA%\discord*\logs", @"%LOCALAPPDATA%\Discord*\packages\SquirrelTemp",
@@ -547,10 +550,13 @@ public static class CleanupCatalog
         {
             ExcludePathTemplates = [@"%LOCALAPPDATA%\Microsoft\Office\UnsavedFiles", @"%LOCALAPPDATA%\Microsoft\Outlook\RoamCache", @"%LOCALAPPDATA%\Microsoft\OneNote"],
         },
-        new("app.office.filecache", "Office upload and add-in cache", "The Office upload cache (co-authoring) and the add-in cache. Add-ins download again.",
-            RiskLevel.Moderate, [@"%LOCALAPPDATA%\Microsoft\Office\16.0\OfficeFileCache", @"%LOCALAPPDATA%\Microsoft\Office\16.0\Wef"], AllFiles, false, true)
+        new("app.office.filecache", "Office upload and add-in cache", "The Office upload cache (co-authoring) and the add-in cache of your account. Add-ins download again.",
+            RiskLevel.Advanced, [@"%LOCALAPPDATA%\Microsoft\Office\16.0\OfficeFileCache", @"%LOCALAPPDATA%\Microsoft\Office\16.0\Wef"], AllFiles, false, true)
         {
             Group = CleanupGroup.Apps,
+            NeverScheduled = true,
+            CurrentUserOnly = true,
+            Hint = "Office's own Delete cached files button (Upload Center or Word Options, Save) does the same with Office's checks.",
             ConfirmWarning = "Check first that Office and OneDrive show no pending uploads: unsynced changes in the Office upload cache would be lost.",
         },
         App("app.vscode.cache", "Visual Studio Code cache", "Caches, logs, crash reports and downloaded extension packages of VS Code. Settings and extensions stay.",
@@ -566,7 +572,7 @@ public static class CleanupCatalog
         },
 
         // ---- Game launchers -----------------------------------------------------------------------------------
-        Game("game.steam.cache", "Steam cache and logs", "Steam's web cache, logs, crash dumps and old client update packages. Games and downloads are never touched.",
+        Game("game.steam.cache", "Steam cache and logs", "Steam's web cache, logs, crash dumps and client update packages. Games and downloads are never touched; Steam downloads its client packages again at the next start.",
             [@"%LOCALAPPDATA%\Steam\htmlcache", @"%STEAM%\appcache\httpcache", @"%STEAM%\logs", @"%STEAM%\dumps", @"%STEAMLIBRARIES%\steamapps\temp"]) with
         {
             ExtraPaths = [new(@"%STEAM%\package", ["*.zip.*"], false)],
@@ -639,7 +645,7 @@ public static class CleanupCatalog
         Dev("dev.nuget.packages", "NuGet global packages", "The .nuget\\packages folder, often several GB. Offline builds break until the next dotnet restore.", [@"%USERPROFILE%\.nuget\packages"]),
         Dev("dev.java.cache", "Java caches", "The Java Web Start and installer caches.",
             [@"%USERPROFILE%\AppData\LocalLow\Sun\Java\Deployment\cache", @"%LOCALAPPDATA%\Sun\Java\Deployment\*Cache", @"%PROGRAMDATA%\Oracle\Java\installcache"]),
-        Dev("dev.dotnet.temp", ".NET temporary files", ".NET CLI telemetry storage, Temporary ASP.NET Files and the .NET Framework setup cache.",
+        Dev("dev.dotnet.temp", ".NET temporary files", ".NET CLI telemetry storage, Temporary ASP.NET Files and the .NET Framework setup cache. Repairing .NET Framework may then ask for its installer.",
             [@"%USERPROFILE%\.dotnet\TelemetryStorageService", @"%WINDIR%\Microsoft.NET\Framework*\v*\Temporary ASP.NET Files", @"%WINDIR%\Microsoft.NET\Framework*\v4.0.30319\SetupCache"]),
         Dev("dev.gradle.cache", "Gradle caches", "The Gradle caches folder. Builds download their dependencies again.", [@"%USERPROFILE%\.gradle\caches"]),
         Dev("dev.maven.repository", "Maven repository", "The local Maven repository. Builds download their dependencies again.", [@"%USERPROFILE%\.m2\repository"]),
@@ -660,12 +666,14 @@ public static class CleanupCatalog
             Kind = CleanupKind.Command,
             Command = CleanupCommand.ClipboardClear,
             NeverScheduled = true,
+            CurrentUserOnly = true,
         },
         new("browser.cookies", "Browser cookies", "Cookies of every supported browser.",
             RiskLevel.Advanced, [], ["Cookies", "Cookies-journal", "cookies.sqlite", "cookies.sqlite-wal", "cookies.sqlite-shm"], false, false)
         {
             Group = CleanupGroup.Privacy,
             NeverScheduled = true,
+            CurrentUserOnly = true,
             ExtraPaths =
             [
                 .. ChromiumProfileFiles(["Cookies", "Cookies-journal"], includeNetwork: true),
@@ -675,13 +683,14 @@ public static class CleanupCatalog
             ],
             ExcludePatterns = BrowserProtectedFiles,
             Hint = "Close every browser first.",
-            ConfirmWarning = "You will be signed out of all websites.",
+            ConfirmWarning = "You will be signed out of all websites in your account's browsers.",
         },
         new("browser.history", "Browser history", "Browsing and download history of Chromium browsers, and search and form history of Firefox-family browsers. Bookmarks stay.",
             RiskLevel.Moderate, [], AllFiles, false, false)
         {
             Group = CleanupGroup.Privacy,
             NeverScheduled = true,
+            CurrentUserOnly = true,
             ExtraPaths =
             [
                 .. ChromiumProfileFiles(["History", "History-journal", "Visited Links", "Top Sites*", "Shortcuts*", "Network Action Predictor*"], includeNetwork: false),
@@ -696,6 +705,7 @@ public static class CleanupCatalog
         {
             Group = CleanupGroup.Privacy,
             NeverScheduled = true,
+            CurrentUserOnly = true,
             ExtraPaths =
             [
                 .. AllChromiumUserData.Select(root => new CleanupPath($@"{root}\*\Sessions", AllFiles, true)),
@@ -714,6 +724,8 @@ public static class CleanupCatalog
             Command = CleanupCommand.DiskCleanupHandlers,
             DiskCleanupHandlers = [handler],
             Requires = CleanupRequirement.Elevated,
+            // Scheduled and tray cleanups never start a Windows tool.
+            NeverScheduled = true,
         };
 
     private static CleanupCategory Browser(string id, string name, string browser, string[] templates) =>
@@ -740,5 +752,5 @@ public static class CleanupCatalog
         };
 
     private static CleanupCategory Privacy(string id, string name, string description, RiskLevel risk, string[] templates, string[] patterns) =>
-        new(id, name, description, risk, templates, patterns, false, false) { Group = CleanupGroup.Privacy, NeverScheduled = true };
+        new(id, name, description, risk, templates, patterns, false, false) { Group = CleanupGroup.Privacy, NeverScheduled = true, CurrentUserOnly = true };
 }

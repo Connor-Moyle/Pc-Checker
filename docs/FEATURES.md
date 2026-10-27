@@ -639,8 +639,9 @@ Win11Debloat, O&O ShutUp10++, Sophia Script and others; full list and table in
     archives, Microsoft Defender temporary files, BranchCache), run once with
     `cleanmgr /sagerun` and unflagged afterwards; (**Advanced**) the previous
     Windows installation, Windows upgrade leftovers (`$WINDOWS.~BT`,
-    `$WINDOWS.~WS`, ESD, `$GetCurrent`, `Windows10Upgrade`, `$WinREAgent`)
-    and every restore point except the newest.
+    `$WINDOWS.~WS`, ESD, `$GetCurrent`) and every System Restore point
+    except the newest (other shadow copies are never touched). What these
+    tools freed is read from the drive's free space afterwards.
   - **Graphics drivers**: DirectX shader cache; **NVIDIA** shader caches
     (`PerDriverVersion\DXCache`, `ComputeCache`, `NV_Cache`, Store and Game
     Pass caches); **AMD** shader caches (every `AMD\*Cache` folder such as
@@ -659,15 +660,15 @@ Win11Debloat, O&O ShutUp10++, Sophia Script and others; full list and table in
     reports.
   - **Apps**: Discord (stable, PTB, Canary), Microsoft Teams (new and
     classic), Spotify (never downloaded songs), Office caches and the
-    (**Moderate**) upload and add-in cache, VS Code, Slack, Zoom, OBS Studio,
+    (**Advanced**, your account only) upload and add-in cache, VS Code, Slack, Zoom, OBS Studio,
     Thunderbird and the (**Moderate**) Adobe media cache.
-  - **Game launchers**: Steam (web cache, logs, dumps, old client packages;
+  - **Game launchers**: Steam (web cache, logs, dumps, client packages;
     the depot cache, per-game shader pre-caches in every library and
     abandoned downloads as separate cards), Epic Games Launcher, Battle.net,
     EA app, Ubisoft Connect (and **Advanced** installers) and GOG Galaxy.
   - **Developer tools** (**Advanced**): npm and Yarn, pip, NuGet, Java,
     .NET temporary files, Gradle, Maven, Go and Cargo caches.
-  - **Privacy** (opt-in, never scheduled): recent items, jump lists, Office
+  - **Privacy** (opt-in, never scheduled, your account only): recent items, jump lists, Office
     recent documents, the clipboard and its history, and browser cookies
     (**Advanced**), history and saved sessions.
 - Each category is a card with a checkbox, a risk badge, its group, size and

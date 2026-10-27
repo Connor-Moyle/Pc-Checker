@@ -11,7 +11,7 @@ public enum CleanupKind
     /// <summary>PC Checker only measures the folders; a Windows tool removes them.</summary>
     ReportOnly,
 
-    /// <summary>A Windows tool (DISM, Disk Cleanup, vssadmin, the clipboard API) does the work; folders are only measured.</summary>
+    /// <summary>A Windows tool (DISM, Disk Cleanup, System Restore, the clipboard API) does the work; folders are only measured.</summary>
     Command,
 }
 
@@ -63,7 +63,7 @@ public enum CleanupCommand
     /// <summary>Selected Disk Cleanup handlers through StateFlags and cleanmgr /sagerun.</summary>
     DiskCleanupHandlers,
 
-    /// <summary>Deletes every restore point except the newest (vssadmin /oldest, repeated).</summary>
+    /// <summary>Deletes every System Restore point except the newest (SRRemoveRestorePoint by sequence number).</summary>
     RestorePointsKeepNewest,
 
     /// <summary>Empties the clipboard and the Win+V clipboard history (pinned items stay).</summary>
@@ -110,6 +110,12 @@ public sealed record CleanupCategory(
 
     /// <summary>Never cleaned by a scheduled or tray cleanup, whatever its risk.</summary>
     public bool NeverScheduled { get; init; }
+
+    /// <summary>
+    /// Only the account running PC Checker is cleaned, even when it runs as administrator and other profiles are
+    /// reachable. Set for privacy data and for anything that may hold a user's unsynced work.
+    /// </summary>
+    public bool CurrentUserOnly { get; init; }
 
     /// <summary>Any emptied sub-folder may be removed (scratch space), not only those two levels below a root.</summary>
     public bool PruneAnywhere { get; init; }

@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.Globalization;
+using System.Management;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Microsoft.Win32;
@@ -312,7 +314,10 @@ public sealed class WindowsCleanupCommandService : ICleanupCommandService
 
     // ---- Restore points -------------------------------------------------------------------------------------------
 
-    private sealed record ShadowInfo(int Count, long Used, long Max);
+    // Only System Restore points are counted and removed (the SystemRestore class in root\default and
+    // SRRemoveRestorePoint). Other shadow copies on the drive, such as those kept by backup software, are never touched,
+    // and no "vssadmin delete shadows" is ever run.
+    private sealed record ShadowStorage(long Used, long Max);
 
     private static string SystemDrive()
     {
@@ -320,15 +325,51 @@ public sealed class WindowsCleanupCommandService : ICleanupCommandService
         return drive.Length == 2 && char.IsAsciiLetter(drive[0]) && drive[1] == ':' ? drive.ToUpperInvariant() : "C:";
     }
 
-    private static async Task<ShadowInfo?> QueryShadowsAsync(CancellationToken ct)
+    /// <summary>Sequence numbers of every System Restore point; null when Windows does not answer.</summary>
+    private static async Task<IReadOnlyList<uint>?> QueryRestorePointsAsync(CancellationToken ct)
+    {
+        try
+        {
+            return await Task.Run(() =>
+            {
+                var list = new List<uint>();
+                var scope = new ManagementScope(@"\\.\root\default");
+                scope.Connect();
+                using var searcher = new ManagementObjectSearcher(scope, new ObjectQuery("SELECT SequenceNumber FROM SystemRestore"));
+                using var results = searcher.Get();
+                foreach (var item in results)
+                {
+                    using (item)
+                    {
+                        if (item["SequenceNumber"] is { } value)
+                        {
+                            list.Add(Convert.ToUInt32(value, CultureInfo.InvariantCulture));
+                        }
+                    }
+                }
+
+                return (IReadOnlyList<uint>)list;
+            }, ct).WaitAsync(TimeSpan.FromMinutes(1), ct).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    /// <summary>Shadow storage use on the system drive (read only, for the size estimate).</summary>
+    private static async Task<ShadowStorage?> QueryShadowStorageAsync(CancellationToken ct)
     {
         // CIM gives numbers in every display language, unlike vssadmin's text.
         var drive = SystemDrive();
         var script =
             $"$v = Get-CimInstance Win32_Volume -Filter \"DriveLetter='{drive}'\" -ErrorAction Stop; " +
-            "$c = @(Get-CimInstance Win32_ShadowCopy -ErrorAction SilentlyContinue | Where-Object { $_.VolumeName -eq $v.DeviceID }).Count; " +
             "$s = @(Get-CimInstance Win32_ShadowStorage -ErrorAction SilentlyContinue | Where-Object { $_.Volume.DeviceID -eq $v.DeviceID }) | Select-Object -First 1; " +
-            "[pscustomobject]@{ Count = $c; Used = [int64]($s.UsedSpace); Max = [int64]($s.MaxSpace) } | ConvertTo-Json -Compress";
+            "[pscustomobject]@{ Used = [int64]($s.UsedSpace); Max = [int64]($s.MaxSpace) } | ConvertTo-Json -Compress";
         var result = await PowerShellRunner.RunAsync(script, TimeSpan.FromMinutes(1), ct).ConfigureAwait(false);
         if (!result.Success || string.IsNullOrWhiteSpace(result.StdOut))
         {
@@ -339,7 +380,7 @@ public sealed class WindowsCleanupCommandService : ICleanupCommandService
         {
             using var doc = JsonDocument.Parse(result.StdOut.Trim());
             var root = doc.RootElement;
-            return new ShadowInfo(root.GetProperty("Count").GetInt32(), ReadLong(root, "Used"), ReadLong(root, "Max"));
+            return new ShadowStorage(ReadLong(root, "Used"), ReadLong(root, "Max"));
         }
         catch
         {
@@ -357,17 +398,23 @@ public sealed class WindowsCleanupCommandService : ICleanupCommandService
             return CommandEstimate.Unknown("Run PC Checker as administrator to measure this.");
         }
 
-        var info = await QueryShadowsAsync(ct).ConfigureAwait(false);
-        if (info is null)
+        var points = await QueryRestorePointsAsync(ct).ConfigureAwait(false);
+        if (points is null)
         {
-            return CommandEstimate.Unknown("Windows did not report its restore point storage.");
+            return CommandEstimate.Unknown("Windows did not report its restore points.");
         }
 
-        var points = info.Count == 1 ? "1 restore point" : $"{info.Count} restore points";
-        var note = info.Max > 0
-            ? $"{points} use {ByteSize.Format(info.Used)} of up to {ByteSize.Format(info.Max)}. The size is an estimate; restore points share data."
-            : $"{points}. The size is an estimate; restore points share data.";
-        return new CommandEstimate(CleanupCommandRules.RestorePointEstimate(info.Used, info.Count), true, [note]);
+        var storage = await QueryShadowStorageAsync(ct).ConfigureAwait(false);
+        var count = points.Count == 1 ? "1 restore point" : $"{points.Count} restore points";
+        if (storage is null)
+        {
+            return CommandEstimate.Unknown($"{count}. Windows did not report how much space they use.");
+        }
+
+        var note = storage.Max > 0
+            ? $"{count}; shadow storage uses {ByteSize.Format(storage.Used)} of up to {ByteSize.Format(storage.Max)}. The size is an estimate; restore points share data."
+            : $"{count}. The size is an estimate; restore points share data.";
+        return new CommandEstimate(CleanupCommandRules.RestorePointEstimate(storage.Used, points.Count), true, [note]);
     }
 
     private async Task<OperationResult> TrimRestorePointsAsync(IProgress<ProgressUpdate>? progress, CancellationToken ct)
@@ -377,46 +424,40 @@ public sealed class WindowsCleanupCommandService : ICleanupCommandService
             return OperationResult.Fail("Deleting restore points needs PC Checker to run as administrator.");
         }
 
-        var drive = SystemDrive();
-        var first = await QueryShadowsAsync(ct).ConfigureAwait(false);
-        if (first is null)
+        var points = await QueryRestorePointsAsync(ct).ConfigureAwait(false);
+        if (points is null)
         {
             return OperationResult.Fail("Windows did not report its restore points, so none were deleted.");
         }
 
-        int initial = first.Count;
-        int before = initial;
+        var toRemove = CleanupCommandRules.RestorePointsToRemove(points);
+        if (toRemove.Count == 0)
+        {
+            return OperationResult.Ok("There was only one restore point, so nothing was deleted.");
+        }
+
         int done = 0;
-        while (CleanupCommandRules.ShouldDeleteAnother(before, before + 1, done, initial))
+        foreach (var sequence in toRemove)
         {
             ct.ThrowIfCancellationRequested();
-            progress?.Report(new ProgressUpdate("Deleting older restore points", 100.0 * done / Math.Max(1, initial - 1), $"{before} left"));
-            var result = await ExternalCommand.RunAsync(SystemTool("vssadmin.exe"), $"delete shadows /for={drive} /oldest /quiet", ct, TimeSpan.FromMinutes(5)).ConfigureAwait(false);
-            var now = await QueryShadowsAsync(ct).ConfigureAwait(false);
-            bool deleted = result.Success && now is not null && now.Count < before;
-            await _journal.RecordAsync(ActionRecord.Create(Module, "Delete oldest restore point", drive,
-                deleted ? "Deleted" : $"Failed (exit code {result.ExitCode})",
-                before: $"{before} restore points", after: now is null ? null : $"{now.Count} restore points",
+            progress?.Report(new ProgressUpdate("Deleting older restore points", 100.0 * done / toRemove.Count, $"{toRemove.Count - done} to go"));
+            var code = CleanupNativeMethods.RemoveRestorePoint(sequence);
+            bool deleted = code == 0;
+            await _journal.RecordAsync(ActionRecord.Create(Module, "Delete older restore point", $"Restore point {sequence.ToString(CultureInfo.InvariantCulture)}",
+                deleted ? "Deleted" : code is null ? "Failed (System Restore not available)" : $"Failed (error {code.Value.ToString(CultureInfo.InvariantCulture)})",
                 undoHint: "A deleted restore point cannot be brought back.")).ConfigureAwait(false);
-            if (!deleted || now is null)
+            if (!deleted)
             {
+                _logger.LogWarning("SRRemoveRestorePoint({Sequence}) returned {Code}.", sequence, code);
                 return done == 0
-                    ? OperationResult.Fail("Windows did not delete the oldest restore point: " + result.LastLine)
+                    ? OperationResult.Fail("Windows did not delete the oldest restore point.")
                     : OperationResult.Ok($"Deleted {done} older restore points; Windows stopped before the rest.");
             }
 
             done++;
-            if (!CleanupCommandRules.ShouldDeleteAnother(now.Count, before, done, initial))
-            {
-                break;
-            }
-
-            before = now.Count;
         }
 
-        return done == 0
-            ? OperationResult.Ok("There was only one restore point, so nothing was deleted.")
-            : OperationResult.Ok(done == 1 ? "Deleted 1 older restore point; the newest one stays." : $"Deleted {done} older restore points; the newest one stays.");
+        return OperationResult.Ok(done == 1 ? "Deleted 1 older restore point; the newest one stays." : $"Deleted {done} older restore points; the newest one stays.");
     }
 
     // ---- Clipboard --------------------------------------------------------------------------------------------------

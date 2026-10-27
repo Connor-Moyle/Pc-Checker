@@ -144,8 +144,18 @@ public static class CleanupCommandRules
         return (long)Math.Round(value * multiplier);
     }
 
-    /// <summary>How many /oldest deletions keep exactly the newest restore point (none when there is one or none).</summary>
+    /// <summary>How many deletions keep exactly the newest restore point (none when there is one or none).</summary>
     public static int RestorePointDeletionsNeeded(int restorePointCount) => Math.Max(0, restorePointCount - 1);
+
+    /// <summary>
+    /// The System Restore sequence numbers to remove so that only the newest point stays, oldest first. Only points
+    /// the <c>SystemRestore</c> class lists are ever named, so shadow copies made by backup software are never touched.
+    /// </summary>
+    public static IReadOnlyList<uint> RestorePointsToRemove(IEnumerable<uint> sequenceNumbers)
+    {
+        var all = (sequenceNumbers ?? []).Distinct().OrderBy(n => n).ToList();
+        return all.Count <= 1 ? [] : all.Take(all.Count - 1).ToList();
+    }
 
     /// <summary>
     /// A rough estimate of what deleting all but the newest restore point frees: the used shadow storage minus an even
@@ -160,11 +170,4 @@ public static class CleanupCommandRules
 
         return usedBytes - (usedBytes / restorePointCount);
     }
-
-    /// <summary>
-    /// True when the next /oldest deletion may go ahead: more than one point is left, the count fell after the last
-    /// deletion (so nothing is stuck), and the loop has not run more often than the original count allows.
-    /// </summary>
-    public static bool ShouldDeleteAnother(int countNow, int countBefore, int deletionsDone, int initialCount) =>
-        countNow > 1 && deletionsDone < RestorePointDeletionsNeeded(initialCount) && (deletionsDone == 0 || countNow < countBefore);
 }
