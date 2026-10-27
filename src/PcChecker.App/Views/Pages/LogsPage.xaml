@@ -51,7 +51,7 @@
       <RowDefinition Height="*" />
     </Grid.RowDefinitions>
 
-    <controls:SectionHeader Grid.Row="0" Title="Logs" Subtitle="Live application log, the journal of changes made to this PC, and how much detail to record.">
+    <controls:SectionHeader Grid.Row="0" Title="Logs" Subtitle="The app's live log, the journal of changes to this PC, and logging settings.">
       <controls:SectionHeader.Actions>
         <StackPanel Orientation="Horizontal">
           <ui:Button Content="Open log folder" Icon="{ui:SymbolIcon FolderOpen24}" Command="{Binding OpenLogFolderCommand}" Margin="0,0,8,0"
@@ -88,35 +88,49 @@
             <RowDefinition Height="Auto" />
           </Grid.RowDefinitions>
 
-          <!-- Toolbar -->
-          <WrapPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,4">
-            <ComboBox Margin="0,0,8,8"
-                      ItemsSource="{Binding LevelOptions}"
-                      SelectedItem="{Binding SelectedLevel}"
-                      DisplayMemberPath="Label"
-                      MinWidth="250"
-                      ToolTip="Hide lines below this level. Verbose shows everything." />
-            <ComboBox Margin="0,0,8,8"
-                      ItemsSource="{Binding CategoryOptions}"
-                      SelectedItem="{Binding SelectedCategory}"
-                      MinWidth="170"
-                      ToolTip="Show only one area of the app, for example Sensors or Drivers." />
-            <ui:TextBox Width="260"
-                        Margin="0,0,8,8"
-                        PlaceholderText="Search messages…"
-                        Icon="{ui:SymbolIcon Search24}"
-                        Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
-                        ToolTip="Filters by message, area or exception text. Updates as you type." />
-            <ui:Button Style="{StaticResource ToolbarButton}" Content="Clear filters" Icon="{ui:SymbolIcon Filter24}" Command="{Binding ClearFiltersCommand}" />
-            <ui:Button Style="{StaticResource ToolbarButton}" Content="{Binding PauseButtonText}" Icon="{ui:SymbolIcon Pause24}" Command="{Binding TogglePauseCommand}"
-                       ToolTip="Pause stops the view from updating so you can read; new lines are kept and shown when you resume." />
-            <ui:Button Style="{StaticResource ToolbarButton}" Content="Copy line" Icon="{ui:SymbolIcon Copy24}" Command="{Binding CopySelectedCommand}" />
-            <ui:Button Style="{StaticResource ToolbarButton}" Content="Copy all shown" Icon="{ui:SymbolIcon ClipboardTextLtr24}" Command="{Binding CopyVisibleCommand}" />
-            <ui:Button Style="{StaticResource ToolbarButton}" Content="Clear view" Icon="{ui:SymbolIcon Delete24}" Command="{Binding ClearViewCommand}"
-                       ToolTip="Empties the in-app buffer. Log files on disk are not touched." />
-            <ui:ToggleSwitch Content="Follow new lines" IsChecked="{Binding AutoScroll}" Margin="4,0,8,8" VerticalAlignment="Center"
-                             ToolTip="Keeps the newest line in view as it arrives." />
-          </WrapPanel>
+          <!-- Toolbar: filters on the left, view actions on the right. -->
+          <Grid Grid.Row="0" Margin="0,0,0,4">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <WrapPanel Grid.Column="0" Orientation="Horizontal">
+              <ComboBox Margin="0,0,8,8"
+                        ItemsSource="{Binding LevelOptions}"
+                        SelectedItem="{Binding SelectedLevel}"
+                        DisplayMemberPath="Label"
+                        MinWidth="250"
+                        ToolTip="Hide lines below this level. Verbose shows everything." />
+              <ComboBox Margin="0,0,8,8"
+                        ItemsSource="{Binding CategoryOptions}"
+                        SelectedItem="{Binding SelectedCategory}"
+                        MinWidth="170"
+                        ToolTip="Show only one area of the app, for example Sensors or Drivers." />
+              <ui:TextBox Width="260"
+                          Margin="0,0,8,8"
+                          PlaceholderText="Search messages…"
+                          Icon="{ui:SymbolIcon Search24}"
+                          Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                          ToolTip="Filters by message, area or exception text. Updates as you type." />
+              <ui:Button Style="{StaticResource ToolbarButton}" Content="Clear filters" Icon="{ui:SymbolIcon Filter24}" Command="{Binding ClearFiltersCommand}" />
+            </WrapPanel>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top">
+              <ui:ToggleSwitch Content="Follow new lines" IsChecked="{Binding AutoScroll}" Margin="4,0,12,8" VerticalAlignment="Center"
+                               ToolTip="Keeps the newest line in view as it arrives." />
+              <ui:Button Style="{StaticResource ToolbarButton}" Content="{Binding PauseButtonText}" Icon="{ui:SymbolIcon Pause24}" Command="{Binding TogglePauseCommand}"
+                         ToolTip="Pause stops the view from updating so you can read; new lines are kept and shown when you resume." />
+              <ui:DropDownButton Content="More" Icon="{ui:SymbolIcon MoreHorizontal24}" Margin="0,0,0,8" Padding="10,6">
+                <ui:DropDownButton.Flyout>
+                  <ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+                    <MenuItem Header="Copy line" Command="{Binding CopySelectedCommand}" />
+                    <MenuItem Header="Copy all shown" Command="{Binding CopyVisibleCommand}" />
+                    <MenuItem Header="Clear view" Command="{Binding ClearViewCommand}"
+                              ToolTip="Empties the in-app buffer. Log files on disk are not touched." />
+                  </ContextMenu>
+                </ui:DropDownButton.Flyout>
+              </ui:DropDownButton>
+            </StackPanel>
+          </Grid>
 
           <!-- Status line -->
           <WrapPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,8">
@@ -184,7 +198,7 @@
           </Border>
 
           <!-- Selected entry details -->
-          <ui:Card Grid.Row="3" Margin="0,12,0,0" Padding="12"
+          <ui:Card Grid.Row="3" Margin="0,12,0,0" Padding="16"
                    Visibility="{Binding HasSelectedEntry, Converter={StaticResource BoolToVisibility}}">
             <StackPanel>
               <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
@@ -219,17 +233,28 @@
             <RowDefinition Height="Auto" />
           </Grid.RowDefinitions>
 
-          <WrapPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,4">
-            <ui:Button Style="{StaticResource ToolbarButton}" Content="Refresh" Icon="{ui:SymbolIcon ArrowSync24}" Command="{Binding RefreshJournalCommand}" />
-            <ui:Button Style="{StaticResource ToolbarButton}" Content="Copy entry" Icon="{ui:SymbolIcon Copy24}" Command="{Binding CopyRecordCommand}" />
-            <ui:Button Style="{StaticResource ToolbarButton}" Content="Open journal file" Icon="{ui:SymbolIcon DocumentBulletList24}" Command="{Binding OpenJournalFileCommand}"
-                       ToolTip="{Binding JournalPath}" />
-            <ui:Button Style="{StaticResource ToolbarButton}" Content="Open journal folder" Icon="{ui:SymbolIcon FolderOpen24}" Command="{Binding OpenJournalFolderCommand}" />
-            <ui:Button Style="{StaticResource ToolbarButton}" Content="Open System Restore" Icon="{ui:SymbolIcon ShieldCheckmark24}" Command="{Binding OpenSystemRestoreCommand}"
-                       ToolTip="Opens Windows System Restore so you can go back to a restore point listed here." />
-          </WrapPanel>
-
-          <ui:TextBlock Grid.Row="1" Style="{StaticResource Muted}" Text="{Binding JournalSummary}" TextWrapping="Wrap" Margin="0,0,0,8" />
+          <!-- Toolbar: summary on the left, actions on the right. -->
+          <Grid Grid.Row="0" Margin="0,0,0,4">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <ui:TextBlock Grid.Column="0" Style="{StaticResource Muted}" Text="{Binding JournalSummary}" TextWrapping="Wrap" VerticalAlignment="Center" Margin="0,0,12,8" />
+            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top">
+              <ui:Button Style="{StaticResource ToolbarButton}" Content="Refresh" Icon="{ui:SymbolIcon ArrowSync24}" Command="{Binding RefreshJournalCommand}" />
+              <ui:Button Style="{StaticResource ToolbarButton}" Content="Copy entry" Icon="{ui:SymbolIcon Copy24}" Command="{Binding CopyRecordCommand}" />
+              <ui:DropDownButton Content="More" Icon="{ui:SymbolIcon MoreHorizontal24}" Margin="0,0,0,8" Padding="10,6">
+                <ui:DropDownButton.Flyout>
+                  <ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+                    <MenuItem Header="Open journal file" Command="{Binding OpenJournalFileCommand}" ToolTip="{Binding JournalPath}" />
+                    <MenuItem Header="Open journal folder" Command="{Binding OpenJournalFolderCommand}" />
+                    <MenuItem Header="Open System Restore" Command="{Binding OpenSystemRestoreCommand}"
+                              ToolTip="Opens Windows System Restore so you can go back to a restore point listed here." />
+                  </ContextMenu>
+                </ui:DropDownButton.Flyout>
+              </ui:DropDownButton>
+            </StackPanel>
+          </Grid>
 
           <Border Grid.Row="2" BorderThickness="1" BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}" CornerRadius="6" Background="{DynamicResource ControlFillColorDefaultBrush}">
             <Grid>
@@ -283,7 +308,7 @@
             </Grid>
           </Border>
 
-          <ui:Card Grid.Row="3" Margin="0,12,0,0" Padding="12"
+          <ui:Card Grid.Row="3" Margin="0,12,0,0" Padding="16"
                    Visibility="{Binding HasSelectedRecord, Converter={StaticResource BoolToVisibility}}">
             <Grid>
               <Grid.ColumnDefinitions>
@@ -291,11 +316,11 @@
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="*" />
               </Grid.ColumnDefinitions>
-              <StackPanel Grid.Column="0" Margin="0,0,16,0">
+              <StackPanel Grid.Column="0" Margin="0,0,12,0">
                 <ui:TextBlock FontTypography="BodyStrong" Text="Before" />
                 <ui:TextBlock Text="{Binding SelectedRecord.BeforeText}" TextWrapping="Wrap" Margin="0,4,0,0" />
               </StackPanel>
-              <StackPanel Grid.Column="1" Margin="0,0,16,0">
+              <StackPanel Grid.Column="1" Margin="0,0,12,0">
                 <ui:TextBlock FontTypography="BodyStrong" Text="After" />
                 <ui:TextBlock Text="{Binding SelectedRecord.AfterText}" TextWrapping="Wrap" Margin="0,4,0,0" />
               </StackPanel>
@@ -336,12 +361,14 @@
                     <StackPanel Grid.Column="0" Style="{StaticResource FormGroup}">
                       <ui:TextBlock Style="{StaticResource FormLabel}" Text="Minimum level" />
                       <ComboBox ItemsSource="{Binding MinimumLevelOptions}" SelectedItem="{Binding EditMinimumLevel}" DisplayMemberPath="Label" HorizontalAlignment="Stretch" />
-                      <ui:TextBlock Style="{StaticResource FormHint}" Text="Information is right for everyday use. Pick Debug or Verbose only while chasing a problem; they write a lot more." />
+                      <ui:TextBlock Style="{StaticResource FormHint}" Text="Information suits everyday use; Debug and Verbose write much more."
+                                    ToolTip="Pick Debug or Verbose only while chasing a problem." />
                     </StackPanel>
                     <StackPanel Grid.Column="2" Style="{StaticResource FormGroup}">
                       <ui:TextBlock Style="{StaticResource FormLabel}" Text="Lines kept in the live viewer" />
                       <ui:NumberBox Value="{Binding EditBufferSize, Mode=TwoWay}" Minimum="100" Maximum="50000" HorizontalAlignment="Stretch" />
-                      <ui:TextBlock Style="{StaticResource FormHint}" Text="How many recent lines the Live log tab holds in memory (100 – 50,000). Files on disk are not limited by this." />
+                      <ui:TextBlock Style="{StaticResource FormHint}" Text="Recent lines the Live log holds in memory (100 – 50,000)."
+                                    ToolTip="Files on disk are not limited by this." />
                     </StackPanel>
                   </Grid>
                   <ui:ToggleSwitch Content="Hide serial numbers and MAC addresses in logs" IsChecked="{Binding EditRedactSerials}" Margin="0,0,0,8"
@@ -403,7 +430,8 @@
                       <ui:TextBox Grid.Column="0" Text="{Binding EditOutputTemplate, UpdateSourceTrigger=PropertyChanged}" FontFamily="Cascadia Mono, Consolas" FontSize="12" />
                       <ui:Button Grid.Column="1" Content="Reset" Icon="{ui:SymbolIcon ArrowReset24}" Command="{Binding ResetTemplateCommand}" Margin="8,0,0,0" />
                     </Grid>
-                    <ui:TextBlock Style="{StaticResource FormHint}" Text="Placeholders: {Timestamp}, {Level}, {Category}, {Message}, {NewLine}, {Exception}. Leave the default unless a log tool needs a specific layout." />
+                    <ui:TextBlock Style="{StaticResource FormHint}" Text="Placeholders: {Timestamp}, {Level}, {Category}, {Message}, {NewLine}, {Exception}."
+                                  ToolTip="Leave the default unless a log tool needs a specific layout." />
                   </StackPanel>
                 </StackPanel>
               </ui:Card>
@@ -412,7 +440,8 @@
                 <ui:CardExpander.Header>
                   <StackPanel>
                     <ui:TextBlock FontTypography="BodyStrong" Text="Detail per area" />
-                    <ui:TextBlock Style="{StaticResource Muted}" Text="Record more (or less) from one part of the app without changing the rest. Leave everything on the minimum level unless support asks for a specific area." TextWrapping="Wrap" />
+                    <ui:TextBlock Style="{StaticResource Muted}" Text="Record more or less from one part of the app without changing the rest." TextWrapping="Wrap"
+                                  ToolTip="Leave everything on the minimum level unless support asks for a specific area." />
                   </StackPanel>
                 </ui:CardExpander.Header>
                 <StackPanel>
