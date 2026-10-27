@@ -96,3 +96,23 @@ public sealed partial class LogsViewModel : IRefreshablePage
 {
     ICommand IRefreshablePage.RefreshKeyCommand => RefreshJournalCommand;
 }
+
+public sealed partial class ServicesViewModel : IRefreshablePage
+{
+    ICommand IRefreshablePage.RefreshKeyCommand => RefreshCommand;
+}
+
+public sealed partial class ScheduledTasksViewModel : IRefreshablePage
+{
+    ICommand IRefreshablePage.RefreshKeyCommand => RefreshCommand;
+}
+
+public sealed partial class ConnectionsViewModel : IRefreshablePage
+{
+    ICommand IRefreshablePage.RefreshKeyCommand => RefreshCommand;
+}
+
+public sealed partial class UsersViewModel : IRefreshablePage
+{
+    ICommand IRefreshablePage.RefreshKeyCommand => RefreshCommand;
+}

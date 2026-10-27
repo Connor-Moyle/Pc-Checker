@@ -97,6 +97,9 @@ public sealed partial class ServicesViewModel : ViewModelBase
 
     public override Task RefreshAsync(CancellationToken cancellationToken) => LoadAsync();
 
+    [RelayCommand]
+    private Task Refresh() => LoadAsync();
+
     private Task LoadAsync() =>
         RunBusyAsync(async ct =>
         {

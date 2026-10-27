@@ -67,6 +67,9 @@ public sealed partial class UsersViewModel : ViewModelBase
 
     public override Task RefreshAsync(CancellationToken cancellationToken) => LoadAsync();
 
+    [RelayCommand]
+    private Task Refresh() => LoadAsync();
+
     private Task LoadAsync() =>
         RunBusyAsync(async ct =>
         {
