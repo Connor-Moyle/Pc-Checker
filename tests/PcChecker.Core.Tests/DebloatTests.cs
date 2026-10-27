@@ -953,6 +953,21 @@ public class DebloatReviewFixTests
     }
 
     [Fact]
+    public void OneDrive_uninstall_handles_per_machine_installs_and_checks_the_result()
+    {
+        var op = Tweak("onedrive.remove").Operations.OfType<PowerShellOp>().Single();
+        Assert.Contains("Arguments = '/uninstall /allusers'", op.ApplyScript);
+        Assert.Contains("$machineDir = \"$env:ProgramFiles\\Microsoft OneDrive\"", op.ApplyScript);
+        Assert.Contains("if (Test-Installed) {", op.ApplyScript);
+        Assert.DoesNotContain("exit $p.ExitCode\"", op.ApplyScript);
+
+        // The final check looks at the same places as the detection that drives the tweak's state.
+        Assert.Contains("OneDrive.exe", op.DetectScript);
+        Assert.Contains("$env:ProgramFiles\\Microsoft OneDrive", op.DetectScript);
+        Assert.Contains("$env:LOCALAPPDATA\\Microsoft\\OneDrive", op.DetectScript);
+    }
+
+    [Fact]
     public void Conflicting_selection_is_detected_and_related_tweaks_are_rechecked()
     {
         var pairs = DebloatRules.ConflictingPairs([Tweak("taskbar.searchicon"), Tweak("taskbar.searchhide"), Tweak("explorer.thispc")]);

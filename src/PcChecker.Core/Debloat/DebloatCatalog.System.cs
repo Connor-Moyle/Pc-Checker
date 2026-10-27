@@ -9,16 +9,26 @@ public static partial class DebloatCatalog
     private const string UpdatePolicy = @"SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate";
     private const string EdgeManagedNote = "Edge shows \"Your browser is managed by your organization\" while any Edge policy is set. Revert removes the policies again.";
 
-    /// <summary>Uninstalls OneDrive with Microsoft's own setup program; nothing is downloaded.</summary>
+    /// <summary>
+    /// Uninstalls OneDrive with Microsoft's own setup program; nothing is downloaded. A per-machine install (under
+    /// Program Files) needs <c>/uninstall /allusers</c>, a per-user one <c>/uninstall</c>. Fails when OneDrive is still
+    /// installed afterwards (the same check as <see cref="OneDriveRemovedDetectScript"/>), whatever setup's exit code.
+    /// </summary>
     internal const string OneDriveUninstallScript =
         "$ErrorActionPreference = 'Continue'; " +
         "Get-Process OneDrive -ErrorAction SilentlyContinue | Stop-Process -Force; " +
-        "$candidates = @(\"$env:SystemRoot\\System32\\OneDriveSetup.exe\", \"$env:SystemRoot\\SysWOW64\\OneDriveSetup.exe\") + " +
-        "@(Get-ChildItem \"$env:LOCALAPPDATA\\Microsoft\\OneDrive\\*\\OneDriveSetup.exe\" -ErrorAction SilentlyContinue | ForEach-Object FullName) + " +
-        "@(Get-ChildItem \"$env:ProgramFiles\\Microsoft OneDrive\\*\\OneDriveSetup.exe\" -ErrorAction SilentlyContinue | ForEach-Object FullName); " +
-        "$exe = $candidates | Where-Object { $_ -and (Test-Path $_) } | Select-Object -First 1; " +
+        "$machineDir = \"$env:ProgramFiles\\Microsoft OneDrive\"; $userDir = \"$env:LOCALAPPDATA\\Microsoft\\OneDrive\"; " +
+        "$systemSetup = @(\"$env:SystemRoot\\System32\\OneDriveSetup.exe\", \"$env:SystemRoot\\SysWOW64\\OneDriveSetup.exe\"); " +
+        "function Find-Setup($dir) { @(Get-ChildItem \"$dir\\*\\OneDriveSetup.exe\" -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | ForEach-Object FullName) + $systemSetup | " +
+        "Where-Object { $_ -and (Test-Path $_) } | Select-Object -First 1 }; " +
+        "function Test-Installed { (Test-Path \"$userDir\\OneDrive.exe\") -or (Test-Path \"$machineDir\\OneDrive.exe\") }; " +
+        "$installs = @(@{ Dir = $machineDir; Arguments = '/uninstall /allusers' }, @{ Dir = $userDir; Arguments = '/uninstall' }) | Where-Object { Test-Path \"$($_.Dir)\\OneDrive.exe\" }; " +
+        "if (-not $installs) { $installs = @(@{ Dir = $userDir; Arguments = '/uninstall' }) }; " +
+        "foreach ($install in $installs) { $exe = Find-Setup $install.Dir; " +
         "if (-not $exe) { [Console]::Error.WriteLine('OneDriveSetup.exe was not found.'); exit 1 }; " +
-        "$p = Start-Process -FilePath $exe -ArgumentList '/uninstall' -Wait -PassThru; exit $p.ExitCode";
+        "$p = Start-Process -FilePath $exe -ArgumentList $install.Arguments -Wait -PassThru; if ($p.ExitCode -ne 0) { exit $p.ExitCode } }; " +
+        "for ($i = 0; $i -lt 30 -and (Test-Installed); $i++) { Start-Sleep -Seconds 1 }; " +
+        "if (Test-Installed) { [Console]::Error.WriteLine('OneDrive is still installed after its uninstaller finished.'); exit 1 }";
 
     /// <summary>Prints True when OneDrive is no longer installed for this user or the PC.</summary>
     internal const string OneDriveRemovedDetectScript =
