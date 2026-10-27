@@ -35,7 +35,7 @@ public sealed class ScheduledRunner : IDisposable
         if (AppOptions.Current.IsDemo)
         {
             // Demo reports go to the demo folder, never into the user's Documents.
-            _executor.ReportsDirectory = Path.Combine(JsonSettingsService.DefaultDirectory(), "demo", "reports");
+            _executor.ReportsDirectory = ScheduledJobExecutor.DemoReportsDirectory();
         }
     }
 

@@ -64,6 +64,13 @@ public sealed class ScheduledJobExecutor
     /// <summary>Raised after every finished run (scheduled, manual or from the tray).</summary>
     public event EventHandler<ScheduledJobResult>? Completed;
 
+    /// <summary>Where demo mode keeps scheduled reports, so it never writes into the user's Documents.</summary>
+    public static string DemoReportsDirectory() => Path.Combine(JsonSettingsService.DefaultDirectory(), "demo", "reports");
+
+    /// <summary>File name (without extension) of a scheduled report for <paramref name="computerName"/> made at <paramref name="when"/>.</summary>
+    public static string ScheduledReportStem(string? computerName, DateTimeOffset when) =>
+        ReportText.SuggestedFileName(computerName, when).Replace("pc-checker-report-", ScheduledReportPrefix, StringComparison.Ordinal);
+
     public static string DefaultReportsDirectory()
     {
         var documents = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
@@ -205,7 +212,7 @@ public sealed class ScheduledJobExecutor
         var generated = DateTimeOffset.Now;
         var bundle = new ReportBundle(hardware, health, performance, null, drivers, _sensors?.Latest, generated, version);
         var computer = hardware?.System?.Name ?? Environment.MachineName;
-        var stem = ReportText.SuggestedFileName(computer, generated).Replace("pc-checker-report-", ScheduledReportPrefix, StringComparison.Ordinal);
+        var stem = ScheduledReportStem(computer, generated);
         Directory.CreateDirectory(ReportsDirectory);
         progress?.Report(new ProgressUpdate("Writing the report"));
         var written = await _reports.ExportAsync(bundle, ReportFormat.Html, Path.Combine(ReportsDirectory, stem + ".html"), token).ConfigureAwait(false);

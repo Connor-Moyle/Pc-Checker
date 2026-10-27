@@ -70,38 +70,74 @@ public class SchedulingTests
 
     // ---- schtasks commands --------------------------------------------------------------------------------------
 
-    [Fact]
-    public void Weekly_job_task_quotes_a_path_with_spaces_and_runs_with_highest_privileges()
-    {
-        var schedule = new JobSchedule { Job = ScheduledJobKind.Health, Frequency = ScheduleFrequency.Weekly, Day = DayOfWeek.Sunday, Time = "9:05" };
-        var command = SchtasksCommandBuilder.Create(schedule, Exe);
+    private static readonly System.Xml.Linq.XNamespace TaskNs = "http://schemas.microsoft.com/windows/2004/02/mit/task";
 
-        Assert.Equal(
-            ["/Create", "/TN", @"PC Checker\Health", "/TR", "\"" + Exe + "\" --scheduled health", "/SC", "WEEKLY", "/D", "SUN", "/ST", "09:05", "/RL", "HIGHEST", "/F"],
-            command.Arguments);
-        Assert.Equal(
-            "/Create /TN \"PC Checker\\Health\" /TR \"\\\"C:\\Program Files\\PC Checker\\PcChecker.exe\\\" --scheduled health\" /SC WEEKLY /D SUN /ST 09:05 /RL HIGHEST /F",
-            command.CommandLine);
+    private static System.Xml.Linq.XDocument JobXml(JobSchedule schedule, string exe = Exe, string? user = @"DESKTOP-1\Alex") =>
+        System.Xml.Linq.XDocument.Parse(JobTaskXml.Build(schedule, exe, user, new DateOnly(2026, 10, 27)));
+
+    [Fact]
+    public void Weekly_job_task_runs_the_job_elevated_on_the_chosen_day_and_time()
+    {
+        var doc = JobXml(new JobSchedule { Job = ScheduledJobKind.Health, Frequency = ScheduleFrequency.Weekly, Day = DayOfWeek.Sunday, Time = "9:05" });
+        string Value(string name) => doc.Descendants(TaskNs + name).Single().Value;
+
+        Assert.Equal("2026-10-27T09:05:00", Value("StartBoundary"));
+        Assert.Equal("1", Value("WeeksInterval"));
+        Assert.Equal("Sunday", doc.Descendants(TaskNs + "DaysOfWeek").Single().Elements().Single().Name.LocalName);
+        Assert.Empty(doc.Descendants(TaskNs + "ScheduleByDay"));
+        Assert.Equal("\"" + Exe + "\"", Value("Command"));
+        Assert.Equal("--scheduled health", Value("Arguments"));
+        Assert.Equal("HighestAvailable", Value("RunLevel"));
+        Assert.Equal("InteractiveToken", Value("LogonType"));
+        Assert.Equal(@"DESKTOP-1\Alex", Value("UserId"));
+    }
+
+    [Fact]
+    public void Job_tasks_run_on_battery_and_have_a_time_limit()
+    {
+        var doc = JobXml(new JobSchedule { Job = ScheduledJobKind.Report, Frequency = ScheduleFrequency.Daily, Time = "23:30" });
+        string Value(string name) => doc.Descendants(TaskNs + name).Single().Value;
+
+        Assert.Equal("false", Value("DisallowStartIfOnBatteries"));
+        Assert.Equal("false", Value("StopIfGoingOnBatteries"));
+        Assert.Equal(JobTaskXml.ExecutionTimeLimit, Value("ExecutionTimeLimit"));
+        Assert.Equal("IgnoreNew", Value("MultipleInstancesPolicy"));
     }
 
     [Theory]
-    [InlineData(DayOfWeek.Monday, "MON")]
-    [InlineData(DayOfWeek.Wednesday, "WED")]
-    [InlineData(DayOfWeek.Saturday, "SAT")]
-    public void Weekly_days_use_schtasks_day_codes(DayOfWeek day, string code)
+    [InlineData(DayOfWeek.Monday)]
+    [InlineData(DayOfWeek.Wednesday)]
+    [InlineData(DayOfWeek.Saturday)]
+    public void Weekly_days_use_task_scheduler_day_names(DayOfWeek day)
     {
-        var args = SchtasksCommandBuilder.Create(new JobSchedule { Job = ScheduledJobKind.Drivers, Day = day, Time = "18:00" }, Exe).Arguments;
-        int d = args.ToList().IndexOf("/D");
-        Assert.Equal(code, args[d + 1]);
+        var doc = JobXml(new JobSchedule { Job = ScheduledJobKind.Drivers, Day = day, Time = "18:00" });
+        Assert.Equal(day.ToString(), doc.Descendants(TaskNs + "DaysOfWeek").Single().Elements().Single().Name.LocalName);
     }
 
     [Fact]
-    public void Daily_job_has_no_day_argument()
+    public void Daily_job_has_no_day_and_escapes_the_path()
     {
-        var args = SchtasksCommandBuilder.Create(new JobSchedule { Job = ScheduledJobKind.Cleanup, Frequency = ScheduleFrequency.Daily, Time = "23:30" }, @"C:\Tools\PcChecker.exe").Arguments;
-        Assert.Contains("DAILY", args);
-        Assert.DoesNotContain("/D", args);
-        Assert.Contains("\"C:\\Tools\\PcChecker.exe\" --scheduled cleanup", args);
+        const string odd = @"C:\R&D <Tools>\PcChecker.exe";
+        var xml = JobTaskXml.Build(new JobSchedule { Job = ScheduledJobKind.Cleanup, Frequency = ScheduleFrequency.Daily, Time = "23:30" }, odd, null, new DateOnly(2026, 1, 5));
+        Assert.StartsWith("<?xml version=\"1.0\" encoding=\"UTF-16\"?>", xml);
+        var doc = System.Xml.Linq.XDocument.Parse(xml);
+        Assert.Equal("1", doc.Descendants(TaskNs + "DaysInterval").Single().Value);
+        Assert.Empty(doc.Descendants(TaskNs + "ScheduleByWeek"));
+        Assert.Empty(doc.Descendants(TaskNs + "UserId"));
+        Assert.Equal("2026-01-05T23:30:00", doc.Descendants(TaskNs + "StartBoundary").Single().Value);
+        Assert.Equal("\"" + odd + "\"", doc.Descendants(TaskNs + "Command").Single().Value);
+        Assert.Equal("--scheduled cleanup", doc.Descendants(TaskNs + "Arguments").Single().Value);
+    }
+
+    [Fact]
+    public void Job_tasks_are_created_from_xml()
+    {
+        Assert.Equal(["/Create", "/TN", @"PC Checker\Health", "/XML", @"C:\ProgramData\x\task.xml", "/F"],
+            SchtasksCommandBuilder.CreateFromXml(ScheduledJobIds.TaskName(ScheduledJobKind.Health), @"C:\ProgramData\x\task.xml").Arguments);
+        Assert.Equal(
+            "/Create /TN \"PC Checker\\Health\" /XML \"C:\\Program Data\\task.xml\" /F",
+            SchtasksCommandBuilder.CreateFromXml(ScheduledJobIds.TaskName(ScheduledJobKind.Health), @"C:\Program Data\task.xml").CommandLine);
+        Assert.Throws<ArgumentException>(() => SchtasksCommandBuilder.CreateFromXml(" ", @"C:\task.xml"));
     }
 
     [Fact]
@@ -160,17 +196,13 @@ public class SchedulingTests
     public void Invalid_executable_paths_are_rejected(string? path)
     {
         Assert.NotNull(SchtasksCommandBuilder.ValidateExecutable(path));
-        Assert.Throws<ArgumentException>(() => SchtasksCommandBuilder.Create(new JobSchedule(), path!));
+        Assert.Throws<ArgumentException>(() => JobTaskXml.Build(new JobSchedule(), path!, null, new DateOnly(2026, 10, 27)));
     }
 
     [Fact]
-    public void Too_long_task_command_is_rejected_with_a_helpful_message()
+    public void Invalid_job_time_is_rejected()
     {
-        var longPath = @"C:\" + new string('a', 250) + @"\PcChecker.exe";
-        Assert.Null(SchtasksCommandBuilder.ValidateExecutable(longPath));
-        var ex = Assert.Throws<ArgumentException>(() => SchtasksCommandBuilder.Create(new JobSchedule(), longPath));
-        Assert.Contains("too long", ex.Message);
-        Assert.Throws<ArgumentException>(() => SchtasksCommandBuilder.Create(new JobSchedule { Time = "25:00" }, Exe));
+        Assert.Throws<ArgumentException>(() => JobTaskXml.Build(new JobSchedule { Time = "25:00" }, Exe, null, new DateOnly(2026, 10, 27)));
     }
 
     [Theory]
@@ -428,6 +460,18 @@ public class SchedulingTests
         var timedOut = JobResultSummarizer.Failure(ScheduledJobKind.Report, "", true, T0, T0, "schedule");
         Assert.False(timedOut.Success);
         Assert.Equal("PC report took too long", timedOut.Title);
+    }
+
+    [Fact]
+    public void Health_after_a_failed_run_does_not_call_known_critical_items_new()
+    {
+        var failed = JobResultSummarizer.Failure(ScheduledJobKind.Health, "WMI did not answer", false, T0, T0, "schedule");
+        var next = JobResultSummarizer.Health(Report(79, (HealthStatus.Critical, "Drive D: is failing")), failed, T0, T0, "schedule");
+
+        Assert.Equal("Health score 79", next.Title);
+        Assert.StartsWith("Critical: Drive D: is failing", next.Summary);
+        Assert.DoesNotContain("New critical", next.Summary);
+        Assert.Equal(["Drive D: is failing"], next.CriticalItems);
     }
 
     [Fact]

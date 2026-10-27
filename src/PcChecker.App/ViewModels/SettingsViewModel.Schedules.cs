@@ -137,8 +137,16 @@ public sealed partial class SettingsViewModel
 
             StoreSchedule(schedule);
             row.MarkSaved();
-            _notifications.Show(enabled ? "Schedule created" : "Schedule removed", result.Message,
-                enabled ? NotificationKind.Success : NotificationKind.Info);
+            if (!CanScheduleTasks)
+            {
+                // Demo mode (or no Task Scheduler): the setting is saved, but no task was created or removed.
+                _notifications.Show(enabled ? "Schedule saved" : "Schedule turned off", result.Message, NotificationKind.Info);
+            }
+            else
+            {
+                _notifications.Show(enabled ? "Schedule created" : "Schedule removed", result.Message,
+                    enabled ? NotificationKind.Success : NotificationKind.Info);
+            }
             await RefreshRowStatusAsync(row, CancellationToken.None);
         }
         catch (Exception ex)
@@ -234,10 +242,20 @@ public sealed partial class SettingsViewModel
 
     private void OpenScheduleOutput(ScheduleJobRow row)
     {
-        if (row.OutputPath is { } path)
+        if (row.OutputPath is not { } path)
         {
-            Open(path);
+            return;
         }
+
+        if (!System.IO.File.Exists(path))
+        {
+            ErrorMessage = AppOptions.Current.IsDemo
+                ? "Demo mode: this sample report was not written to disk. Use Run now to create a real one in the demo reports folder."
+                : $"The report is no longer at {path}. It may have been moved or removed; Run now makes a new one.";
+            return;
+        }
+
+        Open(path);
     }
 
     private void StoreSchedule(JobSchedule schedule) => Persist(s =>

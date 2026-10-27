@@ -160,8 +160,7 @@ public sealed class DemoScheduledJobStore : IScheduledJobStore
         var cleanup = At(0, 10, 30);
         var drivers = At(-4, 18, 0);
         var report = At(0, 11, 0);
-        var reportPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "PC Checker Reports",
-            "PC Checker report - GAMING-RIG - " + report.ToString("yyyy-MM-dd HHmm", System.Globalization.CultureInfo.InvariantCulture) + ".html");
+        var reportPath = Path.Combine(ScheduledJobExecutor.DemoReportsDirectory(), ScheduledJobExecutor.ScheduledReportStem("GAMING-RIG", report.AddSeconds(76)) + ".html");
         return
         [
             new ScheduledJobResult(ScheduledJobKind.Health, health, health.AddSeconds(41), true, false, "Health score 86 (no change)",

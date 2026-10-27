@@ -157,7 +157,15 @@ public sealed partial class TrayIconService
             return;
         }
 
-        await RunFromTrayAsync(ScheduledJobKind.Cleanup, dryRunOverride: false);
+        _popupViewModel.Status = "Cleaning temporary files…";
+        try
+        {
+            await RunFromTrayAsync(ScheduledJobKind.Cleanup, dryRunOverride: false);
+        }
+        finally
+        {
+            _popupViewModel.Status = null;
+        }
     }
 
     public async Task<bool> SwitchFanProfileAsync(string profileName)
@@ -181,6 +189,7 @@ public sealed partial class TrayIconService
             }
         }
 
+        _popupViewModel.Status = $"Applying \"{profile.Name}\"…";
         try
         {
             var result = await _fans.ApplyProfileAsync(profile, CancellationToken.None);
@@ -199,6 +208,11 @@ public sealed partial class TrayIconService
             _logger.LogWarning(ex, "Switching the fan profile from the tray failed.");
             Notify("Fan profile not applied", ex.Message, NotificationKind.Error, null);
             return false;
+        }
+        finally
+        {
+            // The popup shows the outcome itself; a switch from the right-click menu must not leave "Applying" behind.
+            _popupViewModel.Status = null;
         }
     }
 
@@ -219,8 +233,18 @@ public sealed partial class TrayIconService
     }
 
     /// <summary>A standalone themed confirmation (the window's dialog host may be hidden while PC Checker is in the tray).</summary>
+    /// <remarks>
+    /// When the popup is open it stays open behind the dialog (which is made topmost so the popup cannot cover it),
+    /// then takes focus back, so the progress line it shows after "Yes" is actually seen.
+    /// </remarks>
     private async Task<bool> ConfirmAsync(string title, string message, string confirmText)
     {
+        var popup = _popup is { IsVisible: true } open ? open : null;
+        if (popup is not null)
+        {
+            popup.KeepOpen = true;
+        }
+
         try
         {
             var box = new Wpf.Ui.Controls.MessageBox
@@ -231,6 +255,13 @@ public sealed partial class TrayIconService
                 CloseButtonText = "Cancel",
                 IsSecondaryButtonEnabled = false,
             };
+            if (popup is not null)
+            {
+                // Above the topmost popup, centred on the screen rather than squeezed into the tray corner.
+                box.Topmost = true;
+                box.WindowStartupLocation = WindowStartupLocation.CenterScreen;
+            }
+
             var result = await box.ShowDialogAsync();
             return result == Wpf.Ui.Controls.MessageBoxResult.Primary;
         }
@@ -239,6 +270,17 @@ public sealed partial class TrayIconService
             _logger.LogDebug(ex, "Themed message box unavailable; using the standard one.");
             return System.Windows.MessageBox.Show(message, title, System.Windows.MessageBoxButton.OKCancel, System.Windows.MessageBoxImage.Question)
                 == System.Windows.MessageBoxResult.OK;
+        }
+        finally
+        {
+            if (popup is not null)
+            {
+                popup.KeepOpen = false;
+                if (popup.IsVisible)
+                {
+                    popup.Activate();
+                }
+            }
         }
     }
 

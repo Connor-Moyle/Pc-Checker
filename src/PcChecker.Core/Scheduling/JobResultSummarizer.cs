@@ -31,9 +31,12 @@ public static class JobResultSummarizer
         int score = Math.Clamp(report.Score, 0, 100);
         var critical = report.Items.Where(i => i.Status == HealthStatus.Critical).Select(i => i.Title).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
         var warnings = report.Items.Where(i => i.Status == HealthStatus.Warning).Select(i => i.Title).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-        int? previousScore = previous is { Success: true } ? previous.HealthScore : null;
-        var known = new HashSet<string>(previous?.CriticalItems ?? [], StringComparer.OrdinalIgnoreCase);
-        var newCritical = previous is null ? critical : critical.Where(c => !known.Contains(c)).ToList();
+        // A failed run recorded neither a score nor its critical items, so it is no baseline: compare against
+        // nothing (like a first run) rather than report every existing critical item as new.
+        var baseline = previous is { Success: true } ? previous : null;
+        int? previousScore = baseline?.HealthScore;
+        var known = new HashSet<string>(baseline?.CriticalItems ?? [], StringComparer.OrdinalIgnoreCase);
+        var newCritical = baseline is null ? critical : critical.Where(c => !known.Contains(c)).ToList();
         int? delta = previousScore is { } p ? score - p : null;
 
         bool dropped = delta is { } d && d <= -ScoreDropThreshold;
@@ -50,7 +53,7 @@ public static class JobResultSummarizer
         string summary;
         if (newCritical.Count > 0)
         {
-            summary = (previous is null ? "Critical: " : "New critical problem: ") + newCritical[0]
+            summary = (baseline is null ? "Critical: " : "New critical problem: ") + newCritical[0]
                 + (newCritical.Count > 1 ? $" and {newCritical.Count - 1} more" : string.Empty) + ". Open Health for details.";
         }
         else if (dropped)
@@ -64,7 +67,7 @@ public static class JobResultSummarizer
         else
         {
             summary = Plural(critical.Count + warnings.Count, "item needs", "items need") + " a look"
-                + (previous is null ? "." : ", none of them new.");
+                + (baseline is null ? "." : ", none of them new.");
         }
 
         return new ScheduledJobResult(ScheduledJobKind.Health, started, finished, true, attention, title, summary,

@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Text;
 
 namespace PcChecker.Core.Scheduling;
@@ -13,9 +12,10 @@ public sealed record SchtasksCommand(IReadOnlyList<string> Arguments)
 }
 
 /// <summary>
-/// Builds the <c>schtasks.exe</c> argument lists PC Checker uses: one task per job in the "PC Checker" folder running
-/// <c>"&lt;exe&gt;" --scheduled &lt;job&gt;</c> daily or weekly with highest privileges, the logon task for "Start with
-/// Windows" (registered from XML), and the matching query and delete calls. Pure, so the quoting rules are unit-tested.
+/// Builds the <c>schtasks.exe</c> argument lists PC Checker uses: one task per job in the "PC Checker" folder and the
+/// logon task for "Start with Windows", both registered from XML (<see cref="JobTaskXml"/>, <see cref="LogonTaskXml"/>)
+/// because the plain switches cannot turn off the battery rules or set time limits, plus the matching query and
+/// delete calls. Pure, so the quoting rules are unit-tested.
 /// </summary>
 public static class SchtasksCommandBuilder
 {
@@ -25,51 +25,19 @@ public static class SchtasksCommandBuilder
     /// <summary>The logon task used for "Start with Windows".</summary>
     public const string LogonTaskName = Folder + "\\Start";
 
-    /// <summary>schtasks rejects a /TR value longer than this.</summary>
-    public const int MaxTaskRunLength = 261;
-
-    /// <summary><c>/Create</c> for a job: <c>/SC DAILY|WEEKLY [/D MON] /ST HH:mm /RL HIGHEST /F</c>.</summary>
-    public static SchtasksCommand Create(JobSchedule schedule, string executablePath)
-    {
-        ArgumentNullException.ThrowIfNull(schedule);
-        ThrowIfInvalid(ValidateExecutable(executablePath));
-        if (!ScheduleRules.TryParseTime(schedule.Time, out var time))
-        {
-            throw new ArgumentException($"\"{schedule.Time}\" is not a valid time. Use 24-hour HH:mm, for example 09:30.", nameof(schedule));
-        }
-
-        var run = TaskRun(executablePath, "--scheduled " + ScheduledJobIds.Id(schedule.Job));
-        ThrowIfInvalid(ValidateTaskRun(run));
-
-        var args = new List<string> { "/Create", "/TN", ScheduledJobIds.TaskName(schedule.Job), "/TR", run };
-        if (schedule.Frequency == ScheduleFrequency.Weekly)
-        {
-            args.AddRange(["/SC", "WEEKLY", "/D", DayCode(schedule.Day)]);
-        }
-        else
-        {
-            args.AddRange(["/SC", "DAILY"]);
-        }
-
-        args.AddRange(["/ST", ScheduleRules.FormatTime(time), "/RL", "HIGHEST", "/F"]);
-        return new SchtasksCommand(args);
-    }
-
-    /// <summary>
-    /// <c>/Create /TN "PC Checker\Start" /XML file /F</c> for "Start with Windows". The definition comes from
-    /// <see cref="LogonTaskXml"/> (ONLOGON, highest privileges so the elevated app starts without a UAC prompt, no time
-    /// limit, runs on battery), because the plain <c>/SC ONLOGON</c> switches cannot turn off the 72-hour limit or
-    /// the battery rules.
-    /// </summary>
-    public static SchtasksCommand CreateLogon(string xmlPath)
+    /// <summary><c>/Create /TN name /XML file /F</c>: registers (or replaces) a task from a definition file.</summary>
+    public static SchtasksCommand CreateFromXml(string taskName, string xmlPath)
     {
         if (string.IsNullOrWhiteSpace(xmlPath))
         {
             throw new ArgumentException("The task definition file is required.", nameof(xmlPath));
         }
 
-        return new SchtasksCommand(["/Create", "/TN", LogonTaskName, "/XML", xmlPath.Trim(), "/F"]);
+        return new SchtasksCommand(["/Create", "/TN", RequireName(taskName), "/XML", xmlPath.Trim(), "/F"]);
     }
+
+    /// <summary><c>/Create /TN "PC Checker\Start" /XML file /F</c> for "Start with Windows".</summary>
+    public static SchtasksCommand CreateLogon(string xmlPath) => CreateFromXml(LogonTaskName, xmlPath);
 
     /// <summary><c>/Delete /TN name /F</c> (no confirmation prompt).</summary>
     public static SchtasksCommand Delete(string taskName) => new(["/Delete", "/TN", RequireName(taskName), "/F"]);
@@ -77,24 +45,12 @@ public static class SchtasksCommandBuilder
     /// <summary><c>/Query /TN name /FO CSV /V /NH</c>: verbose CSV without a header, parsed by column position.</summary>
     public static SchtasksCommand Query(string taskName) => new(["/Query", "/TN", RequireName(taskName), "/FO", "CSV", "/V", "/NH"]);
 
-    /// <summary>The /TR value: the quoted executable followed by its arguments.</summary>
+    /// <summary>The "Task To Run" text Task Scheduler shows for a task: the quoted executable followed by its arguments.</summary>
     public static string TaskRun(string executablePath, string? arguments)
     {
         var run = "\"" + executablePath.Trim() + "\"";
         return string.IsNullOrWhiteSpace(arguments) ? run : run + " " + arguments.Trim();
     }
-
-    /// <summary>Three-letter day code schtasks expects after <c>/D</c>.</summary>
-    public static string DayCode(DayOfWeek day) => day switch
-    {
-        DayOfWeek.Monday => "MON",
-        DayOfWeek.Tuesday => "TUE",
-        DayOfWeek.Wednesday => "WED",
-        DayOfWeek.Thursday => "THU",
-        DayOfWeek.Friday => "FRI",
-        DayOfWeek.Saturday => "SAT",
-        _ => "SUN",
-    };
 
     /// <summary>Returns why the path cannot be scheduled, or null when it is fine.</summary>
     public static string? ValidateExecutable(string? executablePath)
@@ -120,14 +76,6 @@ public static class SchtasksCommandBuilder
 
         return null;
     }
-
-    /// <summary>Returns why a /TR value is rejected (too long), or null.</summary>
-    public static string? ValidateTaskRun(string taskRun) =>
-        taskRun.Length > MaxTaskRunLength
-            ? string.Format(CultureInfo.InvariantCulture,
-                "The program path is too long for Task Scheduler ({0} characters; the limit is {1}). Move PcChecker.exe to a shorter folder such as C:\\Tools.",
-                taskRun.Length, MaxTaskRunLength)
-            : null;
 
     /// <summary>Joins arguments with the standard Windows quoting rules (the inverse of CommandLineToArgvW).</summary>
     public static string JoinArguments(IEnumerable<string> arguments)
@@ -183,12 +131,4 @@ public static class SchtasksCommandBuilder
 
     private static string RequireName(string taskName) =>
         string.IsNullOrWhiteSpace(taskName) ? throw new ArgumentException("A task name is required.", nameof(taskName)) : taskName.Trim();
-
-    private static void ThrowIfInvalid(string? error)
-    {
-        if (error is not null)
-        {
-            throw new ArgumentException(error);
-        }
-    }
 }

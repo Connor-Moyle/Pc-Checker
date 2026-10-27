@@ -814,8 +814,17 @@ removes the task.
 
 How it works:
 
-- One task per job in the `PC Checker` folder of Task Scheduler, created with
-  `schtasks /Create /TN "PC Checker\<Job>" /TR "\"<path to PcChecker.exe>\" --scheduled <job>" /SC DAILY|WEEKLY [/D MON] /ST HH:mm /RL HIGHEST /F`.
+- One task per job in the `PC Checker` folder of Task Scheduler, registered
+  with `schtasks /Create /TN "PC Checker\<Job>" /XML <definition> /F`. The
+  definition runs `"<path to PcChecker.exe>" --scheduled <job>` daily or
+  weekly at your time with highest privileges, also on battery power (Task
+  Scheduler's defaults would skip a laptop's runs on battery), with a one-hour
+  hard stop behind the job's own 10-minute limit.
+- The definition file for this and for *Start with Windows* is written to a
+  new folder under `%ProgramData%` that only Administrators and SYSTEM can
+  change, and is deleted straight after. It never goes through your `%TEMP%`
+  folder, where another program running as you could swap it for its own
+  command before Task Scheduler reads it.
   Status is read with `schtasks /Query /FO CSV /V /NH` by column position, so it
   works on Windows in any language.
 - `PcChecker.exe --scheduled <job>` runs without a window. If PC Checker is
@@ -839,10 +848,8 @@ How it works:
   Windows* task.
 
 Limitations: tasks run in your Windows session, so Task Scheduler skips a run
-while you are signed out or the PC is off or asleep, and by
-default it does not start the maintenance jobs on battery power (the *Start
-with Windows* task is not limited this way); the next scheduled time runs as
-normal. In demo mode nothing is scheduled ("Demo mode: schedules are
+while you are signed out or the PC is off or asleep; the next scheduled time
+runs as normal. In demo mode nothing is scheduled ("Demo mode: schedules are
 not created") and the page shows sample results.
 
 ---

@@ -88,8 +88,10 @@ public sealed class ScreenshotRunner
             await CaptureOverlayAsync(Path.Combine(dir, overlayFile), cancellationToken);
             index["Overlay"] = overlayFile;
 
-            // The tray popup is an extra; a failure here must not cost the page screenshots.
+            // A tray failure must not cost the page screenshots, so they and index.json are still written, but the
+            // run fails at the end: the README shows the tray image, so a missing one has to be noticed.
             var trayFile = $"{number + 1:00}-tray.png";
+            string? trayError = null;
             try
             {
                 await Tray.TrayScreenshot.CaptureAsync(_services, Path.Combine(dir, trayFile), cancellationToken);
@@ -97,28 +99,39 @@ public sealed class ScreenshotRunner
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                _logger.LogWarning(ex, "The tray popup could not be captured; continuing without it.");
+                _logger.LogError(ex, "The tray popup could not be captured.");
+                trayError = ex.Message;
             }
 
             var json = JsonSerializer.Serialize(new { generated = DateTimeOffset.Now, width = WindowWidth, height = WindowHeight, pages = index },
                 new JsonSerializerOptions { WriteIndented = true });
             await File.WriteAllTextAsync(Path.Combine(dir, "index.json"), json, cancellationToken);
             _logger.LogInformation("Screenshot run finished: {Count} images.", index.Count);
+            if (trayError is not null)
+            {
+                WriteError($"The tray popup ({trayFile}) could not be captured: {trayError}");
+                return 1;
+            }
+
             return 0;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Screenshot run failed.");
-            try
-            {
-                Console.Error.WriteLine("Screenshot run failed: " + ex.Message);
-            }
-            catch
-            {
-                // No console attached.
-            }
-
+            WriteError("Screenshot run failed: " + ex.Message);
             return 1;
+        }
+    }
+
+    private static void WriteError(string message)
+    {
+        try
+        {
+            Console.Error.WriteLine(message);
+        }
+        catch
+        {
+            // No console attached.
         }
     }
 

@@ -133,7 +133,7 @@ public sealed partial class TrayPopupViewModel : ObservableObject
 
     private async Task SwitchAsync(string? previous, string name)
     {
-        Status = $"Applying \"{name}\"…";
+        // The tray service shows "Applying …" once the user has agreed to fan control.
         bool ok = await _actions.SwitchFanProfileAsync(name);
         Status = ok ? $"Fan profile \"{name}\" is active." : null;
         if (!ok)
@@ -154,7 +154,6 @@ public sealed partial class TrayPopupViewModel : ObservableObject
     private async Task QuickCleanAsync()
     {
         IsCleaning = true;
-        Status = "Cleaning temporary files…";
         try
         {
             await _actions.QuickCleanAsync();

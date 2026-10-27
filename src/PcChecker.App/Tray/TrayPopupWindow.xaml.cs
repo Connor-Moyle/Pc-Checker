@@ -24,8 +24,16 @@ public partial class TrayPopupWindow : Window
     /// <summary>Set before closing for good (Exit, shutdown); otherwise Alt+F4 only hides the popup so it can open again.</summary>
     public bool AllowClose { get; set; }
 
+    /// <summary>True while a confirmation dialog from the popup is open, so losing focus to it does not hide the popup.</summary>
+    public bool KeepOpen { get; set; }
+
     private void OnDeactivated(object? sender, EventArgs e)
     {
+        if (KeepOpen)
+        {
+            return;
+        }
+
         LastHiddenUtc = DateTime.UtcNow;
         Hide();
     }

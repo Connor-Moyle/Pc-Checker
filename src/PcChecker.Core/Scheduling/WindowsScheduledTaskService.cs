@@ -1,4 +1,4 @@
-using System.Text;
+using System.Security.AccessControl;
 using Microsoft.Extensions.Logging;
 using PcChecker.Core.Common;
 using PcChecker.Core.Restore;
@@ -53,10 +53,10 @@ public sealed class WindowsScheduledTaskService : IScheduledTaskService
             return OperationResult.Fail(problem);
         }
 
-        SchtasksCommand command;
+        string xml;
         try
         {
-            command = SchtasksCommandBuilder.Create(schedule, ExecutablePath!);
+            xml = JobTaskXml.Build(schedule, ExecutablePath!, CurrentUserId(), DateOnly.FromDateTime(DateTime.Now));
         }
         catch (ArgumentException ex)
         {
@@ -69,9 +69,9 @@ public sealed class WindowsScheduledTaskService : IScheduledTaskService
             "Turn the schedule off in Settings → Schedules, or delete the task from the \"PC Checker\" folder in Task Scheduler.");
         return await _guard.RunGuardedAsync(description, options, async ct =>
         {
-            var output = await RunAsync(command, ct).ConfigureAwait(false);
+            var output = await RegisterFromXmlAsync(name, xml, ct).ConfigureAwait(false);
             return output.Success
-                ? OperationResult.Ok($"Windows will run \"{ScheduledJobIds.DisplayName(schedule.Job)}\" {ScheduleRules.DescribeInline(schedule)}, even while PC Checker is closed.")
+                ? OperationResult.Ok($"Windows will run \"{ScheduledJobIds.DisplayName(schedule.Job)}\" {ScheduleRules.DescribeInline(schedule)}, even while PC Checker is closed or the PC is on battery.")
                 : OperationResult.Fail("Task Scheduler refused the schedule: " + Describe(output));
         }, null, cancellationToken).ConfigureAwait(false);
     }
@@ -105,21 +105,12 @@ public sealed class WindowsScheduledTaskService : IScheduledTaskService
             "Turn off \"Start with Windows\" in Settings → Tray, or delete the \"Start\" task from the \"PC Checker\" folder in Task Scheduler.");
         return await _guard.RunGuardedAsync("Start PC Checker when you sign in to Windows", options, async ct =>
         {
-            var xmlPath = Path.Combine(Path.GetTempPath(), "PcChecker-logon-" + Guid.NewGuid().ToString("N") + ".xml");
-            try
-            {
-                await File.WriteAllTextAsync(xmlPath, xml, Encoding.Unicode, ct).ConfigureAwait(false);
-                var output = await RunAsync(SchtasksCommandBuilder.CreateLogon(xmlPath), ct).ConfigureAwait(false);
-                return output.Success
-                    ? OperationResult.Ok(startInTray
-                        ? "PC Checker will start in the tray when you sign in, without a UAC prompt."
-                        : "PC Checker will open when you sign in, without a UAC prompt.")
-                    : OperationResult.Fail("Task Scheduler refused the logon task: " + Describe(output));
-            }
-            finally
-            {
-                TryDelete(xmlPath);
-            }
+            var output = await RegisterFromXmlAsync(SchtasksCommandBuilder.LogonTaskName, xml, ct).ConfigureAwait(false);
+            return output.Success
+                ? OperationResult.Ok(startInTray
+                    ? "PC Checker will start in the tray when you sign in, without a UAC prompt."
+                    : "PC Checker will open when you sign in, without a UAC prompt.")
+                : OperationResult.Fail("Task Scheduler refused the logon task: " + Describe(output));
         }, null, cancellationToken).ConfigureAwait(false);
     }
 
@@ -135,15 +126,23 @@ public sealed class WindowsScheduledTaskService : IScheduledTaskService
         return string.IsNullOrWhiteSpace(domain) ? user : domain + "\\" + user;
     }
 
-    private void TryDelete(string path)
+    /// <summary>
+    /// Registers a task from its XML definition. The file lives in a folder only administrators can write to (see
+    /// <see cref="ProtectedTaskFile"/>), so nobody can swap the definition before schtasks reads it.
+    /// </summary>
+    private async Task<CommandOutput> RegisterFromXmlAsync(string taskName, string xml, CancellationToken cancellationToken)
     {
         try
         {
-            File.Delete(path);
+            return await ProtectedTaskFile.UseAsync(xml,
+                (path, ct) => RunAsync(SchtasksCommandBuilder.CreateFromXml(taskName, path), ct),
+                ex => _logger.LogDebug(ex, "Could not remove the temporary task definition folder."),
+                cancellationToken).ConfigureAwait(false);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or PrivilegeNotHeldException)
         {
-            _logger.LogDebug(ex, "Could not delete the temporary task file {Path}.", path);
+            _logger.LogWarning(ex, "Could not prepare a protected task definition for {Task}.", taskName);
+            return new CommandOutput(-1, string.Empty, "Could not prepare the task definition in a protected folder: " + ex.Message, false);
         }
     }
 

@@ -214,7 +214,9 @@ local machine.
   Windows* you turn on yourself in Settings (both off by default). They are
   ordinary tasks in the "PC Checker" folder of Task Scheduler, scheduled
   cleanup only ever touches Safe categories, and turning a switch off removes
-  its task.
+  its task. Their definitions are handed to Task Scheduler through a folder
+  only Administrators can change, so another program cannot slip its own
+  command into a task that runs with administrator rights.
 - Delete user documents, pictures, downloads or anything outside its category
   roots
 - Change settings it did not show you first
