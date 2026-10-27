@@ -24,6 +24,9 @@
       <Setter Property="FontWeight" Value="SemiBold" />
       <Setter Property="Foreground" Value="White" />
     </Style>
+    <Style x:Key="Tile" TargetType="controls:StatCard">
+      <Setter Property="Margin" Value="0" />
+    </Style>
     <Style x:Key="ToolButton" TargetType="ui:Button" BasedOn="{StaticResource DefaultUiButtonStyle}">
       <Setter Property="Margin" Value="0,0,8,8" />
     </Style>
@@ -158,51 +161,49 @@
       <RowDefinition Height="*" />
     </Grid.RowDefinitions>
 
-    <controls:SectionHeader Grid.Row="0" Title="Audio" Subtitle="Sound devices, default outputs, volumes and per-app mixing.">
+    <controls:SectionHeader Grid.Row="0" Title="Audio"
+                            Subtitle="{Binding LastRefreshedText, TargetNullValue='Sound devices, default outputs, volumes and per-app mixing.'}">
       <controls:SectionHeader.Actions>
         <StackPanel Orientation="Horizontal">
-          <ui:TextBlock Style="{StaticResource Caption}" Text="{Binding LastRefreshedText}" VerticalAlignment="Center" Margin="0,0,12,0" />
+          <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,12,0"
+                      Visibility="{Binding IsLiveMetering, Converter={StaticResource BoolToVisibility}}"
+                      ToolTip="The green bars show the real sound level while this page is open; polling stops as soon as you leave the page.">
+            <Ellipse Width="8" Height="8" Fill="{StaticResource AccentGreenBrush}" VerticalAlignment="Center" Margin="0,0,6,0" />
+            <ui:TextBlock Style="{StaticResource Caption}" Text="Live levels" VerticalAlignment="Center" />
+          </StackPanel>
           <ui:Button Content="Sound settings" Icon="{ui:SymbolIcon Settings24}" Command="{Binding OpenSoundSettingsCommand}" Margin="0,0,8,0"
-                     ToolTip="Opens Windows Settings → System → Sound." />
+                     ToolTip="Opens Windows Settings → System → Sound (spatial audio, mono audio, app defaults)." />
           <ui:Button Content="Refresh" Appearance="Primary" Icon="{ui:SymbolIcon ArrowSync24}" Command="{Binding RefreshCommand}" />
         </StackPanel>
       </controls:SectionHeader.Actions>
     </controls:SectionHeader>
 
-    <ui:InfoBar Grid.Row="1"
-                Severity="Error"
-                Title="Something went wrong"
-                Message="{Binding ErrorMessage}"
-                IsOpen="{Binding HasError, Mode=OneWay}"
-                IsClosable="True"
-                Margin="0,0,0,12" />
+    <StackPanel Grid.Row="1">
+      <ui:InfoBar Severity="Error" Title="Something went wrong" Message="{Binding ErrorMessage}"
+                  IsOpen="{Binding HasError, Mode=OneWay}" IsClosable="True" Margin="0,0,0,12" />
+      <ui:InfoBar Severity="Warning" Title="No sound devices" Message="{Binding StatusMessage}"
+                  IsOpen="True" IsClosable="False" Margin="0,0,0,12"
+                  Visibility="{Binding StatusMessage, Converter={StaticResource NullToVisibility}}" />
+    </StackPanel>
 
     <ScrollViewer Grid.Row="2" Style="{StaticResource PageScroll}">
       <StackPanel>
 
         <!-- Summary -->
-        <UniformGrid Columns="3" Margin="0,0,0,12">
-          <controls:StatCard Title="Default output" Icon="Speaker224" Accent="{StaticResource AccentCyanBrush}" Margin="0,0,12,0"
+        <controls:AdaptiveGrid MinItemWidth="200" MaxColumns="3" Margin="0,0,0,12">
+          <controls:StatCard Style="{StaticResource Tile}" Title="Default output" Icon="Speaker224" Accent="{StaticResource AccentCyanBrush}"
                              Value="{Binding DefaultOutputName}" Subtitle="{Binding DefaultOutputDetail}" />
-          <controls:StatCard Title="Default microphone" Icon="Mic24" Accent="{StaticResource AccentPurpleBrush}" Margin="0,0,12,0"
+          <controls:StatCard Style="{StaticResource Tile}" Title="Default microphone" Icon="Mic24" Accent="{StaticResource AccentPurpleBrush}"
                              Value="{Binding DefaultInputName}" Subtitle="{Binding DefaultInputDetail}" />
-          <controls:StatCard Title="Apps playing sound" Icon="AppsList24" Accent="{StaticResource AccentGreenBrush}"
+          <controls:StatCard Style="{StaticResource Tile}" Title="Apps playing sound" Icon="AppsList24" Accent="{StaticResource AccentGreenBrush}"
                              Value="{Binding SessionCount}" Subtitle="{Binding SessionSummary}" />
-        </UniformGrid>
-
-        <ui:InfoBar Severity="Warning"
-                    Title="No sound devices"
-                    Message="{Binding StatusMessage}"
-                    IsOpen="True"
-                    IsClosable="False"
-                    Margin="0,0,0,12"
-                    Visibility="{Binding StatusMessage, Converter={StaticResource NullToVisibility}}" />
+        </controls:AdaptiveGrid>
 
         <!-- Devices: two columns -->
         <Grid>
           <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*" />
-            <ColumnDefinition Width="16" />
+            <ColumnDefinition Width="12" />
             <ColumnDefinition Width="*" />
           </Grid.ColumnDefinitions>
 
@@ -238,12 +239,14 @@
                 <ColumnDefinition Width="Auto" />
               </Grid.ColumnDefinitions>
               <StackPanel Grid.Column="0">
-                <ui:TextBlock FontTypography="Subtitle" Text="Per-app volume" />
+                <ui:TextBlock Style="{StaticResource CardTitle}" Text="Per-app volume" Margin="0,0,0,2" />
                 <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap"
-                              Text="Each app that has played sound recently gets its own volume, like the Windows volume mixer. Apps that are closed disappear from the list." />
+                              Text="Each app that played sound recently gets its own volume."
+                              ToolTip="Like the Windows volume mixer. Apps that are closed disappear from the list." />
               </StackPanel>
               <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top">
-                <ui:Button Content="Open Windows mixer" Icon="{ui:SymbolIcon WindowApps24}" Command="{Binding OpenVolumeMixerCommand}" Margin="0,0,8,0" />
+                <ui:Button Content="Windows mixer" Icon="{ui:SymbolIcon WindowApps24}" Command="{Binding OpenVolumeMixerCommand}" Margin="0,0,8,0"
+                           ToolTip="The classic Windows volume mixer." />
                 <ui:Button Content="Refresh apps" Icon="{ui:SymbolIcon ArrowSync24}" Command="{Binding RefreshSessionsCommand}" />
               </StackPanel>
             </Grid>
@@ -253,45 +256,30 @@
           </StackPanel>
         </ui:Card>
 
-        <!-- Quick tools -->
-        <ui:Card Style="{StaticResource CardSpacing}">
+        <!-- Rarely needed: repair tools and where the per-device Windows settings live. -->
+        <ui:CardExpander Icon="{ui:SymbolIcon Wrench24}" IsExpanded="False" Margin="0,0,0,12" ContentPadding="16">
+          <ui:CardExpander.Header>
+            <StackPanel>
+              <ui:TextBlock FontTypography="BodyStrong" Text="Fix sound problems" />
+              <ui:TextBlock Style="{StaticResource Muted}" Text="No sound, crackling, or a missing device? Try these in order." />
+            </StackPanel>
+          </ui:CardExpander.Header>
           <StackPanel>
-            <ui:TextBlock FontTypography="Subtitle" Text="Fix sound problems" Margin="0,0,0,4" />
-            <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,12"
-                          Text="No sound, crackling, or a device that stopped showing up? Try these in order. Restarting the audio service cuts sound for a few seconds and asks for confirmation first." />
             <WrapPanel>
               <ui:Button Style="{StaticResource ToolButton}" Content="Restart audio service" Appearance="Caution" Icon="{ui:SymbolIcon ArrowReset24}"
                          Command="{Binding RestartAudioServiceCommand}"
-                         ToolTip="Stops and starts the Windows Audio service (Audiosrv). Fixes most 'no sound' problems without a reboot." />
+                         ToolTip="Stops and starts the Windows Audio service (Audiosrv). Fixes most 'no sound' problems without a reboot. Sound cuts out for a few seconds; you confirm first." />
               <ui:Button Style="{StaticResource ToolButton}" Content="Run troubleshooter" Icon="{ui:SymbolIcon Stethoscope24}"
                          Command="{Binding RunTroubleshooterCommand}"
                          ToolTip="Runs the Windows audio troubleshooter, which checks drivers, defaults and muted devices." />
-              <ui:Button Style="{StaticResource ToolButton}" Content="Sound settings" Icon="{ui:SymbolIcon Settings24}"
-                         Command="{Binding OpenSoundSettingsCommand}"
-                         ToolTip="Windows Settings → System → Sound (spatial audio, mono audio, app defaults)." />
-              <ui:Button Style="{StaticResource ToolButton}" Content="Volume mixer" Icon="{ui:SymbolIcon WindowApps24}"
-                         Command="{Binding OpenVolumeMixerCommand}"
-                         ToolTip="The classic Windows volume mixer." />
               <ui:Button Style="{StaticResource ToolButton}" Content="Sound control panel" Icon="{ui:SymbolIcon Options24}"
                          Command="{Binding OpenControlPanelCommand}"
                          ToolTip="The classic Sound dialog (mmsys.cpl) with every device's Properties tabs." />
             </WrapPanel>
+            <ui:TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,4,0,0"
+                          Text="Enhancements, exclusive mode and the default format are per-device Windows settings: press Properties on a device, then open the Enhancements and Advanced tabs." />
           </StackPanel>
-        </ui:Card>
-
-        <ui:InfoBar Severity="Informational"
-                    Title="Where are enhancements and exclusive mode?"
-                    Message="Those are per-device Windows settings. Press Properties on a device, then open the Enhancements and Advanced tabs: that is where you turn off 'allow applications to take exclusive control', change the default format and disable audio enhancements that can cause crackling."
-                    IsOpen="True"
-                    IsClosable="False"
-                    Margin="0,0,0,12" />
-
-        <ui:InfoBar Severity="Informational"
-                    Title="Live meters"
-                    Message="The green bars show the real sound level while this page is open; polling stops as soon as you leave the page."
-                    IsOpen="{Binding IsLiveMetering, Mode=OneWay}"
-                    IsClosable="True"
-                    Margin="0,0,0,12" />
+        </ui:CardExpander>
       </StackPanel>
     </ScrollViewer>
 
