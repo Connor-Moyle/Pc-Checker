@@ -11,6 +11,7 @@ them as tabs above the content:
 ```
 Home            Dashboard
 Monitor         Temperatures · Power · Processes
+Monitor         Temperatures · Power · History
 Hardware        Overview · Health · Storage · Memory
 Devices         Displays · Audio · Keyboard & Mouse
 Cooling & RGB   Fans · Lighting
@@ -137,6 +138,44 @@ Limitations: protected processes and programs of other accounts may refuse
 to be ended or show no path, user or memory figure. The GPU column is empty
 when the graphics driver has no *GPU Engine* performance counters. CPU and
 disk figures are averages over the last refresh.
+### History
+
+What the PC did over the last hour, day, week, month or three months.
+
+- **Recording**: while PC Checker is open, also when it is minimised to the
+  tray, a background recorder takes one sample a minute (configurable): the
+  highest CPU and GPU temperature in that minute, the average CPU and GPU
+  load, power draw and memory use, and the free space of every fixed drive
+  once an hour. Every health check (on the Health page, the Dashboard or a
+  scheduled run) adds its score.
+- **Storage**: one small JSON Lines file per day in
+  `%LOCALAPPDATA%\PcChecker\history`. After 7 days a day is rolled up to
+  15-minute points and after 30 days to hourly points (temperature peaks and
+  the lowest health score are kept, loads and power are averaged), so 90 days
+  take a few megabytes. Days older than the retention setting (default 90)
+  are deleted. A line cut short by a crash or power cut is skipped and
+  dropped at the next roll-up. Nothing leaves the PC.
+- **Range picker**: last hour, 24 hours, 7 days, 30 days or 90 days.
+- **Tiles**: hottest CPU and GPU with when it happened, energy used in kWh
+  with its cost at your electricity price, and the number of notable events.
+- **Charts**: one per metric (temperatures with the warning limit as a dashed
+  line, loads, power, memory, health score, free space per drive) with value
+  and time axes, average, highest and lowest, gaps where the PC was off, and
+  the exact value under the mouse.
+- **Notable events**: temperature spells above your warning limits (one per
+  spell, at its peak; critical when the critical limit was reached), sudden
+  drops in a drive's free space (at least 10 GB and 5 % within a day), and
+  health scores that fell by 5 points or more.
+- **Export CSV** saves the recorded values of the chosen range. *More* opens
+  the history folder or the recording settings.
+- **Settings → History**: record on or off, how often (30 seconds to 15
+  minutes) and how many days to keep (7 to 365).
+
+Limitations: nothing is recorded while PC Checker is closed, so those times
+show as gaps. Temperatures, loads and power need the same sensors as the
+Temperatures and Power pages; without them only memory, free space and
+health scores are recorded. Demo mode shows 30 days of generated history and
+writes nothing to disk.
 
 ### Overlay
 

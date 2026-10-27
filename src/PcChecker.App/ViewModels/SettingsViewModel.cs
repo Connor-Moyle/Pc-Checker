@@ -165,6 +165,7 @@ public sealed partial class SettingsViewModel : ViewModelBase
             BypassRestorePointFrequencyLimit = s.RestorePoints.BypassFrequencyLimit;
             LoadUpdateSettings(s);
             LoadSectionSettings(s);
+            LoadHistorySettings(s);
             LoadTraySettings(s);
             LoadScheduleSettings(s);
             LoadLanguageSettings(s);
@@ -375,6 +376,7 @@ public sealed partial class SettingsViewModel : ViewModelBase
         current.Memory = defaults.Memory;
         current.Latency = defaults.Latency;
         current.Startup = defaults.Startup;
+        current.History = defaults.History;
         await ResetTrayAndSchedulesAsync(current, defaults);
         await SaveNowAsync();
         LoadFromSettings();

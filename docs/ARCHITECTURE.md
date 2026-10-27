@@ -42,6 +42,7 @@ Every project targets `net8.0-windows10.0.19041.0`. `EnableWindowsTargeting` is 
 | `Restore` | `IRestorePointService`, `IChangeGuard`, `ChangeGuard` |
 | `Overclocking` | `IOverclockService`, profiles and plans, `OverclockSafetyValidator`, `OverclockPlanParser` |
 | `Power` | `IPowerService`, power snapshots and plans |
+| `History` | `IHistoryService` (background recorder), `HistoryFileStore` (one JSON Lines file per day), `HistoryLineCodec`, `HistoryRollup`, `HistoryRetention`, `HistoryEventDetector`, `HistoryCsvExporter`, `DemoHistoryGenerator` |
 | `Updates` | `IAppUpdateService` (single-exe self-update from GitHub Releases, SHA-256 verified) |
 | `Assistant` | `IPcAssistantService`, `AssistantContextBuilder` |
 | `Reports` | `IReportService`, `ReportBundle` |
@@ -93,6 +94,7 @@ The side menu has one item per section; a section with several pages shows them 
 ```
 Home            Dashboard
 Monitor         Temperatures · Power · Processes
+Monitor         Temperatures · Power · History
 Hardware        Overview · Health · Storage · Memory
 Devices         Displays · Audio · Keyboard & Mouse
 Cooling & RGB   Fans · Lighting

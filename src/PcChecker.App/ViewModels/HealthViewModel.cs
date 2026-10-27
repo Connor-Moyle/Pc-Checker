@@ -9,6 +9,7 @@ using PcChecker.App.Views.Pages;
 using PcChecker.Core.Assistant;
 using PcChecker.Core.Common;
 using PcChecker.Core.Health;
+using PcChecker.Core.History;
 using PcChecker.Core.Settings;
 using Wpf.Ui;
 
@@ -21,6 +22,7 @@ namespace PcChecker.App.ViewModels;
 public sealed partial class HealthViewModel : ViewModelBase
 {
     private readonly IHealthService _health;
+    private readonly IHistoryService _history;
     private readonly INavigationService _navigation;
     private readonly IPcAssistantService _assistant;
     private readonly INotificationService _notifications;
@@ -68,10 +70,11 @@ public sealed partial class HealthViewModel : ViewModelBase
     private string _crashDumpFolder = string.Empty;
 
     public HealthViewModel(IHealthService health, ISettingsService settings, INavigationService navigation,
-        IPcAssistantService assistant, INotificationService notifications, ILogger<HealthViewModel> logger)
+        IPcAssistantService assistant, INotificationService notifications, IHistoryService history, ILogger<HealthViewModel> logger)
         : base(settings)
     {
         _health = health;
+        _history = history;
         _navigation = navigation;
         _assistant = assistant;
         _notifications = notifications;
@@ -160,6 +163,11 @@ public sealed partial class HealthViewModel : ViewModelBase
         var progress = new Progress<ProgressUpdate>(p => ProgressText = p.Percent is { } pct ? $"{p.Stage} ({pct:0}%)" : p.Stage);
         var report = await _health.AnalyzeAsync(progress, linked.Token);
         Apply(report);
+        if (report.Items.Count > 0)
+        {
+            // The History page charts the score of every check.
+            _history.RecordHealthScore(report.Captured, report.Score);
+        }
         ProgressText = null;
     }, "Checking drives, devices, logs and security…");
 

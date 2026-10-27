@@ -258,6 +258,50 @@
           </StackPanel>
         </ui:Card>
 
+        <!-- ================= History ================= -->
+        <ui:Card Style="{StaticResource CardSpacing}">
+          <StackPanel>
+            <Grid Margin="0,0,0,10">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
+              <StackPanel Grid.Column="0" Orientation="Horizontal">
+                <ui:SymbolIcon Style="{StaticResource GroupIcon}" Symbol="History24" />
+                <ui:TextBlock Style="{StaticResource GroupTitle}" Text="History" />
+              </StackPanel>
+              <ui:Button Grid.Column="1" Content="History page" Icon="{ui:SymbolIcon History24}" Command="{Binding OpenHistoryPageCommand}" />
+            </Grid>
+            <ui:CardControl Style="{StaticResource Row}" Icon="{ui:SymbolIcon Record24}">
+              <ui:CardControl.Header>
+                <StackPanel>
+                  <ui:TextBlock Text="Record history" />
+                  <ui:TextBlock Style="{StaticResource Muted}" Text="Temperatures, loads, power and free space, kept in small files on this PC only." />
+                </StackPanel>
+              </ui:CardControl.Header>
+              <ui:ToggleSwitch IsChecked="{Binding HistoryEnabled}" />
+            </ui:CardControl>
+            <ui:CardControl Style="{StaticResource Row}" Icon="{ui:SymbolIcon Timer24}" IsEnabled="{Binding HistoryEnabled}">
+              <ui:CardControl.Header>
+                <StackPanel>
+                  <ui:TextBlock Text="Record a sample" />
+                  <ui:TextBlock Style="{StaticResource Muted}" Text="Short temperature peaks are kept whatever you choose." />
+                </StackPanel>
+              </ui:CardControl.Header>
+              <ComboBox MinWidth="170" ItemsSource="{Binding HistoryIntervals}" SelectedItem="{Binding HistoryInterval}" DisplayMemberPath="Label" />
+            </ui:CardControl>
+            <ui:CardControl Style="{StaticResource Row}" Icon="{ui:SymbolIcon CalendarClock24}" Margin="0">
+              <ui:CardControl.Header>
+                <StackPanel>
+                  <ui:TextBlock Text="Keep history for (days)" />
+                  <ui:TextBlock Style="{StaticResource Muted}" Text="Older days are deleted automatically. 90 days use a few megabytes." />
+                </StackPanel>
+              </ui:CardControl.Header>
+              <ui:NumberBox Style="{StaticResource Num}" Minimum="7" Maximum="365" SmallChange="7" MaxDecimalPlaces="0" Value="{Binding HistoryRetentionDays, Mode=TwoWay}" />
+            </ui:CardControl>
+          </StackPanel>
+        </ui:Card>
+
         <!-- ================= Tray and startup ================= -->
         <ui:Card Style="{StaticResource CardSpacing}">
           <StackPanel>

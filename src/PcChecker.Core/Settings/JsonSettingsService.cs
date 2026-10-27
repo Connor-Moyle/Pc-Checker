@@ -171,6 +171,7 @@ public sealed class JsonSettingsService : ISettingsService
         s.Latency ??= new LatencySettings();
         s.Latency.PingTargets ??= ["gateway", "1.1.1.1", "8.8.8.8"];
         s.Startup ??= new StartupSettings();
+        s.History ??= new History.HistorySettings();
         return s;
     }
 }

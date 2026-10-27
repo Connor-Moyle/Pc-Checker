@@ -18,6 +18,7 @@ using PcChecker.Core.Fans;
 using PcChecker.Core.Gaming;
 using PcChecker.Core.Hardware;
 using PcChecker.Core.Health;
+using PcChecker.Core.History;
 using PcChecker.Core.Input;
 using PcChecker.Core.Latency;
 using PcChecker.Core.Lighting;
@@ -96,6 +97,7 @@ public static class ServiceRegistration
         Add<IRestorePointService, WindowsRestorePointService, DemoRestorePointService>(services, demo);
         Add<IOverclockService, WindowsOverclockService, DemoOverclockService>(services, demo);
         Add<IPowerService, WindowsPowerService, DemoPowerService>(services, demo);
+        Add<IHistoryService, WindowsHistoryService, DemoHistoryService>(services, demo);
         Add<IAppUpdateService, GitHubExeUpdateService, DemoAppUpdateService>(services, demo);
         Add<IPcAssistantService, ClaudeAssistantService, DemoPcAssistantService>(services, demo);
         Add<IFanControlService, LibreHardwareFanControlService, DemoFanControlService>(services, demo);
@@ -154,6 +156,7 @@ public static class ServiceRegistration
         services.AddSingleton<SensorsViewModel>().AddSingleton<SensorsPage>();
         services.AddSingleton<PowerViewModel>().AddSingleton<PowerPage>();
         services.AddSingleton<ProcessesViewModel>().AddSingleton<ProcessesPage>();
+        services.AddSingleton<HistoryViewModel>().AddSingleton<HistoryPage>();
         services.AddSingleton<OverlayViewModel>().AddSingleton<OverlayPage>();
         services.AddSingleton<HardwareViewModel>().AddSingleton<HardwarePage>();
         services.AddSingleton<HealthViewModel>().AddSingleton<HealthPage>();

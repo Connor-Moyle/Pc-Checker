@@ -1,6 +1,7 @@
 using PcChecker.Core.Displays;
 using PcChecker.Core.Fans;
 using PcChecker.Core.Gaming;
+using PcChecker.Core.History;
 using PcChecker.Core.Input;
 using PcChecker.Core.Lighting;
 using PcChecker.Core.Logging;
@@ -33,6 +34,7 @@ public sealed class AppSettings
     public GamingSettings Gaming { get; set; } = new();
     public TraySettings Tray { get; set; } = new();
     public SchedulesSettings Schedules { get; set; } = new();
+    public HistorySettings History { get; set; } = new();
 
     /// <summary>Returns a fresh instance with every value at its default.</summary>
     public static AppSettings CreateDefault() => new();

@@ -12,6 +12,7 @@ using PcChecker.App.Views.Windows;
 using PcChecker.Core.Common;
 using PcChecker.Core.Logging;
 using PcChecker.Core.Scheduling;
+using PcChecker.Core.History;
 using PcChecker.Core.Sensors;
 using PcChecker.Core.Settings;
 
@@ -108,6 +109,7 @@ public partial class App : Application
         }
 
         StartGameProfiles();
+        StartHistory();
 
         if (options.ScreenshotsDirectory is { } directory)
         {
@@ -292,6 +294,19 @@ public partial class App : Application
         }
     }
 
+    /// <summary>Starts the background history recorder (it follows the History settings from then on).</summary>
+    private void StartHistory()
+    {
+        try
+        {
+            _services!.GetRequiredService<IHistoryService>().Start();
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "The history recorder could not be started.");
+        }
+    }
+
     private static void WaitForPreviousInstance(int processId)
     {
         try
@@ -322,6 +337,16 @@ public partial class App : Application
         if (!_headless)
         {
             OverclockStartupGuard.MarkClean(_services);
+        }
+
+        try
+        {
+            // Writes the sample collected so far before the sensors stop.
+            _services?.GetService<IHistoryService>()?.Stop();
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "The history recorder did not stop cleanly.");
         }
 
         try

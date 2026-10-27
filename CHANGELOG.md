@@ -20,6 +20,14 @@ All notable changes to PC Checker are recorded here. The format follows
   sorting, search and grouping by app, and informational flags for programs
   that may be unwanted. End task, end process tree and set priority are
   confirmed and journaled; critical Windows processes are never offered.
+- **History** (Monitor → History): PC Checker records CPU and GPU
+  temperature peaks, loads, power draw, memory use, free space per drive and
+  health scores in the background, also while it sits in the tray. Pick the
+  last hour, day, week, 30 or 90 days to see a chart per metric with the
+  value under the mouse, notable events (temperature peaks above your limits,
+  sudden drops in free space, falling health scores) and export the range as
+  CSV. Older days are rolled up to 15-minute and hourly points and deleted
+  after 90 days (Settings → History); nothing leaves the PC.
 
 ## [0.3.0] - 2026-10-27
 

@@ -5,6 +5,8 @@ using H.NotifyIcon.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using PcChecker.Core.Common;
+using PcChecker.Core.Health;
+using PcChecker.Core.History;
 using PcChecker.Core.Scheduling;
 using PcChecker.Core.Settings;
 
@@ -197,6 +199,8 @@ public sealed class ScheduledRunner : IDisposable
                 return 0;
             }
 
+            RecordHealthScore(services, logger);
+
             var settings = services.GetRequiredService<ISettingsService>().Current;
             if (JobResultSummarizer.ShouldNotify(result, ScheduleRules.EnsureSettings(settings).NotifyOnlyWhenAttention))
             {
@@ -210,6 +214,22 @@ public sealed class ScheduledRunner : IDisposable
         }
 
         return result.Success ? 0 : 1;
+    }
+
+    /// <summary>A headless health or report run adds its health score to the History page like an in-app check.</summary>
+    private static void RecordHealthScore(IServiceProvider services, ILogger? logger)
+    {
+        try
+        {
+            if (services.GetService<IHealthService>()?.Last is { Items.Count: > 0 } report)
+            {
+                services.GetService<IHistoryService>()?.RecordHealthScore(report.Captured, report.Score);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger?.LogWarning(ex, "The health score could not be added to the history.");
+        }
     }
 
     private static async Task ShowTemporaryNotificationAsync(ScheduledJobResult result, ILogger? logger)
