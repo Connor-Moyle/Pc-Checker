@@ -155,7 +155,12 @@ public static partial class CleanupRules
 
         var rootList = roots.Select(Normalize).Where(r => r.Length > 0).ToList();
         var dir = Normalize(directory);
-        var root = rootList.FirstOrDefault(r => dir.StartsWith(r + "\\", StringComparison.OrdinalIgnoreCase));
+        // Depth counts from the deepest root holding the folder: C:\Windows\LiveKernelReports\WATCHDOG is a first-level
+        // folder of C:\Windows\LiveKernelReports even when C:\Windows is a root of the same category.
+        var root = rootList
+            .Where(r => dir.StartsWith(r + "\\", StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(r => r.Length)
+            .FirstOrDefault();
         if (root is null)
         {
             return false;

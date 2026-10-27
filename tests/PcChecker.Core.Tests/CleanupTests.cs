@@ -379,6 +379,11 @@ public class CleanupRulesTests
         Assert.False(CleanupRules.MayPrune(@"C:\Windows\System32", roots, "windows.logs"));
         Assert.False(CleanupRules.MayPrune(null, roots, "windows.logs"));
 
+        // With nested roots the depth counts from the deepest one: LiveKernelReports\WATCHDOG is first-level there.
+        string[] dumpRoots = [@"C:\Windows\Minidump", @"C:\Windows", @"C:\Windows\LiveKernelReports"];
+        Assert.False(CleanupRules.MayPrune(@"C:\Windows\LiveKernelReports\WATCHDOG", dumpRoots, "crash.dumps"));
+        Assert.True(CleanupRules.MayPrune(@"C:\Windows\LiveKernelReports\WATCHDOG\old", dumpRoots, "crash.dumps"));
+
         // Scratch folders may lose any emptied sub-folder.
         Assert.True(CleanupRules.MayPrune(@"C:\Users\a\AppData\Local\Temp\setup", [@"C:\Users\a\AppData\Local\Temp"], "user.temp"));
         Assert.True(CleanupRules.MayPrune(@"C:\Windows\Temp\x", [@"C:\Windows\Temp"], "windows.temp"));
