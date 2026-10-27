@@ -36,6 +36,9 @@ public sealed partial class DebloatViewModel : ViewModelBase
     [ObservableProperty] private bool _isLoadingStates;
     [ObservableProperty] private bool _isIntroOpen = true;
     [ObservableProperty] private bool _hasResults;
+
+    /// <summary>The per-tweak results open by themselves after a run, so failures and restart hints are not hidden.</summary>
+    [ObservableProperty] private bool _isResultsExpanded;
     [ObservableProperty] private string _resultsTitle = string.Empty;
     [ObservableProperty] private string _resultsMessage = string.Empty;
     [ObservableProperty] private InfoBarSeverity _resultsSeverity = InfoBarSeverity.Success;

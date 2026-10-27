@@ -151,15 +151,18 @@ public sealed class WindowsDebloatService : DebloatServiceBase
             bool protectionOn = await _restorePoints.IsEnabledAsync(cancellationToken).ConfigureAwait(false);
             DateTimeOffset? newest = null;
             bool limitLifted = _settings.Current.RestorePoints.BypassFrequencyLimit;
-            if (protectionOn && !limitLifted)
+
+            // The PC may already allow more than one restore point per day (SystemRestorePointCreationFrequency = 0).
+            var window = DebloatRestorePointRules.WindowFor(ReadCreationFrequencyMinutes());
+            if (protectionOn && !limitLifted && window > TimeSpan.Zero)
             {
                 var points = await _restorePoints.ListAsync(cancellationToken).ConfigureAwait(false);
                 newest = points.Count == 0 ? null : points.Max(p => p.CreationTime);
             }
 
-            var problem = DebloatRestorePointRules.Assess(protectionOn, newest, DateTimeOffset.Now, limitLifted);
+            var problem = DebloatRestorePointRules.Assess(protectionOn, newest, DateTimeOffset.Now, limitLifted, window);
             _logger.LogInformation("Debloat restore point check: {Problem}.", problem);
-            return new DebloatRestorePointCheck(true, problem, DebloatRestorePointRules.Describe(problem, SystemDrive));
+            return new DebloatRestorePointCheck(true, problem, DebloatRestorePointRules.Describe(problem, SystemDrive)) { ProtectionOn = protectionOn };
         }
         catch (OperationCanceledException)
         {
@@ -170,6 +173,27 @@ public sealed class WindowsDebloatService : DebloatServiceBase
             // Unknown: the batch tries anyway, and an actual failure is reported (and asked about) afterwards.
             _logger.LogWarning(ex, "Could not check System Protection before the debloat batch.");
             return new DebloatRestorePointCheck(true, RestorePointProblem.None, string.Empty);
+        }
+    }
+
+    /// <summary>HKLM SystemRestorePointCreationFrequency in minutes, or null when absent or unreadable.</summary>
+    private long? ReadCreationFrequencyMinutes()
+    {
+        try
+        {
+            using var hklm = Microsoft.Win32.RegistryKey.OpenBaseKey(Microsoft.Win32.RegistryHive.LocalMachine, Microsoft.Win32.RegistryView.Registry64);
+            using var key = hklm.OpenSubKey(@"SOFTWARE\Microsoft\Windows NT\CurrentVersion\SystemRestore");
+            return key?.GetValue("SystemRestorePointCreationFrequency") switch
+            {
+                int dword => (uint)dword,
+                long qword => qword,
+                _ => null,
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Could not read the restore point frequency setting.");
+            return null;
         }
     }
 

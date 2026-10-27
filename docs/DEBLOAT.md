@@ -121,7 +121,10 @@ had several causes, all fixed in this version:
   (the default on many PCs) every tweak was marked *Failed* with a long
   message and nothing changed. The page now asks first and offers to turn on
   System Protection, continue without a restore point (reversible tweaks
-  only) or cancel.
+  only) or cancel. The one-per-day restore point limit is only reported when
+  it applies (PCs where `SystemRestorePointCreationFrequency` is 0 are not
+  asked), and the dialog names the *Allow more than one restore point per
+  day* setting. *Turn on System Protection* is only offered when it can help.
 - **The change went to the wrong account.** When PC Checker was started with
   another administrator's password, per-user tweaks were written to that
   administrator's registry, so the person at the PC saw no change. They now go
@@ -143,7 +146,9 @@ had several causes, all fixed in this version:
   tweak is now read again after the batch and reported as failed with the
   reason when the change did not stick. Tweaks already in place (including
   linked Optimize page actions) say *Already applied* instead of looking like
-  a change that did nothing.
+  a change that did nothing. An app that still shows as installed is
+  explained as such (Windows removes it once it is closed; other accounts
+  keep their copy). The results list opens by itself after every run.
 - **The undo file could not be saved.** A brief lock on
   `debloat-capture.json` (antivirus, indexer) failed the tweak; saving now
   retries, and the message names the file and what to check.

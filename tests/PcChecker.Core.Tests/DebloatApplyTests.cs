@@ -277,6 +277,56 @@ public class DebloatApplyTests
     }
 
     [Fact]
+    public void A_pc_that_already_allows_more_restore_points_per_day_is_not_blocked()
+    {
+        var now = new DateTimeOffset(2026, 10, 27, 12, 0, 0, TimeSpan.Zero);
+        Assert.Equal(TimeSpan.Zero, DebloatRestorePointRules.WindowFor(0));
+        Assert.Equal(TimeSpan.FromHours(24), DebloatRestorePointRules.WindowFor(null));
+        Assert.Equal(TimeSpan.FromMinutes(60), DebloatRestorePointRules.WindowFor(60));
+
+        Assert.Equal(RestorePointProblem.None, DebloatRestorePointRules.Assess(true, now.AddMinutes(-5), now, limitLifted: false, DebloatRestorePointRules.WindowFor(0)));
+        Assert.Equal(RestorePointProblem.None, DebloatRestorePointRules.Assess(true, now.AddHours(-2), now, limitLifted: false, DebloatRestorePointRules.WindowFor(60)));
+        Assert.Equal(RestorePointProblem.FrequencyLimit, DebloatRestorePointRules.Assess(true, now.AddMinutes(-30), now, limitLifted: false, DebloatRestorePointRules.WindowFor(60)));
+    }
+
+    [Fact]
+    public void The_one_per_day_limit_points_to_the_setting_that_lifts_it()
+    {
+        var text = DebloatRestorePointRules.Describe(RestorePointProblem.FrequencyLimit, "C:");
+        Assert.Contains("Allow more than one restore point per day", text);
+    }
+
+    [Fact]
+    public void A_refused_restore_point_only_offers_turning_on_protection_when_that_can_help()
+    {
+        string noNewPoint = PcChecker.Core.Restore.WindowsRestorePointService.NoNewPointMessage;
+        Assert.Equal(RestorePointProblem.FrequencyLimit, DebloatRestorePointRules.ProblemAfterFailure(noNewPoint, RestorePointProblem.None, protectionOn: true));
+        Assert.Equal(RestorePointProblem.ProtectionOff, DebloatRestorePointRules.ProblemAfterFailure("Access denied", RestorePointProblem.ProtectionOff));
+        Assert.Equal(RestorePointProblem.Failed, DebloatRestorePointRules.ProblemAfterFailure("Windows took more than two minutes", RestorePointProblem.None, protectionOn: true));
+
+        Assert.False(DebloatRestorePointRules.CanTurnOnHelp(RestorePointProblem.FrequencyLimit, protectionOn: true));
+        Assert.False(DebloatRestorePointRules.CanTurnOnHelp(RestorePointProblem.Failed, protectionOn: true));
+        Assert.True(DebloatRestorePointRules.CanTurnOnHelp(RestorePointProblem.Failed, protectionOn: null));
+        Assert.True(DebloatRestorePointRules.CanTurnOnHelp(RestorePointProblem.ProtectionOff, protectionOn: false));
+    }
+
+    [Fact]
+    public void A_change_that_did_not_stick_gets_a_reason_that_fits_what_the_tweak_does()
+    {
+        var app = Tweak("ai.copilotapp");
+        var appResult = DebloatResultClassifier.Classify(new TweakRunResult(app.Id, app.Title, TweakOutcome.Applied, "Removed."), app,
+            new TweakState(app.Id, TweakStatus.NotApplied, "Installed"), revert: false);
+        Assert.Equal(DebloatResultKind.Failed, appResult.Kind);
+        Assert.Equal(DebloatResultClassifier.AppNotRemovedMessage, appResult.Message);
+
+        Assert.Equal(DebloatResultClassifier.FeatureNotChangedMessage, DebloatResultClassifier.NotKeptMessageFor(Tweak("ai.recallfeature")));
+        Assert.Equal(DebloatResultClassifier.NotKeptMessage, DebloatResultClassifier.NotKeptMessageFor(Tweak("privacy.advertisingid")));
+        Assert.Equal(DebloatResultClassifier.NotKeptMessage, DebloatResultClassifier.NotKeptMessageFor(null));
+        var delegated = DebloatCatalog.All.First(t => t.DelegatesToOptimizationId is not null);
+        Assert.Equal(DebloatResultClassifier.DelegatedNotKeptMessage, DebloatResultClassifier.NotKeptMessageFor(delegated));
+    }
+
+    [Fact]
     public void Restore_point_dialog_explains_every_choice()
     {
         var text = DebloatRestorePointRules.DialogText(RestorePointProblem.ProtectionOff, "C:", null, needRestorePoint: 2, total: 5, canTurnOn: true);

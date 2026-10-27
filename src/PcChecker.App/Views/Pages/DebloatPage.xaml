@@ -122,6 +122,7 @@
 
         <!-- Per-tweak results of the last run -->
         <ui:CardExpander Margin="0,0,0,12" ContentPadding="16" Icon="{ui:SymbolIcon ClipboardTextLtr24}"
+                         IsExpanded="{Binding IsResultsExpanded, Mode=TwoWay}"
                          Visibility="{Binding HasResults, Converter={StaticResource BoolToVisibility}}">
           <ui:CardExpander.Header>
             <StackPanel>

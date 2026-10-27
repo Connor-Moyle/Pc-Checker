@@ -136,6 +136,9 @@ public sealed record DebloatRestorePointCheck(bool Required, RestorePointProblem
 {
     public bool WouldBlock => Required && Problem != RestorePointProblem.None;
 
+    /// <summary>Whether System Protection is on for the system drive (null when it was not checked or is unknown).</summary>
+    public bool? ProtectionOn { get; init; }
+
     public static DebloatRestorePointCheck Fine { get; } = new(false, RestorePointProblem.None, string.Empty);
 }
 

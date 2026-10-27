@@ -129,30 +129,9 @@ public sealed partial class DebloatViewModel
         // A batch with one-way changes or Windows feature changes only runs with a restore point. Ask first when Windows
         // is going to refuse it, instead of letting the batch stop with nothing changed.
         DebloatRestorePointCheck? check = null;
-        await RunBusyAsync(async ct => check = await _debloat.CheckRestorePointAsync(ids, revert, ct), Loc.T("Checking System Protection…"));
-        var options = DebloatRunOptions.Default;
-        if (check is { WouldBlock: true })
+        if (!await RunBusyAsync(async ct => check = await _debloat.CheckRestorePointAsync(ids, revert, ct), Loc.T("Checking System Protection…")))
         {
-            if (await AskWithoutRestorePointAsync(tweaks, revert, check.Problem, null) is not { } chosen)
-            {
-                return;
-            }
-
-            options = chosen;
-        }
-
-        var (result, states) = await ExecuteAsync(rows, ids, revert, options);
-        if (result is { BlockedByRestorePoint: true } && !options.WithoutRestorePoint)
-        {
-            // The check could not foresee it (or Windows refused for another reason). Nothing was changed, so ask now.
-            if (await AskWithoutRestorePointAsync(tweaks, revert, RestorePointProblem.Failed, result.RestorePointBlockedReason) is { } retry)
-            {
-                (result, states) = await ExecuteAsync(rows, ids, revert, retry);
-            }
-        }
-
-        if (result is null)
-        {
+            // Cancelled (or the check threw, which ErrorMessage shows): nothing has been changed, so stop here.
             if (!HasError)
             {
                 _notifications.Info(Loc.T("Cancelled"), Loc.T("The batch was cancelled before it started. Nothing was changed."));
@@ -161,13 +140,58 @@ public sealed partial class DebloatViewModel
             return;
         }
 
-        ShowResults(result, states, revert);
+        var options = DebloatRunOptions.Default;
+        bool? protectionOn = check?.ProtectionOn;
+        if (check is { WouldBlock: true })
+        {
+            if (await AskWithoutRestorePointAsync(tweaks, revert, check.Problem, null, protectionOn) is not { } chosen)
+            {
+                return;
+            }
+
+            options = chosen;
+            if (!chosen.WithoutRestorePoint)
+            {
+                // Only a successful "Turn on System Protection" comes back without WithoutRestorePoint.
+                protectionOn = true;
+            }
+        }
+
+        var run = await ExecuteAsync(rows, ids, revert, options);
+        if (run.Result is { BlockedByRestorePoint: true } && !options.WithoutRestorePoint)
+        {
+            // The check could not foresee it (or Windows refused for another reason). Nothing was changed, so ask now,
+            // offering only the fixes that can help with the reason Windows gave.
+            var problem = DebloatRestorePointRules.ProblemAfterFailure(run.Result.RestorePointBlockedReason, check?.Problem ?? RestorePointProblem.None, protectionOn);
+            if (await AskWithoutRestorePointAsync(tweaks, revert, problem, run.Result.RestorePointBlockedReason, protectionOn) is { } retry)
+            {
+                run = await ExecuteAsync(rows, ids, revert, retry);
+            }
+        }
+
+        if (run.Result is null)
+        {
+            if (run.Error is null && !HasError)
+            {
+                _notifications.Info(Loc.T("Cancelled"), run.Changed > 0
+                    ? Loc.F("The batch was stopped. {0} tweak(s) had already been changed and stay changed; the list shows each tweak's current state.", run.Changed)
+                    : Loc.T("The batch was cancelled before anything was changed."));
+            }
+
+            return;
+        }
+
+        ShowResults(run.Result, run.States, revert);
     }
 
+    /// <summary>What <see cref="ExecuteAsync"/> ran into: the result (null when it threw or was cancelled), the re-read
+    /// states, the batch's own error message, and how many tweaks of the batch changed state.</summary>
+    private sealed record BatchRun(DebloatRunResult? Result, IReadOnlyDictionary<string, TweakState>? States, string? Error, int Changed);
+
     /// <summary>Runs the batch, then reads the state of every tweak in it (and of those sharing a setting) again.</summary>
-    private async Task<(DebloatRunResult? Result, IReadOnlyDictionary<string, TweakState>? States)> ExecuteAsync(IReadOnlyList<DebloatTweakRow> rows,
-        IReadOnlyList<string> ids, bool revert, DebloatRunOptions options)
+    private async Task<BatchRun> ExecuteAsync(IReadOnlyList<DebloatTweakRow> rows, IReadOnlyList<string> ids, bool revert, DebloatRunOptions options)
     {
+        var statusBefore = rows.ToDictionary(r => r.Id, r => r.Status, StringComparer.OrdinalIgnoreCase);
         foreach (var row in rows)
         {
             row.IsBusy = true;
@@ -175,6 +199,7 @@ public sealed partial class DebloatViewModel
 
         DebloatRunResult? result = null;
         IReadOnlyDictionary<string, TweakState>? states = null;
+        string? batchError = null;
         try
         {
             await RunBusyAsync(async ct =>
@@ -184,6 +209,7 @@ public sealed partial class DebloatViewModel
                     ? await _debloat.RevertAsync(ids, options, progress, ct)
                     : await _debloat.ApplyAsync(ids, options, progress, ct);
             }, revert ? Loc.T("Reverting tweaks…") : Loc.T("Applying tweaks…"));
+            batchError = ErrorMessage;
 
             // Cancel stops the batch between tweaks, so the states are re-read even then. Only the tweaks in the batch
             // (and those sharing a setting with them) are checked, and this check can be cancelled on its own. Each
@@ -203,7 +229,14 @@ public sealed partial class DebloatViewModel
         }
 
         UserScopeNote = _debloat.UserScopeNote;
-        return (result, states);
+        if (batchError is not null)
+        {
+            // The re-read clears ErrorMessage when it starts; the batch's own error is the one to show.
+            ErrorMessage = batchError;
+        }
+
+        int changed = states is null ? 0 : rows.Count(r => states.ContainsKey(r.Id) && statusBefore.TryGetValue(r.Id, out var was) && was != r.Status);
+        return new BatchRun(result, states, batchError, changed);
     }
 
     /// <summary>
@@ -211,10 +244,11 @@ public sealed partial class DebloatViewModel
     /// point (only the tweaks that can be reverted from this page run), or cancel. Returns the options to run with, or
     /// null for Cancel.
     /// </summary>
-    private async Task<DebloatRunOptions?> AskWithoutRestorePointAsync(IReadOnlyList<DebloatTweak> tweaks, bool revert, RestorePointProblem problem, string? reason)
+    private async Task<DebloatRunOptions?> AskWithoutRestorePointAsync(IReadOnlyList<DebloatTweak> tweaks, bool revert, RestorePointProblem problem, string? reason,
+        bool? protectionOn = null)
     {
         const string title = "No restore point possible";
-        bool canTurnOn = problem is RestorePointProblem.ProtectionOff or RestorePointProblem.Failed;
+        bool canTurnOn = DebloatRestorePointRules.CanTurnOnHelp(problem, protectionOn);
         int needRestorePoint = tweaks.Count(t => DebloatRules.NeedsRestorePoint(t, revert));
         bool canContinue = DebloatRestorePointRules.CanContinueWithout(needRestorePoint, tweaks.Count);
         while (true)
@@ -265,6 +299,7 @@ public sealed partial class DebloatViewModel
         }
 
         HasResults = Results.Count > 0;
+        IsResultsExpanded = HasResults;
         if (result.BlockedByRestorePoint)
         {
             ResultsTitle = Loc.T("Nothing was changed");

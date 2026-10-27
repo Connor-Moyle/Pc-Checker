@@ -46,6 +46,53 @@ public static class DebloatResultClassifier
     public const string NotKeptMessage =
         "Windows did not keep this change: the setting still reads as before. A policy from your organisation (work or school PC), security software or another tool may be setting it back.";
 
+    public const string AppNotRemovedMessage =
+        "The app still shows as installed. Windows finishes removing an app once it is closed, and an app installed for other accounts on this PC stays for them; close the app (or sign out and back in) and scan again, or turn on removal for all users.";
+
+    public const string FeatureNotChangedMessage =
+        "The Windows feature still reads as before. Windows finishes turning features on or off during a restart; restart Windows and scan again.";
+
+    public const string DelegatedNotKeptMessage =
+        "The linked Optimize page action still reads as not applied. Open it on the Optimize page to see why, or try again.";
+
+    public const string ScriptNotKeptMessage =
+        "The change ran but the check afterwards still reads as before. Windows may finish it after a restart, or another tool or a policy from your organisation may be setting it back.";
+
+    /// <summary>
+    /// The plain reason for an applied tweak that still reads as not applied, by what the tweak does: app removals and
+    /// Windows features have their own usual causes; registry, service and task changes are usually reset by a policy.
+    /// </summary>
+    public static string NotKeptMessageFor(DebloatTweak? tweak)
+    {
+        if (tweak is null)
+        {
+            return NotKeptMessage;
+        }
+
+        if (tweak.DelegatesToOptimizationId is not null)
+        {
+            return DelegatedNotKeptMessage;
+        }
+
+        var ops = tweak.Operations;
+        if (ops.Count > 0 && ops.Any(o => o is AppxRemovalOp))
+        {
+            return AppNotRemovedMessage;
+        }
+
+        if (ops.Count > 0 && ops.All(o => o is OptionalFeatureOp))
+        {
+            return FeatureNotChangedMessage;
+        }
+
+        if (ops.Count > 0 && ops.All(o => o is PowerShellOp))
+        {
+            return ScriptNotKeptMessage;
+        }
+
+        return NotKeptMessage;
+    }
+
     /// <summary>Classifies one result. <paramref name="after"/> is the state read after the batch (null when unknown).</summary>
     public static DebloatResultView Classify(TweakRunResult result, DebloatTweak? tweak, TweakState? after, bool revert)
     {
@@ -68,7 +115,7 @@ public static class DebloatResultClassifier
         {
             if (after.Status == TweakStatus.NotApplied)
             {
-                return new(result.TweakId, result.Title, DebloatResultKind.Failed, DebloatVisibility.Now, NotKeptMessage);
+                return new(result.TweakId, result.Title, DebloatResultKind.Failed, DebloatVisibility.Now, NotKeptMessageFor(tweak));
             }
 
             if (after.Status == TweakStatus.Partial)

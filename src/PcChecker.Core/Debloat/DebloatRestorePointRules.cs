@@ -13,14 +13,21 @@ public static class DebloatRestorePointRules
     /// What will stop the restore point. <paramref name="protectionOn"/> null means unknown (tried anyway).
     /// <paramref name="newest"/> is the newest restore point's time (null when there is none or it is unknown).
     /// </summary>
-    public static RestorePointProblem Assess(bool? protectionOn, DateTimeOffset? newest, DateTimeOffset now, bool limitLifted)
+    public static RestorePointProblem Assess(bool? protectionOn, DateTimeOffset? newest, DateTimeOffset now, bool limitLifted) =>
+        Assess(protectionOn, newest, now, limitLifted, FrequencyWindow);
+
+    /// <summary>
+    /// As above, with the period Windows actually enforces (see <see cref="WindowFor"/>): a zero window means the PC
+    /// already allows any number of restore points per day.
+    /// </summary>
+    public static RestorePointProblem Assess(bool? protectionOn, DateTimeOffset? newest, DateTimeOffset now, bool limitLifted, TimeSpan window)
     {
         if (protectionOn == false)
         {
             return RestorePointProblem.ProtectionOff;
         }
 
-        if (!limitLifted && newest is { } last && last > DateTimeOffset.MinValue && now - last < FrequencyWindow && now >= last)
+        if (!limitLifted && window > TimeSpan.Zero && newest is { } last && last > DateTimeOffset.MinValue && now - last < window && now >= last)
         {
             return RestorePointProblem.FrequencyLimit;
         }
@@ -28,13 +35,53 @@ public static class DebloatRestorePointRules
         return RestorePointProblem.None;
     }
 
+    /// <summary>
+    /// The period Windows enforces between restore points, from HKLM\...\SystemRestore SystemRestorePointCreationFrequency
+    /// (minutes; null when the value is absent or unreadable, which means the default 24 hours).
+    /// </summary>
+    public static TimeSpan WindowFor(long? creationFrequencyMinutes) =>
+        creationFrequencyMinutes is { } minutes and >= 0 ? TimeSpan.FromMinutes(minutes) : FrequencyWindow;
+
+    /// <summary>
+    /// What stood in the way after Windows refused the batch's restore point. Windows' "no new point appeared" answer
+    /// is the one-per-day limit; otherwise System Protection being off (as checked before) or another failure.
+    /// </summary>
+    public static RestorePointProblem ProblemAfterFailure(string? reason, RestorePointProblem checkedBefore, bool? protectionOn = null)
+    {
+        if (!string.IsNullOrWhiteSpace(reason) &&
+            (reason.Contains("no new restore point appeared", StringComparison.OrdinalIgnoreCase) ||
+             reason.Contains("one restore point per 24 hours", StringComparison.OrdinalIgnoreCase)))
+        {
+            return RestorePointProblem.FrequencyLimit;
+        }
+
+        if (protectionOn == false || (protectionOn is null && checkedBefore == RestorePointProblem.ProtectionOff))
+        {
+            return RestorePointProblem.ProtectionOff;
+        }
+
+        return RestorePointProblem.Failed;
+    }
+
+    /// <summary>
+    /// True when turning on System Protection can help: it is off, or the restore point failed and it is not known to be on.
+    /// Never for the one-per-day limit, which turning it on does not lift.
+    /// </summary>
+    public static bool CanTurnOnHelp(RestorePointProblem problem, bool? protectionOn) => problem switch
+    {
+        RestorePointProblem.ProtectionOff => true,
+        RestorePointProblem.Failed => protectionOn != true,
+        _ => false,
+    };
+
     /// <summary>The explanation shown in the dialog.</summary>
     public static string Describe(RestorePointProblem problem, string systemDrive, string? reason = null) => problem switch
     {
         RestorePointProblem.ProtectionOff =>
             $"System Protection is off for {systemDrive}, so Windows cannot create the restore point this batch needs.",
         RestorePointProblem.FrequencyLimit =>
-            "Windows already made a restore point in the last 24 hours and only allows one per day, so it will not make the restore point this batch needs.",
+            "Windows already made a restore point in the last 24 hours and only allows one per day, so it will not make the restore point this batch needs. " +
+            "To run app removals now, turn on \"Allow more than one restore point per day\" in Settings → Restore points, then apply again.",
         RestorePointProblem.Failed =>
             $"Windows could not create the restore point this batch needs{(string.IsNullOrWhiteSpace(reason) ? "." : $": {reason.Trim().TrimEnd('.')}.")}",
         _ => string.Empty,

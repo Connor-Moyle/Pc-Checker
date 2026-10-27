@@ -81,16 +81,27 @@ public abstract class DebloatServiceBase : IDebloatService
     }
 
     public Task<DebloatRunResult> ApplyAsync(IReadOnlyList<string> tweakIds, IProgress<ProgressUpdate>? progress, CancellationToken cancellationToken) =>
-        RunBatchAsync(tweakIds, revert: false, DebloatRunOptions.Default, progress, cancellationToken);
+        RunBatchOffUiAsync(tweakIds, revert: false, DebloatRunOptions.Default, progress, cancellationToken);
 
     public Task<DebloatRunResult> RevertAsync(IReadOnlyList<string> tweakIds, IProgress<ProgressUpdate>? progress, CancellationToken cancellationToken) =>
-        RunBatchAsync(tweakIds, revert: true, DebloatRunOptions.Default, progress, cancellationToken);
+        RunBatchOffUiAsync(tweakIds, revert: true, DebloatRunOptions.Default, progress, cancellationToken);
 
     public Task<DebloatRunResult> ApplyAsync(IReadOnlyList<string> tweakIds, DebloatRunOptions options, IProgress<ProgressUpdate>? progress, CancellationToken cancellationToken) =>
-        RunBatchAsync(tweakIds, revert: false, options ?? DebloatRunOptions.Default, progress, cancellationToken);
+        RunBatchOffUiAsync(tweakIds, revert: false, options ?? DebloatRunOptions.Default, progress, cancellationToken);
 
     public Task<DebloatRunResult> RevertAsync(IReadOnlyList<string> tweakIds, DebloatRunOptions options, IProgress<ProgressUpdate>? progress, CancellationToken cancellationToken) =>
-        RunBatchAsync(tweakIds, revert: true, options ?? DebloatRunOptions.Default, progress, cancellationToken);
+        RunBatchOffUiAsync(tweakIds, revert: true, options ?? DebloatRunOptions.Default, progress, cancellationToken);
+
+    /// <summary>
+    /// Runs the batch on a worker thread. Without a restore point to await first (Continue without), the guard calls the
+    /// work synchronously, and the registry captures, capture-file saves and user-hive lookup would otherwise block the
+    /// UI thread (and freeze the busy overlay) until the first truly asynchronous step. Progress still reaches the page
+    /// through the caller's <see cref="IProgress{T}"/>. The token is not passed to Task.Run so a cancel before the
+    /// start is reported per tweak like any other cancel.
+    /// </summary>
+    private Task<DebloatRunResult> RunBatchOffUiAsync(IReadOnlyList<string> tweakIds, bool revert, DebloatRunOptions options, IProgress<ProgressUpdate>? progress,
+        CancellationToken cancellationToken) =>
+        Task.Run(() => RunBatchAsync(tweakIds, revert, options, progress, cancellationToken));
 
     public abstract Task<OperationResult> RestartExplorerAsync(CancellationToken cancellationToken);
 
