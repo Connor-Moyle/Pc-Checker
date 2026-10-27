@@ -27,13 +27,19 @@ public sealed class OpenRgbLightingService : ILightingService, IDisposable
     private readonly IActionJournal _journal;
     private readonly ILogger<OpenRgbLightingService> _logger;
     private readonly SemaphoreSlim _gate = new(1, 1);
-    private readonly Lazy<string?> _installPath;
+    private readonly object _installGate = new();
+    private string? _installPath;
+    private DateTimeOffset _installCheckedAt = DateTimeOffset.MinValue;
 
     private OpenRgbClient? _client;
     private Device[] _raw = [];
     /// <summary>Mode switches made since <see cref="_raw"/> was last read from the server; cleared with every re-read.</summary>
     private readonly Dictionary<int, int> _activeModeOverride = [];
     private List<RgbDevice> _devices = [];
+    /// <summary>Devices the server lists that could not be read in full (shown, not controllable).</summary>
+    private List<RgbDevice> _unreadable = [];
+    private OpenRgbAvailability _availability = OpenRgbAvailability.Unreachable;
+    private bool _attempted;
     private string? _lastError;
     private int _reconnectFailures;
     private DateTimeOffset _reconnectNotBefore = DateTimeOffset.MinValue;
@@ -45,12 +51,32 @@ public sealed class OpenRgbLightingService : ILightingService, IDisposable
         _settings = settings;
         _journal = journal;
         _logger = logger;
-        _installPath = new Lazy<string?>(OpenRgbInstallLocator.Find, LazyThreadSafetyMode.ExecutionAndPublication);
     }
 
     public bool IsConnected => _client?.Connected == true;
 
-    public string Status => LightingStatusText.For(IsConnected, IsOpenRgbInstalled, ProtocolVersionText, _devices.Count, _lastError);
+    public string Status
+    {
+        get
+        {
+            if (!_attempted && !IsConnected)
+            {
+                return LightingStatusText.For(false, IsOpenRgbInstalled, null, 0, _lastError);
+            }
+
+            var availability = IsConnected ? OpenRgbAvailability.Connected : _availability;
+            string text = LightingStatusText.For(availability, ServerAddress, ProtocolVersionText, _devices.Count);
+            return string.IsNullOrWhiteSpace(_lastError) || availability == OpenRgbAvailability.Connected ? text : $"{text} ({_lastError.Trim()})";
+        }
+    }
+
+    public string ServerAddress => $"{_settings.Current.Lighting.OpenRgbHost}:{_settings.Current.Lighting.OpenRgbPort}";
+
+    public OpenRgbAvailability Availability => IsConnected
+        ? OpenRgbAvailability.Connected
+        : _attempted
+            ? _availability
+            : OpenRgbInstallRules.Availability(false, OpenRgbInstallRules.IsLocalHost(_settings.Current.Lighting.OpenRgbHost), IsOpenRgbInstalled, processRunning: false);
 
     public bool IsOpenRgbInstalled => OpenRgbPath is not null;
 
@@ -99,10 +125,12 @@ public sealed class OpenRgbLightingService : ILightingService, IDisposable
         DisposeClient();
         try
         {
+            _attempted = true;
             var client = new OpenRgbClient(lighting.OpenRgbHost, lighting.OpenRgbPort, "PC Checker", autoConnect: false, timeoutMs: 3000);
             client.Connect();
             _client = client;
-            ReplaceRaw(client.GetAllControllerData() ?? []);
+            LoadFromServer(client);
+            _availability = OpenRgbAvailability.Connected;
             _lastError = null;
             _reconnectFailures = 0;
             _reconnectNotBefore = DateTimeOffset.MinValue;
@@ -117,8 +145,20 @@ public sealed class OpenRgbLightingService : ILightingService, IDisposable
         catch (Exception ex)
         {
             DisposeClient();
-            _lastError = ex is SocketException or IOException or TimeoutException ? null : ex.Message;
-            _logger.LogWarning(ex, "Could not connect to OpenRGB at {Host}:{Port}.", lighting.OpenRgbHost, lighting.OpenRgbPort);
+            _lastError = IsNetworkError(ex) ? null : ex.Message;
+            _availability = OpenRgbInstallRules.Availability(false, OpenRgbInstallRules.IsLocalHost(lighting.OpenRgbHost), SafeInstallPath(lookAgain: true) is not null,
+                OpenRgbInstallLocator.IsProcessRunning());
+            // Keep trying in the background with growing pauses, so starting OpenRGB later connects the page by itself.
+            // Only the first failure in a row is logged at information level; the background retries are debug noise.
+            _logger.Log(_reconnectFailures == 0 ? LogLevel.Information : LogLevel.Debug,
+                "Could not connect to OpenRGB at {Host}:{Port} ({State}): {Message}", lighting.OpenRgbHost, lighting.OpenRgbPort, _availability, ex.Message);
+            _reconnectFailures++;
+            _reconnectNotBefore = DateTimeOffset.UtcNow + LightingApplyPlanner.ReconnectBackoff(_reconnectFailures);
+            if (lighting.AutoConnect)
+            {
+                StartWatch();
+            }
+
             if (wasConnected)
             {
                 RaiseDevicesChanged();
@@ -135,7 +175,7 @@ public sealed class OpenRgbLightingService : ILightingService, IDisposable
         {
             StopWatch();
             DisposeClient();
-            ReplaceRaw([]);
+            ReplaceRaw([], []);
             _lastError = null;
             _logger.LogInformation("Disconnected from OpenRGB.");
         }
@@ -161,7 +201,7 @@ public sealed class OpenRgbLightingService : ILightingService, IDisposable
             {
                 try
                 {
-                    ReplaceRaw(client.GetAllControllerData() ?? []);
+                    LoadFromServer(client);
                 }
                 catch (Exception ex)
                 {
@@ -206,10 +246,46 @@ public sealed class OpenRgbLightingService : ILightingService, IDisposable
             }
 
             int ledCount = (int)raw.Zones![zoneIndex].LedCount;
+            if (ledCount == 0)
+            {
+                return OperationResult.Fail($"{raw.Zones[zoneIndex].Name} has no LEDs set yet. Enter how many LEDs are connected to it first.");
+            }
+
             client.UpdateZoneLeds(deviceIndex, zoneIndex, OpenRgbDeviceMapper.ToOpenRgb(LightingApplyPlanner.Fill(ledCount, color)));
             return OperationResult.Ok($"{raw.Zones[zoneIndex].Name} set to {color.ToHex()}.");
         }, cancellationToken).ConfigureAwait(false);
         await RecordAsync("Set zone colour", $"{DeviceName(deviceIndex)} zone {zoneIndex}", result, after: color.ToHex()).ConfigureAwait(false);
+        return result;
+    }
+
+    public async Task<OperationResult> ResizeZoneAsync(int deviceIndex, int zoneIndex, int ledCount, CancellationToken cancellationToken)
+    {
+        var result = await RunAsync(client =>
+        {
+            var device = _devices.FirstOrDefault(d => d.Index == deviceIndex);
+            if (device is null || device.IsReadOnly)
+            {
+                return OperationResult.Fail($"No lighting device with index {deviceIndex}.");
+            }
+
+            if (zoneIndex < 0 || zoneIndex >= device.Zones.Count)
+            {
+                return OperationResult.Fail($"{device.Name} has no zone {zoneIndex}.");
+            }
+
+            var zone = device.Zones[zoneIndex];
+            if (!zone.IsResizable)
+            {
+                return OperationResult.Fail($"{zone.Name} has a fixed number of LEDs ({zone.LedCount}).");
+            }
+
+            int size = LightingApplyPlanner.ClampZoneSize(zone, ledCount);
+            client.ResizeZone(deviceIndex, zoneIndex, size);
+            LoadFromServer(client);
+            RaiseDevicesChanged();
+            return OperationResult.Ok($"{zone.Name} on {device.Name} now has {size} LED{(size == 1 ? string.Empty : "s")}.");
+        }, cancellationToken).ConfigureAwait(false);
+        await RecordAsync("Set zone size", $"{DeviceName(deviceIndex)} zone {zoneIndex}", result, after: ledCount.ToString(System.Globalization.CultureInfo.InvariantCulture)).ConfigureAwait(false);
         return result;
     }
 
@@ -309,15 +385,18 @@ public sealed class OpenRgbLightingService : ILightingService, IDisposable
             return await ConnectAsync(cancellationToken).ConfigureAwait(false);
         }
 
-        var path = OpenRgbPath;
+        _attempted = true;
+        var path = await Task.Run(() => SafeInstallPath(lookAgain: true), cancellationToken).ConfigureAwait(false);
         if (path is null)
         {
+            _availability = OpenRgbAvailability.NotInstalled;
             return OperationResult.Fail(LightingStatusText.NotInstalled);
         }
 
         // Never start a second OpenRGB: two instances contend for the same SMBus/USB devices.
         if (await Task.Run(OpenRgbInstallLocator.IsProcessRunning, cancellationToken).ConfigureAwait(false))
         {
+            _availability = OpenRgbAvailability.RunningWithoutServer;
             _logger.LogInformation("OpenRGB is running without its SDK server; asking the user to start it there.");
             return OperationResult.Fail(LightingStatusText.RunningWithoutServer);
         }
@@ -418,20 +497,13 @@ public sealed class OpenRgbLightingService : ILightingService, IDisposable
             return false;
         }
 
-        _logger.LogInformation("Reconnecting to OpenRGB (attempt {Attempt}).", _reconnectFailures + 1);
-        var result = ConnectCore();
-        if (!result.Success)
-        {
-            _reconnectFailures++;
-            _reconnectNotBefore = now + LightingApplyPlanner.ReconnectBackoff(_reconnectFailures);
-        }
-
-        return result.Success;
+        _logger.LogDebug("Reconnecting to OpenRGB (attempt {Attempt}).", _reconnectFailures + 1);
+        return ConnectCore().Success; // a failure counts itself and schedules the next try
     }
 
     private void HandleDrop(Exception ex)
     {
-        if (ex is SocketException or IOException or ObjectDisposedException or TimeoutException)
+        if (IsNetworkError(ex) || ex is ObjectDisposedException)
         {
             _logger.LogWarning(ex, "OpenRGB connection dropped.");
             DisposeClient();
@@ -494,9 +566,9 @@ public sealed class OpenRgbLightingService : ILightingService, IDisposable
                     return;
                 }
 
-                if (count != _raw.Length)
+                if (count != _raw.Length + _unreadable.Count)
                 {
-                    _logger.LogInformation("OpenRGB now reports {New} devices (was {Old}); reloading.", count, _raw.Length);
+                    _logger.LogInformation("OpenRGB now reports {New} devices (was {Old}); reloading.", count, _raw.Length + _unreadable.Count);
                     RefreshCache(client);
                 }
             }
@@ -553,7 +625,7 @@ public sealed class OpenRgbLightingService : ILightingService, IDisposable
     {
         if (_raw.Length == 0)
         {
-            ReplaceRaw(client.GetAllControllerData() ?? []);
+            LoadFromServer(client);
         }
 
         var failures = new List<string>();
@@ -702,7 +774,7 @@ public sealed class OpenRgbLightingService : ILightingService, IDisposable
     {
         try
         {
-            ReplaceRaw(client.GetAllControllerData() ?? _raw);
+            LoadFromServer(client);
             RaiseDevicesChanged();
         }
         catch (Exception ex)
@@ -716,12 +788,85 @@ public sealed class OpenRgbLightingService : ILightingService, IDisposable
     /// snapshot, so they are dropped here; otherwise a mode the user changed in OpenRGB's own window would be
     /// mis-reported and a later colour send could land while the device is still in an effect mode.
     /// </summary>
-    private void ReplaceRaw(Device[] raw)
+    private void ReplaceRaw(Device[] raw, List<RgbDevice> unreadable)
     {
         _raw = raw;
+        _unreadable = unreadable;
         _activeModeOverride.Clear();
-        _devices = raw.Select(OpenRgbDeviceMapper.Map).ToList();
+        _devices = raw.Select(OpenRgbDeviceMapper.Map).Concat(unreadable).OrderBy(d => d.Index).ToList();
     }
+
+    /// <summary>
+    /// Reads every device from the server. When OpenRGB.NET cannot read the whole list (a device newer or odder than it
+    /// expects), the devices are read one at a time so the others still appear, and the ones it cannot read are read
+    /// with PC Checker's own defensive reader and listed as "details unreadable". Network errors are passed on.
+    /// </summary>
+    private void LoadFromServer(OpenRgbClient client)
+    {
+        try
+        {
+            ReplaceRaw(client.GetAllControllerData() ?? [], []);
+            return;
+        }
+        catch (Exception ex) when (!IsNetworkError(ex) && ex is not ObjectDisposedException)
+        {
+            _logger.LogWarning(ex, "OpenRGB.NET could not read the whole device list; reading the devices one by one.");
+        }
+
+        int count = client.GetControllerCount();
+        var readable = new List<Device>();
+        var failed = new List<(int Index, string Reason)>();
+        for (int i = 0; i < count; i++)
+        {
+            try
+            {
+                readable.Add(client.GetControllerData(i));
+            }
+            catch (Exception ex) when (!IsNetworkError(ex) && ex is not ObjectDisposedException)
+            {
+                failed.Add((i, ex.Message));
+            }
+        }
+
+        ReplaceRaw(readable.ToArray(), DescribeUnreadable(failed));
+    }
+
+    /// <summary>Reads the devices OpenRGB.NET could not with the defensive reader, so they at least show with their name.</summary>
+    private List<RgbDevice> DescribeUnreadable(List<(int Index, string Reason)> failed)
+    {
+        if (failed.Count == 0)
+        {
+            return [];
+        }
+
+        OpenRgbProbeResult? probe = null;
+        try
+        {
+            var lighting = _settings.Current.Lighting;
+            // Called on a worker thread (never the UI thread); the probe uses ConfigureAwait(false) throughout.
+            var read = OpenRgbSdkProbe.ReadAllAsync(lighting.OpenRgbHost, lighting.OpenRgbPort, TimeSpan.FromSeconds(5), CancellationToken.None);
+            probe = read.Wait(TimeSpan.FromSeconds(6)) ? read.Result : null;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "The read-only OpenRGB probe failed.");
+        }
+
+        var list = new List<RgbDevice>();
+        foreach (var (index, reason) in failed)
+        {
+            const string problem = "PC Checker could not read this device's lighting details from OpenRGB, so it cannot be controlled here.";
+            var probed = probe?.Devices.FirstOrDefault(d => d.Index == index);
+            list.Add(probed is not null
+                ? probed with { Modes = [], ActiveModeIndex = 0, Problem = problem }
+                : new RgbDevice(index, $"Device {index + 1}", "Unknown", OpenRgbDeviceTypes.Unknown, null, 0, [], [], 0, null, null, problem));
+            _logger.LogWarning("OpenRGB device {Index} could not be read: {Reason}", index, reason);
+        }
+
+        return list;
+    }
+
+    private static bool IsNetworkError(Exception ex) => ex is SocketException or IOException or TimeoutException;
 
     /// <summary>The mode the device is in, counting switches made since the last refresh of the server data.</summary>
     private int ActiveModeOf(Device raw) => _activeModeOverride.TryGetValue(raw.Index, out var m) ? m : raw.ActiveModeIndex;
@@ -730,15 +875,32 @@ public sealed class OpenRgbLightingService : ILightingService, IDisposable
 
     private string DeviceName(int deviceIndex) => _devices.FirstOrDefault(d => d.Index == deviceIndex)?.Name ?? $"Device {deviceIndex}";
 
-    private string? SafeInstallPath()
+    /// <summary>
+    /// The OpenRGB.exe path. Found once (status reads on the UI thread then use the cached value); while it is not found,
+    /// connection attempts and Start OpenRGB look again from their worker threads, so an install made from the page (or
+    /// by hand) shows up without restarting PC Checker.
+    /// </summary>
+    private string? SafeInstallPath(bool lookAgain = false)
     {
-        try
+        lock (_installGate)
         {
-            return _installPath.Value;
-        }
-        catch
-        {
-            return null;
+            bool checkedBefore = _installCheckedAt != DateTimeOffset.MinValue;
+            if (_installPath is not null || (checkedBefore && !(lookAgain && DateTimeOffset.UtcNow - _installCheckedAt > TimeSpan.FromSeconds(2))))
+            {
+                return _installPath;
+            }
+
+            try
+            {
+                _installPath = OpenRgbInstallLocator.Find();
+            }
+            catch
+            {
+                _installPath = null;
+            }
+
+            _installCheckedAt = DateTimeOffset.UtcNow;
+            return _installPath;
         }
     }
 

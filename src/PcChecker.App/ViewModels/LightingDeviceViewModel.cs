@@ -73,7 +73,11 @@ public sealed partial class LightingDeviceViewModel : ObservableObject
     public int LedCount => Device.LedCount;
     public IReadOnlyList<RgbMode> Modes => Device.Modes;
     public ObservableCollection<LightingZoneViewModel> Zones { get; }
-    public bool HasZones => Zones.Count > 1;
+    /// <summary>Zones show when there are several, or when one can be resized (an addressable header).</summary>
+    public bool HasZones => Zones.Count > 1 || Zones.Any(z => z.IsResizable);
+
+    /// <summary>True when a resizable zone still has 0 LEDs (nothing lights there until its size is set).</summary>
+    public bool NeedsZoneSize => Device.Zones.Any(z => z.NeedsSize);
     public bool IsPeripheral => OpenRgbDeviceTypes.IsPeripheral(Device.Type);
 
     public string Summary
@@ -86,7 +90,10 @@ public sealed partial class LightingDeviceViewModel : ObservableObject
         }
     }
 
-    public SymbolRegular Icon => Device.Type switch
+    public SymbolRegular Icon => IconFor(Device.Type);
+
+    /// <summary>The icon for a device type (shared with the combined device list).</summary>
+    public static SymbolRegular IconFor(string? type) => type switch
     {
         OpenRgbDeviceTypes.Motherboard => SymbolRegular.DeveloperBoard24,
         OpenRgbDeviceTypes.Ram => SymbolRegular.Memory16,
@@ -99,6 +106,10 @@ public sealed partial class LightingDeviceViewModel : ObservableObject
         OpenRgbDeviceTypes.Headset or OpenRgbDeviceTypes.HeadsetStand => SymbolRegular.Headset24,
         OpenRgbDeviceTypes.Gamepad => SymbolRegular.XboxController24,
         OpenRgbDeviceTypes.Speaker => SymbolRegular.Speaker224,
+        RgbKnownDevices.LightingController => SymbolRegular.ArrowSyncCircle24,
+        RgbKnownDevices.Microphone => SymbolRegular.Mic24,
+        RgbKnownDevices.Monitor => SymbolRegular.Desktop24,
+        RgbKnownDevices.Laptop => SymbolRegular.Laptop24,
         _ => SymbolRegular.DeveloperBoard24,
     };
 
@@ -148,6 +159,7 @@ public sealed partial class LightingDeviceViewModel : ObservableObject
             }
 
             SyncZones(device);
+            OnPropertyChanged(nameof(NeedsZoneSize));
             OnPropertyChanged(nameof(Name));
             OnPropertyChanged(nameof(Summary));
             OnPropertyChanged(nameof(Modes));
@@ -303,6 +315,26 @@ public sealed partial class LightingDeviceViewModel : ObservableObject
         }
     }
 
+    internal async Task ResizeZoneAsync(LightingZoneViewModel zone, int ledCount)
+    {
+        IsApplying = true;
+        try
+        {
+            var result = await _service.ResizeZoneAsync(Index, zone.Index, ledCount, CancellationToken.None);
+            LastResult = result.Message;
+            _report(result);
+        }
+        catch (Exception ex)
+        {
+            LastResult = ex.Message;
+            _report(OperationResult.FromException(ex));
+        }
+        finally
+        {
+            IsApplying = false;
+        }
+    }
+
     internal async Task ApplyZoneAsync(LightingZoneViewModel zone, CancellationToken token)
     {
         try
@@ -346,17 +378,38 @@ public sealed partial class LightingZoneViewModel : ObservableObject
     [ObservableProperty]
     private bool _isPickerOpen;
 
+    /// <summary>The LED count typed for a resizable zone.</summary>
+    [ObservableProperty]
+    private double _newSize;
+
     public LightingZoneViewModel(LightingDeviceViewModel owner, RgbZone zone, Color initial)
     {
         _owner = owner;
         Zone = zone;
         _color = initial;
+        _newSize = zone.LedCount;
     }
 
     public RgbZone Zone { get; }
     public int Index => Zone.Index;
     public string Name => Zone.Name;
-    public string Summary => Zone.LedCount == 1 ? "1 LED" : $"{Zone.LedCount} LEDs";
+    public bool IsResizable => Zone.IsResizable;
+    public bool NeedsSize => Zone.NeedsSize;
+    public double MinSize => Zone.LedsMin ?? 0;
+    public double MaxSize => Zone.LedsMax ?? Zone.LedCount;
+
+    public string Summary => Zone switch
+    {
+        { NeedsSize: true } => "No LEDs set: enter how many are connected",
+        { IsResizable: true, LedCount: 1 } => $"1 LED (up to {Zone.LedsMax})",
+        { IsResizable: true } => $"{Zone.LedCount} LEDs (up to {Zone.LedsMax})",
+        { LedCount: 1 } => "1 LED",
+        _ => $"{Zone.LedCount} LEDs",
+    };
+
+    /// <summary>Sends the typed LED count for this addressable zone to OpenRGB.</summary>
+    [RelayCommand]
+    private Task SetSizeAsync() => _owner.ResizeZoneAsync(this, (int)Math.Round(NewSize));
     public Brush ColorBrush => new SolidColorBrush(Color);
 
     public void SyncColor(Color color)

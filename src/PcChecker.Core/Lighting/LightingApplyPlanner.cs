@@ -201,6 +201,18 @@ public static class LightingApplyPlanner
         return Math.Clamp(speed, min, max);
     }
 
+    /// <summary>Clamps a requested LED count to the zone's limits (a fixed zone keeps its count).</summary>
+    public static int ClampZoneSize(RgbZone zone, int ledCount)
+    {
+        ArgumentNullException.ThrowIfNull(zone);
+        if (!zone.IsResizable)
+        {
+            return zone.LedCount;
+        }
+
+        return Math.Clamp(ledCount, zone.LedsMin!.Value, zone.LedsMax!.Value);
+    }
+
     /// <summary>Maps a 0–100 slider position onto the mode's speed range.</summary>
     public static int SpeedFromPercent(RgbMode mode, int percent)
     {

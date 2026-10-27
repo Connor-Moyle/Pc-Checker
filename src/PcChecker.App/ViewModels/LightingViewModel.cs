@@ -5,6 +5,7 @@ using System.Windows.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
+using PcChecker.App.Localization;
 using PcChecker.App.Services;
 using PcChecker.Core.Common;
 using PcChecker.Core.Lighting;
@@ -12,7 +13,10 @@ using PcChecker.Core.Settings;
 
 namespace PcChecker.App.ViewModels;
 
-/// <summary>View model for the Lighting page: OpenRGB connection, quick controls, profiles and one card per device.</summary>
+/// <summary>
+/// View model for the Lighting page: OpenRGB connection, the combined list of every RGB device found, quick controls,
+/// profiles and one card per controllable device. Detection lives in LightingViewModel.Detection.cs.
+/// </summary>
 public sealed partial class LightingViewModel : ViewModelBase
 {
     private readonly ILightingService _lighting;
@@ -26,12 +30,16 @@ public sealed partial class LightingViewModel : ViewModelBase
     [NotifyPropertyChangedFor(nameof(ShowEmptyState))]
     [NotifyPropertyChangedFor(nameof(ConnectButtonText))]
     [NotifyPropertyChangedFor(nameof(StatusIconName))]
+    [NotifyPropertyChangedFor(nameof(ShowStartOpenRgb))]
+    [NotifyPropertyChangedFor(nameof(ShowInstallOpenRgb))]
     private bool _isConnected;
 
     [ObservableProperty]
     private string _status = LightingStatusText.Connecting;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowStartOpenRgb))]
+    [NotifyPropertyChangedFor(nameof(ShowInstallOpenRgb))]
     private bool _isOpenRgbInstalled;
 
     [ObservableProperty]
@@ -68,10 +76,12 @@ public sealed partial class LightingViewModel : ViewModelBase
     [NotifyPropertyChangedFor(nameof(ShowEmptyState))]
     private bool _hasInitialized;
 
-    public LightingViewModel(ISettingsService settings, ILightingService lighting, INotificationService notifications, IDialogService dialogs, ILogger<LightingViewModel> logger)
+    public LightingViewModel(ISettingsService settings, ILightingService lighting, IRgbHardwareService hardware, INotificationService notifications,
+        IDialogService dialogs, ILogger<LightingViewModel> logger)
         : base(settings)
     {
         _lighting = lighting;
+        _hardware = hardware;
         _notifications = notifications;
         _dialogs = dialogs;
         _logger = logger;
@@ -93,18 +103,18 @@ public sealed partial class LightingViewModel : ViewModelBase
 
     public string WhyOpenRgbText => LightingStatusText.WhyOpenRgb;
     public string OpenRgbDownloadUrl => LightingStatusText.DownloadUrl;
-    public string ServerAddress => $"{Settings.Current.Lighting.OpenRgbHost}:{Settings.Current.Lighting.OpenRgbPort}";
+    public string ServerAddress => _lighting.ServerAddress;
     public bool HasDevices => Devices.Count > 0;
     public bool HasComponents => Components.Count > 0;
     public bool HasPeripherals => Peripherals.Count > 0;
-    public bool ShowEmptyState => HasInitialized && (!IsConnected || !HasDevices);
+    public bool ShowEmptyState => HasInitialized && !HasDevices && AllDevices.Count == 0;
     public string ConnectButtonText => IsConnected ? "Reconnect" : "Connect";
     public string StatusIconName => IsConnected ? "PlugConnected24" : "PlugDisconnected24";
     public Brush SyncColorBrush => new SolidColorBrush(SyncColor);
     public bool CanDeleteProfile => SelectedProfile is { IsBuiltIn: false };
     public string EmptyStateMessage => IsOpenRgbInstalled
-        ? "Start OpenRGB with its SDK server enabled (or press \"Start OpenRGB server\"), then connect to see and control your RGB devices."
-        : "Install OpenRGB from openrgb.org, start it with the SDK server enabled, then connect. The vendor apps listed in the status card are an alternative.";
+        ? Loc.T("No RGB hardware was found and OpenRGB lists no devices. Start OpenRGB with its SDK server on, then press Rescan.")
+        : Loc.T("No RGB hardware was found. If your PC has lighting, install OpenRGB, start it with its SDK server on, then press Rescan.");
 
     public string SelectedProfileSummary => SelectedProfile switch
     {
@@ -132,9 +142,11 @@ public sealed partial class LightingViewModel : ViewModelBase
                 {
                     _logger.LogInformation("Lighting: {Status}", result.Message);
                 }
-            }, "Connecting to OpenRGB…");
+            }, Loc.T("Connecting to OpenRGB…"));
         }
 
+        // The detection pass is read-only and quick, so it runs on every first visit (demo and real alike).
+        await RunBusyAsync(ScanHardwareAsync, Loc.T("Looking for RGB hardware…"));
         HasInitialized = true;
     }
 
@@ -142,10 +154,8 @@ public sealed partial class LightingViewModel : ViewModelBase
     {
         PullStatus();
         await LoadDevicesAsync(ct);
-    }, "Refreshing devices…");
-
-    [RelayCommand]
-    private Task RefreshDevicesAsync() => RefreshAsync(CancellationToken.None);
+        await ScanHardwareAsync(ct);
+    }, Loc.T("Looking for RGB hardware…"));
 
     [RelayCommand]
     private Task ConnectAsync() => RunBusyAsync(async ct =>
@@ -161,7 +171,9 @@ public sealed partial class LightingViewModel : ViewModelBase
         {
             ErrorMessage = result.Message;
         }
-    }, "Connecting to OpenRGB…");
+
+        await DispatcherHelper.RunOnUiAsync(RebuildAllDevices);
+    }, Loc.T("Connecting to OpenRGB…"));
 
     [RelayCommand]
     private async Task DisconnectAsync()
@@ -169,6 +181,7 @@ public sealed partial class LightingViewModel : ViewModelBase
         await _lighting.DisconnectAsync();
         PullStatus();
         ClearDevices();
+        RebuildAllDevices();
         OnPropertyChanged(nameof(ShowEmptyState));
     }
 
@@ -186,7 +199,9 @@ public sealed partial class LightingViewModel : ViewModelBase
         {
             ErrorMessage = result.Message;
         }
-    }, "Starting the OpenRGB server (this can take a few seconds)…");
+
+        await DispatcherHelper.RunOnUiAsync(RebuildAllDevices);
+    }, Loc.T("Starting OpenRGB with its SDK server (this can take a few seconds)…"));
 
     [RelayCommand]
     private void OpenDownloadPage() => Report(ShellLauncher.Open(LightingStatusText.DownloadUrl));
@@ -424,14 +439,20 @@ public sealed partial class LightingViewModel : ViewModelBase
     private async Task LoadDevicesAsync(CancellationToken ct)
     {
         var devices = await _lighting.GetDevicesAsync(ct);
-        await DispatcherHelper.RunOnUiAsync(() => ApplyDeviceList(devices));
+        await DispatcherHelper.RunOnUiAsync(() =>
+        {
+            _lastDevices = devices;
+            ApplyDeviceList(devices);
+            RebuildAllDevices();
+        });
     }
 
     private void ApplyDeviceList(IReadOnlyList<RgbDevice> devices)
     {
         var byIndex = Devices.ToDictionary(d => d.Index);
         var kept = new HashSet<int>();
-        foreach (var device in devices)
+        // Devices whose details could not be read appear in the combined list only: they have nothing to control.
+        foreach (var device in devices.Where(d => !d.IsReadOnly))
         {
             kept.Add(device.Index);
             if (byIndex.TryGetValue(device.Index, out var vm) && vm.Name == device.Name)
@@ -470,6 +491,7 @@ public sealed partial class LightingViewModel : ViewModelBase
 
     private void ClearDevices()
     {
+        _lastDevices = [];
         Devices.Clear();
         Components.Clear();
         Peripherals.Clear();
@@ -525,7 +547,11 @@ public sealed partial class LightingViewModel : ViewModelBase
             }
             else
             {
-                DispatcherHelper.PostToUi(ClearDevices);
+                DispatcherHelper.PostToUi(() =>
+                {
+                    ClearDevices();
+                    RebuildAllDevices();
+                });
             }
         }
         catch (OperationCanceledException)

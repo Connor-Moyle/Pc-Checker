@@ -163,7 +163,7 @@ limitations, is in [docs/FEATURES.md](docs/FEATURES.md).
 | Page | What it does |
 |---|---|
 | **Fans** | Detects every fan LibreHardwareMonitor can control (motherboard headers, GPU fans, some coolers). Manual speed, custom curves with hysteresis and ramp limiting, Silent/Balanced/Performance profiles, revert to automatic on exit and after a crash, and a failsafe that forces 100 % if a part overheats. Laptops and OEM boards often expose no controllable fans; the page says so plainly. |
-| **Lighting** | RGB control through [OpenRGB](https://openrgb.org): motherboards, RAM, GPUs, keyboards, mice, coolers and strips. Per-device modes, colours, zones, brightness and speed, sync-all, turn-off-all, profiles. Needs OpenRGB with its SDK server enabled; the page can launch it and links the vendor suites as alternatives. |
+| **Lighting** | RGB control through [OpenRGB](https://openrgb.org): motherboards, RAM, GPUs, keyboards, mice, coolers and strips. Per-device modes, colours, zones (including the LED count of addressable headers), brightness and speed, sync-all, turn-off-all, profiles. Lists every RGB device it finds even without OpenRGB (USB and graphics card IDs, RGB memory, Dynamic Lighting devices) with a plain status, spots iCUE, Armoury Crate and other apps that hold devices and can close them for the session, and can start or install OpenRGB. |
 
 ### Apps & Drivers
 

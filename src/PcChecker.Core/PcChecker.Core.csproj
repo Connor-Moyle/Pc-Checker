@@ -26,4 +26,9 @@
     <PackageReference Include="Vortice.D3DCompiler" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- RGB hardware ID lists (build/update-rgb-ids.py) read by Lighting/Detection/RgbKnownDevices.cs. -->
+    <EmbeddedResource Include="Lighting\Data\*.tsv" LogicalName="PcChecker.Core.Lighting.Data.%(Filename)%(Extension)" />
+  </ItemGroup>
+
 </Project>

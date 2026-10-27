@@ -94,7 +94,7 @@ public class DemoServicesTests
 
         var lighting = new DemoLightingService();
         Assert.True(lighting.IsConnected);
-        Assert.Equal(6, (await lighting.GetDevicesAsync(CancellationToken.None)).Count);
+        Assert.Equal(3, (await lighting.GetDevicesAsync(CancellationToken.None)).Count);
         Assert.True((await lighting.SetAllAsync(RgbColor.White, CancellationToken.None)).Success);
         Assert.Equal(4, lighting.BuiltInProfiles.Count);
 

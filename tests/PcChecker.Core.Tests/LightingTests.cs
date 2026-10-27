@@ -383,7 +383,7 @@ public class LightingTests
     {
         var svc = new DemoLightingService();
         var devices = await svc.GetDevicesAsync(CancellationToken.None);
-        Assert.Equal(6, devices.Count);
+        Assert.Equal(3, devices.Count);
         Assert.Contains(devices, d => OpenRgbDeviceTypes.IsPeripheral(d.Type));
 
         var keyboard = devices.Single(d => d.Type == OpenRgbDeviceTypes.Keyboard);

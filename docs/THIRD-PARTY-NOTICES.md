@@ -35,5 +35,8 @@ are also kept in this repository under [docs/licenses](licenses).
 - **Vendor software**: PC Checker launches NVIDIA App, AMD Software: Adrenalin Edition, Intel Graphics Software,
   Intel XTU, AMD Ryzen Master, OpenRGB and peripheral suites when they are installed. Those programs are not
   distributed with PC Checker and keep their own terms.
+- **RGB hardware ID lists**: `src/PcChecker.Core/Lighting/Data/rgb-*-ids.tsv` list the USB and graphics card IDs
+  and product names of the RGB controllers OpenRGB (GPL-2.0) supports, read from its device detectors by
+  `build/update-rgb-ids.py`. Only these facts are taken; no OpenRGB code is copied or shipped.
 
 The shipped components and their licences are also listed on the Settings page under About.

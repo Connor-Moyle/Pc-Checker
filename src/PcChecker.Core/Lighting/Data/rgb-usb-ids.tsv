@@ -1,0 +1,1156 @@
+# RGB controllers OpenRGB recognises by USB/HID ID. Generated 2026-10-27 by build/update-rgb-ids.py from OpenRGB's device detectors.
+# vendor id	product id	product	OpenRGB controller family
+03EB	FF01	Wooting One (Legacy)	WootingKeyboardController
+03EB	FF02	Wooting Two (Legacy)	WootingKeyboardController
+03F0	028C	HyperX Quadcast S	HyperXMicrophoneController
+03F0	0294	HyperX Quadcast S	HyperXMicrophoneController
+03F0	02B5	HyperX QuadCast 2 S	HyperXMicrophoneV2Controller
+03F0	038F	HyperX Alloy Origins 65 (HP)	HyperXKeyboardController
+03F0	048C	HyperX Quadcast S	HyperXMicrophoneController
+03F0	0490	HyperX Pulsefire Surge (HP)	HyperXMouseController
+03F0	058F	HyperX Alloy Elite 2 (HP)	HyperXKeyboardController
+03F0	0591	HyperX Alloy Origins (HP)	HyperXKeyboardController
+03F0	068C	HyperX Quadcast S	HyperXMicrophoneController
+03F0	068E	HyperX Pulsefire Dart (Wireless)	HyperXMouseController
+03F0	088E	HyperX Pulsefire Dart (Wired)	HyperXMouseController
+03F0	08C2	HyperX Eve 1800 (HP)	HyperXKeyboardController
+03F0	098C	HyperX DuoCast	HyperXMicrophoneController
+03F0	098F	HyperX Alloy Origins Core (HP)	HyperXKeyboardController
+03F0	0C8E	HyperX Alloy Origins 60 (HP)	HyperXKeyboardController
+03F0	0CC2	HyperX Origins 2 65 (HP)	HyperXKeyboardController
+03F0	0D8B	HyperX Quadcast S	HyperXMicrophoneController
+03F0	0D8F	HyperX Pulsefire Core (HP)	HyperXMouseController
+03F0	0F8B	HyperX Quadcast S	HyperXMicrophoneController
+03F0	0F8D	HyperX Pulsefire Mat	HyperXMousematController
+03F0	0F8F	HyperX Pulsefire Haste	HyperXMouseController
+0414	7A3F	Gigabyte Aorus 17X Keyboard	GigabyteAorusLaptopController
+0414	7A42	Gigabyte Aorus 17X Backlight	GigabyteAorusLaptopController
+0414	7A43	Gigabyte Aorus 15BKF Keyboard	GigabyteAorusLaptopController
+0414	7A44	Gigabyte Aorus 15BKF Backlight	GigabyteAorusLaptopController
+0414	7A5E	Gigabyte Aorus Waterforce X II 360	GigabyteCastor3Controller
+0414	A100	Gigabyte RGB Fusion 2 USB	GigabyteRGBFusion2USBController
+0416	5020	ViewSonic Monitor XG270QG	ViewSonicController
+0416	7371	Lian Li GA II Trinity Performance	LianLiController
+0416	7373	Lian Li GA II Trinity	LianLiController
+0416	A125	JGINYUE Internal USB Controller	JGINYUEInternalUSBController
+0416	B23C	Winbond Gaming Keyboard	WinbondGamingKeyboardController
+0416	C345	Witmod Keyboard	WitmodKeyboardController
+041E	3256	Creative SoundBlasterX G6	CreativeController
+043E	9A8A	LG 27GN950-B Monitor	LGMonitorController
+046A	0077	Cherry Keyboard MX BOARD 3.0S FL NBL	CherryKeyboardController
+046A	0079	Cherry Keyboard MX BOARD 3.0S FL RGB	CherryKeyboardController
+046A	0083	Cherry Keyboard MX BOARD 3.0S FL RGB KOREAN	CherryKeyboardController
+046A	00AB	Cherry Keyboard MX 1.0 FL BL	CherryKeyboardController
+046A	00AC	Cherry Keyboard MX BOARD 1.0 TKL RGB	CherryKeyboardController
+046A	00B7	Cherry Keyboard MX BOARD 8.0 TKL RGB	CherryKeyboardController
+046A	00BB	Cherry Keyboard MX BOARD 10.0 FL RGB	CherryKeyboardController
+046A	00C3	Cherry Keyboard G80-3000 TKL NBL	CherryKeyboardController
+046A	00C4	Cherry Keyboard MX BOARD 2.0S FL RGB (US)	CherryKeyboardController
+046A	00C5	Cherry Keyboard G80-3000 TKL RGB	CherryKeyboardController
+046A	00C7	Cherry Keyboard MV BOARD 3.0 FL RGB	CherryKeyboardController
+046A	00C9	Cherry Keyboard CCF MX 8.0 TKL BL	CherryKeyboardController
+046A	00CA	Cherry Keyboard CCF MX 1.0 TKL BL	CherryKeyboardController
+046A	00CB	Cherry Keyboard CCF MX 1.0 TKL NBL	CherryKeyboardController
+046A	00CD	Cherry Keyboard G80-3000 TKL NBL KOREAN	CherryKeyboardController
+046A	00CE	Cherry Keyboard MX BOARD 2.0S FL NBL	CherryKeyboardController
+046A	00D2	Cherry Keyboard MX 1.0 FL NBL	CherryKeyboardController
+046A	00D3	Cherry Keyboard MX 1.0 FL RGB	CherryKeyboardController
+046A	00DD	Cherry Keyboard G80-3000N TKL RGB (EU)	CherryKeyboardController
+046A	00DE	Cherry Keyboard G80-3000N FL RGB (EU)	CherryKeyboardController
+046A	00DF	Cherry Keyboard MX BOARD 10.0N FL RGB (EU)	CherryKeyboardController
+046A	00E0	Cherry Keyboard G80-3000N TKL RGB (US)	CherryKeyboardController
+046A	00E1	Cherry Keyboard G80-3000N FL RGB (US)	CherryKeyboardController
+046A	00E2	Cherry Keyboard MX BOARD 10.0N FL RGB (US)	CherryKeyboardController
+046A	01A6	Cherry Keyboard MX BOARD 2.0S FL RGB (EU)	CherryKeyboardController
+046D	0A5B	Logitech G933 Lightsync Headset	LogitechController
+046D	0A5C	Logitech G633 Gaming Headset	LogitechController
+046D	0A87	Logitech G935 Gaming Headset	LogitechController
+046D	0A89	Logitech G635 Gaming Headset	LogitechController
+046D	0AB5	Logitech G733 Gaming Headset	LogitechController
+046D	0AFE	Logitech G733 Gaming Headset	LogitechController
+046D	0B1F	Logitech G733 Gaming Headset	LogitechController
+046D	4053	Logitech G900 Wireless Gaming Mouse	LogitechController
+046D	405D	Logitech G403 Wireless Gaming Mouse	LogitechController
+046D	405F	Logitech Powerplay Mat	LogitechController
+046D	4067	Logitech G903 Wireless Gaming Mouse	LogitechController
+046D	4070	Logitech G703 Wireless Gaming Mouse	LogitechController
+046D	4079	Logitech G Pro Wireless Gaming Mouse	LogitechController
+046D	407F	Logitech G502 Wireless Gaming Mouse	LogitechController
+046D	4086	Logitech G703 HERO Wireless Gaming Mouse	LogitechController
+046D	4087	Logitech G903 HERO Wireless Gaming Mouse	LogitechController
+046D	C080	Logitech G303 Daedalus Apex	LogitechController
+046D	C081	Logitech G900 Wireless Gaming Mouse (wired)	LogitechController
+046D	C082	Logitech G403 Wireless Gaming Mouse (wired)	LogitechController
+046D	C083	Logitech G403 Prodigy Gaming Mouse	LogitechController
+046D	C084	Logitech G203 Prodigy	LogitechController
+046D	C085	Logitech G Pro Gaming Mouse	LogitechController
+046D	C086	Logitech G903 Wireless Gaming Mouse (wired)	LogitechController
+046D	C087	Logitech G703 Wireless Gaming Mouse (wired)	LogitechController
+046D	C088	Logitech G Pro Wireless Gaming Mouse (wired)	LogitechController
+046D	C08B	Logitech G502 HERO Gaming Mouse	LogitechController
+046D	C08C	Logitech G Pro HERO Gaming Mouse	LogitechController
+046D	C08D	Logitech G502 Wireless Gaming Mouse (wired)	LogitechController
+046D	C08F	Logitech G403 HERO	LogitechController
+046D	C090	Logitech G703 HERO Wireless Gaming Mouse (wired)	LogitechController
+046D	C091	Logitech G903 HERO Wireless Gaming Mouse (wired)	LogitechController
+046D	C092	Logitech G203 Lightsync	LogitechController
+046D	C09D	Logitech G203 Lightsync	LogitechController
+046D	C232	Logitech G813 RGB Mechanical Gaming Keyboard	LogitechController
+046D	C24A	Logitech G600 Gaming Mouse	LogitechController
+046D	C332	Logitech G502 Proteus Spectrum Gaming Mouse	LogitechController
+046D	C336	Logitech G213	LogitechController
+046D	C33E	Logitech G915 Wireless RGB Mechanical Gaming Keyboard (Wired)	LogitechController
+046D	C33F	Logitech G815 RGB Mechanical Gaming Keyboard	LogitechController
+046D	C343	Logitech G915TKL Wireless RGB Mechanical Gaming Keyboard (Wired)	LogitechController
+046D	C539	Logitech Lightspeed Receiver	LogitechController
+046D	C53A	Logitech G Powerplay Mousepad	LogitechController
+046D	C541	Logitech G915 Wireless RGB Mechanical Gaming Keyboard	LogitechController
+046D	C545	Logitech G915TKL Wireless RGB Mechanical Gaming Keyboard	LogitechController
+046D	C547	Logitech G915 Wireless RGB Mechanical Gaming Keyboard (Receiver 2)	LogitechController
+0483	5750	EK Loop Connect	EKController
+048D	5702	Gigabyte RGB Fusion 2 USB	GigabyteRGBFusion2USBController
+048D	5711	Gigabyte RGB Fusion 2 USB	GigabyteRGBFusion2USBController
+048D	6005	Ionico Light Bar	IonicoController
+048D	600B	Clevo Keyboard (ITE 8291)	ClevoKeyboardController
+048D	7001	CLEVO Lightbar	ClevoLightbarController
+048D	8297	Gigabyte RGB Fusion 2 USB	GigabyteRGBFusion2USBController
+048D	8910	Clevo Keyboard (ITE 829x)	ClevoKeyboardController
+048D	8950	Gigabyte RGB Fusion 2 USB	GigabyteRGBFusion2USBController
+048D	C195	Lenovo Legion 5 Gen 10	LenovoControllers
+048D	C197	Lenovo Legion 7 Gen 10	LenovoControllers
+048D	C935	Lenovo Legion Y740	LenovoControllers
+048D	C955	Lenovo 5 2020	LenovoControllers
+048D	C956	Lenovo Legion 7 Gen 5	LenovoControllers
+048D	C957	Lenovo Legion 7S Gen 5	LenovoControllers
+048D	C963	Lenovo Ideapad 3-15ach6	LenovoControllers
+048D	C965	Lenovo 5 2021	LenovoControllers
+048D	C967	Lenovo Legion 7S Gen 6	LenovoControllers
+048D	C968	Lenovo Legion 7 Gen 6	LenovoControllers
+048D	C973	Lenovo 5 2022 Ideapad	LenovoControllers
+048D	C975	Lenovo 5 2022	LenovoControllers
+048D	C977	Lenovo Legion 7S Gen 7	LenovoControllers
+048D	C978	Lenovo Legion 7 Gen 7	LenovoControllers
+048D	C984	Lenovo 5 2023 Ideapad	LenovoControllers
+048D	C985	Lenovo 5 2023	LenovoControllers
+048D	C987	Lenovo Legion 7S Gen 8	LenovoControllers
+048D	C988	Lenovo Legion 7 Gen 8	LenovoControllers
+048D	C997	Lenovo Legion 7 Gen 9	LenovoControllers
+048D	C998	Lenovo Legion 7 Gen 9	LenovoControllers
+048D	CE00	Ionico Keyboard	IonicoController
+04D8	F372	Luxafor Flag	LuxaforController
+04D8	FD0A	Np93 ALPHA - Gaming Mouse	LexipMouseController
+04D9	0348	Ducky Shine 7/Ducky One 2 RGB	DuckyKeyboardController
+04D9	0356	Ducky One 2 RGB TKL	DuckyKeyboardController
+04D9	8008	Anne Pro 2	AnnePro2Controller
+04D9	8009	Anne Pro 2	AnnePro2Controller
+04D9	A070	Holtek USB Gaming Mouse	HoltekController
+04D9	A1FA	Holtek Mousemat	HoltekController
+04D9	A292	Anne Pro 2	AnnePro2Controller
+04D9	A293	Anne Pro 2	AnnePro2Controller
+04D9	FA7E	Redragon M810 Taipan	RedragonController
+04D9	FC05	Tecknet M008	TecknetController
+04D9	FC30	Redragon M711 Cobra	RedragonController
+04D9	FC38	Redragon M602 Griffin	RedragonController
+04D9	FC39	Redragon M715 Dagger	RedragonController
+04D9	FC3A	Redragon M716 Inquisitor	RedragonController
+04D9	FC40	Redragon M921 Azzinoth	RedragonController
+04D9	FC4D	Redragon M908 Impact	RedragonController
+04D9	FC58	Redragon M801 Sniper	RedragonController
+04D9	FC5F	Redragon M808 Storm	RedragonController
+04D9	FC62	Redragon M711-FPS-1 Cobra FPS	RedragonController
+04D9	FC69	Redragon M987 Reaping	RedragonController
+04F2	1830	Alienware AW510K	AlienwareKeyboardController
+04F2	1968	Alienware AW410K	AlienwareKeyboardController
+0543	A002	ViewSonic Monitor XG270QC	ViewSonicController
+0543	A004	ViewSonic Monitor XG271QG	ViewSonicController
+054C	05C4	Sony DualShock 4	SonyGamepadController
+054C	09CC	Sony DualShock 4	SonyGamepadController
+054C	0BA0	Sony DualShock 4	SonyGamepadController
+054C	0CE6	Sony DualSense	SonyGamepadController
+054C	0DF2	Sony DualSense Edge	SonyGamepadController
+05AC	024F	Keychron Gaming Keyboard 1	KeychronKeyboardController
+05AC	0256	VSG Mintaka	MintakaKeyboardController
+060B	7010	Cougar 700K EVO Gaming Keyboard	CougarController
+06A3	0DC5	MadCatz Cyborg Gaming Light	MadCatzCyborgController
+0738	2221	Logitech X56 Rhino Hotas Joystick	LogitechController
+0738	A221	Logitech X56 Rhino Hotas Throttle	LogitechController
+0951	16BE	HyperX Alloy Elite RGB	HyperXKeyboardController
+0951	16D3	HyperX Pulsefire Surge	HyperXMouseController
+0951	16D7	HyperX Pulsefire FPS Pro	HyperXMouseController
+0951	16DC	HyperX Alloy FPS RGB	HyperXKeyboardController
+0951	16DE	HyperX Pulsefire Core	HyperXMouseController
+0951	16E1	HyperX Pulsefire Dart (Wireless)	HyperXMouseController
+0951	16E2	HyperX Pulsefire Dart (Wired)	HyperXMouseController
+0951	16E4	HyperX Pulsefire Raid	HyperXMouseController
+0951	16E5	HyperX Alloy Origins	HyperXKeyboardController
+0951	16E6	HyperX Alloy Origins Core	HyperXKeyboardController
+0951	1705	HyperX Fury Ultra	HyperXMousematController
+0951	1711	HyperX Alloy Elite 2	HyperXKeyboardController
+0951	171F	HyperX Quadcast S	HyperXMicrophoneController
+0951	1727	HyperX Pulsefire Haste	HyperXMouseController
+0951	1734	HyperX Alloy Origins 60	HyperXKeyboardController
+0951	1741	HyperX Pulsefire Mat RGB Mouse Pad XL	HyperXMousematController
+0955	000A	Nvidia ESA - Dell XPS 730x	NvidiaESAController
+09DA	3666	Bloody W90 Max	A4TechController
+09DA	37EA	Bloody W60 Pro	A4TechController
+09DA	39B6	Bloody W90 Pro	A4TechController
+09DA	79EF	Bloody W70 Max	A4TechController
+09DA	FA10	Bloody B820R	A4TechController
+09DA	FA60	Bloody MP 50RS	A4TechController
+0B05	181C	ASUS ROG Spatha Wired	AsusAuraUSBController
+0B05	1824	ASUS ROG Spatha Wireless	AsusAuraUSBController
+0B05	1835	ASUS Sagaris GK1100	AsusLegacyUSBController
+0B05	1845	ASUS ROG Gladius II	AsusAuraUSBController
+0B05	1846	ASUS ROG Pugio	AsusAuraUSBController
+0B05	1847	ASUS ROG Strix Impact	AsusAuraUSBController
+0B05	184D	ASUS ROG Claymore	AsusAuraUSBController
+0B05	1854	ASUS Aura Core	AsusAuraCoreController
+0B05	185B	ASUS ROG Strix Evolve	AsusAuraUSBController
+0B05	1866	ASUS Aura Core	AsusAuraCoreController
+0B05	1867	ASUS Aura Addressable	AsusAuraUSBController
+0B05	1869	ASUS Aura Core	AsusAuraCoreController
+0B05	1872	ASUS Aura Addressable	AsusAuraUSBController
+0B05	1875	ASUS ROG Strix Flare	AsusAuraUSBController
+0B05	1877	ASUS ROG Gladius II Origin	AsusAuraUSBController
+0B05	1887	ASUS ROG Ryuo AIO	AsusAuraUSBController
+0B05	1889	ASUS ROG AURA Terminal	AsusAuraUSBController
+0B05	1890	ASUS ROG Balteus Qi	AsusAuraUSBController
+0B05	1891	ASUS ROG Balteus	AsusAuraUSBController
+0B05	1898	ASUS TUF Gaming M5	AsusAuraUSBController
+0B05	1899	ASUS TUF Gaming K5	AsusAuraUSBController
+0B05	189E	ASUS ROG Gladius II Wireless	AsusAuraUSBController
+0B05	18A0	ASUS ROG Gladius II Wireless	AsusAuraUSBController
+0B05	18A3	ASUS Aura Addressable	AsusAuraUSBController
+0B05	18A5	ASUS Aura Addressable	AsusAuraUSBController
+0B05	18AA	ASUS TUF Gaming K7	AsusAuraUSBController
+0B05	18AE	ASUS ROG Ryujin AIO	AsusAuraUSBController
+0B05	18AF	ASUS ROG Strix Flare CoD Black Ops 4 Edition	AsusAuraUSBController
+0B05	18B1	ASUS ROG Gladius II Origin COD	AsusAuraUSBController
+0B05	18C5	ASUS ROG Throne QI	AsusAuraUSBController
+0B05	18CD	ASUS ROG Gladius II Origin PNK LTD	AsusAuraUSBController
+0B05	18CF	ASUS ROG Strix Flare PNK LTD	AsusAuraUSBController
+0B05	18D9	ASUS ROG Throne	AsusAuraUSBController
+0B05	18DD	ASUS ROG Gladius II Core	AsusAuraUSBController
+0B05	18E1	ASUS ROG Strix Impact II	AsusAuraUSBController
+0B05	18E3	ASUS ROG Chakram (Wired)	AsusAuraUSBController
+0B05	18E5	ASUS ROG Chakram (Wireless)	AsusAuraUSBController
+0B05	18F3	ASUS Aura Motherboard	AsusAuraUSBController
+0B05	18F8	ASUS ROG Strix Scope	AsusAuraUSBController
+0B05	1906	ASUS ROG Pugio II (Wired)	AsusAuraUSBController
+0B05	1908	ASUS ROG Pugio II (Wireless)	AsusAuraUSBController
+0B05	190C	ASUS ROG Strix Scope TKL	AsusAuraUSBController
+0B05	1910	ASUS TUF Gaming M3	AsusAuraUSBController
+0B05	1919	ASUS ROG Strix XG279Q	AsusAuraUSBController
+0B05	1933	ASUS ROG Strix XG27W	AsusAuraUSBController
+0B05	1939	ASUS Aura Motherboard	AsusAuraUSBController
+0B05	193C	ASUS ROG Falchion (Wired)	AsusAuraUSBController
+0B05	193E	ASUS ROG Falchion (Wireless)	AsusAuraUSBController
+0B05	1945	ASUS TUF Gaming K1	AsusAuraUSBController
+0B05	1947	ASUS ROG Strix Impact II Wireless USB	AsusAuraUSBController
+0B05	1949	ASUS ROG Strix Impact II Wireless 2.4 Ghz	AsusAuraUSBController
+0B05	194B	ASUS TUF Gaming K3	AsusAuraUSBController
+0B05	1951	ASUS ROG Strix Scope RX	AsusAuraUSBController
+0B05	1954	ASUS ROG Strix Scope TKL PNK LTD	AsusAuraUSBController
+0B05	1956	ASUS ROG Strix Impact II Electro Punk	AsusAuraUSBController
+0B05	1958	ASUS ROG Chakram Core	AsusAuraUSBController
+0B05	195C	ASUS ROG Keris	AsusAuraUSBController
+0B05	195E	ASUS ROG Keris Wireless USB	AsusAuraUSBController
+0B05	1960	ASUS ROG Keris Wireless 2.4Ghz	AsusAuraUSBController
+0B05	1962	ASUS ROG Keris Wireless Bluetooth	AsusAuraUSBController
+0B05	1968	ASUS ROG Strix XG32VC	AsusAuraUSBController
+0B05	1977	Asus ROG Spatha X USB	AsusAuraUSBController
+0B05	1979	Asus ROG Spatha X 2.4GHz	AsusAuraUSBController
+0B05	197B	ASUS ROG Gladius III	AsusAuraUSBController
+0B05	197D	ASUS ROG Gladius III Wireless USB	AsusAuraUSBController
+0B05	197F	ASUS ROG Gladius III Wireless 2.4Ghz	AsusAuraUSBController
+0B05	1981	ASUS ROG Gladius III Wireless Bluetooth	AsusAuraUSBController
+0B05	198C	ASUS ROG Strix XG27AQ	AsusAuraUSBController
+0B05	1994	ASUS ROG Throne QI GUNDAM	AsusAuraUSBController
+0B05	19AF	ASUS Aura Motherboard	AsusAuraUSBController
+0B05	19B6	ASUS ROG Strix SCAR 15	AsusAuraCoreController
+0B05	19B9	ASUS ROG PG32UQ	AsusAuraUSBController
+0B05	19BB	ASUS ROG Strix XG27AQM	AsusAuraUSBController
+0B05	19D0	ASUS ROG Strix Scope NX TKL Moonlight White	AsusAuraUSBController
+0B05	19D2	ASUS ROG Strix Impact II Moonlight White	AsusAuraUSBController
+0B05	19F6	ASUS ROG Strix Scope NX Wireless Deluxe USB	AsusAuraUSBController
+0B05	19F8	ASUS ROG Strix Scope NX Wireless Deluxe 2.4GHz	AsusAuraUSBController
+0B05	19FC	ASUS ROG Strix Flare II Animate	AsusAuraUSBController
+0B05	19FE	ASUS ROG Strix Flare II	AsusAuraUSBController
+0B05	1A05	ASUS ROG Strix Scope RX TKL Wireless Deluxe	AsusAuraUSBController
+0B05	1A18	ASUS ROG Chakram X USB	AsusAuraUSBController
+0B05	1A1A	ASUS ROG Chakram X 2.4GHz	AsusAuraUSBController
+0B05	1A66	ASUS ROG Keris Wireless AimPoint USB	AsusAuraUSBController
+0B05	1A68	ASUS ROG Keris Wireless AimPoint 2.4Ghz	AsusAuraUSBController
+0B05	1A70	ASUS ROG Gladius III Wireless AimPoint USB	AsusAuraUSBController
+0B05	1A72	ASUS ROG Gladius III Wireless AimPoint 2.4Ghz	AsusAuraUSBController
+0B05	1A83	ASUS ROG Azoth USB	AsusAuraUSBController
+0B05	1A85	ASUS ROG Azoth 2.4GHz	AsusAuraUSBController
+0B05	1A88	ASUS ROG Strix Impact III	AsusAuraUSBController
+0B05	1A9B	ASUS TUF Gaming M3 Gen II	AsusAuraUSBController
+0B05	1AA6	ASUS Aura Motherboard	AsusAuraUSBController
+0B05	1AAE	ASUS ROG Strix Scope II 96 Wireless USB	AsusAuraUSBController
+0B05	1AB3	ASUS ROG Strix Scope II	AsusAuraUSBController
+0B05	1AB5	ASUS ROG Strix Scope II RX	AsusAuraUSBController
+0B05	1ABE	ASUS ROG Ally	AsusAuraUSBController
+0B05	1AC8	Asus ROG Aura Monitor Light Bar	AsusMonitorController
+0B05	1B12	ASUS ROG Strix Scope RX EVA-02 Edition	AsusAuraUSBController
+0B05	1B29	ASUS ROG Strix LC III	AsusAuraUSBController
+0B05	1B2B	Asus ROG SWIFT PG32UCDM	AsusMonitorController
+0B05	1B30	ASUS TUF Gaming K3 GEN II	AsusAuraUSBController
+0B05	1B4C	ASUS ROG Ally X	AsusAuraUSBController
+0B05	1B78	ASUS ROG Strix Scope II 96 RX Wireless USB	AsusAuraUSBController
+0B05	1BA3	Asus ROG STRIX XG27AQDMG	AsusMonitorController
+0B05	1BB4	Asus ROG STRIX XG27UCG	AsusMonitorController
+0B05	1BC9	Asus ROG STRIX XG27ACDNG	AsusMonitorController
+0B05	1BCA	Asus ROG SWIFT PG32UCDP	AsusMonitorController
+0B05	1BED	ASUS Aura Motherboard	AsusAuraUSBController
+0B05	1C5E	ASUS TUF Gaming K3 GEN II MIKU EDITION	AsusAuraUSBController
+0B05	1C8D	ASUS ROG Gladius III Core	AsusAuraUSBController
+0B05	1C9B	Asus ROG SWIFT PG32UCDMR	AsusMonitorController
+0B05	879E	ASUS ROG Strix LC	AsusAuraUSBController
+0BDA	9201	RTL9201	RealtekBridgeController
+0BDA	9209	RTL9209	RealtekARGBController
+0BDA	9210	RTL9210	RealtekBridgeController
+0BDA	9220	RTL9220	RealtekBridgeController
+0C45	5004	EVision Keyboard 0C45:5004	EVisionKeyboardController
+0C45	5104	EVision Keyboard 0C45:5104	EVisionKeyboardController
+0C45	5204	EVision Keyboard 0C45:5204	EVisionKeyboardController
+0C45	652F	EVision Keyboard 0C45:652F	EVisionKeyboardController
+0C45	7672	EVision Keyboard 0C45:7672	EVisionKeyboardController
+0C45	7698	EVision Keyboard 0C45:7698	EVisionKeyboardController
+0C45	7E18	Patriot Viper V550	PatriotViperMouseController
+0C45	8520	EVision Keyboard 0C45:8520	EVisionKeyboardController
+0CF2	5130	AcerNitroHidKeyboardController	AcerNitroHidKeyboardController
+0CF2	7750	Lian Li Uni Hub	LianLiController
+0CF2	A100	Lian Li Uni Hub - SL	LianLiController
+0CF2	A101	Lian Li Uni Hub - AL	LianLiController
+0CF2	A102	Lian Li Uni Hub - SL Infinity	LianLiController
+0CF2	A103	Lian Li Uni Hub - SL V2	LianLiController
+0CF2	A104	Lian Li Uni Hub - AL V2	LianLiController
+0CF2	A105	Lian Li Uni Hub - SL V2 v0.5	LianLiController
+0CF2	A200	Lian Li Strimer L Connect	LianLiController
+0DB0	0076	MSI Mystic Light Common	MSIMotherboardController
+0DB0	0B30	MSI Vigor GK30 controller	MSIVigorController
+0DB0	0D11	MSI Clutch GM11 controller	MSIClutchController
+0E6F	0241	Lego Dimensions Toypad Base	LegoDimensionsToypadBaseController
+0FD9	0080	Elgato Stream Deck MK.2	StreamDeckController
+1038	0616	SteelSeries Apex M750	SteelSeriesController
+1038	1122	MSI Laptop Keyboard	MSILaptopController
+1038	113A	MSI GE68HX Keyboard	MSILaptopController
+1038	114B	MSI GE68HX Lightbar	MSILaptopController
+1038	1161	MSI Laptop Lightbar	MSILaptopController
+1038	1202	SteelSeries Apex (OG)/Apex Fnatic	SteelSeriesController
+1038	1206	SteelSeries Apex 350	SteelSeriesController
+1038	1229	SteelSeries Siberia 350	SteelSeriesController
+1038	1250	SteelSeries Arctis 5	SteelSeriesController
+1038	12AA	SteelSeries Arctis 5	SteelSeriesController
+1038	12EC	SteelSeries Arctis Nova 3	SteelSeriesController
+1038	1392	SteelSeries Rival 300 Dota 2 Edition	SteelSeriesController
+1038	1394	SteelSeries Rival 300 CS:GO Fade Edition	SteelSeriesController
+1038	150A	SteelSeries QCK Prism Cloth Medium	SteelSeriesController
+1038	150D	SteelSeries QCK Prism Cloth XL	SteelSeriesController
+1038	1514	SteelSeries QCK Prism Cloth XL CS:GO Neon Rider Ed.	SteelSeriesController
+1038	1516	SteelSeries QCK Prism Cloth 3XL	SteelSeriesController
+1038	1518	SteelSeries QCK Prism Cloth 4XL	SteelSeriesController
+1038	151A	SteelSeries QCK Prism Cloth 5XL	SteelSeriesController
+1038	151C	SteelSeries QCK Prism Cloth XL CS:GO Neo Noir Ed.	SteelSeriesController
+1038	151E	SteelSeries QCK Prism Cloth XL Destiny Ed.	SteelSeriesController
+1038	1520	SteelSeries QCK Prism Cloth XL Destiny 2 Lightfall Ed.	SteelSeriesController
+1038	1610	SteelSeries Apex Pro	SteelSeriesController
+1038	1612	SteelSeries Apex 7	SteelSeriesController
+1038	1614	SteelSeries Apex Pro TKL	SteelSeriesController
+1038	1618	SteelSeries Apex 7 TKL	SteelSeriesController
+1038	161A	SteelSeries Apex 3	SteelSeriesController
+1038	161C	SteelSeries Apex 5	SteelSeriesController
+1038	1620	SteelSeries Apex 9 Mini	SteelSeriesController
+1038	1622	SteelSeries Apex 3 TKL	SteelSeriesController
+1038	1628	SteelSeries Apex Pro TKL 2023 Wired	SteelSeriesController
+1038	1630	SteelSeries Apex Pro TKL 2023 Wireless	SteelSeriesController
+1038	1632	SteelSeries Apex Pro TKL 2023 Wireless	SteelSeriesController
+1038	1634	SteelSeries Apex 9 TKL	SteelSeriesController
+1038	1640	SteelSeries Apex Pro 3	SteelSeriesController
+1038	1642	SteelSeries Apex Pro TKL Gen 3 Wired	SteelSeriesController
+1038	1644	SteelSeries Apex Pro TKL Gen 3 Wireless	SteelSeriesController
+1038	1646	SteelSeries Apex Pro TKL Gen 3 Wireless	SteelSeriesController
+1038	1700	SteelSeries Rival 700	SteelSeriesController
+1038	1702	SteelSeries Rival 100	SteelSeriesController
+1038	170C	SteelSeries Rival 100 DotA 2 Edition	SteelSeriesController
+1038	1710	SteelSeries Rival 300	SteelSeriesController
+1038	1714	Acer Predator Gaming Mouse (Rival 300)	SteelSeriesController
+1038	1716	SteelSeries Rival 300 CS:GO Fade Edition (stm32)	SteelSeriesController
+1038	1718	SteelSeries Rival 300 HP Omen Edition	SteelSeriesController
+1038	171A	SteelSeries Rival 300 CS:GO Hyperbeast Edition	SteelSeriesController
+1038	171E	SteelSeries Rival 310 CS:GO Howl Edition	SteelSeriesController
+1038	1720	SteelSeries Rival 310	SteelSeriesController
+1038	1722	SteelSeries Sensei 310	SteelSeriesController
+1038	1724	SteelSeries Rival 600	SteelSeriesController
+1038	1726	SteelSeries Rival 650 Wireless	SteelSeriesController
+1038	1729	SteelSeries Rival 110	SteelSeriesController
+1038	172B	SteelSeries Rival 650	SteelSeriesController
+1038	172E	SteelSeries Rival 600 Dota 2 Edition	SteelSeriesController
+1038	1730	SteelSeries Rival 710	SteelSeriesController
+1038	1736	SteelSeries Rival 310 PUBG Edition	SteelSeriesController
+1038	1814	SteelSeries Rival 105	SteelSeriesController
+1038	1816	SteelSeries Rival 106	SteelSeriesController
+1038	1824	SteelSeries Rival 3 (Old Firmware)	SteelSeriesController
+1038	1830	SteelSeries Rival 3 Wireless	SteelSeriesController
+1038	1832	SteelSeries Sensei TEN	SteelSeriesController
+1038	1834	SteelSeries Sensei TEN CS:GO Neon Rider Edition	SteelSeriesController
+1038	1836	SteelSeries Aerox 3 Wired	SteelSeriesController
+1038	1838	SteelSeries Aerox 3 Wireless	SteelSeriesController
+1038	183A	SteelSeries Aerox 3 Wireless Wired	SteelSeriesController
+1038	183C	SteelSeries Rival 5	SteelSeriesController
+1038	184C	SteelSeries Rival 3	SteelSeriesController
+1038	1850	SteelSeries Aerox 5 Wired	SteelSeriesController
+1038	1852	SteelSeries Aerox 5 Wireless	SteelSeriesController
+1038	1854	SteelSeries Aerox 5 Wireless Wired	SteelSeriesController
+1038	1858	SteelSeries Aerox 9 Wireless	SteelSeriesController
+1038	185A	SteelSeries Aerox 9 Wireless Wired	SteelSeriesController
+1038	185C	SteelSeries Aerox 5 Destiny 2 Edition Wireless	SteelSeriesController
+1038	185E	SteelSeries Aerox 5 Destiny 2 Edition Wireless Wired	SteelSeriesController
+1038	1860	SteelSeries Aerox 5 Diablo IV Edition Wireless	SteelSeriesController
+1038	1862	SteelSeries Aerox 5 Diablo IV Edition Wireless Wired	SteelSeriesController
+1038	1878	SteelSeries Aerox 3 CS2 Dragon Lore Edition Wireless	SteelSeriesController
+1038	187A	SteelSeries Aerox 3 CS2 Dragon Lore Edition Wireless Wired	SteelSeriesController
+1038	1890	SteelSeries Aerox 3 Wireless Gen 2	SteelSeriesController
+103C	84FD	HP Omen 30L	HPOmen30LController
+1044	7A30	Gigabyte AORUS C300 GLASS	GigabyteAorusPCCaseController
+1044	7A40	Gigabyte Aorus M2	GigabyteAorusMouseController
+1044	7A42	Gigabyte AORUS ATC800	GigabyteAorusCPUCoolerController
+10F5	5001	Turtle Beach Vulcan II TKL Pro	RoccatController
+10F5	501B	Turtle Beach Vulcan II	RoccatController
+10F5	5023	Turtle Beach Vulcan II TKL	RoccatController
+10F5	503A	Turtle Beach Command Series KP7	TurtleBeachKP7Controller
+1209	6D02	MNT Reform Keyboard	MNTKeyboardController
+1209	6D06	MNT Pocket Reform Keyboard	MNTKeyboardController
+125F	9418	XPG Summoner Gaming Keyboard	XPGSummonerKeyboardController
+12CF	0412	Cougar Revenger ST	CougarController
+1368	6077	YICO 8 ELITE	DRGBController
+1368	6078	YICO 08 ELITE	DRGBController
+1368	6079	YICO 08 ELITE	DRGBController
+145F	0248	Trust GXT 180	TrustController
+145F	026D	Trust GXT 114	TrustController
+1462	1562	MSI Mystic Light MS_1562	MSIKeyboardController
+1462	1563	MSI Mystic Light MS_1563	MSIKeyboardController
+1462	1564	MSI Mystic Light MS_1564	MSIKeyboardController
+1462	1601	MSI Keyboard MS_1565	MSIKeyboardController
+1462	1720	MSI Mystic Light MS_1720	MSIMotherboardController
+1462	3EA4	MSI Mystic Light MS_3EA4	MSIMotherboardController
+1462	3FA4	MSI Monitor (Gaming Controller)	MSIMonitorController
+1462	4459	MSI Mystic Light MS_4459	MSIMotherboardController
+1462	7B10	MSI Mystic Light MS_7B10	MSIMotherboardController
+1462	7B12	MSI Mystic Light MS_7B12	MSIMotherboardController
+1462	7B16	MSI Mystic Light MS_7B16	MSIMotherboardController
+1462	7B17	MSI Mystic Light MS_7B17	MSIMotherboardController
+1462	7B18	MSI Mystic Light MS_7B18	MSIMotherboardController
+1462	7B50	MSI Mystic Light MS_7B50	MSIMotherboardController
+1462	7B85	MSI Mystic Light MS_7B85	MSIMotherboardController
+1462	7B92	MSI Mystic Light MS_7B92	MSIMotherboardController
+1462	7B93	MSI Mystic Light MS_7B93	MSIMotherboardController
+1462	7B94	MSI Mystic Light MS_7B94	MSIMotherboardController
+1462	7B96	MSI Mystic Light MS_7B96	MSIMotherboardController
+1462	7C02	MSI Mystic Light MS_7C02	MSIMotherboardController
+1462	7C34	MSI Mystic Light MS_7C34	MSIMotherboardController
+1462	7C35	MSI Mystic Light MS_7C35	MSIMotherboardController
+1462	7C36	MSI Mystic Light MS_7C36	MSIMotherboardController
+1462	7C37	MSI Mystic Light MS_7C37	MSIMotherboardController
+1462	7C42	MSI Mystic Light MS_7C42	MSIMotherboardController
+1462	7C56	MSI Mystic Light MS_7C56	MSIMotherboardController
+1462	7C59	MSI Mystic Light MS_7C59	MSIMotherboardController
+1462	7C60	MSI Mystic Light MS_7C60	MSIMotherboardController
+1462	7C67	MSI Mystic Light MS_7C67	MSIMotherboardController
+1462	7C70	MSI Mystic Light MS_7C70	MSIMotherboardController
+1462	7C71	MSI Mystic Light MS_7C71	MSIMotherboardController
+1462	7C73	MSI Mystic Light MS_7C73	MSIMotherboardController
+1462	7C75	MSI Mystic Light MS_7C75	MSIMotherboardController
+1462	7C76	MSI Mystic Light MS_7C76	MSIMotherboardController
+1462	7C77	MSI Mystic Light MS_7C77	MSIMotherboardController
+1462	7C79	MSI Mystic Light MS_7C79	MSIMotherboardController
+1462	7C80	MSI Mystic Light MS_7C80	MSIMotherboardController
+1462	7C81	MSI Mystic Light MS_7C81	MSIMotherboardController
+1462	7C82	MSI Mystic Light MS_7C82	MSIMotherboardController
+1462	7C83	MSI Mystic Light MS_7C83	MSIMotherboardController
+1462	7C84	MSI Mystic Light MS_7C84	MSIMotherboardController
+1462	7C85	MSI Mystic Light MS_7C85	MSIMotherboardController
+1462	7C86	MSI Mystic Light MS_7C86	MSIMotherboardController
+1462	7C87	MSI Mystic Light MS_7C87	MSIMotherboardController
+1462	7C88	MSI Mystic Light MS_7C88	MSIMotherboardController
+1462	7C89	MSI Mystic Light MS_7C89	MSIMotherboardController
+1462	7C90	MSI Mystic Light MS_7C90	MSIMotherboardController
+1462	7C91	MSI Mystic Light MS_7C91	MSIMotherboardController
+1462	7C92	MSI Mystic Light MS_7C92	MSIMotherboardController
+1462	7C94	MSI Mystic Light MS_7C94	MSIMotherboardController
+1462	7C95	MSI Mystic Light MS_7C95	MSIMotherboardController
+1462	7C96	MSI Mystic Light MS_7C96	MSIMotherboardController
+1462	7C98	MSI Mystic Light MS_7C98	MSIMotherboardController
+1462	7C99	MSI Mystic Light MS_7C99	MSIMotherboardController
+1462	7D03	MSI Mystic Light MS_7D03	MSIMotherboardController
+1462	7D04	MSI Mystic Light MS_7D04	MSIMotherboardController
+1462	7D06	MSI Mystic Light MS_7D06	MSIMotherboardController
+1462	7D07	MSI Mystic Light MS_7D07	MSIMotherboardController
+1462	7D08	MSI Mystic Light MS_7D08	MSIMotherboardController
+1462	7D09	MSI Mystic Light MS_7D09	MSIMotherboardController
+1462	7D13	MSI Mystic Light MS_7D13	MSIMotherboardController
+1462	7D14	MSI Mystic Light MS_7D14	MSIMotherboardController
+1462	7D15	MSI Mystic Light MS_7D15	MSIMotherboardController
+1462	7D17	MSI Mystic Light MS_7D17	MSIMotherboardController
+1462	7D18	MSI Mystic Light MS_7D18	MSIMotherboardController
+1462	7D19	MSI Mystic Light MS_7D19	MSIMotherboardController
+1462	7D20	MSI Mystic Light MS_7D20	MSIMotherboardController
+1462	7D25	MSI Mystic Light MS_7D25	MSIMotherboardController
+1462	7D27	MSI Mystic Light MS_7D27	MSIMotherboardController
+1462	7D28	MSI Mystic Light MS_7D28	MSIMotherboardController
+1462	7D29	MSI Mystic Light MS_7D29	MSIMotherboardController
+1462	7D30	MSI Mystic Light MS_7D30	MSIMotherboardController
+1462	7D31	MSI Mystic Light MS_7D31	MSIMotherboardController
+1462	7D32	MSI Mystic Light MS_7D32	MSIMotherboardController
+1462	7D33	MSI Mystic Light MS_7D33	MSIMotherboardController
+1462	7D36	MSI Mystic Light MS_7D36	MSIMotherboardController
+1462	7D37	MSI Mystic Light MS_7D37	MSIMotherboardController
+1462	7D38	MSI Mystic Light MS_7D38	MSIMotherboardController
+1462	7D40	MSI Mystic Light MS_7D40	MSIMotherboardController
+1462	7D41	MSI Mystic Light MS_7D41	MSIMotherboardController
+1462	7D42	MSI Mystic Light MS_7D42	MSIMotherboardController
+1462	7D43	MSI Mystic Light MS_7D43	MSIMotherboardController
+1462	7D46	MSI Mystic Light MS_7D46	MSIMotherboardController
+1462	7D50	MSI Mystic Light MS_7D50	MSIMotherboardController
+1462	7D51	MSI Mystic Light MS_7D51	MSIMotherboardController
+1462	7D52	MSI Mystic Light MS_7D52	MSIMotherboardController
+1462	7D53	MSI Mystic Light MS_7D53	MSIMotherboardController
+1462	7D54	MSI Mystic Light MS_7D54	MSIMotherboardController
+1462	7D59	MSI Mystic Light MS_7D59	MSIMotherboardController
+1462	7D67	MSI Mystic Light MS_7D67	MSIMotherboardController
+1462	7D69	MSI Mystic Light MS_7D69	MSIMotherboardController
+1462	7D70	MSI Mystic Light MS_7D70	MSIMotherboardController
+1462	7D73	MSI Mystic Light MS_7D73	MSIMotherboardController
+1462	7D74	MSI Mystic Light MS_7D74	MSIMotherboardController
+1462	7D75	MSI Mystic Light MS_7D75	MSIMotherboardController
+1462	7D76	MSI Mystic Light MS_7D76	MSIMotherboardController
+1462	7D77	MSI Mystic Light MS_7D77	MSIMotherboardController
+1462	7D78	MSI Mystic Light MS_7D78	MSIMotherboardController
+1462	7D86	MSI Mystic Light MS_7D86	MSIMotherboardController
+1462	7D88	MSI Mystic Light MS_7D88	MSIMotherboardController
+1462	7D89	MSI Mystic Light MS_7D89	MSIMotherboardController
+1462	7D90	MSI Mystic Light MS_7D90	MSIMotherboardController
+1462	7D91	MSI Mystic Light MS_7D91	MSIMotherboardController
+1462	7D93	MSI Mystic Light MS_7D93	MSIMotherboardController
+1462	7D96	MSI Mystic Light MS_7D96	MSIMotherboardController
+1462	7D97	MSI Mystic Light MS_7D97	MSIMotherboardController
+1462	7D98	MSI Mystic Light MS_7D98	MSIMotherboardController
+1462	7D99	MSI Mystic Light MS_7D99	MSIMotherboardController
+1462	7E01	MSI Mystic Light MS_7E01	MSIMotherboardController
+1462	7E03	MSI Mystic Light MS_7E03	MSIMotherboardController
+1462	7E06	MSI Mystic Light MS_7E06	MSIMotherboardController
+1462	7E07	MSI Mystic Light MS_7E07	MSIMotherboardController
+1462	7E09	MSI Mystic Light MS_7E09	MSIMotherboardController
+1462	7E10	MSI Mystic Light MS_7E10	MSIMotherboardController
+1462	7E20	MSI Mystic Light MS_7E20	MSIMotherboardController
+1462	7E30	MSI Mystic Light MS_7E30	MSIMotherboardController
+1462	7E32	MSI Mystic Light MS_7E32	MSIMotherboardController
+1462	7E34	MSI Mystic Light MS_7E34	MSIMotherboardController
+1462	7E59	MSI Mystic Light MS_7E59	MSIMotherboardController
+1462	7E66	MSI Mystic Light MS_7E66	MSIMotherboardController
+1462	7E70	MSI Mystic Light MS_7E70	MSIMotherboardController
+1462	7E76	MSI Mystic Light MS_7E76	MSIMotherboardController
+1462	7E80	MSI Mystic Light MS_7E80	MSIMotherboardController
+1462	7E81	MSI Mystic Light MS_7E81	MSIMotherboardController
+1462	7E86	MSI Mystic Light MS_7E86	MSIMotherboardController
+1462	905D	MSI Mystic Light MS_905D	MSIMotherboardController
+1462	B926	MSI Mystic Light MS_B926	MSIMotherboardController
+1532	0024	Razer Mamba 2012 (Wired)	RazerController
+1532	0025	Razer Mamba 2012 (Wireless)	RazerController
+1532	003E	Razer Naga Epic Chroma	RazerController
+1532	0043	Razer Deathadder Chroma	RazerController
+1532	0044	Razer Mamba 2015 (Wired)	RazerController
+1532	0045	Razer Mamba 2015 (Wireless)	RazerController
+1532	0046	Razer Mamba Tournament Edition	RazerController
+1532	004C	Razer Diamondback	RazerController
+1532	0050	Razer Naga Hex V2	RazerController
+1532	0053	Razer Naga Chroma	RazerController
+1532	0059	Razer Lancehead 2017 (Wired)	RazerController
+1532	005A	Razer Lancehead 2017 (Wireless)	RazerController
+1532	005C	Razer Deathadder Elite	RazerController
+1532	0060	Razer Lancehead Tournament Edition	RazerController
+1532	0064	Razer Basilisk	RazerController
+1532	0065	Razer Basilisk Essential	RazerController
+1532	0067	Razer Naga Trinity	RazerController
+1532	0068	Razer Firefly Hyperflux	RazerController
+1532	0069	Razer Mamba Hyperflux (Wired)	RazerController
+1532	006A	Razer Abyssus Elite D.Va Edition	RazerController
+1532	006B	Razer Abyssus Essential	RazerController
+1532	006C	Razer Mamba Elite	RazerController
+1532	006E	Razer Deathadder Essential	RazerController
+1532	006F	Razer Lancehead 2019 (Wireless)	RazerController
+1532	0070	Razer Lancehead 2019 (Wired)	RazerController
+1532	0071	Razer Deathadder Essential White Edition	RazerController
+1532	0072	Razer Mamba 2018 (Wireless)	RazerController
+1532	0073	Razer Mamba 2018 (Wired)	RazerController
+1532	0078	Razer Viper	RazerController
+1532	007A	Razer Viper Ultimate (Wired)	RazerController
+1532	007B	Razer Viper Ultimate (Wireless)	RazerController
+1532	007C	Razer Deathadder V2 Pro (Wired)	RazerController
+1532	007D	Razer Deathadder V2 Pro (Wireless)	RazerController
+1532	007E	Razer Mouse Dock Chroma	RazerController
+1532	0084	Razer Deathadder V2	RazerController
+1532	0085	Razer Basilisk V2	RazerController
+1532	0086	Razer Basilisk Ultimate (Wired)	RazerController
+1532	0088	Razer Basilisk Ultimate (Wireless)	RazerController
+1532	008A	Razer Viper Mini	RazerController
+1532	008C	Razer Deathadder V2 Mini	RazerController
+1532	008D	Razer Naga Left Handed	RazerController
+1532	008F	Razer Naga Pro (Wired)	RazerController
+1532	0090	Razer Naga Pro (Wireless)	RazerController
+1532	0091	Razer Viper 8kHz	RazerController
+1532	0093	Razer Naga Classic	RazerController
+1532	0098	Razer Deathadder Essential V2	RazerController
+1532	0099	Razer Basilisk V3	RazerController
+1532	00A3	Razer Cobra	RazerController
+1532	00A4	Razer Mouse Dock Pro	RazerController
+1532	00A7	Razer Naga Pro V2 (Wired)	RazerController
+1532	00A8	Razer Naga Pro V2 (Wireless)	RazerController
+1532	00AA	Razer Basilisk V3 Pro (Wired)	RazerController
+1532	00AB	Razer Basilisk V3 Pro (Wireless)	RazerController
+1532	00AF	Razer Cobra Pro (Wired)	RazerController
+1532	00B0	Razer Cobra Pro (Wireless)	RazerController
+1532	00B9	Razer Basilisk V3 X HyperSpeed	RazerController
+1532	00CB	Razer Basilisk V3 35K	RazerController
+1532	00CC	Razer Basilisk V3 Pro 35K (Wired)	RazerController
+1532	00CD	Razer Basilisk V3 Pro 35K (Wireless)	RazerController
+1532	00D6	Razer Basilisk V3 Pro 35K Phantom Green (Wired)	RazerController
+1532	00D7	Razer Basilisk V3 Pro 35K Phantom Green (Wireless)	RazerController
+1532	00E2	Razer Basilisk V4 Pro (Wired)	RazerController
+1532	00E3	Razer Basilisk V4 Pro (Wireless)	RazerController
+1532	00E7	Razer Naga Pro V3 (Wired)	RazerController
+1532	00E8	Razer Naga Pro V3 (Wireless)	RazerController
+1532	0203	Razer Blackwidow Chroma	RazerController
+1532	0204	Razer Deathstalker Chroma	RazerController
+1532	0205	Razer Blade Stealth (2016)	RazerController
+1532	0207	Razer Orbweaver Chroma	RazerController
+1532	0208	Razer Tartarus Chroma	RazerController
+1532	0209	Razer Blackwidow Chroma Tournament Edition	RazerController
+1532	020F	Razer Blade (2016)	RazerController
+1532	0210	Razer Blade Pro (2016)	RazerController
+1532	0211	Razer Blackwidow Overwatch	RazerController
+1532	0215	Razer Core	RazerController
+1532	0216	Razer Blackwidow X Chroma	RazerController
+1532	021A	Razer Blackwidow X Chroma Tournament Edition	RazerController
+1532	021E	Razer Ornata Chroma	RazerController
+1532	0220	Razer Blade Stealth (Late 2016)	RazerController
+1532	0221	Razer Blackwidow Chroma V2	RazerController
+1532	0224	Razer Blade (Late 2016)	RazerController
+1532	0225	Razer Blade Pro (2017)	RazerController
+1532	0226	Razer Huntsman Elite	RazerController
+1532	0227	Razer Huntsman	RazerController
+1532	0228	Razer Blackwidow Elite	RazerController
+1532	022A	Razer Cynosa Chroma	RazerController
+1532	022B	Razer Tartarus V2	RazerController
+1532	022D	Razer Blade Stealth (2017)	RazerController
+1532	022F	Razer Blade Pro (2017 FullHD)	RazerController
+1532	0232	Razer Blade Stealth (Late 2017)	RazerController
+1532	0233	Razer Blade 15 (2018 Advanced)	RazerController
+1532	0234	Razer Blade Pro (2019)	RazerController
+1532	0239	Razer Blade Stealth (2019)	RazerController
+1532	023A	Razer Blade 15 (2019 Advanced)	RazerController
+1532	023B	Razer Blade 15 (2018 Base)	RazerController
+1532	023F	Razer Cynosa Lite	RazerController
+1532	0240	Razer Blade 15 (2018 Mercury)	RazerController
+1532	0241	Razer Blackwidow 2019	RazerController
+1532	0243	Razer Huntsman Tournament Edition	RazerController
+1532	0244	Razer Tartarus Pro	RazerController
+1532	0245	Razer Blade 15 (2019 Mercury)	RazerController
+1532	0246	Razer Blade 15 (2019 Base)	RazerController
+1532	024A	Razer Blade Stealth (Late 2019)	RazerController
+1532	024C	Razer Blade Pro (Late 2019)	RazerController
+1532	024D	Razer Blade 15 (2019 Studio)	RazerController
+1532	024E	Razer Blackwidow V3	RazerController
+1532	0252	Razer Blade Stealth (2020)	RazerController
+1532	0253	Razer Blade 15 (2020 Advanced)	RazerController
+1532	0255	Razer Blade 15 (2020 Base)	RazerController
+1532	0256	Razer Blade Pro 17 (2020)	RazerController
+1532	0257	Razer Huntsman Mini	RazerController
+1532	0258	Razer Blackwidow V3 Mini (Wired)	RazerController
+1532	0259	Razer Blade Stealth (Late 2020)	RazerController
+1532	025A	Razer Blackwidow V3 Pro (Wired)	RazerController
+1532	025C	Razer Blackwidow V3 Pro (Wireless)	RazerController
+1532	025D	Razer Ornata Chroma V2	RazerController
+1532	025E	Razer Cynosa Chroma V2	RazerController
+1532	0266	Razer Huntsman V2 Analog	RazerController
+1532	0268	Razer Blade 15 (Late 2020)	RazerController
+1532	026A	Razer Book 13 (2020)	RazerController
+1532	026B	Razer Huntsman V2 TKL	RazerController
+1532	026C	Razer Huntsman V2	RazerController
+1532	026D	Razer Blade 15 (2021 Advanced)	RazerController
+1532	026F	Razer Blade 15 (2021 Base)	RazerController
+1532	0270	Razer Blade 14 (2021)	RazerController
+1532	0271	Razer Blackwidow V3 Mini (Wireless)	RazerController
+1532	0276	Razer Blade 15 (Late 2021 Advanced)	RazerController
+1532	0279	Razer Blade Pro 17 (2021)	RazerController
+1532	027A	Razer Blade 15 (2021 Base)	RazerController
+1532	0282	Razer Huntsman Mini Analog	RazerController
+1532	0287	Razer Blackwidow V4	RazerController
+1532	028A	Razer Blade 15 (2022)	RazerController
+1532	028C	Razer Blade 14 (2022)	RazerController
+1532	028D	Razer Blackwidow V4 Pro	RazerController
+1532	028F	Razer Ornata V3	RazerController
+1532	0290	Razer Deathstalker V2 Pro (Wireless)	RazerController
+1532	0292	Razer Deathstalker V2 Pro (Wired)	RazerController
+1532	0293	Razer Blackwidow V4 X	RazerController
+1532	0294	Razer Ornata V3 X	RazerController
+1532	0295	Razer Deathstalker V2	RazerController
+1532	0296	Razer Deathstalker V2 Pro TKL (Wireless)	RazerController
+1532	0298	Razer Deathstalker V2 Pro TKL (Wired)	RazerController
+1532	029D	Razer Blade 14 (2023)	RazerController
+1532	02A1	Razer Ornata V3 Rev2	RazerController
+1532	02A2	Razer Ornata V3 X Rev2	RazerController
+1532	02A3	Razer Ornata V3 TKL	RazerController
+1532	02A5	Razer Blackwidow V4 75% (Wired)	RazerController
+1532	02A6	Razer Huntsman V3 Pro	RazerController
+1532	02A7	Razer Huntsman V3 Pro TKL White	RazerController
+1532	02B3	Razer Blackwidow V4 Pro 75% (Wired)	RazerController
+1532	02B4	Razer Blackwidow V4 Pro 75% (Wireless)	RazerController
+1532	02D2	Razer Blackwidow V4 Low Profile TKL (Wireless)	RazerController
+1532	02D4	Razer Blackwidow V4 Low Profile TKL (Wired)	RazerController
+1532	02D5	Razer Blackwidow V4 TKL (Wireless)	RazerController
+1532	02D7	Razer Blackwidow V4 TKL (Wired)	RazerController
+1532	02E4	Razer Huntsman V3 HE Magnetic Mini	RazerController
+1532	0501	Razer Kraken 7.1	RazerController
+1532	0504	Razer Kraken 7.1 Chroma	RazerController
+1532	0506	Razer Kraken 7.1	RazerController
+1532	0510	Razer Kraken 7.1 V2	RazerController
+1532	0517	Razer Nommo Chroma	RazerController
+1532	0518	Razer Nommo Pro	RazerController
+1532	0527	Razer Kraken Ultimate	RazerController
+1532	0532	Razer Leviathan V2	RazerController
+1532	0533	Razer Kraken V3 HyperSense	RazerController
+1532	0537	Razer Kraken V3 X	RazerController
+1532	0549	Razer Kraken V3	RazerController
+1532	054A	Razer Leviathan V2 X	RazerController
+1532	0554	Razer Kraken Kitty V2 Pro	RazerController
+1532	0560	Razer Kraken Kitty Black Edition V2	RazerController
+1532	056B	Razer Kraken V4 (Wired)	RazerController
+1532	056C	Razer Kraken V4 (Wireless)	RazerController
+1532	0587	Razer Kraken Kitty V3 Pro (Wired)	RazerController
+1532	0588	Razer Kraken Kitty V3 Pro (Wireless)	RazerController
+1532	0A24	Razer Blackwidow V3 TKL	RazerController
+1532	0C00	Razer Firefly	RazerController
+1532	0C01	Razer Goliathus	RazerController
+1532	0C02	Razer Goliathus Extended	RazerController
+1532	0C04	Razer Firefly V2	RazerController
+1532	0C05	Razer Strider Chroma	RazerController
+1532	0C06	Razer Goliathus Chroma 3XL	RazerController
+1532	0C08	Razer Firefly V2 Pro	RazerController
+1532	0F03	Razer Tiamat 7.1 V2	RazerController
+1532	0F07	Razer Chroma Mug Holder	RazerController
+1532	0F08	Razer Base Station Chroma	RazerController
+1532	0F09	Razer Chroma HDK	RazerController
+1532	0F0D	Razer Laptop Stand Chroma	RazerController
+1532	0F0E	Razer Chroma PC Case Lighting Kit	RazerController
+1532	0F13	Lian Li O11 Dynamic - Razer Edition	RazerController
+1532	0F19	Razer Kraken Kitty Edition	RazerController
+1532	0F1A	Razer Core X	RazerController
+1532	0F1B	Razer Seiren Emote	RazerController
+1532	0F1D	Razer Mouse Bungee V3 Chroma	RazerController
+1532	0F1F	Razer Chroma Addressable RGB Controller	RazerController
+1532	0F20	Razer Base Station V2 Chroma	RazerController
+1532	0F21	Razer Kraken Kitty Black Edition	RazerController
+1532	0F26	Razer Charging Pad Chroma	RazerController
+1532	0F2B	Razer Laptop Stand Chroma V2	RazerController
+1532	0F35	Razer Hanbo Chroma	RazerController
+1532	0F52	Razer Thunderbolt 5 Dock Chroma	RazerController
+16D0	1123	SRGBmods Pico LED Controller	SRGBmodsController
+16D0	1205	SRGBMods LED Controller v1	SRGBmodsController
+16D2	1616	Nollie 28 12	NollieController
+16D2	1617	Nollie 28 L1	NollieController
+16D2	1618	Nollie 28 L2	NollieController
+16D2	1F01	Nollie 8CH	NollieController
+16D2	1F11	Nollie 1CH	NollieController
+16D5	1F01	Nollie 8_OS2	NollieController
+16D5	1F11	Nollie 1_OS2	NollieController
+16D5	2A01	Nollie 1_OS2_1	NollieController
+16D5	2A08	Nollie 8_OS2_1	NollieController
+16D5	2A16	Nollie 16_OS2_1	NollieController
+16D5	2A32	Nollie 32_OS2_1	NollieController
+16D5	2C08	Prism8 8_OS2_1	NollieController
+16D5	4714	Nollie 32_OS2	NollieController
+16D5	4716	Nollie 16_OS2	NollieController
+1770	FF00	MSI 3-Zone Laptop	MSI3ZoneController
+17EF	60D5	Lenovo Legion K500	LenovoControllers
+17EF	60E4	Lenovo Legion M300	LenovoControllers
+17EF	619A	Lenovo Legion K510 Mini Pro	LenovoControllers
+17EF	C955	Lenovo	LenovoMotherboardController
+187C	0550	Dell G Series LED Controller	AlienwareController
+187C	0551	Dell G Series LED Controller	AlienwareController
+187C	100E	Alienware AW3423DWF	AlienwareMonitorController
+187C	1013	Alienware AW3225QF	AlienwareMonitorController
+195D	1016	ASUS ROG Strix Claw	AsusLegacyUSBController
+195D	2047	ASUS Cerberus Mech	AsusLegacyUSBController
+195D	2061	Dark Project KD3B V2	DarkProject
+1A2C	1511	Red Square Keyrox TKL	RedSquareKeyroxController
+1A2C	2511	Red Square Keyrox TKL V2	RedSquareKeyroxController
+1A86	E30B	JGINYUE Internal USB ControllerV2	JGINYUEInternalUSBV2Controller
+1A86	E316	Skydimo SK0902	SkydimoHIDController
+1A86	FE07	Robobloq Monitor Light Strip	RobobloqLightStripController
+1B1C	0A34	Corsair ST100 RGB	CorsairPeripheralController
+1B1C	0C09	Corsair H100i v2	CorsairHydro2Controller
+1B1C	0C0B	Corsair Lighting Node Pro	CorsairLightingNodeController
+1B1C	0C10	Corsair Commander Pro	CorsairLightingNodeController
+1B1C	0C12	Corsair H150i PRO RGB	CorsairHydroController
+1B1C	0C13	Corsair H115i PRO RGB	CorsairHydroController
+1B1C	0C15	Corsair H100i PRO RGB	CorsairHydroController
+1B1C	0C17	Corsair Hydro H115i Platinum	CorsairHydroPlatinumController
+1B1C	0C18	Corsair Hydro H100i Platinum	CorsairHydroPlatinumController
+1B1C	0C19	Corsair Hydro H100i Platinum SE	CorsairHydroPlatinumController
+1B1C	0C1A	Corsair Lighting Node Core	CorsairLightingNodeController
+1B1C	0C1C	Corsair Commander Core	CorsairCommanderCoreController
+1B1C	0C1D	Corsair Commander Core	CorsairCommanderCoreController
+1B1C	0C1E	Corsair LS100 Lighting Kit	CorsairLightingNodeController
+1B1C	0C20	Corsair Hydro H100i Pro XT	CorsairHydroPlatinumController
+1B1C	0C21	Corsair Hydro H115i Pro XT	CorsairHydroPlatinumController
+1B1C	0C22	Corsair Hydro H150i Pro XT	CorsairHydroPlatinumController
+1B1C	0C23	Corsair LT100	CorsairLightingNodeController
+1B1C	0C29	Corsair Hydro H60i Pro XT	CorsairHydroPlatinumController
+1B1C	0C2A	Corsair Commander Core XT	CorsairCommanderCoreController
+1B1C	0C2D	Corsair Hydro H100i Pro XT v2	CorsairHydroPlatinumController
+1B1C	0C32	Corsair Commander Core	CorsairCommanderCoreController
+1B1C	0C35	Corsair Hydro H100i Elite	CorsairHydroPlatinumController
+1B1C	0C36	Corsair Hydro H115i Elite	CorsairHydroPlatinumController
+1B1C	0C37	Corsair Hydro H150i Elite	CorsairHydroPlatinumController
+1B1C	0C3C	Corsair Commander Core	CorsairCommanderCoreController
+1B1C	0C3D	Corsair Commander Core	CorsairCommanderCoreController
+1B1C	0C3E	Corsair Commander Core	CorsairCommanderCoreController
+1B1C	0C3F	Corsair iCUE Link System Hub	CorsairICueLinkController
+1B1C	0C40	Corsair Hydro H100i Elite White	CorsairHydroPlatinumController
+1B1C	0C41	Corsair Hydro H150i Elite White	CorsairHydroPlatinumController
+1B1C	1B11	Corsair K95 RGB	CorsairPeripheralController
+1B1C	1B12	Corsair M65	CorsairPeripheralController
+1B1C	1B13	Corsair K70 RGB	CorsairPeripheralController
+1B1C	1B17	Corsair K65 RGB	CorsairPeripheralController
+1B1C	1B1E	Corsair Scimitar RGB	CorsairPeripheralController
+1B1C	1B20	Corsair Strafe	CorsairPeripheralController
+1B1C	1B2D	Corsair K95 RGB PLATINUM	CorsairPeripheralController
+1B1C	1B2E	Corsair M65 PRO	CorsairPeripheralController
+1B1C	1B2F	Corsair Sabre RGB	CorsairPeripheralController
+1B1C	1B32	Corsair Sabre RGB Optical	CorsairPeripheralController
+1B1C	1B33	Corsair K70 LUX RGB	CorsairPeripheralController
+1B1C	1B34	Corsair Glaive RGB	CorsairPeripheralController
+1B1C	1B36	Corsair K70 LUX	CorsairPeripheralController
+1B1C	1B37	Corsair K65 LUX RGB	CorsairPeripheralController
+1B1C	1B38	Corsair K70 RGB RAPIDFIRE	CorsairPeripheralController
+1B1C	1B39	Corsair K65 RGB RAPIDFIRE	CorsairPeripheralController
+1B1C	1B3B	Corsair MM800 RGB Polaris	CorsairPeripheralController
+1B1C	1B3C	Corsair Harpoon RGB	CorsairPeripheralController
+1B1C	1B3D	Corsair K55 RGB	CorsairPeripheralController
+1B1C	1B3E	Corsair Scimitar PRO RGB	CorsairPeripheralController
+1B1C	1B3F	Corsair K68 RED	CorsairPeripheralController
+1B1C	1B44	Corsair Strafe Red	CorsairPeripheralController
+1B1C	1B48	Corsair Strafe MK.2	CorsairPeripheralController
+1B1C	1B49	Corsair K70 RGB MK.2	CorsairPeripheralController
+1B1C	1B4B	Corsair Dark Core RGB SE (Wired)	CorsairPeripheralV2Controller
+1B1C	1B4C	Corsair Ironclaw Wireless (Wired)	CorsairPeripheralV2Controller
+1B1C	1B4F	Corsair K68 RGB	CorsairPeripheralController
+1B1C	1B55	Corsair K70 RGB MK.2 Low Profile	CorsairPeripheralController
+1B1C	1B5A	Corsair M65 RGB Elite	CorsairPeripheralController
+1B1C	1B5C	Corsair Nightsword	CorsairPeripheralController
+1B1C	1B5D	Corsair Ironclaw RGB	CorsairPeripheralController
+1B1C	1B5E	Corsair Harpoon Wireless (Wired)	CorsairPeripheralV2Controller
+1B1C	1B65	Corsair Slipstream Wireless Receiver SW	CorsairPeripheralV2Controller
+1B1C	1B66	Corsair Slipstream Wireless Receiver HW	CorsairPeripheralV2Controller
+1B1C	1B6B	Corsair K70 RGB MK.2 SE	CorsairPeripheralController
+1B1C	1B6E	Corsair K57 RGB (Wired)	CorsairPeripheralV2Controller
+1B1C	1B70	Corsair M55 RGB PRO	CorsairPeripheralV2Controller
+1B1C	1B73	Corsair K70 RGB TKL	CorsairPeripheralV2Controller
+1B1C	1B74	Corsair Glaive RGB PRO	CorsairPeripheralController
+1B1C	1B75	Corsair Harpoon RGB PRO	CorsairPeripheralController
+1B1C	1B7C	Corsair K100 RGB Optical	CorsairPeripheralV2Controller
+1B1C	1B7D	Corsair K100 MX Red	CorsairPeripheralV2Controller
+1B1C	1B7E	Corsair Dark Core RGB Pro SE (Wired)	CorsairPeripheralV2Controller
+1B1C	1B82	Corsair K95 RGB PLATINUM SE	CorsairPeripheralController
+1B1C	1B89	Corsair K95 RGB PLATINUM XT	CorsairPeripheralV2Controller
+1B1C	1B8B	Corsair Scimitar Elite RGB	CorsairPeripheralController
+1B1C	1B8D	Corsair K60 RGB PRO SE	CorsairPeripheralV2Controller
+1B1C	1B93	Corsair Katar Pro	CorsairPeripheralV2Controller
+1B1C	1B9B	Corsair MM700	CorsairPeripheralV2Controller
+1B1C	1B9E	Corsair M65 RGB Ultra Wired	CorsairPeripheralV2Controller
+1B1C	1BA0	Corsair K60 RGB PRO	CorsairPeripheralV2Controller
+1B1C	1BA1	Corsair K55 RGB PRO XT	CorsairPeripheralController
+1B1C	1BA4	Corsair K55 RGB PRO	CorsairPeripheralV2Controller
+1B1C	1BA5	Corsair K68 RED SHADOW	CorsairPeripheralController
+1B1C	1BA6	Corsair Slipstream Wireless Receiver HW	CorsairPeripheralV2Controller
+1B1C	1BAC	Corsair Katar Pro XT	CorsairPeripheralV2Controller
+1B1C	1BAD	Corsair K60 RGB PRO Low Profile	CorsairPeripheralV2Controller
+1B1C	1BAF	Corsair K65 Mini	CorsairPeripheralController
+1B1C	1BB3	Corsair K70 RGB PRO V2	CorsairPeripheralV2Controller
+1B1C	1BB5	Corsair M65 RGB Ultra Wireless (Wired)	CorsairPeripheralV2Controller
+1B1C	1BB9	Corsair K70 RGB TKL Champion Series	CorsairPeripheralV2Controller
+1B1C	1BBA	Corsair Katar Pro V2	CorsairPeripheralV2Controller
+1B1C	1BC4	Corsair K70 RGB PRO	CorsairPeripheralV2Controller
+1B1C	1BC5	Corsair K100 RGB Optical	CorsairPeripheralV2Controller
+1B1C	1BC6	Corsair K70 RGB PRO Optomechanical	CorsairPeripheralController
+1B1C	1BC7	Corsair K60 RGB PRO TKL Black	CorsairPeripheralV2Controller
+1B1C	1BC9	Corsair MM700 3XL	CorsairPeripheralV2Controller
+1B1C	1BDC	Corsair M75 Wireless	CorsairPeripheralV2Controller
+1B1C	1BE3	Corsair Scimitar Elite RGB	CorsairPeripheralV2Controller
+1B1C	1BED	Corsair K60 RGB PRO TKL White	CorsairPeripheralV2Controller
+1B1C	1BF0	Corsair M75 Gaming Mouse	CorsairPeripheralV2Controller
+1B1C	1BF1	Corsair M75 Wireless (Wired)	CorsairPeripheralV2Controller
+1B1C	1BFD	Corsair K70 Core RGB	CorsairPeripheralV2Controller
+1B1C	1D00	Corsair 1000D Obsidian	CorsairLightingNodeController
+1B1C	1D04	Corsair SPEC OMEGA RGB	CorsairLightingNodeController
+1B1C	2B00	Corsair Ironclaw Wireless SE	CorsairPeripheralV2Controller
+1B1C	2B01	Corsair K70 Core RGB TKL	CorsairPeripheralV2Controller
+1B1C	2B32	Corsair Ironclaw Wireless SE (Wired)	CorsairPeripheralV2Controller
+1C4F	EE88	OKS Optical Axis RGB	OKSController
+1C57	7ED0	Zalman Z Sync	ZalmanZSyncController
+1D34	0004	Dream Cheeky Webmail Notifier	DreamCheekyController
+1E71	170E	NZXT Kraken X2	NZXTKrakenController
+1E71	1712	CRYORIG H7 Quad Lumi	CryorigH7QuadLumiController
+1E71	1714	NZXT Smart Device V1	NZXTHue1Controller
+1E71	1715	NZXT Kraken M2	NZXTKrakenController
+1E71	2001	NZXT Hue 2	NZXTHue2Controller
+1E71	2002	NZXT Hue 2 Ambient	NZXTHue2Controller
+1E71	2005	NZXT Hue 2 Motherboard	NZXTHue2Controller
+1E71	2006	NZXT Smart Device V2	NZXTHue2Controller
+1E71	2007	NZXT Kraken X3 Series	NZXTHue2Controller
+1E71	2009	NZXT RGB & Fan Controller	NZXTHue2Controller
+1E71	200B	NZXT Hue 2 Motherboard	NZXTHue2Controller
+1E71	200D	NZXT Smart Device V2	NZXTHue2Controller
+1E71	200E	NZXT RGB & Fan Controller	NZXTHue2Controller
+1E71	200F	NZXT Smart Device V2	NZXTHue2Controller
+1E71	2010	NZXT RGB & Fan Controller	NZXTHue2Controller
+1E71	2011	NZXT RGB & Fan Controller	NZXTHue2Controller
+1E71	2012	NZXT RGB Controller	NZXTHue2Controller
+1E71	2014	NZXT Kraken X3 Series RGB	NZXTHue2Controller
+1E71	2019	NZXT RGB & Fan Controller	NZXTHue2Controller
+1E71	201B	NZXT B650E Motherboard	NZXTHue2Controller
+1E71	201F	NZXT RGB & Fan Controller	NZXTHue2Controller
+1E71	2020	NZXT RGB & Fan Controller	NZXTHue2Controller
+1E71	2021	NZXT RGB Controller	NZXTHue2Controller
+1E71	2022	NZXT RGB & Fan Controller 2024	NZXTHue2Controller
+1E71	2100	NZXT Lift	NZXTMouseController
+1E71	3012	NZXT Kraken 2024 ELITE Series RGB	NZXTHue2Controller
+1E7D	2C88	Roccat Kone Pro	RoccatController
+1E7D	2C8B	Roccat Kone XP	RoccatController
+1E7D	2C8E	Roccat Kone Pro Air	RoccatController
+1E7D	2C92	Roccat Kone Pro Air (Wired)	RoccatController
+1E7D	2CA6	Roccat Burst Pro Air	RoccatController
+1E7D	2CEE	Roccat Kova	RoccatController
+1E7D	2DE1	Roccat Burst Pro	RoccatController
+1E7D	2DE6	Roccat Burst Core	RoccatController
+1E7D	2E27	Roccat Kone Aimo	RoccatController
+1E7D	2E2C	Roccat Kone Aimo 16K	RoccatController
+1E7D	2EE2	Roccat Vulcan II Max	RoccatController
+1E7D	2F09	Roccat Vulcan II Mini	RoccatController
+1E7D	2F4E	Roccat Vulcan II	RoccatController
+1E7D	2FEE	Roccat Vulcan TKL	RoccatController
+1E7D	303E	Roccat Horde Aimo	RoccatController
+1E7D	307A	Roccat Vulcan 100 Aimo	RoccatController
+1E7D	3098	Roccat Vulcan 120-Series Aimo	RoccatController
+1E7D	30F7	Roccat Vulcan Pro	RoccatController
+1E7D	311A	Roccat Vulcan TKL Pro	RoccatController
+1E7D	3124	Roccat Magma	RoccatController
+1E7D	314C	Roccat Pyro	RoccatController
+1E7D	343A	Roccat Sense Aimo Mid	RoccatController
+1E7D	343B	Roccat Sense Aimo XXL	RoccatController
+1E7D	3A34	Roccat Elo 7.1	RoccatController
+1E7D	69A0	Roccat Magma Mini	RoccatController
+1EA7	0907	Skyloong GK104 Pro	SkyloongController
+2023	1208	DeepRGB LED Controller	DRGBController
+2023	1209	DeepRGB LED	DRGBController
+2023	1210	DeepRGB SIG AB	DRGBController
+2023	1211	DeepRGB SIG CD	DRGBController
+2023	1215	DeepRGB Strimer Controller	DRGBController
+2023	1220	DeepRGB ULTRA	DRGBController
+2023	1221	DeepRGB Ultra V3	DRGBController
+2023	1226	DeepRGB CORE V3	DRGBController
+2023	1407	DeepRGB E8	DRGBController
+2023	1408	DeepRGB E8 F	DRGBController
+2023	1410	NEEDMAX 10 ELITE	DRGBController
+2023	1412	JPU ELITE	DRGBController
+2023	1416	DeepRGB E16	DRGBController
+2023	1614	YICO 14 LCD	DRGBController
+20A0	422D	YMDK 84	QMKController
+22D4	1503	Glorious Model I	LaviewTechnologyController
+2486	1616	YICO 16 ELITE	DRGBController
+2486	3204	Airgoo AG-DRGB04	DRGBController
+2486	3208	DeepRGB L8 V5	DRGBController
+2486	3215	DeepRGB U16 V5	DRGBController
+2486	3216	Airgoo AG-DRGB16	DRGBController
+2486	3217	DeepRGB U16 V5F	DRGBController
+2486	3228	DeepRGB C16 V5	DRGBController
+2486	3229	DeepRGB C16 V5F	DRGBController
+2486	3232	DeepRGB S16 V5F	DRGBController
+2486	3608	DeepRGB LED V4	DRGBController
+2486	3616	DeepRGB ULTRA V4F	DRGBController
+2486	3628	DeepRGB CORE V4F	DRGBController
+2486	3636	DeepRGB SIG V4F	DRGBController
+2486	3F08	Airgoo AG-DRGB08	DRGBController
+2486	3F16	Airgoo AG-F8-DRGB08	DRGBController
+2486	3F28	Airgoo AG-F12-DRGB16	DRGBController
+24F0	2020	Das Keyboard Q5 RGB	DasKeyboardController
+24F0	2037	Das Keyboard Q4 RGB	DasKeyboardController
+24F0	209A	Das Keyboard Q5S RGB	DasKeyboardController
+2516	003B	Cooler Master MasterKeys Pro L	CoolerMasterController
+2516	003C	Cooler Master MasterKeys Pro S	CoolerMasterController
+2516	0047	Cooler Master MasterKeys Pro L White	CoolerMasterController
+2516	004F	Cooler Master RGB	CoolerMasterController
+2516	0051	AMD Wraith Prism	AMDWraithPrismController
+2516	0065	Cooler Master MM530	CoolerMasterController
+2516	0067	Cooler Master MK750	CoolerMasterController
+2516	0069	Cooler Master MK850	CoolerMasterController
+2516	007F	Cooler Master CK550 V1 / CK552	CoolerMasterController
+2516	0089	Cooler Master SK630	CoolerMasterController
+2516	008D	Cooler Master SK650	CoolerMasterController
+2516	008F	Cooler Master MK730	CoolerMasterController
+2516	009F	Cooler Master CK530	CoolerMasterController
+2516	0101	Cooler Master MM711	CoolerMasterController
+2516	0105	Cooler Master MP750 Medium	CoolerMasterController
+2516	0107	Cooler Master MP750 Large	CoolerMasterController
+2516	0109	Cooler Master MP750 XL	CoolerMasterController
+2516	0141	Cooler Master MM720	CoolerMasterController
+2516	0145	Cooler Master CK550 V2	CoolerMasterController
+2516	0147	Cooler Master CK530 V2	CoolerMasterController
+2516	0149	Cooler Master SK622 Black	CoolerMasterController
+2516	014B	Cooler Master SK622 White	CoolerMasterController
+2516	014D	Cooler Master Radeon RX 6000 GPU	CoolerMasterController
+2516	0157	Cooler Master SK620 Black	CoolerMasterController
+2516	0159	Cooler Master SK620 White	CoolerMasterController
+2516	015B	Cooler Master Radeon RX 6900 GPU	CoolerMasterController
+2516	015D	Cooler Master SK652	CoolerMasterController
+2516	0165	Cooler Master MM730	CoolerMasterController
+2516	0169	Cooler Master MM712	CoolerMasterController
+2516	0173	Cooler Master ARGB Gen 2 A1	CoolerMasterController
+2516	01A9	Cooler Master GD160 ARGB Gaming Desk	CoolerMasterController
+2516	01AB	Cooler Master SK653	CoolerMasterController
+2516	01B5	Intel Arc A770 Limited Edition	IntelArcA770LEController
+2516	01BB	Cooler Master GM27-FQS ARGB Monitor	CoolerMasterController
+2516	01BF	Cooler Master GM34-CWQ ARGB Monitor	CoolerMasterController
+2516	01C9	Cooler Master ARGB Gen 2 A1 V2	CoolerMasterController
+2516	01CB	Cooler Master ARGB Gen 2 A1 Mini	CoolerMasterController
+2516	1000	Cooler Master Small ARGB	CoolerMasterController
+2516	1011	Cooler Master ARGB	CoolerMasterController
+258A	0029	Everest GT-100 RGB	SinowealthController
+258A	0033	Glorious Model D / D-	SinowealthController
+258A	0036	Glorious Model O / O-	SinowealthController
+258A	0090	Genesis Thor 300	SinowealthController
+258A	010C	Sinowealth Keyboard	SinowealthController
+258A	1007	ZET Fury Pro	SinowealthController
+258A	2011	Glorious Model O / O- Wireless	SinowealthController
+258A	2012	Glorious Model D / D- Wireless	SinowealthController
+258A	2022	Glorious Model O / O- Wireless	SinowealthController
+258A	2023	Glorious Model D / D- Wireless	SinowealthController
+25A7	FA3F	ZET GAMING Edge Air Pro (Wireless)	AresonController
+25A7	FA40	ZET GAMING Edge Air Pro	AresonController
+25A7	FA48	ZET GAMING Edge Air Elit (Wireless)	AresonController
+25A7	FA49	ZET GAMING Edge Air Elit	AresonController
+25A7	FA7B	Redragon M914 NIX	AresonController
+25A7	FA7C	Redragon M914 NIX (Wireless)	AresonController
+264A	1FA5	Thermaltake Riing (PID 0x1FA5)	ThermaltakeRiingController
+264A	1FA6	Thermaltake Riing (PID 0x1FA6)	ThermaltakeRiingController
+264A	1FA7	Thermaltake Riing (PID 0x1FA7)	ThermaltakeRiingController
+264A	1FA8	Thermaltake Riing (PID 0x1FA8)	ThermaltakeRiingController
+264A	1FA9	Thermaltake Riing (PID 0x1FA9)	ThermaltakeRiingController
+264A	1FAA	Thermaltake Riing (PID 0x1FAA)	ThermaltakeRiingController
+264A	1FAB	Thermaltake Riing (PID 0x1FAB)	ThermaltakeRiingController
+264A	1FAC	Thermaltake Riing (PID 0x1FAC)	ThermaltakeRiingController
+264A	1FAD	Thermaltake Riing (PID 0x1FAD)	ThermaltakeRiingController
+264A	1FAE	Thermaltake Riing (PID 0x1FAE)	ThermaltakeRiingController
+264A	1FAF	Thermaltake Riing (PID 0x1FAF)	ThermaltakeRiingController
+264A	1FB0	Thermaltake Riing (PID 0x1FB0)	ThermaltakeRiingController
+264A	1FB1	Thermaltake Riing (PID 0x1FB1)	ThermaltakeRiingController
+264A	1FB2	Thermaltake Riing (PID 0x1FB2)	ThermaltakeRiingController
+264A	1FB3	Thermaltake Riing (PID 0x1FB3)	ThermaltakeRiingController
+264A	1FB4	Thermaltake Riing (PID 0x1FB4)	ThermaltakeRiingController
+264A	1FB5	Thermaltake Riing (PID 0x1FB5)	ThermaltakeRiingController
+264A	2135	Thermaltake Riing Trio (PID 0x2135)	ThermaltakeRiingController
+264A	2136	Thermaltake Riing Trio (PID 0x2136)	ThermaltakeRiingController
+264A	2137	Thermaltake Riing Trio (PID 0x2137)	ThermaltakeRiingController
+264A	2138	Thermaltake Riing Trio (PID 0x2138)	ThermaltakeRiingController
+264A	2139	Thermaltake Riing Trio (PID 0x2139)	ThermaltakeRiingController
+264A	213A	Thermaltake Riing Trio (PID 0x213A)	ThermaltakeRiingController
+264A	213B	Thermaltake Riing Trio (PID 0x213B)	ThermaltakeRiingController
+264A	213C	Thermaltake Riing Trio (PID 0x213C)	ThermaltakeRiingController
+264A	213D	Thermaltake Riing Trio (PID 0x213D)	ThermaltakeRiingController
+264A	213E	Thermaltake Riing Trio (PID 0x213E)	ThermaltakeRiingController
+264A	213F	Thermaltake Riing Trio (PID 0x213F)	ThermaltakeRiingController
+264A	2141	Thermaltake Riing Trio (PID 0x2141)	ThermaltakeRiingController
+264A	2142	Thermaltake Riing Trio (PID 0x2142)	ThermaltakeRiingController
+264A	2143	Thermaltake Riing Trio (PID 0x2143)	ThermaltakeRiingController
+264A	2144	Thermaltake Riing Trio (PID 0x2144)	ThermaltakeRiingController
+264A	2145	Thermaltake Riing Trio (PID 0x2145)	ThermaltakeRiingController
+264A	2260	Thermaltake Riing Quad (PID 0x2260)	ThermaltakeRiingController
+264A	2261	Thermaltake Riing Quad (PID 0x2261)	ThermaltakeRiingController
+264A	2262	Thermaltake Riing Quad (PID 0x2262)	ThermaltakeRiingController
+264A	2263	Thermaltake Riing Quad (PID 0x2263)	ThermaltakeRiingController
+264A	2264	Thermaltake Riing Quad (PID 0x2264)	ThermaltakeRiingController
+264A	2265	Thermaltake Riing Quad (PID 0x2265)	ThermaltakeRiingController
+264A	2266	Thermaltake Riing Quad (PID 0x2266)	ThermaltakeRiingController
+264A	2267	Thermaltake Riing Quad (PID 0x2267)	ThermaltakeRiingController
+264A	2268	Thermaltake Riing Quad (PID 0x2268)	ThermaltakeRiingController
+264A	2269	Thermaltake Riing Quad (PID 0x2269)	ThermaltakeRiingController
+264A	226A	Thermaltake Riing Quad (PID 0x226A)	ThermaltakeRiingController
+264A	226B	Thermaltake Riing Quad (PID 0x226B)	ThermaltakeRiingController
+264A	226C	Thermaltake Riing Quad (PID 0x226C)	ThermaltakeRiingController
+264A	226D	Thermaltake Riing Quad (PID 0x226D)	ThermaltakeRiingController
+264A	226E	Thermaltake Riing Quad (PID 0x226E)	ThermaltakeRiingController
+264A	226F	Thermaltake Riing Quad (PID 0x226F)	ThermaltakeRiingController
+264A	2270	Thermaltake Riing Quad (PID 0x2270)	ThermaltakeRiingController
+264A	232B	Thermaltake Riing Quad (PID 0x232B)	ThermaltakeRiingController
+264A	3006	Thermaltake Poseidon Z RGB	ThermaltakePoseidonZRGBController
+26CE	01A2	ASRock Polychrome USB	ASRockPolychromeUSBController
+26CE	01A6	ASRock Deskmini Addressable LED Strip	ASRockPolychromeUSBController
+27B8	01ED	ThingM blink(1) mk2	ThingMController
+2D99	A106	Edifier Halo Pixelbar	EdifierHaloController
+2E8A	0011	Raspberry Pi 500+	QMKController
+2EA8	2125	ZET Blade Optical	ZETKeyboardController
+2F0E	0101	Fnatic Streak	FnaticStreakController
+2F0E	0102	Fnatic miniStreak	FnaticStreakController
+2F0E	0105	Fnatic Streak65	FnaticStreakController
+3061	4700	GaiZhongGai 68+4 PRO	GaiZongGaiKeyboardController
+3061	4701	GaiZhongGai 42 PRO	GaiZongGaiKeyboardController
+3061	4710	GaiZhongGai LightBoard	GaiZongGaiKeyboardController
+3061	4711	GaiZhongGai RGB HUB Green	GaiZongGaiKeyboardController
+3061	4712	GaiZhongGai RGB HUB Blue	GaiZongGaiKeyboardController
+3061	4714	Nollie 32CH	NollieController
+3061	4716	Nollie 16CH	NollieController
+3061	4720	GaiZhongGai Dial	GaiZongGaiKeyboardController
+3061	4770	GaiZhongGai 17+4+Touch PRO	GaiZongGaiKeyboardController
+3061	4771	GaiZhongGai 17 PRO	GaiZongGaiKeyboardController
+3061	4772	GaiZhongGai 20 PRO	GaiZongGaiKeyboardController
+306F	1234	JSAUX RGB Docking Station	WushiController
+30FA	1030	Advanced GTA 250 USB Gaming Mouse	InstantMouseController
+30FA	1040	AntEsports GM600 USB Gaming Mouse	InstantMouseController
+30FA	1440	Anko KM43243952 USB Gaming Mouse	InstantMouseController
+30FA	1540	Anko KM43277483 USB Gaming Mouse	InstantMouseController
+3151	4003	Akko 3068B Plus / PC75B Plus	RoyuanKeyboardController
+3151	4010	Epomaker TH80 Pro (USB Cable)	RoyuanKeyboardController
+3151	4011	Epomaker TH80 Pro (USB Dongle)	RoyuanKeyboardController
+3151	4015	Attack Shark K86 (USB Cable)	RoyuanKeyboardController
+3151	5029	Skyloong GK68HE Pro	RoyuanKeyboardController
+320F	5000	EVision Keyboard 320F:5000	EVisionKeyboardController
+320F	502A	EVision Keyboard 320F:502A	EVisionKeyboardController
+320F	5041	EVision Keyboard 320F:5041	EVisionKeyboardController
+320F	505B	EVision Keyboard 320F:505B	EVisionKeyboardController
+320F	5064	EVision Keyboard 320F:5064	EVisionKeyboardController
+320F	5078	EVision Keyboard 320F:5078	EVisionKeyboardController
+320F	5084	EVision Keyboard 320F:5084	EVisionKeyboardController
+3282	0001	Mountain Everest	MountainKeyboardController
+3282	0005	Mountain Everest 60	MountainKeyboardController
+3282	0006	Mountain Everest 60	MountainKeyboardController
+3299	0012	Endorfy Omnis	EVisionKeyboardController
+3311	A297	Anne Pro 2	AnnePro2Controller
+3402	0300	HYTE Keeb TKL	HYTEKeyboardController
+3537	100F	GameSir Nova 2 Lite	GameSirController
+3537	1098	GameSir Nova 2 Lite (Wireless)	GameSirController
+3842	2402	EVGA X20 USB Receiver	EVGAUSBController
+3842	2420	EVGA X20 Gaming Mouse	EVGAUSBController
+3842	2422	EVGA X12 Gaming Mouse	EVGAUSBController
+3842	2608	EVGA Z15 Keyboard	EVGAUSBController
+3842	260A	EVGA Z20 Keyboard	EVGAUSBController
+3842	260E	EVGA Z15 Keyboard	EVGAUSBController
+3842	2610	EVGA Z20 Keyboard	EVGAUSBController
+3938	1162	AOC AGON AMM700	AOCMousematController
+3938	1178	AOC GK500	AOCKeyboardController
+3938	1179	AOC GM500	AOCMouseController
+3938	1229	AOC GK500	AOCKeyboardController
+4E53	5406	N5312A USB Optical Mouse	N5312AController
+8089	0007	SayoDevice E1	SayoDeviceController
