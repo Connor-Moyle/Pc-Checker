@@ -116,6 +116,59 @@
           </StackPanel>
         </ui:Card>
 
+        <!-- ================= Your setup (backup, restore, reset a part) ================= -->
+        <ui:Card Style="{StaticResource CardSpacing}">
+          <StackPanel>
+            <StackPanel Style="{StaticResource GroupHeader}">
+              <ui:SymbolIcon Style="{StaticResource GroupIcon}" Symbol="Archive24" />
+              <ui:TextBlock Style="{StaticResource GroupTitle}" Text="Your setup" />
+            </StackPanel>
+            <ui:CardControl Style="{StaticResource Row}" Icon="{ui:SymbolIcon ArrowExportUp24}">
+              <ui:CardControl.Header>
+                <StackPanel>
+                  <ui:TextBlock Text="Back up your setup" />
+                  <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Text="Settings, profiles and schedules in one .pcchecker file. Your API key is never included."
+                                ToolTip="Fan curves, lighting, overlay presets, game, display and keyboard and mouse profiles, overclock limits, schedules and, if you like, the benchmark history. Open the file on a new PC, or after a reinstall, to get everything back." />
+                </StackPanel>
+              </ui:CardControl.Header>
+              <ui:Button Content="Back up…" Icon="{ui:SymbolIcon Save24}" Command="{Binding ExportSetupCommand}" />
+            </ui:CardControl>
+            <ui:CardControl Style="{StaticResource Row}" Icon="{ui:SymbolIcon ArrowImport24}">
+              <ui:CardControl.Header>
+                <StackPanel>
+                  <ui:TextBlock Text="Restore from a backup file" />
+                  <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Text="Shows what each part changes, and you pick what to import." />
+                </StackPanel>
+              </ui:CardControl.Header>
+              <ui:Button Content="Restore…" Icon="{ui:SymbolIcon FolderOpen24}" Command="{Binding ImportSetupCommand}" />
+            </ui:CardControl>
+            <ui:CardControl Style="{StaticResource Row}" Icon="{ui:SymbolIcon ArrowReset24}">
+              <ui:CardControl.Header>
+                <StackPanel>
+                  <ui:TextBlock Text="Reset one part" />
+                  <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Text="Puts only the parts you tick, such as fans or the overlay, back to their defaults." />
+                </StackPanel>
+              </ui:CardControl.Header>
+              <ui:Button Content="Reset a part…" Command="{Binding ResetSetupSectionsCommand}" />
+            </ui:CardControl>
+            <ui:CardControl Style="{StaticResource Row}" Icon="{ui:SymbolIcon ArrowUndo24}"
+                            Visibility="{Binding CanUndoSetupChange, Converter={StaticResource BoolToVisibility}}">
+              <ui:CardControl.Header>
+                <StackPanel>
+                  <ui:TextBlock Text="Undo the last import or reset" />
+                  <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Text="{Binding SetupUndoText}" />
+                </StackPanel>
+              </ui:CardControl.Header>
+              <ui:Button Content="Undo" Icon="{ui:SymbolIcon ArrowUndo24}" Command="{Binding UndoSetupChangeCommand}" />
+            </ui:CardControl>
+            <DockPanel Margin="4,4,0,0">
+              <ui:HyperlinkButton DockPanel.Dock="Right" Content="Open backups folder" Padding="6,2" Command="{Binding OpenSetupBackupsFolderCommand}"
+                                  Visibility="{Binding CanOpenSetupBackups, Converter={StaticResource BoolToVisibility}}" />
+              <ui:TextBlock Style="{StaticResource Caption}" VerticalAlignment="Center" TextWrapping="Wrap" Text="{Binding SetupBackupsText}" />
+            </DockPanel>
+          </StackPanel>
+        </ui:Card>
+
         <!-- ================= Appearance ================= -->
         <ui:Card Style="{StaticResource CardSpacing}">
           <StackPanel>

@@ -140,6 +140,11 @@ public sealed partial class OverclockViewModel : ViewModelBase
         settings.Changed += OnOverclockSettingsChanged;
         LoadLimitsFromSettings();
         RebuildProfiles();
+        ReloadWhenReplaced(s => s.Overclock, () =>
+        {
+            LoadLimitsFromSettings();
+            RebuildProfiles();
+        });
 
         _liveTimer = new DispatcherTimer(DispatcherPriority.Background) { Interval = TimeSpan.FromSeconds(1) };
         _liveTimer.Tick += async (_, _) => await LiveTickAsync();

@@ -60,6 +60,49 @@ public static class SetupScheduleSync
         return steps;
     }
 
+    /// <summary>The Task Scheduler changes that importing the schedules part of <paramref name="document"/> would make.</summary>
+    public static IReadOnlyList<ScheduleSyncStep> PlanImport(Settings.AppSettings current, SetupDocument document, DateTimeOffset now)
+    {
+        ArgumentNullException.ThrowIfNull(current);
+        ArgumentNullException.ThrowIfNull(document);
+        var outcome = SetupApplier.Apply(current, document, [SetupSectionIds.Schedules], now);
+        if (outcome.AppliedSections.Count == 0)
+        {
+            return [];
+        }
+
+        var before = SetupJson.Clone(current);
+        return Plan(ScheduleRules.EnsureSettings(before), before.Tray, ScheduleRules.EnsureSettings(outcome.Settings), outcome.Settings.Tray);
+    }
+
+    /// <summary>One line per kind of change, for the confirmation before an import touches Task Scheduler.</summary>
+    public static IReadOnlyList<string> Describe(IReadOnlyList<ScheduleSyncStep> steps)
+    {
+        ArgumentNullException.ThrowIfNull(steps);
+        var lines = new List<string>();
+        var created = steps.Where(s => s.Action == ScheduleSyncAction.CreateOrUpdate && s.Schedule is not null)
+            .Select(s => $"{ScheduledJobIds.DisplayName(s.Job!.Value)} ({ScheduleRules.DescribeInline(s.Schedule!)})").ToList();
+        var removed = steps.Where(s => s.Action == ScheduleSyncAction.Delete).Select(s => ScheduledJobIds.DisplayName(s.Job!.Value)).ToList();
+        if (created.Count > 0)
+        {
+            lines.Add("Create or update: " + string.Join(", ", created));
+        }
+
+        if (removed.Count > 0)
+        {
+            lines.Add("Remove: " + string.Join(", ", removed));
+        }
+
+        if (steps.FirstOrDefault(s => s.Action == ScheduleSyncAction.SetStartWithWindows) is { } logon)
+        {
+            lines.Add(logon.StartWithWindows
+                ? "Start with Windows: on" + (logon.StartInTray ? ", in the tray" : string.Empty)
+                : "Start with Windows: off");
+        }
+
+        return lines;
+    }
+
     /// <summary>True when both schedules produce the same scheduled task.</summary>
     public static bool SameTask(JobSchedule a, JobSchedule b) =>
         a.Job == b.Job && a.Frequency == b.Frequency && a.Day == b.Day

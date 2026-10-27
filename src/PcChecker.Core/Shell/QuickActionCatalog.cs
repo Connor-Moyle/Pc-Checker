@@ -18,6 +18,8 @@ public static class QuickActionIds
     public const string CheckAppUpdates = "app.updates";
     public const string ShowWelcome = "welcome.show";
     public const string Checkup = "checkup.run";
+    public const string BackUpSetup = "setup.export";
+    public const string RestoreSetup = "setup.import";
 }
 
 /// <summary>
@@ -41,6 +43,8 @@ public static class QuickActionCatalog
         new(QuickActionIds.SpeedCheck, T("Run a speed check"), "performance", T("slow slowdown startup services")),
         new(QuickActionIds.CheckAppUpdates, T("Check for PC Checker updates"), "settings", T("new version upgrade")),
         new(QuickActionIds.ShowWelcome, T("Show the welcome again"), null, T("introduction tour getting started")),
+        new(QuickActionIds.BackUpSetup, T("Back up your setup"), "settings", T("export save settings profiles to a file new pc")),
+        new(QuickActionIds.RestoreSetup, T("Restore your setup from a file"), "settings", T("import load settings profiles backup reinstall")),
     ];
 
     /// <summary>The action with <paramref name="id"/>, or null.</summary>

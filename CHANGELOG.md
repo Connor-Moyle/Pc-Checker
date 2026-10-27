@@ -44,6 +44,15 @@ All notable changes to PC Checker are recorded here. The format follows
   tasks to XML first, deletes services only when stopped, and a restore list
   puts keys and tasks back. The Apps page offers *Find leftovers* right after
   an uninstall.
+- **Your setup** (Settings → General, also in quick search): back up every
+  setting and profile (fans and curves, lighting, overlay presets, game,
+  display and keyboard and mouse profiles, overclock limits and profiles,
+  schedules and tray options, and optionally the benchmark history) to one
+  `.pcchecker` file, and restore it on this or another PC. The import checks
+  the file, previews what each part changes with a tick box per part, skips
+  unknown or newer parts with a note, saves an automatic backup of the current
+  setup first and offers *Undo*. *Reset one part* puts single parts back to
+  their defaults. The Claude API key is never exported or imported.
 
 ## [0.4.0] - 2026-10-27
 

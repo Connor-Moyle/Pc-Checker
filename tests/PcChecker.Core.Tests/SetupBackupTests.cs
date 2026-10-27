@@ -404,6 +404,26 @@ public class SetupBackupTests : IDisposable
         Assert.Empty(SetupScheduleSync.Plan(after, new TraySettings(), after, new TraySettings()));
     }
 
+    [Fact]
+    public void Import_plan_lists_the_task_changes_for_the_confirmation()
+    {
+        var current = AppSettings.CreateDefault();
+        current.Schedules.For(ScheduledJobKind.Drivers).Enabled = true;
+        var incoming = AppSettings.CreateDefault();
+        incoming.Schedules.For(ScheduledJobKind.Health).Enabled = true;
+        incoming.Schedules.For(ScheduledJobKind.Health).Frequency = ScheduleFrequency.Daily;
+        incoming.Schedules.For(ScheduledJobKind.Health).Time = "08:45";
+        var doc = SetupFileReader.Parse(SetupExporter.Export(incoming, null, new SetupExportOptions(false), null, Now, null)).Value!;
+
+        var lines = SetupScheduleSync.Describe(SetupScheduleSync.PlanImport(current, doc, Now));
+
+        Assert.Equal(2, lines.Count);
+        Assert.StartsWith("Create or update: ", lines[0]);
+        Assert.Contains("08:45", lines[0]);
+        Assert.StartsWith("Remove: ", lines[1]);
+        Assert.True(current.Schedules.For(ScheduledJobKind.Drivers).Enabled); // planning changes nothing
+    }
+
     // ----- Service (real files in a temporary folder) -----
 
     [Fact]

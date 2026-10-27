@@ -74,6 +74,35 @@ public sealed class DialogService : IDialogService
         return Task.FromResult(picker.ShowDialog() == true ? picker.FileName : null);
     }
 
+    public Task<string?> OpenFileAsync(string title, string filter)
+    {
+        var picker = new OpenFileDialog { Title = title, Filter = filter, CheckFileExists = true, Multiselect = false };
+        return Task.FromResult(picker.ShowDialog() == true ? picker.FileName : null);
+    }
+
+    public async Task<bool> ShowContentAsync(string title, object content, string confirmText, bool isDanger = false)
+    {
+        // Rich content needs the dialog host; without it (very early start-up) the safe answer is "cancel".
+        if (_dialogs.GetDialogHost() is null)
+        {
+            return false;
+        }
+
+        var dialog = new ContentDialog
+        {
+            Title = Localization.Loc.T(title),
+            Content = content,
+            PrimaryButtonText = Localization.Loc.T(confirmText),
+            CloseButtonText = Localization.Loc.T("Cancel"),
+            PrimaryButtonAppearance = isDanger ? ControlAppearance.Danger : ControlAppearance.Primary,
+            DefaultButton = isDanger ? ContentDialogButton.Close : ContentDialogButton.Primary,
+            IsSecondaryButtonEnabled = false,
+            DialogMaxWidth = 680,
+        };
+
+        return await _dialogs.ShowAsync(dialog, CancellationToken.None) == ContentDialogResult.Primary;
+    }
+
     private async Task<ContentDialogResult> ShowAsync(ContentDialog dialog)
     {
         // The dialog host is set by MainWindow once loaded; before that fall back to a plain message box.

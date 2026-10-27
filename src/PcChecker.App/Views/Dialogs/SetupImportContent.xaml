@@ -1,0 +1,50 @@
+<UserControl x:Class="PcChecker.App.Views.Dialogs.SetupImportContent"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+             xmlns:vm="clr-namespace:PcChecker.App.ViewModels"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             d:DataContext="{d:DesignInstance vm:SetupImportChoices}"
+             mc:Ignorable="d">
+  <!-- Body of Settings → Your setup → Restore: one tickable row per part of the file, with what it changes. -->
+  <StackPanel MaxWidth="600">
+    <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,8" Text="{Binding Origin}" />
+    <ui:InfoBar Severity="Warning" Title="About this file" IsClosable="False" Margin="0,0,0,8"
+                Message="{Binding Notes}" IsOpen="{Binding HasNotes, Mode=OneWay}" />
+    <ui:InfoBar Severity="Success" Title="Nothing to change" IsClosable="False" Margin="0,0,0,8"
+                Message="This file holds the same setup as this PC."
+                IsOpen="{Binding NothingChanges, Mode=OneWay}" />
+    <ui:TextBlock TextWrapping="Wrap" Margin="0,0,0,8"
+                  Text="Tick the parts to import. Your current setup is backed up first, so you can undo the import." />
+
+    <ScrollViewer MaxHeight="360" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+      <ItemsControl ItemsSource="{Binding Sections}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate>
+            <StackPanel Margin="0,0,8,10">
+              <CheckBox IsChecked="{Binding IsSelected}" IsEnabled="{Binding CanSelect}">
+                <StackPanel>
+                  <ui:TextBlock FontTypography="BodyStrong" Text="{Binding Title}" />
+                  <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Text="{Binding Summary}" />
+                </StackPanel>
+              </CheckBox>
+              <ItemsControl ItemsSource="{Binding Details}" Margin="28,2,0,0">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <ui:TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Text="{Binding}" />
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+              <ui:TextBlock Style="{StaticResource Caption}" Margin="28,0,0,0" Text="{Binding MoreText}"
+                            Visibility="{Binding HasMore, Converter={StaticResource BoolToVisibility}}" />
+            </StackPanel>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </ScrollViewer>
+
+    <ui:TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,8,0,0"
+                  Text="Your Claude API key and this PC's own state (window size, active fan and overclock profiles, overclock consent) are never taken from a file." />
+  </StackPanel>
+</UserControl>

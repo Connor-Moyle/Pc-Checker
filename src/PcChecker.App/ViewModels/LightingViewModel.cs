@@ -78,6 +78,7 @@ public sealed partial class LightingViewModel : ViewModelBase
         _lighting.DevicesChanged += OnDevicesChanged;
         _activeProfileName = settings.Current.Lighting.ActiveProfileName;
         RebuildProfiles();
+        ReloadWhenReplaced(s => s.Lighting, RebuildProfiles);
         // Status is pulled in InitializeAsync: the first read probes the OpenRGB install (registry, PATH), which must
         // not run on the UI thread.
     }

@@ -161,7 +161,7 @@ public sealed class SetupBackupService : ISetupBackupService
             await RecordAsync($"Undo setup {what}", undo.BackupPath, undo.Sections, "Success", reversible: false,
                 undoHint: null).ConfigureAwait(false);
             SetLastChange(null);
-            return OperationResult<SetupChangeResult>.Ok(new SetupChangeResult(undo.Sections, undo.BackupPath, notes),
+            return OperationResult<SetupChangeResult>.Ok(new SetupChangeResult(undo.Sections, null, notes),
                 $"The {what} was undone. The setup from before it is back.");
         }
         catch (OperationCanceledException)

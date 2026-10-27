@@ -85,6 +85,7 @@ public sealed partial class DisplaysViewModel : ViewModelBase
         _logger = logger;
         PropertyChanged += OnOwnPropertyChanged;
         LoadProfiles();
+        ReloadWhenReplaced(s => s.Displays, LoadProfiles);
     }
 
     public ObservableCollection<DisplayCardViewModel> Displays { get; } = [];

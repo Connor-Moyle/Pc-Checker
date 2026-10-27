@@ -7,6 +7,7 @@ using PcChecker.Core.Common;
 using PcChecker.Core.Logging;
 using PcChecker.Core.Scheduling;
 using PcChecker.Core.Settings;
+using PcChecker.Core.SetupBackup;
 using PcChecker.Core.Updates;
 using Wpf.Ui;
 using Wpf.Ui.Appearance;
@@ -32,6 +33,7 @@ public sealed partial class SettingsViewModel : ViewModelBase
     private readonly IScheduledJobStore _jobStore;
     private readonly ScheduledRunner _scheduledRunner;
     private readonly WelcomeService _welcome;
+    private readonly ISetupBackupService _setupBackup;
     private readonly object _saveGate = new();
     private CancellationTokenSource? _saveDebounce;
     private bool _savePending;
@@ -67,10 +69,12 @@ public sealed partial class SettingsViewModel : ViewModelBase
 
     public SettingsViewModel(ISettingsService settings, IAppUpdateService updates, INotificationService notifications,
         IDialogService dialogs, ILogService logs, INavigationService navigation, ILogger<SettingsViewModel> logger,
-        IScheduledTaskService scheduledTasks, IScheduledJobStore jobStore, ScheduledRunner scheduledRunner, WelcomeService welcome)
+        IScheduledTaskService scheduledTasks, IScheduledJobStore jobStore, ScheduledRunner scheduledRunner, WelcomeService welcome,
+        ISetupBackupService setupBackup)
         : base(settings)
     {
         _welcome = welcome;
+        _setupBackup = setupBackup;
         _scheduledTasks = scheduledTasks;
         _jobStore = jobStore;
         _scheduledRunner = scheduledRunner;
@@ -81,6 +85,7 @@ public sealed partial class SettingsViewModel : ViewModelBase
         _navigation = navigation;
         _logger = logger;
         HookSchedules();
+        HookSetupBackup();
         LoadFromSettings();
         settings.Changed += (_, _) => DispatcherHelper.PostToUi(OnSettingsChanged);
         UpdatePrompter.ResultChanged += (_, _) => DispatcherHelper.PostToUi(() => ShowUpdateResult(UpdatePrompter.LastResult));

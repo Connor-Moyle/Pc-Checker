@@ -69,6 +69,14 @@ public sealed partial class BenchmarkViewModel : ViewModelBase
             TestChoices.Add(new BenchmarkTestChoice(kind, () => SelectedTestCount = TestChoices.Count(c => c.IsSelected)));
         }
 
+        // A setup import (or its undo) changed the history behind the page's back.
+        _history.Changed += (_, runs) => DispatcherHelper.PostToUi(() =>
+        {
+            if (IsInitialized && !IsBusy)
+            {
+                ApplyHistory(runs, ShownRun?.Run.Id);
+            }
+        });
         Runs.CollectionChanged += (_, _) =>
         {
             OnPropertyChanged(nameof(HasHistory));

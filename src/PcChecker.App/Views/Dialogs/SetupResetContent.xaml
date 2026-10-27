@@ -1,0 +1,31 @@
+<UserControl x:Class="PcChecker.App.Views.Dialogs.SetupResetContent"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+             xmlns:vm="clr-namespace:PcChecker.App.ViewModels"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             d:DataContext="{d:DesignInstance vm:SetupResetChoices}"
+             mc:Ignorable="d">
+  <!-- Body of Settings → Your setup → Reset a part: nothing is ticked until the user picks. -->
+  <StackPanel MaxWidth="560">
+    <ui:TextBlock TextWrapping="Wrap" Margin="0,0,0,8"
+                  Text="Tick the parts to put back to their defaults. Saved profiles in those parts are removed. Everything else stays as it is." />
+    <ScrollViewer MaxHeight="360" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+      <ItemsControl ItemsSource="{Binding Sections}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate>
+            <CheckBox IsChecked="{Binding IsSelected}" Margin="0,0,8,8">
+              <StackPanel>
+                <ui:TextBlock FontTypography="BodyStrong" Text="{Binding Title}" />
+                <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Text="{Binding Summary}" />
+              </StackPanel>
+            </CheckBox>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </ScrollViewer>
+    <ui:TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,8,0,0"
+                  Text="Your current setup is backed up first, so you can undo the reset. Your Claude API key is kept." />
+  </StackPanel>
+</UserControl>

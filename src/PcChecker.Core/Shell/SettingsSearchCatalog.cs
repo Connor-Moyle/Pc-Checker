@@ -19,6 +19,11 @@ public static class SettingsSearchCatalog
         S("Electricity price per kWh", "General", T("energy cost money power bill")),
         S("Currency symbol", "General", T("money dollar euro pound")),
 
+        // Your setup
+        S("Back up your setup", "Your setup", T("export backup save profiles settings new pc move transfer pcchecker file")),
+        S("Restore from a backup file", "Your setup", T("import restore load profiles settings new pc reinstall")),
+        S("Reset one part", "Your setup", T("defaults fans overlay lighting profiles section")),
+
         // Appearance
         S("Theme", "Appearance", T("dark mode light mode colours colors")),
         S("Language", "Appearance", T("translate translation locale")),

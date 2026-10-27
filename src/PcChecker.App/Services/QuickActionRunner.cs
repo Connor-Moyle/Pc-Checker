@@ -93,6 +93,12 @@ public sealed class QuickActionRunner
             case QuickActionIds.CheckAppUpdates:
                 return RunOnPageAsync<SettingsViewModel>(typeof(SettingsPage), vm => vm.CheckForUpdatesCommand, busyWait);
 
+            // Both explain themselves in a dialog first; restoring shows what changes before anything is imported.
+            case QuickActionIds.BackUpSetup:
+                return RunOnPageAsync<SettingsViewModel>(typeof(SettingsPage), vm => vm.ExportSetupCommand, busyWait);
+            case QuickActionIds.RestoreSetup:
+                return RunOnPageAsync<SettingsViewModel>(typeof(SettingsPage), vm => vm.ImportSetupCommand, busyWait);
+
             case QuickActionIds.Optimize:
                 _navigation.Navigate(typeof(OptimizePage));
                 return Task.CompletedTask;

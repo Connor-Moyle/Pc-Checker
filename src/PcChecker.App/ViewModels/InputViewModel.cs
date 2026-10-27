@@ -107,6 +107,7 @@ public sealed partial class InputViewModel : ViewModelBase
         PollingTable = PollingRateMath.Table;
         RefreshDerivedText();
         RebuildProfiles();
+        ReloadWhenReplaced(s => s.Input, RebuildProfiles);
     }
 
     public ObservableCollection<InputProfileItem> Profiles { get; } = [];

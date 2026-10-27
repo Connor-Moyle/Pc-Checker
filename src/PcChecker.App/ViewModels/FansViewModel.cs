@@ -82,6 +82,11 @@ public sealed partial class FansViewModel : ViewModelBase
         _notifications = notifications;
         _logger = logger;
         LoadSettings();
+        ReloadWhenReplaced(s => s.Fans, () =>
+        {
+            LoadSettings();
+            RefreshProfiles();
+        });
         _fans.FansUpdated += OnFansUpdated;
         if (_advanced is not null)
         {

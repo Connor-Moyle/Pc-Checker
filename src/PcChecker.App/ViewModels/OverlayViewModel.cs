@@ -163,6 +163,13 @@ public sealed partial class OverlayViewModel : ViewModelBase
         _isOverlayVisible = overlay.IsVisible;
         _isEditMode = overlay.IsEditMode;
         InitGaming(switcher, gameProfiles, tracker, frames, fans);
+        ReloadWhenReplaced(s => s.Overlay, () =>
+        {
+            LoadFromSettings();
+            LoadGameProfileOptions();
+        });
+        ReloadWhenReplaced(s => s.Gaming, RefreshGameProfiles);
+        ReloadWhenReplaced(s => s.Fans, LoadGameProfileOptions);
     }
 
     /// <summary>The shared live overlay state, rendered by the preview on the page.</summary>

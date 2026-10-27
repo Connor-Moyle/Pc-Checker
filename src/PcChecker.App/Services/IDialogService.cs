@@ -16,6 +16,15 @@ public interface IDialogService
 
     /// <summary>Returns the chosen path or null when cancelled. <paramref name="filter"/> uses the Win32 "Name|*.ext" format.</summary>
     Task<string?> SaveFileAsync(string title, string suggestedName, string filter);
+
+    /// <summary>Asks for an existing file to open. Returns its path or null when cancelled.</summary>
+    Task<string?> OpenFileAsync(string title, string filter);
+
+    /// <summary>
+    /// Shows <paramref name="content"/> (a control with its own data context) in a dialog with
+    /// <paramref name="confirmText"/> and Cancel. Returns true when the user chose <paramref name="confirmText"/>.
+    /// </summary>
+    Task<bool> ShowContentAsync(string title, object content, string confirmText, bool isDanger = false);
 }
 
 /// <summary>The button the user chose in <see cref="IDialogService.AskAsync"/>.</summary>

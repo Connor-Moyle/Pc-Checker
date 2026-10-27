@@ -225,4 +225,29 @@ public abstract partial class ViewModelBase : ObservableObject
 
     private void OnSettingsChanged(object? sender, AppSettings settings) =>
         Services.DispatcherHelper.PostToUi(() => IsAdvancedMode = settings.General.AdvancedMode);
+
+    /// <summary>
+    /// Runs <paramref name="reload"/> on the UI thread when the settings section picked by <paramref name="section"/> is
+    /// replaced as a whole (a setup import, its undo, or a reset), so a page that has already loaded never shows or edits
+    /// the old copy. Ordinary saves keep the same object and do not trigger it.
+    /// </summary>
+    protected void ReloadWhenReplaced<T>(Func<AppSettings, T?> section, Action reload)
+        where T : class
+    {
+        ArgumentNullException.ThrowIfNull(section);
+        ArgumentNullException.ThrowIfNull(reload);
+        var settings = Settings;
+        var last = section(settings.Current);
+        settings.Changed += (_, current) =>
+        {
+            var now = section(current);
+            if (ReferenceEquals(now, last))
+            {
+                return;
+            }
+
+            last = now;
+            Services.DispatcherHelper.PostToUi(reload);
+        };
+    }
 }

@@ -1117,6 +1117,66 @@ About (version, licences, GitHub link, *Show welcome again*). A note shows when 
 in demo mode. Overlay options are on the Overlay page, logging options on the
 Logs page and cleanup categories on the Cleanup page.
 
+### Your setup (backup and restore)
+
+**Settings → General → Your setup** saves everything you set up in PC Checker
+to one `.pcchecker` file and brings it back on this PC after a reinstall, or on
+a new one. *Back up your setup* and *Restore your setup from a file* are also
+quick actions (Ctrl+K).
+
+- **What the file holds**: every settings section of `settings.json` (theme,
+  language, alerts and limits, restore points, updates, logging, cleanup,
+  network and latency tests, history recording), fan profiles and curves,
+  lighting profiles, the overlay layout and presets, game profiles, display
+  profiles, the memory warning (the memory profiles themselves are built in),
+  keyboard and mouse profiles, overclock limits and profiles, schedules and
+  tray options, and, if you tick it, the benchmark history from
+  `benchmarks.json`. The data looks exactly like the matching part of
+  `settings.json`, inside a small versioned envelope (`Format`,
+  `SchemaVersion`, and a `Version` per part).
+- **Never included**: the Claude API key (Windows protects it with DPAPI for
+  this account on this PC only, so it would not work elsewhere anyway; the
+  dialog says so), the recorded History data and logs, and this PC's own state:
+  window size, recent searches, the welcome flag, the log folder, the active
+  fan, lighting and overclock profiles and the overclock consent. An import
+  never takes these from a file either, even a hand-edited one.
+- **Restore**: pick a file and PC Checker checks it first: is it JSON, is it a
+  setup file, which version. Parts made by a newer version, parts it does not
+  know and parts whose values are not in the expected form are listed as
+  skipped with the reason; the rest can still be imported. A plain
+  `settings.json` (for example a copy you kept, or the `settings.corrupt-*.bak`
+  the app sets aside) is read as an older layout and converted. The preview
+  shows each part with a tick box and what it would change ("General › Theme:
+  System → Dark", "Profiles "Silent": added", "5 runs in the file, 3 new"),
+  and parts that already match are left unticked. Overclock limits and
+  profiles are never ticked by default.
+- **How values are applied**: for each ticked part the file's values replace
+  this PC's field by field; a field the file does not have keeps its current
+  value. Values are clamped to the ranges the Settings page allows. A shorter
+  history retention gets the usual 24-hour grace period, so importing never
+  deletes recorded history straight away. Benchmark runs are added (runs you
+  already have are kept). Imported overclock profiles are still checked
+  against your limits and the card's own range when you apply one; nothing is
+  applied to hardware by an import.
+- **Schedules**: importing *Schedules and tray* creates, updates or removes
+  PC Checker's Windows scheduled tasks and the *Start with Windows* task to
+  match, through the same guarded path as the Schedules switches. A task that
+  cannot be created is left as it was and the import says so.
+- **Backup first, undo after**: before every import (and every reset) the
+  current setup, benchmark history included, is saved to
+  `%LOCALAPPDATA%\PcChecker\backups\setup-<time>.pcchecker`. If that fails,
+  nothing is changed. *Undo* puts the changed parts back from that backup and
+  removes the benchmark runs the import added. Older backups stay in the
+  folder (*Open backups folder*) and can be restored like any other file;
+  the app never deletes them.
+- **Reset one part**: tick parts, such as only fans or only the overlay, to
+  put them back to their defaults, with the same automatic backup and undo.
+  The API key is kept.
+- Every import, reset and undo is written to the Action Journal with the
+  backup's path. Open pages (Fans, Lighting, Overlay, Displays, Keyboard &
+  Mouse, Overclock, Benchmark) reload their lists after an import. In demo
+  mode the automatic backups are kept in memory and two sample ones are listed.
+
 ### Tray
 
 PC Checker keeps an icon in the notification area next to the clock.
@@ -1257,8 +1317,8 @@ navigation pane, to open a search box over the page.
   (opens Cleanup and scans; nothing is removed until you confirm), *Check for
   driver updates*, *Optimize this PC*, *Export a full report*, *Show or hide
   the overlay*, *Run a latency check*, *Run a disk benchmark*, *Check health
-  now*, *Run a speed check*, *Check for PC Checker updates* and *Show the
-  welcome again*.
+  now*, *Run a speed check*, *Check for PC Checker updates*, *Show the
+  welcome again*, *Back up your setup* and *Restore your setup from a file*.
 - **Matching**: case, accents and punctuation do not matter. It matches the
   whole title, the start of it, every word you type at the start of (or inside)
   a word, the initials ("wf" for Windows Features, "km" for Keyboard & Mouse)

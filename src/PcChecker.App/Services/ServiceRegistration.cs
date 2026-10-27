@@ -41,6 +41,7 @@ using PcChecker.Core.Restore;
 using PcChecker.Core.Scheduling;
 using PcChecker.Core.Sensors;
 using PcChecker.Core.Settings;
+using PcChecker.Core.SetupBackup;
 using PcChecker.Core.Software;
 using PcChecker.Core.Startup;
 using PcChecker.Core.Storage;
@@ -135,6 +136,8 @@ public static class ServiceRegistration
         Add<IScheduledJobStore, JsonScheduledJobStore, DemoScheduledJobStore>(services, demo);
         Add<IBenchmarkService, WindowsBenchmarkService, DemoBenchmarkService>(services, demo);
         Add<IBenchmarkHistoryStore, JsonBenchmarkHistoryStore, DemoBenchmarkHistoryStore>(services, demo);
+        Add<ISetupBackupStore, FileSetupBackupStore, DemoSetupBackupStore>(services, demo);
+        services.AddSingleton<ISetupBackupService, SetupBackupService>();
         services.AddSingleton<ScheduledJobExecutor>();
 
         // The check-up only calls the module services above, so the same class serves both modes.
