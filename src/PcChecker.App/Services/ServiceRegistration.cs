@@ -79,6 +79,7 @@ public static class ServiceRegistration
         Add<IHardwareInventoryService, WindowsHardwareInventoryService, DemoHardwareInventoryService>(services, demo);
         Add<IHealthService, WindowsHealthService, DemoHealthService>(services, demo);
         Add<IDriverService, WindowsDriverService, DemoDriverService>(services, demo);
+        Add<IDriverCleanupService, WindowsDriverCleanupService, DemoDriverCleanupService>(services, demo);
         Add<ISoftwareInventoryService, WindowsSoftwareInventoryService, DemoSoftwareInventoryService>(services, demo);
         Add<IUninstallService, WindowsUninstallService, DemoUninstallService>(services, demo);
         Add<IPerformanceAnalyzer, WindowsPerformanceAnalyzer, DemoPerformanceAnalyzer>(services, demo);
@@ -147,6 +148,7 @@ public static class ServiceRegistration
         services.AddSingleton<FansViewModel>().AddSingleton<FansPage>();
         services.AddSingleton<LightingViewModel>().AddSingleton<LightingPage>();
         services.AddSingleton<DriversViewModel>().AddSingleton<DriversPage>();
+        services.AddSingleton<DriverCleanupViewModel>().AddSingleton<DriverCleanupPage>();
         services.AddSingleton<SoftwareViewModel>().AddSingleton<SoftwarePage>();
         services.AddSingleton<StartupViewModel>().AddSingleton<StartupPage>();
         services.AddSingleton<WindowsFeaturesViewModel>().AddSingleton<WindowsFeaturesPage>();

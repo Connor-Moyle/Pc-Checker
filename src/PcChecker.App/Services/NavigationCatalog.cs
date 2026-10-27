@@ -46,6 +46,7 @@ public static class NavigationCatalog
         Section("Apps & Drivers", SymbolRegular.Apps24,
             Page("Apps", "software", typeof(SoftwarePage)),
             Page("Drivers", "drivers", typeof(DriversPage)),
+            Page("Old drivers", "old-drivers", typeof(DriverCleanupPage)),
             Page("Startup", "startup", typeof(StartupPage)),
             Page("Windows Features", "windows-features", typeof(WindowsFeaturesPage))),
         Section("Clean up", SymbolRegular.Broom24,

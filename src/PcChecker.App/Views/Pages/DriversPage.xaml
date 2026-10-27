@@ -22,17 +22,26 @@
     <controls:SectionHeader Grid.Row="0" Title="Drivers" Subtitle="Every installed driver, what needs attention, and updates from Windows Update and your hardware makers.">
       <controls:SectionHeader.Actions>
         <StackPanel Orientation="Horizontal">
-          <ui:Button Content="Scan drivers" Icon="{ui:SymbolIcon ArrowSync24}" Appearance="Primary" Command="{Binding ScanCommand}" Margin="0,0,8,0"
-                     ToolTip="Reads every installed driver from Windows and flags problems, old or unsigned drivers." />
+          <ui:DropDownButton Content="More" Icon="{ui:SymbolIcon MoreHorizontal24}" Margin="0,0,8,0">
+            <ui:DropDownButton.Flyout>
+              <ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+                <MenuItem Header="Old and unused drivers…" Command="{Binding OpenOldDriversCommand}"
+                          ToolTip="Finds driver versions left behind by updates and drivers of devices that are no longer connected." />
+                <MenuItem Header="Back up all drivers…" Command="{Binding BackupCommand}"
+                          ToolTip="Copies every third-party driver package to a folder you choose, so you can reinstall them after a reset." />
+                <MenuItem Header="Install .inf…" Command="{Binding InstallInfCommand}"
+                          Visibility="{Binding IsAdvancedMode, Converter={StaticResource BoolToVisibility}}"
+                          ToolTip="Advanced: adds a driver package (.inf) from disk to Windows and installs it on matching devices." />
+                <MenuItem Header="Open Device Manager" Command="{Binding OpenDeviceManagerCommand}" />
+                <MenuItem Header="Export driver list…" Command="{Binding ExportListCommand}"
+                          ToolTip="Saves the installed driver list as a CSV file." />
+              </ContextMenu>
+            </ui:DropDownButton.Flyout>
+          </ui:DropDownButton>
           <ui:Button Content="Check for updates" Icon="{ui:SymbolIcon CloudArrowDown24}" Command="{Binding CheckForUpdatesCommand}" Margin="0,0,8,0"
                      ToolTip="Asks Windows Update for driver updates that are not installed yet. This can take a minute." />
-          <ui:Button Content="Back up all drivers" Icon="{ui:SymbolIcon FolderArrowRight24}" Command="{Binding BackupCommand}" Margin="0,0,8,0"
-                     ToolTip="Copies every third-party driver package to a folder you choose, so you can reinstall them after a reset." />
-          <ui:Button Content="Install .inf" Icon="{ui:SymbolIcon DocumentAdd24}" Command="{Binding InstallInfCommand}" Margin="0,0,8,0"
-                     Visibility="{Binding IsAdvancedMode, Converter={StaticResource BoolToVisibility}}"
-                     ToolTip="Advanced: adds a driver package (.inf) from disk to Windows and installs it on matching devices." />
-          <ui:Button Icon="{ui:SymbolIcon DeveloperBoard24}" Command="{Binding OpenDeviceManagerCommand}" ToolTip="Open Device Manager" Margin="0,0,8,0" />
-          <ui:Button Icon="{ui:SymbolIcon ArrowExportLtr24}" Command="{Binding ExportListCommand}" ToolTip="Export the installed driver list as a CSV file" />
+          <ui:Button Content="Scan drivers" Icon="{ui:SymbolIcon ArrowSync24}" Appearance="Primary" Command="{Binding ScanCommand}"
+                     ToolTip="Reads every installed driver from Windows and flags problems, old or unsigned drivers." />
         </StackPanel>
       </controls:SectionHeader.Actions>
     </controls:SectionHeader>

@@ -5,9 +5,11 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using PcChecker.App.Services;
+using PcChecker.App.Views.Pages;
 using PcChecker.Core.Common;
 using PcChecker.Core.Drivers;
 using PcChecker.Core.Settings;
+using Wpf.Ui;
 
 namespace PcChecker.App.ViewModels;
 
@@ -21,6 +23,7 @@ public sealed partial class DriversViewModel : ViewModelBase
     private readonly IDriverService _drivers;
     private readonly IDialogService _dialogs;
     private readonly INotificationService _notifications;
+    private readonly INavigationService _navigation;
     private readonly ILogger<DriversViewModel> _logger;
     private readonly List<DriverRow> _allDrivers = [];
     private readonly Dictionary<WarningSource, IReadOnlyList<string>> _warningsBySource = [];
@@ -91,12 +94,14 @@ public sealed partial class DriversViewModel : ViewModelBase
     [NotifyPropertyChangedFor(nameof(InstalledTabHeader))]
     private int _visibleDriverCount;
 
-    public DriversViewModel(ISettingsService settings, IDriverService drivers, IDialogService dialogs, INotificationService notifications, ILogger<DriversViewModel> logger)
+    public DriversViewModel(ISettingsService settings, IDriverService drivers, IDialogService dialogs, INotificationService notifications,
+        INavigationService navigation, ILogger<DriversViewModel> logger)
         : base(settings)
     {
         _drivers = drivers;
         _dialogs = dialogs;
         _notifications = notifications;
+        _navigation = navigation;
         _logger = logger;
         Updates.CollectionChanged += (_, _) => OnPropertyChanged(nameof(SelectedUpdateCount));
         VendorLinks.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasVendorLinks));
@@ -291,6 +296,10 @@ public sealed partial class DriversViewModel : ViewModelBase
 
     [RelayCommand]
     private void OpenDeviceManager() => Open(DriverRules.DeviceManagerCommand);
+
+    /// <summary>Opens the Old drivers tab, which finds superseded and unused driver packages.</summary>
+    [RelayCommand]
+    private void OpenOldDrivers() => _navigation.Navigate(typeof(DriverCleanupPage));
 
     [RelayCommand]
     private void OpenLink(string? url)
