@@ -68,8 +68,28 @@ public static partial class ExeUpdateRules
             return null;
         }
 
-        var match = BodySha256().Match(releaseBody);
-        return match.Success ? match.Groups["hash"].Value.ToLowerInvariant() : null;
+        // A release with several builds lists one "SHA-256 (name): hash" line per file, so a line that names this
+        // asset wins. A line that names a different .exe is never used: its hash belongs to the other build.
+        string? unnamed = null;
+        foreach (Match match in BodySha256().Matches(releaseBody))
+        {
+            var hash = match.Groups["hash"];
+            int start = releaseBody.LastIndexOf('\n', Math.Max(0, match.Index - 1)) + 1;
+            int end = releaseBody.IndexOf('\n', hash.Index);
+            var text = releaseBody[start..(end < 0 ? releaseBody.Length : end)];
+            var names = ExeName().Matches(text).Select(m => m.Value).ToList();
+            if (names.Any(n => string.Equals(n, asset.Name, StringComparison.OrdinalIgnoreCase)))
+            {
+                return hash.Value.ToLowerInvariant();
+            }
+
+            if (names.Count == 0)
+            {
+                unnamed ??= hash.Value.ToLowerInvariant();
+            }
+        }
+
+        return unnamed;
     }
 
     /// <summary>
@@ -121,4 +141,7 @@ public static partial class ExeUpdateRules
 
     [GeneratedRegex(@"SHA-?256.{0,80}?\b(?<hash>[0-9a-fA-F]{64})\b", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
     private static partial Regex BodySha256();
+
+    [GeneratedRegex(@"[A-Za-z0-9_.-]+\.exe\b", RegexOptions.IgnoreCase)]
+    private static partial Regex ExeName();
 }
