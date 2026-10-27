@@ -144,7 +144,10 @@ public sealed partial class RegistryViewModel : ViewModelBase
         }
     }
 
-    /// <summary>Shows the categories, the last scan of this session (if any) and the backups. Never scans by itself.</summary>
+    /// <summary>
+    /// Shows the categories, the last scan of this session (if any) and the backups. Never scans by itself, except in
+    /// demo mode, where the sample findings are shown straight away (as on the Old drivers page).
+    /// </summary>
     public override Task InitializeAsync(CancellationToken cancellationToken) => RunBusyAsync(async ct =>
     {
         if (_lastScan is not null)
@@ -153,6 +156,13 @@ public sealed partial class RegistryViewModel : ViewModelBase
         }
 
         await LoadBackupsAsync(ct);
+
+        var categories = Categories.Where(c => c.IsVisible && c.IsSelected).Select(c => c.Category).ToList();
+        if (AppOptions.Current.IsDemo && _lastScan is null && categories.Count > 0)
+        {
+            var result = await _service.ScanAsync(categories, null, ct);
+            ApplyScan(result, categories);
+        }
     }, "Loading registry backups…");
 
     public override Task RefreshAsync(CancellationToken cancellationToken) => ScanAsync();
