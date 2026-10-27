@@ -416,20 +416,38 @@ public class CpuToolLocatorTests
     [Fact]
     public void Amd_prefers_ryzenadj_then_ryzen_master()
     {
-        // Directory names without drive letters so the PATH string splits the same way on every OS.
-        var appDir = Path.Combine("apps", "pcchecker");
-        var toolsDir = Path.Combine("bin", "tools");
-        var otherDir = Path.Combine("bin", "other");
-        var pathVariable = toolsDir + Path.PathSeparator + otherDir;
+        // Directory names without drive letters so the paths behave the same way on every OS.
+        var programFiles = Path.Combine("pf");
+        var appDir = Path.Combine(programFiles, "PcCheckerPortable");
+        string[] roots = [programFiles];
 
-        var adj = CpuToolLocator.Detect("AMD", p => p.EndsWith("ryzenadj.exe", StringComparison.OrdinalIgnoreCase), appDir, pathVariable);
+        var adj = CpuToolLocator.Detect("AMD", p => p.EndsWith("ryzenadj.exe", StringComparison.OrdinalIgnoreCase), appDir, roots);
         Assert.Equal(CpuControlMethod.RyzenAdj, adj.Method);
         Assert.Equal(Path.Combine(appDir, "tools", "ryzenadj.exe"), adj.ToolPath);
         var master = CpuToolLocator.Detect("AMD", p => p.Contains("RyzenMaster", StringComparison.OrdinalIgnoreCase));
         Assert.Equal(CpuControlMethod.RyzenMaster, master.Method);
-        var onPath = CpuToolLocator.LocateRyzenAdj(p => p.StartsWith(otherDir, StringComparison.OrdinalIgnoreCase), null, pathVariable);
-        Assert.Equal(Path.Combine(otherDir, "ryzenadj.exe"), onPath);
+        var installed = CpuToolLocator.LocateRyzenAdj(p => p.Contains("RyzenAdj", StringComparison.Ordinal), null, roots);
+        Assert.Equal(Path.Combine(programFiles, "RyzenAdj", "ryzenadj.exe"), installed);
         Assert.Equal("--stapm-limit=45000 --fast-limit=45000 --slow-limit=45000 --tctl-temp=90", CpuToolLocator.RyzenAdjArguments(45, 90));
+    }
+
+    [Fact]
+    public void Ryzenadj_is_never_taken_from_user_writable_folders()
+    {
+        string[] roots = [Path.Combine("pf")];
+        var userDir = Path.Combine("users", "me", "Downloads");
+
+        // Next to a portable copy in Downloads: ignored, because a normal user could have planted it there.
+        Assert.Null(CpuToolLocator.LocateRyzenAdj(p => p.StartsWith(userDir, StringComparison.Ordinal), userDir, roots));
+        Assert.Equal(CpuControlMethod.None, CpuToolLocator.Detect("AMD", p => p.StartsWith(userDir, StringComparison.Ordinal), userDir, roots).Method);
+
+        // No trusted roots at all: nothing is found, even when a file exists everywhere.
+        Assert.Null(CpuToolLocator.LocateRyzenAdj(_ => true, userDir, []));
+
+        // ".." cannot climb out of a trusted root, and a sibling with the same prefix is not inside it.
+        Assert.False(CpuToolLocator.IsUnderTrustedRoot(Path.Combine("pf", "..", "users"), roots));
+        Assert.False(CpuToolLocator.IsUnderTrustedRoot(Path.Combine("pf-evil", "tools"), roots));
+        Assert.True(CpuToolLocator.IsUnderTrustedRoot(Path.Combine("pf", "PC Checker"), roots));
     }
 }
 

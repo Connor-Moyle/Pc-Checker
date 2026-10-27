@@ -105,7 +105,7 @@ The app never writes model-specific registers or BIOS settings itself.
 | Vendor | What the app does |
 |---|---|
 | Intel | If Intel Extreme Tuning Utility is installed, the app uses its command-line client to list tunables and set the all-core ratio and voltage offset by name. If a tunable name does not match what the app expects, it refuses rather than guessing. Otherwise it links the XTU download and explains the BIOS steps. |
-| AMD | Launches AMD Ryzen Master when installed. If `ryzenadj.exe` is found next to the app in `tools\` or on `PATH`, the app can set STAPM, fast and slow power limits and the temperature limit (useful on laptops and APUs). Otherwise BIOS guidance. |
+| AMD | Launches AMD Ryzen Master when installed. If `ryzenadj.exe` is installed in a folder only administrators can write to (`Program Files\RyzenAdj\`, `Program Files\PC Checker\tools\`, or `tools\` next to the app when the app itself is under Program Files), the app can set STAPM, fast and slow power limits and the temperature limit (useful on laptops and APUs). Because the app runs as administrator, it never takes ryzenadj from `PATH` or from a folder a normal user can write to. Otherwise BIOS guidance. |
 | Windows on Arm | Not supported; the app is x64 only. |
 
 ### Memory

@@ -99,7 +99,7 @@ public sealed partial class WindowsOverclockService : IOverclockService, IDispos
                 cpuVendor = VendorSoftwareCatalog.CpuVendorName(wmiVendor ?? wmiName);
             }
 
-            _cpuTool = CpuToolLocator.Detect(cpuVendor, File.Exists, AppContext.BaseDirectory, Environment.GetEnvironmentVariable("PATH"));
+            _cpuTool = CpuToolLocator.Detect(cpuVendor, File.Exists, AppContext.BaseDirectory, TrustedToolRoots());
             _xtu = _cpuTool.Method == CpuControlMethod.IntelXtuCli && _cpuTool.ToolPath is not null ? new IntelXtuCli(_cpuTool.ToolPath, _logger) : null;
             notes.Add(_cpuTool.Note);
 
@@ -659,6 +659,13 @@ public sealed partial class WindowsOverclockService : IOverclockService, IDispos
         });
         return new GpuTunerDetection(GpuControlMethod.None, gpuName, null, notes);
     }
+
+    /// <summary>Program Files folders, resolved by Windows (not from environment variables the user controls).</summary>
+    private static IReadOnlyList<string> TrustedToolRoots() =>
+        new[] { Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86) }
+            .Where(p => !string.IsNullOrWhiteSpace(p))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
 
     private async Task<HardwareInventory?> GetInventoryAsync(CancellationToken cancellationToken)
     {
