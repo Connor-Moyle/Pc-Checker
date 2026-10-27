@@ -10,6 +10,9 @@
       mc:Ignorable="d"
       Title="Lighting"
       ScrollViewer.CanContentScroll="False">
+  <Page.InputBindings>
+    <KeyBinding Key="F5" Command="{Binding RescanCommand}" />
+  </Page.InputBindings>
   <Page.Resources>
     <vm:LightingColorToBrushConverter x:Key="ColorToBrush" />
     <vm:LightingSymbolNameConverter x:Key="SymbolName" />
@@ -139,7 +142,14 @@
                                   IsChecked="{Binding IsPickerOpen, Mode=TwoWay}" ToolTip="Pick a colour for this zone" />
                     <StackPanel Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center">
                       <ui:TextBlock Text="{Binding Name}" />
-                      <ui:TextBlock Style="{StaticResource Caption}" Text="{Binding Summary}" />
+                      <ui:TextBlock Style="{StaticResource Caption}" Text="{Binding Summary}" TextWrapping="Wrap" />
+                      <StackPanel Orientation="Horizontal" Margin="0,6,0,0" Visibility="{Binding IsResizable, Converter={StaticResource BoolToVisibility}}">
+                        <ui:NumberBox Value="{Binding NewSize, Mode=TwoWay}" Minimum="{Binding MinSize}" Maximum="{Binding MaxSize}" SmallChange="1" LargeChange="10"
+                                      MaxDecimalPlaces="0" ClearButtonEnabled="False" Width="130" AutomationProperties.Name="Number of LEDs on this zone"
+                                      ToolTip="How many LEDs are connected here: add up every fan and strip on this header." />
+                        <ui:Button Content="Set size" Command="{Binding SetSizeCommand}" Margin="8,0,0,0"
+                                   ToolTip="Tells OpenRGB how many LEDs this addressable header drives." />
+                      </StackPanel>
                     </StackPanel>
                     <Popup IsOpen="{Binding IsPickerOpen, Mode=TwoWay}" StaysOpen="True" Placement="Bottom" PlacementTarget="{Binding ElementName=ZoneSwatch}"
                            AllowsTransparency="True" PopupAnimation="Fade" VerticalOffset="6">
@@ -185,16 +195,21 @@
           <ui:DropDownButton Content="More" Icon="{ui:SymbolIcon MoreHorizontal24}" Margin="0,0,8,0">
             <ui:DropDownButton.Flyout>
               <ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
-                <MenuItem Header="Start OpenRGB server" Command="{Binding LaunchServerCommand}"
-                          ToolTip="Launches OpenRGB minimized with its SDK server switched on, then connects." />
+                <MenuItem Header="Start OpenRGB" Command="{Binding LaunchServerCommand}"
+                          ToolTip="Runs OpenRGB from Program Files, minimized, with its SDK server on, then connects." />
+                <MenuItem Header="Install OpenRGB…" Command="{Binding InstallOpenRgbCommand}"
+                          Visibility="{Binding ShowInstallOpenRgb, Converter={StaticResource BoolToVisibility}}"
+                          ToolTip="Installs the free OpenRGB for all users with winget, after you confirm." />
                 <MenuItem Header="Disconnect" Command="{Binding DisconnectCommand}"
                           Visibility="{Binding IsConnected, Converter={StaticResource BoolToVisibility}}" />
                 <MenuItem Header="Download OpenRGB" Command="{Binding OpenDownloadPageCommand}" />
               </ContextMenu>
             </ui:DropDownButton.Flyout>
           </ui:DropDownButton>
-          <ui:Button Content="Refresh" Icon="{ui:SymbolIcon ArrowSync24}" Command="{Binding RefreshDevicesCommand}" Margin="0,0,8,0"
-                     Visibility="{Binding IsConnected, Converter={StaticResource BoolToVisibility}}" />
+          <ui:Button Icon="{ui:SymbolIcon ArrowSync24}" Command="{Binding RescanCommand}" Margin="0,0,8,0"
+                     ToolTip="Looks for RGB hardware again and reloads OpenRGB's devices (F5). Changes nothing.">
+            <AccessText Text="_Rescan" />
+          </ui:Button>
           <ui:Button Content="{Binding ConnectButtonText}" Icon="{ui:SymbolIcon PlugConnected24}" Appearance="Primary" Command="{Binding ConnectCommand}" />
         </StackPanel>
       </controls:SectionHeader.Actions>
@@ -231,6 +246,19 @@
                 </ui:TextBlock>
                 <ui:TextBlock Style="{StaticResource Caption}" Text="{Binding ActiveProfileName, StringFormat=Active profile: {0}}" Margin="0,2,0,0"
                               Visibility="{Binding ActiveProfileName, Converter={StaticResource NullToVisibility}}" />
+                <StackPanel Orientation="Horizontal" Margin="0,10,0,0" Visibility="{Binding IsConnected, Converter={StaticResource InverseBoolToVisibility}}">
+                  <ui:Button Content="Start OpenRGB" Icon="{ui:SymbolIcon Play24}" Appearance="Primary" Command="{Binding LaunchServerCommand}" Margin="0,0,8,0"
+                             Visibility="{Binding ShowStartOpenRgb, Converter={StaticResource BoolToVisibility}}"
+                             ToolTip="Runs OpenRGB from Program Files, minimized, with its SDK server on, then connects." />
+                  <ui:Button Content="Install OpenRGB" Icon="{ui:SymbolIcon ArrowDownload24}" Appearance="Primary" Command="{Binding InstallOpenRgbCommand}" Margin="0,0,8,0"
+                             Visibility="{Binding ShowInstallOpenRgb, Converter={StaticResource BoolToVisibility}}"
+                             ToolTip="Optional: installs the free OpenRGB for all users with winget, after you confirm." />
+                  <ui:Button Content="Download page" Icon="{ui:SymbolIcon Open24}" Command="{Binding OpenDownloadPageCommand}"
+                             Visibility="{Binding IsOpenRgbInstalled, Converter={StaticResource InverseBoolToVisibility}}" />
+                </StackPanel>
+                <ui:TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,6,0,0"
+                              Text="PC Checker keeps trying to connect in the background, so starting OpenRGB yourself works too."
+                              Visibility="{Binding IsConnected, Converter={StaticResource InverseBoolToVisibility}}" />
               </StackPanel>
               <ui:Button Grid.Column="2" Content="Why OpenRGB?" Icon="{ui:SymbolIcon QuestionCircle24}" Appearance="Transparent" Command="{Binding ToggleWhyOpenRgbCommand}"
                          VerticalAlignment="Center" Margin="12,0,0,0" Padding="4,2" />
@@ -256,6 +284,70 @@
                 </ItemsControl.ItemTemplate>
               </ItemsControl>
             </StackPanel>
+          </StackPanel>
+        </ui:Card>
+
+        <!-- Every RGB device: controllable through OpenRGB, or only found on this PC -->
+        <ui:Card Style="{StaticResource CardSpacing}" Visibility="{Binding HasAllDevices, Converter={StaticResource BoolToVisibility}}">
+          <StackPanel>
+            <ui:TextBlock Style="{StaticResource CardTitle}" Text="All RGB devices"
+                          ToolTip="Devices OpenRGB controls, plus lighting hardware PC Checker found by its USB, graphics card or memory IDs." />
+            <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding DeviceSummary}" TextWrapping="Wrap" Margin="0,0,0,8" />
+            <ItemsControl ItemsSource="{Binding AllDevices}" AutomationProperties.Name="All RGB devices" Focusable="False">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate DataType="{x:Type vm:RgbDeviceRow}">
+                  <Grid Margin="0,6" AutomationProperties.Name="{Binding AccessibleName}">
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="Auto" />
+                      <ColumnDefinition Width="*" />
+                      <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <controls:IconGlyph Grid.Column="0" Symbol="{Binding Icon}" FontSize="20" Margin="0,2,12,0" VerticalAlignment="Top" />
+                    <StackPanel Grid.Column="1">
+                      <ui:TextBlock FontTypography="BodyStrong" Text="{Binding Name}" TextTrimming="CharacterEllipsis" ToolTip="{Binding Name}" />
+                      <ui:TextBlock Style="{StaticResource Caption}" Text="{Binding Subtitle}" TextTrimming="CharacterEllipsis" />
+                      <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding Reason}" TextWrapping="Wrap" Margin="0,2,0,0" />
+                    </StackPanel>
+                    <Border Grid.Column="2" CornerRadius="6" Padding="8,2" Margin="12,0,0,0" VerticalAlignment="Top" Background="{Binding StatusBrush}">
+                      <ui:TextBlock FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource OnAccentTextBrush}" Text="{Binding Status}" />
+                    </Border>
+                  </Grid>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </ui:Card>
+
+        <!-- Vendor RGB apps that hold devices -->
+        <ui:Card Style="{StaticResource CardSpacing}" Visibility="{Binding HasConflicts, Converter={StaticResource BoolToVisibility}}">
+          <StackPanel>
+            <ui:TextBlock Style="{StaticResource CardTitle}" Text="Apps that can block lighting control" />
+            <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,8"
+                          Text="These apps keep their devices to themselves while they run. Close one for this session to let OpenRGB take over; it starts again with Windows." />
+            <ItemsControl ItemsSource="{Binding Conflicts}" Focusable="False">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate DataType="{x:Type vm:RgbConflictRow}">
+                  <Grid Margin="0,6">
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="Auto" />
+                      <ColumnDefinition Width="*" />
+                      <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <controls:IconGlyph Grid.Column="0" Symbol="Warning24" FontSize="20" Margin="0,2,12,0" VerticalAlignment="Top" Foreground="{DynamicResource AccentOrangeBrush}" />
+                    <StackPanel Grid.Column="1">
+                      <ui:TextBlock FontTypography="BodyStrong" Text="{Binding Product}" />
+                      <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding Why}" TextWrapping="Wrap" />
+                      <ui:TextBlock Style="{StaticResource Caption}" Text="{Binding Running, StringFormat=Running: {0}}" TextWrapping="Wrap" />
+                    </StackPanel>
+                    <ui:Button Grid.Column="2" Content="Close for this session" Icon="{ui:SymbolIcon DismissCircle24}" Margin="12,0,0,0" VerticalAlignment="Top"
+                               Command="{Binding DataContext.CloseConflictCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}"
+                               AutomationProperties.Name="{Binding CloseLabel}"
+                               Visibility="{Binding CanClose, Converter={StaticResource BoolToVisibility}}"
+                               ToolTip="Asks first. Ends the app and stops its services until the next restart; nothing is uninstalled." />
+                  </Grid>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
           </StackPanel>
         </ui:Card>
 
@@ -363,19 +455,53 @@
 
         <!-- Empty state -->
         <controls:EmptyState Icon="LightbulbFilament24"
-                             Title="No RGB devices to show yet"
+                             Title="No RGB devices found"
                              Message="{Binding EmptyStateMessage}"
                              Visibility="{Binding ShowEmptyState, Converter={StaticResource BoolToVisibility}}">
           <controls:EmptyState.Action>
             <StackPanel Orientation="Horizontal">
-              <ui:Button Content="Start OpenRGB server" Icon="{ui:SymbolIcon Play24}" Appearance="Primary" Command="{Binding LaunchServerCommand}" Margin="0,0,8,0"
-                         Visibility="{Binding IsOpenRgbInstalled, Converter={StaticResource BoolToVisibility}}" />
-              <ui:Button Content="Download OpenRGB" Icon="{ui:SymbolIcon ArrowDownload24}" Appearance="Primary" Command="{Binding OpenDownloadPageCommand}" Margin="0,0,8,0"
+              <ui:Button Content="Rescan" Icon="{ui:SymbolIcon ArrowSync24}" Appearance="Primary" Command="{Binding RescanCommand}" Margin="0,0,8,0" />
+              <ui:Button Content="Download OpenRGB" Icon="{ui:SymbolIcon ArrowDownload24}" Command="{Binding OpenDownloadPageCommand}"
                          Visibility="{Binding IsOpenRgbInstalled, Converter={StaticResource InverseBoolToVisibility}}" />
-              <ui:Button Content="Connect" Icon="{ui:SymbolIcon PlugConnected24}" Command="{Binding ConnectCommand}" />
             </StackPanel>
           </controls:EmptyState.Action>
         </controls:EmptyState>
+
+        <!-- If a device is missing -->
+        <ui:CardExpander Icon="{ui:SymbolIcon Stethoscope24}" IsExpanded="False" Margin="0,0,0,12" ContentPadding="16">
+          <ui:CardExpander.Header>
+            <StackPanel>
+              <ui:TextBlock FontTypography="BodyStrong" Text="If a device is missing" />
+              <ui:TextBlock Style="{StaticResource Muted}" Text="The usual reasons RGB hardware does not show up, and what to do." TextWrapping="Wrap" />
+            </StackPanel>
+          </ui:CardExpander.Header>
+          <StackPanel>
+            <ui:TextBlock FontTypography="BodyStrong" Text="1. Start OpenRGB with its SDK server" />
+            <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,10"
+                          Text="PC Checker sets lighting through OpenRGB. Press Start OpenRGB, or in OpenRGB open the SDK Server tab and press Start Server." />
+            <ui:TextBlock FontTypography="BodyStrong" Text="2. Close the maker's RGB app" />
+            <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,10"
+                          Text="iCUE, Armoury Crate, MSI Center, RGB Fusion, NZXT CAM, Synapse, G HUB, SteelSeries GG, L-Connect and SignalRGB hold their devices. Close them, then press Rescan Devices in OpenRGB." />
+            <ui:TextBlock FontTypography="BodyStrong" Text="3. Armoury Crate keeps taking over" />
+            <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,10"
+                          Text="Its LightingService starts with Windows and rewrites ASUS lighting. Close it for this session above; to stop it for good, change Armoury Crate's own settings or uninstall it." />
+            <ui:TextBlock FontTypography="BodyStrong" Text="4. RAM or motherboard lighting is missing" />
+            <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,10"
+                          Text="It sits on the SMBus. OpenRGB 1.0 reaches it through the PawnIO driver and must run as administrator. Install PawnIO (offered on the Fans page), then press Rescan Devices in OpenRGB." />
+            <ui:TextBlock FontTypography="BodyStrong" Text="5. An addressable header or fan stays dark" />
+            <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,10"
+                          Text="Addressable (ARGB) zones start at 0 LEDs. Open the device's Zones and enter how many LEDs are connected." />
+            <ui:TextBlock FontTypography="BodyStrong" Text="6. Graphics card lighting is missing" />
+            <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,10"
+                          Text="Run OpenRGB as administrator and close the card maker's app (MSI Center, Armoury Crate or Gigabyte Control Center)." />
+            <ui:TextBlock FontTypography="BodyStrong" Text="7. Still missing" />
+            <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,10"
+                          Text="OpenRGB may not support that model yet. Check the supported devices list on openrgb.org, or use the maker's own app for it." />
+            <ui:TextBlock Style="{StaticResource Caption}" Text="{Binding KnownDevicesText}" TextWrapping="Wrap" />
+            <ui:TextBlock Style="{StaticResource Caption}" Text="{Binding ScanProblems}" TextWrapping="Wrap" Margin="0,4,0,0"
+                          Visibility="{Binding HasScanProblems, Converter={StaticResource BoolToVisibility}}" />
+          </StackPanel>
+        </ui:CardExpander>
       </StackPanel>
     </ScrollViewer>
 
