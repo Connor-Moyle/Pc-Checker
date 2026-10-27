@@ -7,7 +7,7 @@ public sealed record DashboardAlert(string Title, string Message, Severity Sever
 {
     public bool HasPage => Page is not null;
 
-    public string ActionText => PageTitle is null ? "Open" : "Open " + PageTitle;
+    public string ActionText => PageTitle is null ? Localization.Loc.T("Open") : Localization.Loc.F("Open {0}", Localization.Loc.T(PageTitle));
 }
 
 /// <summary>One row of the "Hardware support" card: what the app can do for a feature on this machine.</summary>

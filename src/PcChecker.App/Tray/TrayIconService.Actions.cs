@@ -313,8 +313,8 @@ public sealed partial class TrayIconService
                 NotificationKind.Warning => NotificationIcon.Warning,
                 _ => NotificationIcon.Info,
             };
-            title = JobResultSummarizer.Truncate(title, JobResultSummarizer.MaxTitleLength);
-            message = JobResultSummarizer.Truncate(message, JobResultSummarizer.MaxMessageLength);
+            title = JobResultSummarizer.Truncate(Localization.Loc.T(title), JobResultSummarizer.MaxTitleLength);
+            message = JobResultSummarizer.Truncate(Localization.Loc.T(message), JobResultSummarizer.MaxMessageLength);
             try
             {
                 if (_icon is null)

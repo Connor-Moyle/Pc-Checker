@@ -84,6 +84,9 @@ public sealed class ScheduledJobExecutor
 
     public bool IsRunning(ScheduledJobKind job) => _running.ContainsKey(job);
 
+    /// <summary>True while any scheduled job is running in this process.</summary>
+    public bool IsAnyRunning => !_running.IsEmpty;
+
     /// <summary>
     /// Runs <paramref name="job"/>. Returns null when the same job is already running. <paramref name="trigger"/> is
     /// "schedule", "manual" or "tray" and is kept with the result. <paramref name="dryRunOverride"/> replaces the

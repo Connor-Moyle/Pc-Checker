@@ -107,6 +107,9 @@ public sealed partial class LogsViewModel : ViewModelBase
         CategoryOptions = [AllCategories, .. LogCategories.All];
         LogDirectory = logService.LogDirectory;
         InitializeSettingsForm();
+        // Reset settings and a setup import replace the whole Logging section; show what is saved now, so a later Save
+        // cannot write the old values back.
+        ReloadWhenReplaced(s => s.Logging, InitializeSettingsForm);
     }
 
     public const string AllCategories = "All categories";

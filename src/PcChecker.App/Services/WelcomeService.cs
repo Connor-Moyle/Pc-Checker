@@ -59,8 +59,13 @@ public sealed class WelcomeService
                 return;
             }
 
+            // The PawnIO box starts ticked only on the first welcome and only when the start-up offer was not turned down;
+            // reopened from Settings it starts unticked, so rereading the tips never installs a driver by itself.
+            bool firstWelcome = _settings.Current.General.WelcomeSeen != true;
             await MarkSeenAsync();
             var settingsVm = _services.GetRequiredService<SettingsViewModel>();
+            bool startTicked = firstWelcome && !_settings.Current.General.PawnIoOfferDismissed;
+            settingsVm.InstallPawnIoFromWelcome = startTicked;
             await settingsVm.RefreshPawnIoAsync();
             var dialog = new ContentDialog
             {
@@ -73,9 +78,16 @@ public sealed class WelcomeService
                 DialogMaxWidth = 620,
             };
 
+            // Esc also closes with None, like "Look around first"; only a button press counts as the PawnIO choice.
+            bool buttonPressed = false;
+            dialog.ButtonClicked += (_, _) => buttonPressed = true;
             var result = await _dialogs.ShowAsync(dialog, CancellationToken.None);
-            _logger.LogInformation("Welcome closed with {Choice}.", result == ContentDialogResult.Primary ? "full scan" : "look around");
-            await ApplyWelcomePawnIoChoiceAsync(settingsVm);
+            _logger.LogInformation("Welcome closed with {Choice}.", result == ContentDialogResult.Primary ? "full scan" : buttonPressed ? "look around" : "Esc");
+            if (buttonPressed)
+            {
+                await ApplyWelcomePawnIoChoiceAsync(settingsVm, startTicked);
+            }
+
             if (result == ContentDialogResult.Primary)
             {
                 await _services.GetRequiredService<QuickActionRunner>().RunAsync(QuickActionIds.FullScan, waitWhileBusy: true);
@@ -92,10 +104,11 @@ public sealed class WelcomeService
     }
 
     /// <summary>
-    /// The welcome's PawnIO choice: ticked installs it now (the tick is the consent; the install is journaled), unticked
-    /// means no start-up offer later. Settings keeps the install button either way.
+    /// The welcome's PawnIO choice when it was closed with one of its buttons: ticked installs it now (the tick is the
+    /// consent; the install is journaled), unticking it means no start-up offer later. Closing it with Esc changes nothing.
+    /// Settings keeps the install button either way.
     /// </summary>
-    private async Task ApplyWelcomePawnIoChoiceAsync(SettingsViewModel settingsVm)
+    private async Task ApplyWelcomePawnIoChoiceAsync(SettingsViewModel settingsVm, bool startTicked)
     {
         if (!settingsVm.ShowPawnIoOnWelcome)
         {
@@ -107,7 +120,7 @@ public sealed class WelcomeService
             _logger.LogInformation("Installing PawnIO as chosen on the welcome.");
             await settingsVm.InstallPawnIoConfirmedAsync();
         }
-        else
+        else if (startTicked)
         {
             _settings.Current.General.PawnIoOfferDismissed = true;
             await SaveQuietlyAsync();

@@ -85,6 +85,31 @@ public class SettingsTests : IDisposable
     }
 
     [Fact]
+    public async Task Category_levels_differing_only_in_case_load_without_throwing()
+    {
+        Directory.CreateDirectory(_dir);
+        await File.WriteAllTextAsync(Path.Combine(_dir, JsonSettingsService.FileName),
+            """{ "General": { "Theme": "Dark" }, "Logging": { "CategoryLevels": { "Sensors": "Debug", "sensors": "Verbose" } } }""");
+
+        var svc = new JsonSettingsService(_dir);
+        await svc.LoadAsync();
+
+        Assert.Equal(AppTheme.Dark, svc.Current.General.Theme);
+        var level = Assert.Single(svc.Current.Logging.CategoryLevels);
+        Assert.Equal(LogLevelSetting.Verbose, level.Value);
+        Assert.Equal(LogLevelSetting.Verbose, svc.Current.Logging.CategoryLevels["SENSORS"]);
+    }
+
+    [Fact]
+    public void Case_insensitive_category_copy_keeps_the_last_duplicate()
+    {
+        var levels = new Dictionary<string, LogLevelSetting> { ["Drivers"] = LogLevelSetting.Debug, ["drivers"] = LogLevelSetting.Error };
+        var copy = LoggingSettings.CaseInsensitive(levels);
+        Assert.Equal(LogLevelSetting.Error, Assert.Single(copy).Value);
+        Assert.Empty(LoggingSettings.CaseInsensitive(null));
+    }
+
+    [Fact]
     public async Task Save_raises_changed_event()
     {
         var svc = new JsonSettingsService(_dir);

@@ -2,8 +2,11 @@ using PcChecker.Core.Common;
 
 namespace PcChecker.App.Services;
 
-/// <summary>A message collected while the app started (crash recovery, reverted fan control, missing driver…).</summary>
-public sealed record StartupNotice(string Title, string Message, Severity Severity);
+/// <summary>
+/// A message collected while the app started (crash recovery, reverted fan control, missing driver…).
+/// <paramref name="Page"/> and <paramref name="PageTitle"/> name the page its Dashboard alert opens.
+/// </summary>
+public sealed record StartupNotice(string Title, string Message, Severity Severity, Type? Page = null, string? PageTitle = null);
 
 /// <summary>
 /// Notices gathered during startup for the Dashboard to show. Any service may add to it before the window is
@@ -27,11 +30,11 @@ public static class StartupNotices
         }
     }
 
-    public static void Add(string title, string message, Severity severity = Severity.Info)
+    public static void Add(string title, string message, Severity severity = Severity.Info, Type? page = null, string? pageTitle = null)
     {
         lock (Gate)
         {
-            Items.Add(new StartupNotice(title, message, severity));
+            Items.Add(new StartupNotice(title, message, severity, page, pageTitle));
         }
 
         Changed?.Invoke(null, EventArgs.Empty);

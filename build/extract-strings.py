@@ -5,9 +5,10 @@ src/PcChecker.App/Localization/strings.txt. Translators fill in src/PcChecker.Ap
 
 Sources: literal XAML attributes that hold interface text (access key markers removed), setters of those properties,
 screen-reader names and help text (AutomationProperties.Name and HelpText), section and page names in
-NavigationCatalog.cs, C# string literals passed to Loc.T(...) or Loc.F(...), plain literals passed to the dialog and
-notification services (_dialogs.ConfirmAsync(...), _notifications.Success(...) and so on, which translate their text
-when shown), and the quick search catalogs in src/PcChecker.Core/Shell, where interface text is marked with T("...").
+NavigationCatalog.cs, C# string literals passed to Loc.T(...) or Loc.F(...), plain string literal arguments of the
+dialog and notification calls that translate at run time (IDialogService.ConfirmAsync/ShowMessageAsync/ChooseAsync,
+INotificationService.Show/Info/Success/Warning/Error, TrayIconService.Notify), and the quick search catalogs in
+src/PcChecker.Core/Shell, where interface text is marked with T("...").
 
 Usage: python3 build/extract-strings.py [--check]   (--check fails when strings.txt is out of date)
 """
@@ -29,14 +30,13 @@ CODE = re.compile(r'\bLoc\.[TF]\(\s*"((?:[^"\\]|\\.)*)"')
 DESCRIPTION = re.compile(r'\bDescription\(\s*"((?:[^"\\]|\\.)*)"\s*\)')
 CATALOG = re.compile(r'\b(?:Section|Footer|Page)\("([^"]+)"')
 MARKED = re.compile(r'(?<![\w.])T\(\s*"((?:[^"\\]|\\.)*)"')
-# Calls on the dialog and notification services; both translate the title, message and button text they are given.
-SERVICE_CALL = re.compile(r'\b_(?:dialogs\.(?:ConfirmAsync|ShowMessageAsync|ChooseAsync)'
-                          r'|notifications\.(?:Success|Info|Warning|Error|Show))\(')
-LITERAL = re.compile(r'"((?:[^"\\]|\\.)*)"')
-# An argument made only of plain literals ("a" or "a" + "b"), or a condition choosing between two such arguments.
-LITERALS_ONLY = r'"(?:[^"\\]|\\.)*"(?:\s*\+\s*"(?:[^"\\]|\\.)*")*'
-PLAIN_ARG = re.compile(r'\s*(' + LITERALS_ONLY + r')\s*')
-CHOICE_ARG = re.compile(r'[^"?]+\?\s*(' + LITERALS_ONLY + r')\s*:\s*(' + LITERALS_ONLY + r')\s*', re.S)
+# Dialog and notification calls whose text arguments are translated when shown. The receiver is checked so that
+# logger calls (_logger.Warning) and message boxes are left out.
+RUNTIME_CALL = re.compile(r'\b(ConfirmAsync|ShowMessageAsync|ChooseAsync|Show|Info|Success|Warning|Error|Notify)\(')
+RUNTIME_RECEIVER = re.compile(r'(?i)notification|dialog|tray')
+PLAIN_LITERAL = re.compile(r'"((?:[^"\\]|\\.)*)"')
+# A choice between two literals: enabled ? "Schedule created" : "Schedule removed".
+TERNARY_LITERALS = re.compile(r'[^"?]*\?\s*"((?:[^"\\]|\\.)*)"\s*:\s*"((?:[^"\\]|\\.)*)"')
 
 
 def wanted(text: str) -> bool:
@@ -65,18 +65,66 @@ def unescape_csharp(text: str) -> str:
     return re.sub(r"\\(?:u([0-9A-Fa-f]{4})|U([0-9A-Fa-f]{8})|x([0-9A-Fa-f]{1,4})|(.))", replace, text)
 
 
-def call_arguments(source: str, start: int) -> list[str]:
-    """Splits the argument list that starts after the "(" at <start> at its top-level commas (strings and nesting aware)."""
+def skip_string(source: str, i: int) -> int:
+    """Index just after the C# string literal starting at source[i] ("...", @"...", $"...", $@"..." or @$"...")."""
+    prefix = ""
+    while source[i] in "$@":
+        prefix += source[i]
+        i += 1
+    verbatim, interpolated = "@" in prefix, "$" in prefix
+    i += 1
+    while i < len(source):
+        ch = source[i]
+        if ch == "\\" and not verbatim:
+            i += 2
+        elif ch == '"' and verbatim and source[i + 1:i + 2] == '"':
+            i += 2
+        elif ch == '"':
+            return i + 1
+        elif ch == "{" and interpolated and source[i + 1:i + 2] == "{":
+            i += 2
+        elif ch == "{" and interpolated:
+            i = skip_code(source, i + 1)
+        else:
+            i += 1
+    return i
+
+
+def skip_code(source: str, i: int) -> int:
+    """Index just after the bracket that closes code starting at source[i], skipping strings and nested brackets."""
+    depth = 0
+    while i < len(source):
+        ch = source[i]
+        if ch == '"' or (ch in "$@" and source[i + 1:i + 3].lstrip("$@").startswith('"')):
+            i = skip_string(source, i)
+            continue
+        if ch == "'":
+            end = source.find("'", i + 2 if source[i + 1] == "\\" else i + 1)
+            i = (end if end > 0 else i) + 1
+            continue
+        if ch in "([{":
+            depth += 1
+        elif ch in ")]}":
+            if depth == 0:
+                return i + 1
+            depth -= 1
+        i += 1
+    return i
+
+
+def call_arguments(source: str, start: int):
+    """The top-level arguments of the call whose opening parenthesis is at source[start - 1], as source slices."""
     args, depth, i, begin = [], 0, start, start
     while i < len(source):
         ch = source[i]
-        if ch == '"':
-            # Skip the string (a backslash escapes the next character except in a verbatim @"..." string).
-            verbatim = source[i - 1] == "@"
-            i += 1
-            while i < len(source) and source[i] != '"':
-                i += 2 if source[i] == "\\" and not verbatim else 1
-        elif ch in "([{":
+        if ch == '"' or (ch in "$@" and source[i + 1:i + 3].lstrip("$@").startswith('"')):
+            i = skip_string(source, i)
+            continue
+        if ch == "'":
+            end = source.find("'", i + 2 if source[i + 1] == "\\" else i + 1)
+            i = (end if end > 0 else i) + 1
+            continue
+        if ch in "([{":
             depth += 1
         elif ch in ")]}":
             if depth == 0:
@@ -86,24 +134,27 @@ def call_arguments(source: str, start: int) -> list[str]:
         elif ch == "," and depth == 0:
             args.append(source[begin:i])
             begin = i + 1
+        elif ch == ";":
+            return []
         i += 1
-    return args
+    return []
 
 
-def literal_text(arg: str) -> str:
-    return "".join(unescape_csharp(m.group(1)) for m in LITERAL.finditer(arg))
-
-
-def service_literals(source: str):
-    """Plain (not interpolated) literal arguments of dialog and notification calls."""
-    for call in SERVICE_CALL.finditer(source):
-        for arg in call_arguments(source, call.end()):
-            arg = re.sub(r"^\s*\w+\s*:", "", arg)  # a named argument
-            if PLAIN_ARG.fullmatch(arg):
-                yield literal_text(arg)
-            elif choice := CHOICE_ARG.fullmatch(arg):
-                yield literal_text(choice.group(1))
-                yield literal_text(choice.group(2))
+def runtime_texts(source: str):
+    """Plain literal arguments (not interpolated, not concatenated, or a choice of two) of dialog and notification calls."""
+    for match in RUNTIME_CALL.finditer(source):
+        # The receiver expression: back to the previous space or statement character ("_dialogs.",
+        # "services.GetService<INotificationService>()?."). Notify(...) is the tray's and the pages' own helper.
+        receiver = re.split(r"[\s;{}=,!]", source[max(0, match.start() - 200):match.start()])[-1]
+        if match.group(1) == "Notify" and receiver in ("", "this.", "_tray.", "tray.", "tray?."):
+            pass
+        elif not receiver.endswith(".") or not RUNTIME_RECEIVER.search(receiver):
+            continue
+        for arg in call_arguments(source, match.end()):
+            literal = PLAIN_LITERAL.fullmatch(arg.strip()) or TERNARY_LITERALS.fullmatch(arg.strip())
+            for text in literal.groups() if literal else ():
+                if wanted(text):
+                    yield unescape_csharp(text)
 
 
 def collect():
@@ -124,7 +175,7 @@ def collect():
             found.add(unescape_csharp(match.group(1)))
         for match in DESCRIPTION.finditer(source):
             found.add(unescape_csharp(match.group(1)))
-        found.update(text for text in service_literals(source) if wanted(text))
+        found.update(runtime_texts(source))
         if path.name == "NavigationCatalog.cs":
             found.update(m.group(1) for m in CATALOG.finditer(source))
     for path in (ROOT / "src" / "PcChecker.Core").rglob("*.cs"):

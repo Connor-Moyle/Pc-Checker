@@ -378,7 +378,7 @@ public sealed partial class DashboardViewModel : ViewModelBase
         Alerts.Clear();
         foreach (var notice in StartupNotices.All)
         {
-            Alerts.Add(new DashboardAlert(notice.Title, notice.Message, notice.Severity, typeof(OverclockPage), "Overclock"));
+            Alerts.Add(new DashboardAlert(notice.Title, notice.Message, notice.Severity, notice.Page, notice.PageTitle));
         }
 
         TemperatureAlert[] temps;

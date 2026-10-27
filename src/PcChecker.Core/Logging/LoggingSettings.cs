@@ -31,7 +31,25 @@ public sealed class LoggingSettings
     public Dictionary<string, LogLevelSetting> CategoryLevels
     {
         get => _categoryLevels;
-        set => _categoryLevels = value is null ? new(StringComparer.OrdinalIgnoreCase) : new(value, StringComparer.OrdinalIgnoreCase);
+        set => _categoryLevels = CaseInsensitive(value);
+    }
+
+    /// <summary>
+    /// A case-insensitive copy of <paramref name="levels"/>. Keys that differ only in case (hand-edited settings) do not
+    /// throw: the last one wins.
+    /// </summary>
+    public static Dictionary<string, LogLevelSetting> CaseInsensitive(IEnumerable<KeyValuePair<string, LogLevelSetting>>? levels)
+    {
+        var result = new Dictionary<string, LogLevelSetting>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (category, level) in levels ?? [])
+        {
+            if (category is not null)
+            {
+                result[category] = level;
+            }
+        }
+
+        return result;
     }
 
     public bool FileEnabled { get; set; } = true;

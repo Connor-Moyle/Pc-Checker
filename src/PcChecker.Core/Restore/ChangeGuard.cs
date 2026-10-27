@@ -51,12 +51,35 @@ public sealed class ChangeGuard : IChangeGuard, IChangeBatchRunner
         return typed.AsUntyped();
     }
 
+    /// <summary>
+    /// True while any guarded change is running in this process. The self-update restart waits for it, so the app never
+    /// exits part-way through a system change that has not been journaled yet.
+    /// </summary>
+    public static bool IsAnyChangeRunning => Volatile.Read(ref s_running) > 0;
+
+    private static int s_running;
+
     public async Task<OperationResult<T>> RunGuardedAsync<T>(string description, ChangeOptions options,
         Func<CancellationToken, Task<OperationResult<T>>> change, IProgress<ProgressUpdate>? progress, CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(description);
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(change);
+
+        Interlocked.Increment(ref s_running);
+        try
+        {
+            return await RunGuardedCoreAsync(description, options, change, progress, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            Interlocked.Decrement(ref s_running);
+        }
+    }
+
+    private async Task<OperationResult<T>> RunGuardedCoreAsync<T>(string description, ChangeOptions options,
+        Func<CancellationToken, Task<OperationResult<T>>> change, IProgress<ProgressUpdate>? progress, CancellationToken cancellationToken)
+    {
 
         var policy = _settings.Current.RestorePoints;
         var batch = ChangeBatch.Current;

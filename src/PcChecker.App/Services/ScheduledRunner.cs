@@ -178,7 +178,7 @@ public sealed class ScheduledRunner : IDisposable
                 {
                     StartupNotices.Add("Schedules",
                         $"{string.Join(", ", moved)} still point to an older location of PcChecker.exe. Open Settings → Schedules and click \"Fix tasks\".",
-                        Severity.Medium);
+                        Severity.Medium, typeof(Views.Pages.SettingsPage), "Settings");
                 }
             }
             catch (Exception ex)
