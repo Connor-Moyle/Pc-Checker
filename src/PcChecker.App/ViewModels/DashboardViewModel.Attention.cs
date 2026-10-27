@@ -73,7 +73,10 @@ public sealed partial class DashboardViewModel
                 .Where(d => d.TotalBytes > 0)
                 .Select(d => new AttentionDrive(d.Letter, d.Label, DashboardGlance.UsedPercent(d), d.FreeBytes, d.IsSystemDrive))
                 .ToList(),
-            HeavyStartupApps = _heavyStartupApps,
+            // A newer check-up knows the startup list better than the quick read at load.
+            HeavyStartupApps = report?.Results.Startup is { } entries
+                ? entries.Count(e => e.Item.Enabled && e.Insight.Impact == StartupImpactRules.High)
+                : _heavyStartupApps,
             Updates = _updateStatus is null && pending is null ? null : DashboardGlance.Updates(_updateStatus, pending),
             PawnIo = _pawnIoState,
             DeviceProblems = report?.Results.Drivers?.Drivers.Count(d => d.HasProblem),

@@ -126,7 +126,7 @@ public class HelpAndShortcutTests
         Assert.Equal(shows, SimpleModeRules.ShowSimpleModeHint(advanced, dismissed, screenshots));
 
     [Fact]
-    public void The_hint_flag_and_check_up_time_survive_a_save_but_stay_out_of_setup_files()
+    public async Task The_hint_flag_and_check_up_time_survive_a_save_but_stay_out_of_setup_files()
     {
         var dir = Path.Combine(Path.GetTempPath(), "PcCheckerTests", Guid.NewGuid().ToString("N"));
         try
@@ -135,10 +135,10 @@ public class HelpAndShortcutTests
             Assert.False(settings.Current.General.SimpleModeHintDismissed);
             settings.Current.General.SimpleModeHintDismissed = true;
             settings.Current.General.LastCheckupUtc = new DateTimeOffset(2026, 10, 1, 8, 0, 0, TimeSpan.Zero);
-            settings.SaveAsync().GetAwaiter().GetResult();
+            await settings.SaveAsync();
 
             var reloaded = new JsonSettingsService(dir);
-            reloaded.LoadAsync().GetAwaiter().GetResult();
+            await reloaded.LoadAsync();
             Assert.True(reloaded.Current.General.SimpleModeHintDismissed);
             Assert.Equal(new DateTimeOffset(2026, 10, 1, 8, 0, 0, TimeSpan.Zero), reloaded.Current.General.LastCheckupUtc);
             Assert.Contains("General.SimpleModeHintDismissed", PcChecker.Core.SetupBackup.SetupMachineFields.All);
