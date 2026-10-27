@@ -474,6 +474,63 @@ cosmetic, so they are journaled but do not create restore points.
 Limitations: updates come only from Windows Update; the app never downloads
 from third-party driver sites.
 
+### Windows Update
+
+The Windows Update tab (Apps & Drivers, after Old drivers) covers software
+updates; driver updates stay on the Drivers page.
+
+- **Status tiles**: updates waiting (and how much to download), last check,
+  last successful install (from the Windows Update Agent, or the history when
+  Windows did not record it) and whether updates are paused. A restart bar
+  appears while Windows waits for a restart to finish an update.
+- **Set by policy**: when Group Policy or device management
+  (MDM) sets Windows Update policies, an info bar lists them in plain English
+  (pause disabled, active hours set, automatic updates off, an update server,
+  deferrals, a pinned Windows version). Controls that a policy owns are shown
+  read-only. With an organisation's update server (WSUS) configured, *Check
+  for updates* asks that server instead of going around it.
+- **Updates** tab: *Check for updates* asks Windows Update (the same service
+  id the Drivers page uses) for software that is not installed yet. Each
+  update shows its KB article, size, type (cumulative, security, feature
+  update, definitions or other, decided from Windows Update's
+  language-independent category ids), Microsoft's severity rating and
+  whether it needs a restart. Optional updates (previews, new Windows
+  versions) are never ticked for you, and updates that ask questions while
+  they install are left to Settings. *Install selected* and *Install all*
+  confirm first, create a restore point (per Settings; the install does not
+  start if it fails), then download and install one update at a time with
+  progress. Cancel stops before the next update. Every update gets its own
+  result with the error explained in plain English (for example 0x800F0922,
+  0x80070070, 0xC1900101), and installed ones leave the list.
+- **History** tab: the last 100 installs, newest first, with type, result and
+  date. Failed and cancelled installs are marked red and their row explains
+  what went wrong; *Failed only* filters the list. *Update history in
+  Settings* opens the Settings page where updates can be uninstalled.
+- **Pause & active hours** tab:
+  - *Pause updates* for 1 to 5 weeks, or *Extend pause* while paused. PC
+    Checker writes the same values the Settings app writes
+    (`PauseUpdatesStartTime`, `PauseUpdatesExpiryTime` and the feature and
+    quality pairs under
+    `HKLM\SOFTWARE\Microsoft\WindowsUpdate\UX\Settings`, as UTC times like
+    `2026-11-03T09:30:15Z`), keeps the original start when extending and
+    never goes past the limit Windows allows (35 days from the start, or
+    `FlightSettingsMaxPauseDays`). The values are read back after writing;
+    if Windows did not keep them, on a build older than Windows 10 version
+    2004, or when a policy owns pausing, the page offers to open Settings
+    instead. *Resume* removes the values, as Settings does.
+  - *Active hours*: start and end hour, at most 18 hours apart and allowed
+    to run past midnight. Saving writes `ActiveHoursStart` and
+    `ActiveHoursEnd` and turns off the automatic adjustment, like choosing
+    the hours by hand in Settings.
+  - Every change is confirmed and recorded in the Action Journal with the
+    previous value; pause and active hours do not create restore points.
+- **Links**: Windows Update, Update history, Advanced options and Active
+  hours in the Settings app.
+
+Limitations: the history is what the Windows Update Agent recorded (updates
+installed by other tools such as DISM or a standalone installer are not in
+it); restarts are left to you or to Windows outside active hours.
+
 ### Software
 
 - **Scan**: programs from the 64-bit, 32-bit and per-user registry plus Store

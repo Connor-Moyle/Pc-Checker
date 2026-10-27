@@ -1,0 +1,362 @@
+<Page x:Class="PcChecker.App.Views.Pages.WindowsUpdatePage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+      xmlns:controls="clr-namespace:PcChecker.App.Controls"
+      xmlns:vm="clr-namespace:PcChecker.App.ViewModels"
+      xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+      d:DataContext="{d:DesignInstance vm:WindowsUpdateViewModel}"
+      mc:Ignorable="d"
+      Title="Windows Update"
+      ScrollViewer.CanContentScroll="False">
+  <Page.Resources>
+    <Style x:Key="Tile" TargetType="controls:StatCard">
+      <Setter Property="Margin" Value="0" />
+    </Style>
+    <!-- History result: red for failed or cancelled installs. -->
+    <Style x:Key="ResultText" TargetType="ui:TextBlock">
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Style.Triggers>
+        <DataTrigger Binding="{Binding IsFailure}" Value="True">
+          <Setter Property="Foreground" Value="{StaticResource AccentRedBrush}" />
+          <Setter Property="FontWeight" Value="SemiBold" />
+        </DataTrigger>
+      </Style.Triggers>
+    </Style>
+    <Style x:Key="ResultDot" TargetType="Ellipse">
+      <Setter Property="Width" Value="10" />
+      <Setter Property="Height" Value="10" />
+      <Setter Property="HorizontalAlignment" Value="Center" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="Fill" Value="{StaticResource AccentGreenBrush}" />
+      <Style.Triggers>
+        <DataTrigger Binding="{Binding IsFailure}" Value="True">
+          <Setter Property="Fill" Value="{StaticResource AccentRedBrush}" />
+        </DataTrigger>
+      </Style.Triggers>
+    </Style>
+  </Page.Resources>
+
+  <!-- Each tab's list fills the remaining height and scrolls itself. -->
+  <Grid Style="{StaticResource PageRoot}">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="*" />
+    </Grid.RowDefinitions>
+
+    <controls:SectionHeader Grid.Row="0" Title="Windows Update" Subtitle="{Binding Subtitle}">
+      <controls:SectionHeader.Actions>
+        <StackPanel Orientation="Horizontal">
+          <ui:DropDownButton Content="More" Icon="{ui:SymbolIcon MoreHorizontal24}" Margin="0,0,8,0">
+            <ui:DropDownButton.Flyout>
+              <ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+                <MenuItem Header="Update history in Settings" Command="{Binding OpenHistorySettingsCommand}"
+                          ToolTip="Opens Settings → Windows Update → Update history, where installed updates can also be uninstalled." />
+                <MenuItem Header="Advanced options in Settings" Command="{Binding OpenAdvancedOptionsCommand}"
+                          ToolTip="Opens Settings → Windows Update → Advanced options: optional updates, delivery and restart settings." />
+                <MenuItem Header="Refresh status" Command="{Binding RefreshStatusCommand}"
+                          ToolTip="Reads the status and the history again. Does not check for new updates." />
+              </ContextMenu>
+            </ui:DropDownButton.Flyout>
+          </ui:DropDownButton>
+          <ui:Button Content="Open Settings" Icon="{ui:SymbolIcon Open24}" Command="{Binding OpenSettingsCommand}" Margin="0,0,8,0"
+                     ToolTip="Opens Windows Update in the Settings app." />
+          <ui:Button Content="Check for updates" Appearance="Primary" Icon="{ui:SymbolIcon ArrowSync24}" Command="{Binding CheckForUpdatesCommand}"
+                     ToolTip="Asks Windows Update for updates that are not installed yet. This can take a minute. Nothing is installed by a check." />
+        </StackPanel>
+      </controls:SectionHeader.Actions>
+    </controls:SectionHeader>
+
+    <!-- Status -->
+    <StackPanel Grid.Row="1">
+      <ui:InfoBar Severity="Error" Title="Something went wrong" Message="{Binding ErrorMessage}"
+                  IsOpen="{Binding HasError, Mode=OneWay}" IsClosable="True" Margin="0,0,0,12" />
+      <ui:InfoBar Severity="Informational" Title="Some settings are set by policy" Message="{Binding PolicyNotice}"
+                  IsOpen="{Binding HasPolicyNotice, Mode=OneWay}" IsClosable="True" Margin="0,0,0,12" />
+      <ui:InfoBar Severity="Warning" Title="Some information is missing" Message="{Binding Warnings}"
+                  IsOpen="{Binding HasWarnings, Mode=OneWay}" IsClosable="True" Margin="0,0,0,12" />
+      <controls:RestartPromptBar IsOpen="{Binding RestartPending}"
+                                 Message="Windows needs a restart to finish installing updates. Save your work first."
+                                 Reason="to finish installing updates"
+                                 DismissCommand="{Binding DismissRestartCommand}" />
+      <ui:InfoBar Severity="Success" Title="Done" Message="{Binding ResultMessage}"
+                  IsOpen="{Binding ShowSuccessResult, Mode=OneWay}" IsClosable="True" Margin="0,0,0,12" />
+      <ui:InfoBar Severity="Warning" Title="That did not fully work" Message="{Binding ResultMessage}"
+                  IsOpen="{Binding ShowFailureResult, Mode=OneWay}" IsClosable="True" Margin="0,0,0,12" />
+    </StackPanel>
+
+    <!-- Summary -->
+    <controls:AdaptiveGrid Grid.Row="2" MinItemWidth="200" MaxColumns="4" Margin="0,0,0,12">
+      <controls:StatCard Style="{StaticResource Tile}" Title="Updates waiting" Value="{Binding PendingCountText}" Icon="CloudArrowDown24"
+                         Accent="{StaticResource AccentCyanBrush}" Subtitle="{Binding PendingSubtitle}" />
+      <controls:StatCard Style="{StaticResource Tile}" Title="Last checked" Value="{Binding LastCheckText}" Icon="ArrowSync24"
+                         Accent="{StaticResource AccentPurpleBrush}" Subtitle="By Windows or by PC Checker" />
+      <controls:StatCard Style="{StaticResource Tile}" Title="Last installed" Value="{Binding LastInstallText}" Icon="History24"
+                         Accent="{StaticResource AccentGreenBrush}" Subtitle="{Binding LastInstallSubtitle}" />
+      <controls:StatCard Style="{StaticResource Tile}" Title="Pause" Value="{Binding PauseText}" Icon="PauseCircle24"
+                         Accent="{StaticResource AccentOrangeBrush}" Subtitle="{Binding PauseSubtitle}" />
+    </controls:AdaptiveGrid>
+
+    <TabControl Grid.Row="3" Padding="0,8,0,0">
+
+      <!-- Tab 1: pending updates -->
+      <TabItem Header="{Binding UpdatesTabHeader}">
+        <Grid Margin="0,8,0,0">
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+          </Grid.RowDefinitions>
+
+          <Grid Grid.Row="0" Margin="0,0,0,8" Visibility="{Binding HasUpdates, Converter={StaticResource BoolToVisibility}}">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+              <ui:TextBlock FontTypography="BodyStrong" Text="{Binding SelectedText}" />
+              <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap"
+                            Text="Drivers are on the Drivers page. Optional updates are only installed when you tick them." />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+              <ui:Button Content="Select all" Command="{Binding SelectAllCommand}" Margin="0,0,4,0"
+                         ToolTip="Ticks every update except the optional ones." />
+              <ui:Button Content="Clear" Command="{Binding ClearSelectionCommand}" Margin="0,0,8,0" />
+              <ui:Button Content="Install all" Icon="{ui:SymbolIcon ArrowDownload24}" Command="{Binding InstallAllCommand}" Margin="0,0,8,0"
+                         ToolTip="Downloads and installs every update except the optional ones, after you confirm." />
+              <ui:Button Content="Install selected" Appearance="Primary" Icon="{ui:SymbolIcon ArrowDownload24}" Command="{Binding InstallSelectedCommand}"
+                         ToolTip="Downloads (if needed) and installs the ticked updates one at a time, after a restore point when that option is on in Settings." />
+            </StackPanel>
+          </Grid>
+
+          <Grid Grid.Row="1">
+            <ui:DataGrid ItemsSource="{Binding Updates}"
+                         AutoGenerateColumns="False"
+                         CanUserAddRows="False"
+                         CanUserDeleteRows="False"
+                         CanUserReorderColumns="False"
+                         SelectionMode="Single"
+                         GridLinesVisibility="Horizontal"
+                         HeadersVisibility="Column"
+                         RowDetailsVisibilityMode="VisibleWhenSelected"
+                         Visibility="{Binding HasUpdates, Converter={StaticResource BoolToVisibility}}">
+              <ui:DataGrid.Columns>
+                <DataGridTemplateColumn Width="44">
+                  <DataGridTemplateColumn.CellTemplate>
+                    <DataTemplate>
+                      <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding CanSelect}"
+                                HorizontalAlignment="Center" VerticalAlignment="Center" Margin="4,0" />
+                    </DataTemplate>
+                  </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTextColumn Header="Update" Binding="{Binding Title}" Width="*" IsReadOnly="True" />
+                <DataGridTextColumn Header="KB" Binding="{Binding KbText}" Width="90" IsReadOnly="True" />
+                <DataGridTextColumn Header="Type" Binding="{Binding ClassificationText}" Width="150" IsReadOnly="True" />
+                <DataGridTextColumn Header="Severity" Binding="{Binding SeverityText}" Width="90" IsReadOnly="True" />
+                <DataGridTextColumn Header="Size" Binding="{Binding SizeText}" Width="90" IsReadOnly="True" />
+                <DataGridTextColumn Header="Restart" Binding="{Binding RestartText}" Width="70" IsReadOnly="True" />
+                <DataGridTextColumn Header="State" Binding="{Binding StateText}" Width="150" IsReadOnly="True" />
+              </ui:DataGrid.Columns>
+              <ui:DataGrid.RowDetailsTemplate>
+                <DataTemplate>
+                  <StackPanel Margin="48,8,16,12">
+                    <ui:TextBlock Text="{Binding Description}" TextWrapping="Wrap" />
+                    <ui:TextBlock Style="{StaticResource Caption}" Margin="0,6,0,0" Text="{Binding Note}" TextWrapping="Wrap"
+                                  Visibility="{Binding Note, Converter={StaticResource NullToVisibility}}" />
+                    <ui:TextBlock Style="{StaticResource Caption}" Margin="0,2,0,0" Text="{Binding ReleasedText}" />
+                    <ui:HyperlinkButton Content="Microsoft's article about this update" NavigateUri="{Binding SupportUrl}" Padding="0" Margin="0,4,0,0"
+                                        Visibility="{Binding HasSupportUrl, Converter={StaticResource BoolToVisibility}}" />
+                  </StackPanel>
+                </DataTemplate>
+              </ui:DataGrid.RowDetailsTemplate>
+            </ui:DataGrid>
+
+            <ui:Card VerticalAlignment="Stretch" Visibility="{Binding HasUpdates, Converter={StaticResource InverseBoolToVisibility}}">
+              <Grid>
+                <controls:EmptyState Icon="CheckmarkCircle24" Title="You're up to date"
+                                     Message="Windows Update has no software updates waiting for this PC. Driver updates are on the Drivers page."
+                                     Visibility="{Binding ShowNoUpdates, Converter={StaticResource BoolToVisibility}}" />
+                <controls:EmptyState Icon="CloudArrowDown24" Title="Check for updates"
+                                     Message="Ask Windows Update which updates this PC is missing. Nothing is installed until you choose to."
+                                     Visibility="{Binding ShowNotChecked, Converter={StaticResource BoolToVisibility}}">
+                  <controls:EmptyState.Action>
+                    <ui:Button Content="Check for updates" Appearance="Primary" Icon="{ui:SymbolIcon ArrowSync24}" Command="{Binding CheckForUpdatesCommand}" />
+                  </controls:EmptyState.Action>
+                </controls:EmptyState>
+              </Grid>
+            </ui:Card>
+          </Grid>
+
+          <!-- Per-update results of the last install -->
+          <ui:CardExpander Grid.Row="2" Margin="0,12,0,0" ContentPadding="16" Icon="{ui:SymbolIcon ClipboardTextLtr24}"
+                           Visibility="{Binding HasResultLines, Converter={StaticResource BoolToVisibility}}">
+            <ui:CardExpander.Header>
+              <StackPanel>
+                <ui:TextBlock FontTypography="BodyStrong" Text="Results of the last install" />
+                <ui:TextBlock Style="{StaticResource Muted}" Text="What happened to each update, with the reason when one did not install." />
+              </StackPanel>
+            </ui:CardExpander.Header>
+            <ScrollViewer MaxHeight="200" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+              <ItemsControl ItemsSource="{Binding ResultLines}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <ui:TextBlock Text="{Binding}" TextWrapping="Wrap" Margin="0,0,0,6" />
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </ScrollViewer>
+          </ui:CardExpander>
+        </Grid>
+      </TabItem>
+
+      <!-- Tab 2: install history -->
+      <TabItem Header="{Binding HistoryTabHeader}">
+        <Grid Margin="0,8,0,0">
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+          </Grid.RowDefinitions>
+
+          <Grid Grid.Row="0" Margin="0,0,0,8">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+              <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap"
+                            Text="The last 100 installs, newest first. Select a failed one to see what went wrong." />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+              <CheckBox Content="Failed only" IsChecked="{Binding FailedOnly}" Margin="0,0,12,0" />
+              <ui:Button Content="Update history in Settings" Icon="{ui:SymbolIcon Open24}" Command="{Binding OpenHistorySettingsCommand}"
+                         ToolTip="Opens Settings → Windows Update → Update history, where updates can also be uninstalled." />
+            </StackPanel>
+          </Grid>
+
+          <Grid Grid.Row="1">
+            <ui:DataGrid ItemsSource="{Binding History}"
+                         AutoGenerateColumns="False"
+                         IsReadOnly="True"
+                         CanUserAddRows="False"
+                         CanUserDeleteRows="False"
+                         SelectionMode="Single"
+                         GridLinesVisibility="Horizontal"
+                         HeadersVisibility="Column"
+                         RowDetailsVisibilityMode="VisibleWhenSelected"
+                         Visibility="{Binding HasHistory, Converter={StaticResource BoolToVisibility}}">
+              <ui:DataGrid.Columns>
+                <DataGridTemplateColumn Width="32" CanUserSort="False">
+                  <DataGridTemplateColumn.CellTemplate>
+                    <DataTemplate>
+                      <Ellipse Style="{StaticResource ResultDot}" ToolTip="{Binding ResultText}" />
+                    </DataTemplate>
+                  </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTextColumn Header="Update" Binding="{Binding Title}" Width="*" />
+                <DataGridTextColumn Header="KB" Binding="{Binding KbText}" Width="90" />
+                <DataGridTextColumn Header="Type" Binding="{Binding ClassificationText}" Width="120" />
+                <DataGridTemplateColumn Header="Result" Width="150" SortMemberPath="ResultText">
+                  <DataGridTemplateColumn.CellTemplate>
+                    <DataTemplate>
+                      <ui:TextBlock Style="{StaticResource ResultText}" Text="{Binding ResultText}" Margin="8,0" />
+                    </DataTemplate>
+                  </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTextColumn Header="Date" Binding="{Binding DateText}" Width="150" SortMemberPath="SortDate" />
+              </ui:DataGrid.Columns>
+              <ui:DataGrid.RowDetailsTemplate>
+                <DataTemplate>
+                  <StackPanel Margin="40,8,16,12" Visibility="{Binding HasError, Converter={StaticResource BoolToVisibility}}">
+                    <ui:TextBlock FontTypography="BodyStrong" Text="What went wrong" />
+                    <ui:TextBlock Text="{Binding ErrorText}" TextWrapping="Wrap" Margin="0,2,0,0" />
+                    <ui:TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,6,0,0"
+                                  Text="Windows usually retries a failed update. If it keeps failing, restart and check for updates again." />
+                  </StackPanel>
+                </DataTemplate>
+              </ui:DataGrid.RowDetailsTemplate>
+            </ui:DataGrid>
+
+            <ui:Card VerticalAlignment="Stretch" Visibility="{Binding HasHistory, Converter={StaticResource InverseBoolToVisibility}}">
+              <controls:EmptyState Icon="History24" Title="No installs to show"
+                                   Message="Windows Update has no install history on this PC, or none matches the filter." />
+            </ui:Card>
+          </Grid>
+        </Grid>
+      </TabItem>
+
+      <!-- Tab 3: pause and active hours -->
+      <TabItem Header="Pause &amp; active hours">
+        <ScrollViewer Style="{StaticResource PageScroll}" Margin="0,8,0,0">
+          <StackPanel>
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="12" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+
+              <!-- Pause -->
+              <ui:Card Grid.Column="0" Padding="16" VerticalAlignment="Stretch" VerticalContentAlignment="Top">
+                <StackPanel>
+                  <ui:TextBlock Style="{StaticResource CardTitle}" Text="Pause updates" />
+                  <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,12"
+                                Text="Holds back all updates for up to five weeks, like Settings does."
+                                ToolTip="Useful before a deadline or a long game session. Security fixes wait too, so resume as soon as you can." />
+                  <ui:TextBlock FontTypography="BodyStrong" Text="{Binding PauseStatusText}" TextWrapping="Wrap" Margin="0,0,0,12" />
+                  <StackPanel Orientation="Horizontal" IsEnabled="{Binding PauseControlsEnabled}">
+                    <ComboBox ItemsSource="{Binding AvailableWeeks}" SelectedItem="{Binding SelectedWeeks}" DisplayMemberPath="Label"
+                              MinWidth="130" Margin="0,0,8,0" IsEnabled="{Binding CanPause}" />
+                    <ui:Button Content="{Binding PauseButtonText}" Icon="{ui:SymbolIcon Pause24}" Command="{Binding PauseCommand}" Margin="0,0,8,0"
+                               ToolTip="Pauses (or extends the pause) for the chosen number of weeks, after you confirm." />
+                    <ui:Button Content="Resume" Icon="{ui:SymbolIcon Play24}" Command="{Binding ResumeCommand}"
+                               ToolTip="Ends the pause so Windows looks for updates again." />
+                  </StackPanel>
+                  <ui:TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,8,0,0"
+                                Text="Pausing is set by a policy on this PC, so it can only be changed there."
+                                Visibility="{Binding PauseManaged, Converter={StaticResource BoolToVisibility}}" />
+                </StackPanel>
+              </ui:Card>
+
+              <!-- Active hours -->
+              <ui:Card Grid.Column="2" Padding="16" VerticalAlignment="Stretch" VerticalContentAlignment="Top">
+                <StackPanel>
+                  <ui:TextBlock Style="{StaticResource CardTitle}" Text="Active hours" />
+                  <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,12"
+                                Text="Windows does not restart for updates during these hours."
+                                ToolTip="Up to 18 hours, and they may run past midnight. Outside them Windows may restart to finish an update when you are not using the PC." />
+                  <ui:TextBlock FontTypography="BodyStrong" Margin="0,0,0,12">
+                    <Run Text="Now: " /><Run Text="{Binding ActiveHoursText, Mode=OneWay}" />
+                  </ui:TextBlock>
+                  <StackPanel Orientation="Horizontal" IsEnabled="{Binding ActiveHoursEnabled}">
+                    <ui:TextBlock Text="From" VerticalAlignment="Center" Margin="0,0,8,0" />
+                    <ComboBox ItemsSource="{Binding HourOptions}" SelectedItem="{Binding ActiveStart}" DisplayMemberPath="Label" MinWidth="96" Margin="0,0,8,0" />
+                    <ui:TextBlock Text="to" VerticalAlignment="Center" Margin="0,0,8,0" />
+                    <ComboBox ItemsSource="{Binding HourOptions}" SelectedItem="{Binding ActiveEnd}" DisplayMemberPath="Label" MinWidth="96" Margin="0,0,8,0" />
+                    <ui:Button Content="Save" Icon="{ui:SymbolIcon Clock24}" Command="{Binding SaveActiveHoursCommand}"
+                               ToolTip="Saves these hours after you confirm and turns off the automatic adjustment." />
+                  </StackPanel>
+                  <ui:TextBlock Style="{StaticResource Caption}" Foreground="{StaticResource AccentOrangeBrush}" TextWrapping="Wrap" Margin="0,8,0,0"
+                                Text="{Binding ActiveHoursProblem}"
+                                Visibility="{Binding HasActiveHoursProblem, Converter={StaticResource BoolToVisibility}}" />
+                  <ui:TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,8,0,0"
+                                Text="Active hours are set by a policy on this PC, so they can only be changed there."
+                                Visibility="{Binding ActiveHoursManaged, Converter={StaticResource BoolToVisibility}}" />
+                  <ui:Button Content="Active hours in Settings" Appearance="Transparent" Icon="{ui:SymbolIcon Open24}" Command="{Binding OpenActiveHoursSettingsCommand}"
+                             Padding="8,4" Margin="-8,8,0,0" />
+                </StackPanel>
+              </ui:Card>
+            </Grid>
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+    </TabControl>
+
+    <controls:BusyOverlay Grid.Row="0" Grid.RowSpan="4"
+                          IsBusy="{Binding IsBusy}"
+                          Text="{Binding BusyText}"
+                          CancelCommand="{Binding CancelCommand}" CanCancel="{Binding CanCancelBusy}" />
+  </Grid>
+</Page>

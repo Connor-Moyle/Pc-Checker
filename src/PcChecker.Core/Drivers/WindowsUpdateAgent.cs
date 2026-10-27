@@ -11,9 +11,6 @@ namespace PcChecker.Core.Drivers;
 /// </summary>
 internal sealed class WindowsUpdateAgent
 {
-    private const string ClientId = "PC Checker";
-    private const int ServerSelectionOthers = 3;
-
     private readonly ILogger _logger;
     private readonly Dictionary<string, object> _comUpdates = new(StringComparer.OrdinalIgnoreCase);
     private readonly object _gate = new();
@@ -53,13 +50,13 @@ internal sealed class WindowsUpdateAgent
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 progress?.Report(new ProgressUpdate("Connecting to Windows Update", 10));
-                dynamic session = CreateComObject("Microsoft.Update.Session");
-                TrySet(() => session.ClientApplicationID = ClientId);
+                dynamic session = WuaCom.CreateComObject("Microsoft.Update.Session");
+                WuaCom.TrySet(() => session.ClientApplicationID = WuaCom.ClientId);
                 dynamic searcher = session.CreateUpdateSearcher();
-                TrySet(() => searcher.ServerSelection = ServerSelectionOthers);
-                TrySet(() => searcher.ServiceID = WuaResultCodes.WindowsUpdateServiceId);
-                TrySet(() => searcher.Online = true);
-                TrySet(() => searcher.IncludePotentiallySupersededUpdates = false);
+                WuaCom.TrySet(() => searcher.ServerSelection = WuaCom.ServerSelectionOthers);
+                WuaCom.TrySet(() => searcher.ServiceID = WuaResultCodes.WindowsUpdateServiceId);
+                WuaCom.TrySet(() => searcher.Online = true);
+                WuaCom.TrySet(() => searcher.IncludePotentiallySupersededUpdates = false);
 
                 cancellationToken.ThrowIfCancellationRequested();
                 progress?.Report(new ProgressUpdate("Searching the Windows Update driver catalog", 30, "This can take a minute. Cancel takes effect once Windows Update answers."));
@@ -76,7 +73,7 @@ internal sealed class WindowsUpdateAgent
                 }
 
                 cancellationToken.ThrowIfCancellationRequested();
-                int count = TryGet(() => (int)result.Updates.Count, 0);
+                int count = WuaCom.TryGet(() => (int)result.Updates.Count, 0);
                 progress?.Report(new ProgressUpdate("Reading results", 80, $"{count} driver update(s) found"));
                 lock (_gate)
                 {
@@ -95,10 +92,10 @@ internal sealed class WindowsUpdateAgent
                     }
                 }
 
-                int warningCount = TryGet(() => (int)result.Warnings.Count, 0);
+                int warningCount = WuaCom.TryGet(() => (int)result.Warnings.Count, 0);
                 for (int i = 0; i < warningCount; i++)
                 {
-                    var text = TryGet(() => (string?)result.Warnings.Item(i).Message, null);
+                    var text = WuaCom.TryGet(() => (string?)result.Warnings.Item(i).Message, null);
                     if (!string.IsNullOrWhiteSpace(text))
                     {
                         warnings.Add("Windows Update: " + text);
@@ -149,7 +146,7 @@ internal sealed class WindowsUpdateAgent
                 }
 
                 dynamic update = Get(id);
-                if (TryGet(() => (bool)update.IsDownloaded, false))
+                if (WuaCom.TryGet(() => (bool)update.IsDownloaded, false))
                 {
                     downloaded.Add(id);
                 }
@@ -182,8 +179,8 @@ internal sealed class WindowsUpdateAgent
 
             try
             {
-                dynamic session = CreateComObject("Microsoft.Update.Session");
-                TrySet(() => session.ClientApplicationID = ClientId);
+                dynamic session = WuaCom.CreateComObject("Microsoft.Update.Session");
+                WuaCom.TrySet(() => session.ClientApplicationID = WuaCom.ClientId);
                 int ok = 0;
                 var failures = new List<string>();
                 for (int i = 0; i < updates.Count; i++)
@@ -191,13 +188,13 @@ internal sealed class WindowsUpdateAgent
                     cancellationToken.ThrowIfCancellationRequested();
                     var u = updates[i];
                     progress?.Report(new ProgressUpdate("Downloading", 100.0 * i / updates.Count, u.Title));
-                    dynamic coll = CreateComObject("Microsoft.Update.UpdateColl");
+                    dynamic coll = WuaCom.CreateComObject("Microsoft.Update.UpdateColl");
                     coll.Add(Get(u.Id));
                     dynamic downloader = session.CreateUpdateDownloader();
                     downloader.Updates = coll;
                     dynamic result = downloader.Download();
-                    int code = TryGet(() => (int)result.ResultCode, WuaResultCodes.Failed);
-                    int hr = TryGet(() => (int)result.HResult, 0);
+                    int code = WuaCom.TryGet(() => (int)result.ResultCode, WuaResultCodes.Failed);
+                    int hr = WuaCom.TryGet(() => (int)result.HResult, 0);
                     if (WuaResultCodes.IsSuccess(code))
                     {
                         ok++;
@@ -258,9 +255,9 @@ internal sealed class WindowsUpdateAgent
             try
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                dynamic session = CreateComObject("Microsoft.Update.Session");
-                TrySet(() => session.ClientApplicationID = ClientId);
-                dynamic coll = CreateComObject("Microsoft.Update.UpdateColl");
+                dynamic session = WuaCom.CreateComObject("Microsoft.Update.Session");
+                WuaCom.TrySet(() => session.ClientApplicationID = WuaCom.ClientId);
+                dynamic coll = WuaCom.CreateComObject("Microsoft.Update.UpdateColl");
                 foreach (var u in updates)
                 {
                     coll.Add(Get(u.Id));
@@ -269,24 +266,24 @@ internal sealed class WindowsUpdateAgent
                 progress?.Report(new ProgressUpdate("Installing driver updates", 20, $"{updates.Count} update(s). Windows may flicker while a display driver installs."));
                 dynamic installer = session.CreateUpdateInstaller();
                 installer.Updates = coll;
-                TrySet(() => installer.ForceQuiet = true);
-                TrySet(() => installer.AllowSourcePrompts = false);
+                WuaCom.TrySet(() => installer.ForceQuiet = true);
+                WuaCom.TrySet(() => installer.AllowSourcePrompts = false);
                 dynamic result = installer.Install();
-                int overall = TryGet(() => (int)result.ResultCode, WuaResultCodes.Failed);
-                bool reboot = TryGet(() => (bool)result.RebootRequired, false);
+                int overall = WuaCom.TryGet(() => (int)result.ResultCode, WuaResultCodes.Failed);
+                bool reboot = WuaCom.TryGet(() => (bool)result.RebootRequired, false);
 
                 var results = new List<(DriverUpdateInfo, OperationResult)>();
                 for (int i = 0; i < updates.Count; i++)
                 {
                     int code = overall;
-                    int hr = TryGet(() => (int)result.HResult, 0);
+                    int hr = WuaCom.TryGet(() => (int)result.HResult, 0);
                     bool itemReboot = reboot;
                     try
                     {
                         dynamic item = result.GetUpdateResult(i);
-                        code = TryGet(() => (int)item.ResultCode, code);
-                        hr = TryGet(() => (int)item.HResult, hr);
-                        itemReboot = TryGet(() => (bool)item.RebootRequired, itemReboot);
+                        code = WuaCom.TryGet(() => (int)item.ResultCode, code);
+                        hr = WuaCom.TryGet(() => (int)item.HResult, hr);
+                        itemReboot = WuaCom.TryGet(() => (bool)item.RebootRequired, itemReboot);
                     }
                     catch (Exception ex)
                     {
@@ -339,8 +336,8 @@ internal sealed class WindowsUpdateAgent
 
     private DriverUpdateInfo? Map(dynamic update)
     {
-        string id = TryGet(() => (string)update.Identity.UpdateID, string.Empty);
-        string title = TryGet(() => (string)update.Title, string.Empty);
+        string id = WuaCom.TryGet(() => (string)update.Identity.UpdateID, string.Empty);
+        string title = WuaCom.TryGet(() => (string)update.Title, string.Empty);
         if (string.IsNullOrWhiteSpace(id))
         {
             id = string.IsNullOrWhiteSpace(title) ? Guid.NewGuid().ToString() : title;
@@ -351,16 +348,16 @@ internal sealed class WindowsUpdateAgent
             title = "Driver update";
         }
 
-        string? description = TryGet(() => (string?)update.Description, null);
-        string? model = TryGet(() => (string?)update.DriverModel, null);
-        string? provider = TryGet(() => (string?)update.DriverProvider, null);
-        string? driverClass = TryGet(() => (string?)update.DriverClass, null);
-        string? hardwareId = TryGet(() => (string?)update.DriverHardwareID, null);
-        DateTime? date = TryGet(() => (DateTime?)update.DriverVerDate, null) ?? TryGet(() => (DateTime?)update.LastDeploymentChangeTime, null);
-        long size = TryGet(() => Convert.ToInt64((object)update.MaxDownloadSize), 0L);
-        bool downloaded = TryGet(() => (bool)update.IsDownloaded, false);
-        bool installed = TryGet(() => (bool)update.IsInstalled, false);
-        bool reboot = TryGet(() => (bool)update.RebootRequired, false);
+        string? description = WuaCom.TryGet(() => (string?)update.Description, null);
+        string? model = WuaCom.TryGet(() => (string?)update.DriverModel, null);
+        string? provider = WuaCom.TryGet(() => (string?)update.DriverProvider, null);
+        string? driverClass = WuaCom.TryGet(() => (string?)update.DriverClass, null);
+        string? hardwareId = WuaCom.TryGet(() => (string?)update.DriverHardwareID, null);
+        DateTime? date = WuaCom.TryGet(() => (DateTime?)update.DriverVerDate, null) ?? WuaCom.TryGet(() => (DateTime?)update.LastDeploymentChangeTime, null);
+        long size = WuaCom.TryGet(() => Convert.ToInt64((object)update.MaxDownloadSize), 0L);
+        bool downloaded = WuaCom.TryGet(() => (bool)update.IsDownloaded, false);
+        bool installed = WuaCom.TryGet(() => (bool)update.IsInstalled, false);
+        bool reboot = WuaCom.TryGet(() => (bool)update.RebootRequired, false);
         string? kb = null;
         try
         {
@@ -397,36 +394,5 @@ internal sealed class WindowsUpdateAgent
 
         var last = title.Split(" - ", StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).LastOrDefault();
         return last is not null && VersionText.TryParse(last, out _) && last.Any(char.IsDigit) && last.Contains('.') ? last : null;
-    }
-
-    private static object CreateComObject(string progId)
-    {
-        var type = Type.GetTypeFromProgID(progId, throwOnError: false)
-            ?? throw new InvalidOperationException($"COM class {progId} is not registered on this computer.");
-        return Activator.CreateInstance(type) ?? throw new InvalidOperationException($"COM class {progId} could not be created.");
-    }
-
-    private static T TryGet<T>(Func<T> getter, T fallback)
-    {
-        try
-        {
-            return getter();
-        }
-        catch
-        {
-            return fallback;
-        }
-    }
-
-    private static void TrySet(Action setter)
-    {
-        try
-        {
-            setter();
-        }
-        catch
-        {
-            // Optional property on this WUA version.
-        }
     }
 }

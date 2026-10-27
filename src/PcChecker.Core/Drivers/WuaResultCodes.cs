@@ -56,6 +56,37 @@ public static class WuaResultCodes
         [0x8024A105] = "Windows Update needs to be restarted; reboot and try again.",
         [0x80070643] = "The installer reported a fatal error (0x80070643). Restart Windows and try again.",
         [0x800F0922] = "The update could not be installed because a required component is missing or Secure Boot blocked it.",
+        [0x800F081F] = "Windows could not find files the update needs. Run 'DISM /Online /Cleanup-Image /RestoreHealth', then try again.",
+        [0x800F0831] = "An earlier update this one builds on is missing or damaged. Install the latest servicing stack and cumulative update, then try again.",
+        [0x800F0988] = "The component store needs a clean-up. Run 'DISM /Online /Cleanup-Image /StartComponentCleanup', restart and try again.",
+        [0x80073712] = "Some Windows system files are damaged. Run 'DISM /Online /Cleanup-Image /RestoreHealth', then try again.",
+        [0x80073701] = "A Windows component the update needs is missing. Run 'DISM /Online /Cleanup-Image /RestoreHealth', then try again.",
+        [0x80070002] = "A file the update needs was not found. Restart Windows and try again.",
+        [0x80070003] = "A folder the update needs was not found. Restart Windows and try again.",
+        [0x8007000D] = "The downloaded update is damaged. It will be downloaded again on the next try.",
+        [0x80070020] = "Another program, often antivirus, was using a file the update needs. Restart Windows and try again.",
+        [0x80070070] = "There is not enough free disk space. Free up space on the Windows drive and try again.",
+        [0x80070570] = "A file the update needs is damaged or unreadable. Restart Windows and try again; if it repeats, check the disk.",
+        [0x800705B4] = "The update timed out. Restart Windows and try again.",
+        [0x80070BC2] = "Windows needs a restart to finish an earlier update before this one can install.",
+        [0x80070BC9] = "Windows needs a restart to finish an earlier update before this one can install.",
+        [0x8024200B] = "The update's installer reported an error. Restart Windows and try again.",
+        [0x8024200D] = "The update was only partly downloaded. It will be downloaded again on the next try.",
+        [0x80242016] = "The update was interrupted after it installed and before Windows finished setting it up. Restart Windows.",
+        [0x80240FFF] = "Windows Update ran into an unexpected error. Restart Windows and try again.",
+        [0x8024401F] = "The update server returned an error. Try again later.",
+        [0x8024402F] = "Windows Update could not read the update list it downloaded, often because a proxy or firewall changed it.",
+        [0x80072EE2] = "The connection to the update server timed out. Check the Internet connection and try again.",
+        [0x80072EE7] = "The update server name could not be resolved. Check DNS and the Internet connection.",
+        [0x80072EFD] = "Windows Update could not connect to the update servers. Check the Internet connection, proxy or firewall.",
+        [0x80072EFE] = "The connection to the update server was cut off. Check the Internet connection and try again.",
+        [0x80072F8F] = "A secure connection to the update server failed. Check that the PC's date and time are correct.",
+        [0x8007045B] = "Windows was shutting down while the update installed. Try again after the restart.",
+        [0x8007371B] = "Some update files are missing or damaged. Run 'DISM /Online /Cleanup-Image /RestoreHealth', then try again.",
+        [0xC1900101] = "The new Windows version was rolled back, usually because of a driver. Update your drivers, disconnect extra devices and try again.",
+        [0xC1900200] = "This PC does not meet the requirements for this Windows version.",
+        [0xC1900208] = "An app that is not compatible with this Windows version is installed. Remove or update it, then try again.",
+        [0xC190020E] = "There is not enough free disk space for this Windows version. Free up space and try again.",
     };
 
     /// <summary>Text for an <c>OperationResultCode</c> value (0..5).</summary>
@@ -79,6 +110,19 @@ public static class WuaResultCodes
         uint code = unchecked((uint)hresult);
         var hex = "0x" + code.ToString("X8", CultureInfo.InvariantCulture);
         return KnownHResults.TryGetValue(code, out var text) ? $"{hex} — {text}" : hex;
+    }
+
+    /// <summary>
+    /// The plain-English reason for an HRESULT, followed by the code ("… (error 0x80070070)"). An unknown code gets
+    /// the code and a hint to search for it.
+    /// </summary>
+    public static string Explain(int hresult)
+    {
+        uint code = unchecked((uint)hresult);
+        var hex = "0x" + code.ToString("X8", CultureInfo.InvariantCulture);
+        return KnownHResults.TryGetValue(code, out var text)
+            ? $"{text} (error {hex})"
+            : $"Windows Update error {hex}. Search for this code on Microsoft's support site for help.";
     }
 
     /// <summary>True when the HRESULT has a dedicated explanation.</summary>

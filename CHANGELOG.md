@@ -33,6 +33,13 @@ All notable changes to PC Checker are recorded here. The format follows
   against a mid-range 2024 desktop (1,000 per test) with an overall score.
   Warns before a run on battery, when hot or when the processor is busy,
   saves every run, compares two runs side by side and exports results as text.
+- **Windows Update** tab under Apps & Drivers: status (last check and
+  install, pending restart, pause, active hours, policies), pending software
+  updates with KB, size, type and severity, installed one at a time behind a
+  restore point with per-update results and plain-English error texts, the
+  last 100 installs with failures explained, pause for 1–5 weeks and resume
+  the way Settings does, active hours, and links to the Settings pages.
+  Settings managed by Group Policy or device management are shown read-only.
 
 ## [0.3.0] - 2026-10-27
 

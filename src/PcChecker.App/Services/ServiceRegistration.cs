@@ -43,6 +43,7 @@ using PcChecker.Core.Startup;
 using PcChecker.Core.Storage;
 using PcChecker.Core.Updates;
 using PcChecker.Core.WindowsFeatures;
+using PcChecker.Core.WindowsUpdate;
 using Wpf.Ui;
 
 namespace PcChecker.App.Services;
@@ -87,6 +88,7 @@ public static class ServiceRegistration
         Add<IHealthService, WindowsHealthService, DemoHealthService>(services, demo);
         Add<IDriverService, WindowsDriverService, DemoDriverService>(services, demo);
         Add<IDriverCleanupService, WindowsDriverCleanupService, DemoDriverCleanupService>(services, demo);
+        Add<IWindowsUpdateService, WindowsUpdateService, DemoWindowsUpdateService>(services, demo);
         Add<ISoftwareInventoryService, WindowsSoftwareInventoryService, DemoSoftwareInventoryService>(services, demo);
         Add<IUninstallService, WindowsUninstallService, DemoUninstallService>(services, demo);
         Add<IPerformanceAnalyzer, WindowsPerformanceAnalyzer, DemoPerformanceAnalyzer>(services, demo);
@@ -172,6 +174,7 @@ public static class ServiceRegistration
         services.AddSingleton<LightingViewModel>().AddSingleton<LightingPage>();
         services.AddSingleton<DriversViewModel>().AddSingleton<DriversPage>();
         services.AddSingleton<DriverCleanupViewModel>().AddSingleton<DriverCleanupPage>();
+        services.AddSingleton<WindowsUpdateViewModel>().AddSingleton<WindowsUpdatePage>();
         services.AddSingleton<SoftwareViewModel>().AddSingleton<SoftwarePage>();
         services.AddSingleton<StartupViewModel>().AddSingleton<StartupPage>();
         services.AddSingleton<WindowsFeaturesViewModel>().AddSingleton<WindowsFeaturesPage>();
