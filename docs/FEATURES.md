@@ -937,6 +937,60 @@ AMD versions are only compared when the AMD driver records its Adrenalin
 version; vendor packages are never run unless signed by the maker. The app
 never downloads from third-party driver sites.
 
+### Drivers: your PC, chipset and BIOS from the maker
+
+The Updates tab starts with a **Your PC** card, and three more sources join
+the driver search so the makers of the board, chipset and network, audio and
+Bluetooth chips are asked too.
+
+- **Your PC**: the board or PC model read from SMBIOS (Win32_ComputerSystem,
+  Win32_ComputerSystemProduct, Win32_BaseBoard, Win32_BIOS,
+  Win32_SystemEnclosure), with maker names cleaned up ("ASUSTeK COMPUTER
+  INC." → ASUS, "Micro-Star International Co., Ltd." → MSI, "Gigabyte
+  Technology Co., Ltd." → GIGABYTE) and firmware placeholders ignored. A
+  self-built PC is shown by its motherboard; a brand PC by its model.
+- **BIOS**: version and release date, with *This BIOS is N years old* when it
+  is more than two years old. For Lenovo, the newest BIOS for the model is
+  read from Lenovo's public catalog and compared. PC Checker never updates a
+  BIOS: it shows the maker's page and a plain note on flashing safely.
+- **Support page with the exact model filled in**: ASUS, MSI, GIGABYTE/AORUS
+  (by board revision) and ASRock boards; Dell by service tag; Lenovo by
+  machine type; HP by model; Acer, Surface and Framework driver pages. BIOSTAR,
+  NZXT and a GIGABYTE board without a revision get the maker's download centre
+  with a note on what to search for.
+- **Chipset driver**: AMD Chipset Software (the installed version from Apps)
+  compared with AMD's chipset page for the socket (AM5, AM4, sTRX4, sTR5). When
+  AMD has a newer one, *Get AMD's driver* downloads it from AMD's server and
+  runs it through the same signed-package flow as graphics drivers (signature
+  must be AMD's, restore point first, you confirm). Intel chipsets link to
+  Intel's Chipset INF Utility page and to the PC or board maker for the
+  Management Engine driver, with Intel's assistant as a second option.
+- **Network, audio and Bluetooth**: Intel Ethernet and Killer (Intel) link to
+  Intel's pages, Realtek Ethernet to Realtek's download page; MediaTek,
+  Qualcomm and Realtek Wi-Fi and Bluetooth, and onboard Realtek audio, link to
+  the board or PC maker's page. Audio is never pointed at a generic Realtek
+  driver, because the maker's driver carries the jack, microphone and effects
+  settings for the model.
+- **Lenovo catalog**: for Lenovo PCs, drivers from the model's catalog
+  (`download.lenovo.com/catalog/<machine type>_Win11.xml`) are matched to
+  the installed devices by hardware id and compared with the installed
+  version; install them with Lenovo's tool or from the support page.
+- Right-click the card to copy the details (no serial number), open the
+  support page or check again. Each source has its own switch under **Update
+  sources** (*Chipset (AMD, Intel)*, *Network, audio and Bluetooth*, *BIOS and
+  PC maker catalogs*).
+- All lookups use HTTPS to allow-listed hosts only (www.amd.com,
+  download.lenovo.com) with a 30-second timeout. Answers are kept for 12 hours
+  in `%LOCALAPPDATA%\PcChecker\cache\driver-lookups`, so a second search does
+  not ask again and an offline PC still shows the last answer, marked as saved.
+
+Limitations: Intel, Realtek, MediaTek and Qualcomm publish no version list PC
+Checker can read, so those devices get a link and the version is compared on
+the maker's site. Dell's catalog is too large to download for one check and
+HP's needs CAB extraction, so Dell and HP get the exact support page instead.
+MSI, ASUS, GIGABYTE, ASRock and other board makers publish no BIOS list
+reachable without an account, so their BIOS version is compared on their page.
+
 ### Windows Update
 
 The Windows Update tab (Apps & Drivers, after Old drivers) covers software
