@@ -625,6 +625,7 @@ public sealed partial class WindowsOverclockService : IOverclockService, IDispos
             var messages = new List<string>();
             var failures = new List<string>();
             var session = OverclockSessionStore.Load(SessionPath);
+            bool gpuFailed = false, fanFailed = false, xtuFailed = false, xtuReset = false;
 
             if (_tuner is not null)
             {
@@ -633,6 +634,7 @@ public sealed partial class WindowsOverclockService : IOverclockService, IDispos
                 bool resetFan = !_fanViaHost && _applied.GpuFanPercent is not null;
                 var gpu = await Task.Run(() => _tuner.Reset(resetFan), cancellationToken).ConfigureAwait(false);
                 (gpu.Success ? messages : failures).Add(gpu.Message);
+                gpuFailed = !gpu.Success;
             }
 
             if (_fanViaHost && _applied.GpuFanPercent is not null)
@@ -642,6 +644,7 @@ public sealed partial class WindowsOverclockService : IOverclockService, IDispos
                 if (!fan.Success)
                 {
                     failures.Add(fan.Message);
+                    fanFailed = true;
                 }
             }
 
@@ -649,6 +652,8 @@ public sealed partial class WindowsOverclockService : IOverclockService, IDispos
             {
                 var cpu = await _xtu.ResetAsync(session.XtuTunableIds, cancellationToken).ConfigureAwait(false);
                 (cpu.Success ? messages : failures).Add(cpu.Message);
+                xtuFailed = !cpu.Success;
+                xtuReset = cpu.Success;
             }
 
             if (session is { CpuTouched: true, CpuMethod: CpuControlMethod.RyzenAdj })
@@ -657,10 +662,54 @@ public sealed partial class WindowsOverclockService : IOverclockService, IDispos
                 messages.Add("CPU power limits set through ryzenadj stay in place until the next reboot; restart the PC to return to the BIOS values.");
             }
 
-            OverclockSessionStore.Delete(SessionPath);
-            _applied = OverclockProfile.Stock();
-            _settings.Current.Overclock.LastSessionClean = true;
-            _settings.Current.Overclock.ActiveProfileName = null;
+            // Forget only what really went back to stock. Whatever failed stays in the session file (with its XTU
+            // ids) and in the page state, so pressing Reset again or the watchdog can retry it.
+            var left = OverclockProfile.Stock();
+            left.Name = _applied.Name;
+            if (gpuFailed)
+            {
+                left.GpuCoreOffsetMhz = _applied.GpuCoreOffsetMhz;
+                left.GpuMemoryOffsetMhz = _applied.GpuMemoryOffsetMhz;
+                left.GpuPowerLimitPercent = _applied.GpuPowerLimitPercent;
+                left.GpuTempLimitC = _applied.GpuTempLimitC;
+            }
+
+            if (gpuFailed || fanFailed)
+            {
+                left.GpuFanPercent = _applied.GpuFanPercent;
+            }
+
+            if (xtuFailed)
+            {
+                left.CpuAllCoreRatio = _applied.CpuAllCoreRatio ?? session!.Profile.CpuAllCoreRatio;
+                left.CpuVoltageOffsetMv = _applied.CpuVoltageOffsetMv ?? session!.Profile.CpuVoltageOffsetMv;
+                left.CpuPowerLimitW = _applied.CpuPowerLimitW ?? session!.Profile.CpuPowerLimitW;
+            }
+
+            if (left.IsStock && !xtuFailed)
+            {
+                OverclockSessionStore.Delete(SessionPath);
+                _applied = OverclockProfile.Stock();
+                _settings.Current.Overclock.LastSessionClean = true;
+                _settings.Current.Overclock.ActiveProfileName = null;
+            }
+            else
+            {
+                var keep = session ?? new OverclockSession { GpuMethod = Capabilities?.GpuMethod ?? GpuControlMethod.None, CpuMethod = _cpuTool.Method };
+                keep.Profile = left.Clone();
+                keep.Clean = false;
+                if (xtuReset)
+                {
+                    keep.XtuTunableIds.Clear();
+                    keep.CpuTouched = keep.CpuMethod == CpuControlMethod.RyzenAdj && keep.CpuTouched;
+                }
+
+                OverclockSessionStore.Save(SessionPath, keep);
+                _applied = left;
+                _settings.Current.Overclock.LastSessionClean = false;
+                failures.Add("What could not be reset is still tracked; press Reset to defaults again to retry.");
+            }
+
             await _settings.SaveAsync().ConfigureAwait(false);
 
             if (failures.Count > 0)

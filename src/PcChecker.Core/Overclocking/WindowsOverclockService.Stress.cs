@@ -76,7 +76,20 @@ public sealed partial class WindowsOverclockService
             // shows what the watchdog reverted.
             var options = new ChangeOptions(false, false, ModuleName, Capabilities?.GpuName ?? "System", false, null);
             var reset = await _guard.RunGuardedAsync($"Revert overclock profile \"{session.Profile.Name}\" after an unclean shutdown", options, ResetCoreAsync, null, cancellationToken).ConfigureAwait(false);
-            OverclockSessionStore.Delete(SessionPath);
+            if (!OverclockSessionStore.IsFromCurrentBoot(session, OverclockSessionStore.CurrentBootUtc()))
+            {
+                // The PC has rebooted since, so nothing of the profile is live any more; a failed reset has nothing left
+                // to retry. Without a reboot the reset keeps the session for whatever it could not undo.
+                if (OverclockSessionStore.Load(SessionPath) is not null)
+                {
+                    OverclockSessionStore.Delete(SessionPath);
+                    _applied = OverclockProfile.Stock();
+                    _settings.Current.Overclock.LastSessionClean = true;
+                    _settings.Current.Overclock.ActiveProfileName = null;
+                    await _settings.SaveAsync().ConfigureAwait(false);
+                }
+            }
+
             return reset.Success
                 ? OperationResult.Ok($"The previous overclock (\"{session.Profile.Name}\") was reverted after an unclean shutdown. {reset.Message}")
                 : OperationResult.Ok($"The previous session ended uncleanly while \"{session.Profile.Name}\" was applied. Driver clock offsets do not survive a reboot, so the card is at stock; the explicit reset reported: {reset.Message}");
