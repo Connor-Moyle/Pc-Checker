@@ -652,6 +652,52 @@ it); restarts are left to you or to Windows outside active hours.
 - **Protected** entries (Edge, WebView2, Defender, .NET and Visual C++
   runtimes, driver packages) show a lock with the reason. **Advanced** lets
   you override for non-critical ones with a warning.
+- **Find leftovers**: after a program is uninstalled the page offers to look
+  for what it left behind; the Leftovers tab opens and scans with that
+  program's traces marked *Just uninstalled* and ticked.
+
+### Leftovers
+
+- **Scan** (read only, cancellable) compares what is on disk with every
+  installed program and Store app (names, makers, package names and install
+  folders, with fuzzy matching that ignores versions, "x64", brackets and
+  "Inc."/"GmbH"). It reports:
+  - folders in Program Files, Program Files (x86), ProgramData and
+    AppData\Local, Roaming and LocalLow that nothing installed uses, one level
+    deeper inside a maker's folder that still has other programs, and empty
+    folders uninstallers left;
+  - registry keys under `HKLM\SOFTWARE`, `HKLM\SOFTWARE\WOW6432Node` and
+    `HKCU\Software` of makers or products that are no longer installed;
+  - services whose program file is gone, scheduled tasks that start a missing
+    program, and Start menu shortcuts to missing targets.
+- **Each finding** says what it is, why it looks orphaned, its size and a
+  confidence: **High** (empty folders, things whose whole program folder is
+  gone, traces of the program just uninstalled), **Medium** (probably left
+  behind) or **Low** (recently changed, or inside a maker's folder that still
+  has programs). Only High is ticked; *Select recommended* ticks it again.
+- **Never reported**: Windows and Microsoft folders and keys, shared folders
+  (Common Files, Package Cache, InstallShield data, Store packages), NVIDIA,
+  Intel, AMD, Realtek and other driver parts, game libraries (Steam, Epic,
+  GOG, Ubisoft, Xbox), developer caches, GUID-named installer folders,
+  hidden dot-folders, links (junctions) and anything outside the listed
+  folders. Services and shortcuts that point into the Windows folder are left
+  to Windows.
+- **Remove selected** (confirmed) creates a restore point first and checks
+  every item again right before touching it: folders and shortcuts go to the
+  Recycle Bin; registry keys are exported to one sealed `.reg` backup (the
+  Registry page's format, so it also appears under Registry → Backups);
+  scheduled tasks are exported to XML and deleted; services are deleted with
+  `sc.exe` only while their program is still missing and they are stopped.
+  Folders are only removed one or two levels inside the listed roots, never
+  through or inside a link. Every item is written to the Action Journal.
+- **Restore list** puts removed registry keys and scheduled tasks back. Task
+  backups are sealed in `HKLM` and only imported unchanged, through a folder
+  only administrators can write to, and never over an existing task.
+- **Limitations**: folders of portable programs (which have no uninstall
+  entry) can show up; they are scored Low or Medium when they hold programs
+  or changed recently, so check before ticking them. A folder Windows will
+  not let PC Checker read completely is not reported. Per-user folders and
+  keys are those of the account PC Checker runs as.
 
 ### Startup
 

@@ -284,12 +284,7 @@ public sealed partial class WindowsRegistryHealthService : IRegistryHealthServic
         }, null, cancellationToken);
     }
 
-    private static string RegExe()
-    {
-        var windows = Environment.GetEnvironmentVariable("SystemRoot") ?? @"C:\Windows";
-        var path = Path.Combine(windows, "System32", "reg.exe");
-        return File.Exists(path) ? path : "reg.exe";
-    }
+    private static string RegExe() => RegistryBackupStore.RegExe();
 
     private static string? SafeRead(string path)
     {

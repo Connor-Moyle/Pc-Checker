@@ -49,6 +49,7 @@ public static class NavigationCatalog
             Page("Lighting", "lighting", typeof(LightingPage))),
         Section("Apps & Drivers", SymbolRegular.Apps24,
             Page("Apps", "software", typeof(SoftwarePage)),
+            Page("Leftovers", "leftovers", typeof(LeftoversPage)),
             Page("Drivers", "drivers", typeof(DriversPage)),
             Page("Old drivers", "old-drivers", typeof(DriverCleanupPage)),
             Page("Windows Update", "windows-update", typeof(WindowsUpdatePage)),

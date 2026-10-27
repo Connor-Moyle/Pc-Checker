@@ -35,6 +35,15 @@ All notable changes to PC Checker are recorded here. The format follows
   its language-independent XML). *Open the full report* saves Windows' HTML
   battery report to Documents and opens it. Desktops show "This PC has no
   battery", with a note for UPS battery backups.
+- **Leftovers** (Apps & Drivers → Leftovers): find folders, empty folders,
+  registry keys, services, scheduled tasks and Start menu shortcuts that
+  removed programs left behind, each with the reason, size and a
+  High/Medium/Low confidence (only High is ticked). Shared and system folders
+  are never reported and links are never followed. Removal creates a restore
+  point, moves files to the Recycle Bin, backs registry keys up to `.reg` and
+  tasks to XML first, deletes services only when stopped, and a restore list
+  puts keys and tasks back. The Apps page offers *Find leftovers* right after
+  an uninstall.
 
 ## [0.4.0] - 2026-10-27
 

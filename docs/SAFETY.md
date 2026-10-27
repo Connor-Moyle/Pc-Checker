@@ -122,6 +122,29 @@ follows, so you know what to expect and contributors know what to build.
   removing it and is recorded in the Action Journal. Backups are restored
   from the Registry page.
 
+## Leftovers rules
+
+- A scan only reads. With no list of installed programs nothing is
+  reported, rather than everything.
+- Folders are only removed one or two levels inside Program Files, Program
+  Files (x86), ProgramData and AppData (Local, Roaming, LocalLow); never a
+  root itself, never a link or anything inside a linked folder, never a
+  folder marked System, and never a folder that could not be read
+  completely. Windows, Microsoft, shared and driver-vendor folders, game
+  libraries and PC Checker's own folders are never reported.
+- Only High-confidence findings are ticked. Every removal creates a restore
+  point first (a batch with services does not start without one), and every
+  item is checked again right before it is touched.
+- Folders and shortcuts go to the Recycle Bin. Registry keys are backed up to
+  a sealed `.reg` file first (a key that cannot be backed up is kept), and
+  only vendor or product keys under Software are removed, with the Registry
+  rules' protected locations. Scheduled tasks are exported to sealed XML
+  first; Microsoft's and PC Checker's own tasks are never touched. Services
+  are deleted only while their program is missing and they are stopped;
+  services and tasks that run from the Windows folder are left alone.
+- Registry keys and tasks are put back from the restore list; a task backup
+  is imported only if its seal matches and never over an existing task.
+
 ## Software rules
 
 - Edge, WebView2, Defender, the .NET and Visual C++ runtimes and driver

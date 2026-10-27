@@ -24,6 +24,7 @@ using PcChecker.Core.Health;
 using PcChecker.Core.History;
 using PcChecker.Core.Input;
 using PcChecker.Core.Latency;
+using PcChecker.Core.Leftovers;
 using PcChecker.Core.Lighting;
 using PcChecker.Core.Logging;
 using PcChecker.Core.Memory;
@@ -96,6 +97,8 @@ public static class ServiceRegistration
         Add<IWindowsUpdateService, WindowsUpdateService, DemoWindowsUpdateService>(services, demo);
         Add<ISoftwareInventoryService, WindowsSoftwareInventoryService, DemoSoftwareInventoryService>(services, demo);
         Add<IUninstallService, WindowsUninstallService, DemoUninstallService>(services, demo);
+        Add<ILeftoverService, WindowsLeftoverService, DemoLeftoverService>(services, demo);
+        services.AddSingleton<LeftoverScanQueue>();
         Add<IPerformanceAnalyzer, WindowsPerformanceAnalyzer, DemoPerformanceAnalyzer>(services, demo);
         Add<IOptimizationService, WindowsOptimizationService, DemoOptimizationService>(services, demo);
         Add<ITempFileScanner, WindowsTempFileScanner, DemoTempFileScanner>(services, demo);
@@ -191,6 +194,7 @@ public static class ServiceRegistration
         services.AddSingleton<DriverCleanupViewModel>().AddSingleton<DriverCleanupPage>();
         services.AddSingleton<WindowsUpdateViewModel>().AddSingleton<WindowsUpdatePage>();
         services.AddSingleton<SoftwareViewModel>().AddSingleton<SoftwarePage>();
+        services.AddSingleton<LeftoversViewModel>().AddSingleton<LeftoversPage>();
         services.AddSingleton<StartupViewModel>().AddSingleton<StartupPage>();
         services.AddSingleton<WindowsFeaturesViewModel>().AddSingleton<WindowsFeaturesPage>();
         services.AddSingleton<DebloatViewModel>().AddSingleton<DebloatPage>();

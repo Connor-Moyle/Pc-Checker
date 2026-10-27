@@ -2,8 +2,11 @@ using System.IO;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
+using PcChecker.App.Localization;
 using PcChecker.App.Services;
+using PcChecker.App.Views.Pages;
 using PcChecker.Core.Common;
+using PcChecker.Core.Leftovers;
 using PcChecker.Core.Software;
 
 namespace PcChecker.App.ViewModels;
@@ -19,6 +22,35 @@ public sealed partial class SoftwareViewModel
     private int _wingetUpgradeCount;
 
     public bool HasWingetUpgrades => WingetUpgradeCount > 0;
+
+    /// <summary>The program uninstalled last, while the page offers to look for what it left behind.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasLeftoverOffer))]
+    [NotifyPropertyChangedFor(nameof(LeftoverOfferText))]
+    private LeftoverFocus? _leftoverOffer;
+
+    public bool HasLeftoverOffer => LeftoverOffer is not null;
+
+    public string LeftoverOfferText => LeftoverOffer is null
+        ? string.Empty
+        : Loc.F("{0} was removed. Programs often leave folders, settings and tasks behind.", LeftoverOffer.ProgramName);
+
+    /// <summary>Opens the Leftovers page and looks for what the program uninstalled last left behind.</summary>
+    [RelayCommand]
+    private void FindLeftovers()
+    {
+        var focus = LeftoverOffer;
+        LeftoverOffer = null;
+        if (focus is not null)
+        {
+            _leftovers.Enqueue(focus);
+        }
+
+        _navigation.Navigate(typeof(LeftoversPage));
+    }
+
+    [RelayCommand]
+    private void DismissLeftoverOffer() => LeftoverOffer = null;
 
     [RelayCommand]
     private async Task UninstallAsync(ProgramRow? row)
@@ -66,6 +98,10 @@ public sealed partial class SoftwareViewModel
             ReportResult(result, "Uninstall");
             if (result.Success)
             {
+                // Store apps are removed whole by Windows; for other programs offer a look for what the uninstaller left.
+                LeftoverOffer = row.IsStoreApp
+                    ? null
+                    : new LeftoverFocus(row.Program.Name, row.Program.Publisher, row.Program.InstallLocation, row.Program.Id);
                 ApplyScan(await _inventory.ScanAsync(progress, ct));
             }
         }, $"Uninstalling {row.Name}…", cancellable: false);

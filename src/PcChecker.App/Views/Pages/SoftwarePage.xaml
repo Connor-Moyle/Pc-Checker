@@ -79,6 +79,15 @@
           </ItemsControl.ItemTemplate>
         </ItemsControl>
       </ui:InfoBar>
+      <!-- After an uninstall: offer to look for what the program left behind. -->
+      <ui:InfoBar Severity="Success" Title="Uninstalled" Message="{Binding LeftoverOfferText}"
+                  IsOpen="{Binding HasLeftoverOffer, Mode=OneWay}" IsClosable="False" Margin="0,0,0,12">
+        <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+          <ui:Button Content="Find leftovers" Appearance="Primary" Icon="{ui:SymbolIcon Search24}" Command="{Binding FindLeftoversCommand}" Margin="0,0,8,0"
+                     ToolTip="Opens Leftovers and looks for the folders, settings, tasks and shortcuts this program left. Nothing is removed until you choose to." />
+          <ui:Button Content="Not now" Command="{Binding DismissLeftoverOfferCommand}" />
+        </StackPanel>
+      </ui:InfoBar>
     </StackPanel>
 
     <!-- Summary -->

@@ -35,6 +35,7 @@ Every project targets `net8.0-windows10.0.19041.0`. `EnableWindowsTargeting` is 
 | `Drivers` | `IDriverService`, driver and update records, `DriverRules`, `IDriverCleanupService` and `DriverCleanupRules` (old and unused drivers) |
 | `WindowsUpdate` | `IWindowsUpdateService` (software updates, history, pause, active hours), `UpdateClassifier`, `UpdatePauseRules`, `ActiveHoursRules`, `UpdateHistoryMapper`, `UpdatePolicyRules`; shares `WuaCom` and `WuaResultCodes` with `Drivers` |
 | `Software` | `ISoftwareInventoryService`, `IUninstallService`, `BundleDetector`, `UninstallCommandBuilder`, `ProtectedSoftwareRules` |
+| `Leftovers` | `ILeftoverService` (uninstall leftovers), `LeftoverNameMatcher`, `LeftoverProgramIndex`, `LeftoverAllowList`, `LeftoverPathRules`, `LeftoverScoring`, `LeftoverBackupNaming`, `LeftoverTaskXml`, `LeftoverScanQueue` (Apps → Leftovers hand-off); shares `RegistryBackupStore` with `Registry` |
 | `Performance` | `IPerformanceAnalyzer`, `PerformanceFacts`, `SlowdownRules` |
 | `Optimization` | `IOptimizationService`, `OptimizationCatalog`, `RiskLevel` |
 | `Cleanup` | `ITempFileScanner`, `ITempFileCleaner`, `CleanupCatalog`, `CleanupSafety` |
@@ -103,7 +104,7 @@ Monitor         Temperatures · Power · History
 Hardware        Overview · Health · Storage · Memory · Battery
 Devices         Displays · Audio · Keyboard & Mouse
 Cooling & RGB   Fans · Lighting
-Apps & Drivers  Apps · Drivers · Startup · Windows Features
+Apps & Drivers  Apps · Leftovers · Drivers · Startup · Windows Features
 Clean up        Cleanup
 Performance     Speed check · Optimize · Benchmark · Overclock
 Gaming          Overlay · Latency

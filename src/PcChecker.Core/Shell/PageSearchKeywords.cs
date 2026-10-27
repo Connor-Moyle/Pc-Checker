@@ -25,6 +25,7 @@ public static class PageSearchKeywords
         ["fans"] = T("fan curve cooling speed rpm"),
         ["lighting"] = T("rgb leds openrgb colours colors"),
         ["software"] = T("programs uninstall installed apps"),
+        ["leftovers"] = T("uninstall leftovers traces remnants orphaned folders"),
         ["drivers"] = T("driver updates device manager"),
         ["old-drivers"] = T("unused drivers driver store leftovers"),
         ["startup"] = T("boot autostart services fast startup"),

@@ -4,8 +4,10 @@ using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using PcChecker.App.Services;
 using PcChecker.Core.Common;
+using PcChecker.Core.Leftovers;
 using PcChecker.Core.Settings;
 using PcChecker.Core.Software;
+using Wpf.Ui;
 
 namespace PcChecker.App.ViewModels;
 
@@ -20,6 +22,8 @@ public sealed partial class SoftwareViewModel : ViewModelBase
     private readonly IDialogService _dialogs;
     private readonly INotificationService _notifications;
     private readonly ILogger<SoftwareViewModel> _logger;
+    private readonly LeftoverScanQueue _leftovers;
+    private readonly INavigationService _navigation;
     private readonly List<ProgramRow> _allRows = [];
 
     /// <summary>Sizes measured with "Calculate sizes", keyed by program id. Carried across rescans so the work is not lost.</summary>
@@ -86,13 +90,16 @@ public sealed partial class SoftwareViewModel : ViewModelBase
     private double _scanPercent;
 
     public SoftwareViewModel(ISettingsService settings, ISoftwareInventoryService inventory, IUninstallService uninstaller,
-        IDialogService dialogs, INotificationService notifications, ILogger<SoftwareViewModel> logger)
+        IDialogService dialogs, INotificationService notifications, LeftoverScanQueue leftovers, INavigationService navigation,
+        ILogger<SoftwareViewModel> logger)
         : base(settings)
     {
         _inventory = inventory;
         _uninstaller = uninstaller;
         _dialogs = dialogs;
         _notifications = notifications;
+        _leftovers = leftovers;
+        _navigation = navigation;
         _logger = logger;
         RebuildSourceFilters(IsAdvancedMode);
         PropertyChanged += (_, e) =>
