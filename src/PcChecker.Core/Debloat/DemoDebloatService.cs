@@ -47,11 +47,21 @@ public sealed class DemoDebloatService : DebloatServiceBase
     public override OperationResult OpenSettings(string settingsUri) =>
         OperationResult.Ok($"Demo mode: on a real PC this opens {settingsUri}.");
 
-    protected override async Task<OperationResult<IReadOnlyList<TweakRunResult>>> RunGuardedAsync(string description, IReadOnlyList<DebloatTweak> tweaks, bool revert,
-        Func<CancellationToken, Task<IReadOnlyList<TweakRunResult>>> work, IProgress<ProgressUpdate>? progress, CancellationToken cancellationToken)
+    public override async Task<OperationResult> TurnOnSystemProtectionAsync(CancellationToken cancellationToken)
     {
-        progress?.Report(new ProgressUpdate("Creating a restore point", null, "Demo: PC Checker: before " + description));
-        await DemoData.DelayAsync(cancellationToken, 400, 700).ConfigureAwait(false);
+        await DemoData.DelayAsync(cancellationToken, 300, 600).ConfigureAwait(false);
+        return OperationResult.Ok($"System Protection is now on for {SystemDrive} (demo).");
+    }
+
+    protected override async Task<OperationResult<IReadOnlyList<TweakRunResult>>> RunGuardedAsync(string description, IReadOnlyList<DebloatTweak> tweaks, bool revert,
+        bool createRestorePoint, Func<CancellationToken, Task<IReadOnlyList<TweakRunResult>>> work, IProgress<ProgressUpdate>? progress, CancellationToken cancellationToken)
+    {
+        if (createRestorePoint)
+        {
+            progress?.Report(new ProgressUpdate("Creating a restore point", null, "Demo: PC Checker: before " + description));
+            await DemoData.DelayAsync(cancellationToken, 400, 700).ConfigureAwait(false);
+        }
+
         var results = await work(cancellationToken).ConfigureAwait(false);
         return OperationResult<IReadOnlyList<TweakRunResult>>.Ok(results, Finish(results, revert, null).Summary);
     }

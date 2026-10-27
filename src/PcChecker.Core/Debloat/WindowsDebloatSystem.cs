@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Logging;
 using PcChecker.Core.Common;
@@ -22,14 +23,69 @@ public sealed class WindowsDebloatSystem : IDebloatSystem
     private readonly IWindowsFeatureService _features;
     private readonly ILogger _logger;
 
+    private readonly WindowsRegistryAccessor _registry;
+
     public WindowsDebloatSystem(IWindowsFeatureService features, ILogger logger)
+        : this(features, logger, WindowsRegistryAccessor.ResolveSignedInUser)
     {
+    }
+
+    /// <param name="features">Store app and optional feature changes.</param>
+    /// <param name="logger">Log.</param>
+    /// <param name="resolveUserHive">Chooses whose HKCU per-user tweaks change (run once, on first registry access).</param>
+    public WindowsDebloatSystem(IWindowsFeatureService features, ILogger logger, Func<UserHiveTarget> resolveUserHive)
+    {
+        ArgumentNullException.ThrowIfNull(resolveUserHive);
         _features = features;
         _logger = logger;
         OsBuild = ReadBuild();
+        _registry = new WindowsRegistryAccessor(() =>
+        {
+            var target = resolveUserHive();
+            if (target.IsRedirected)
+            {
+                _logger.LogInformation("Debloat: per-user tweaks go to the signed-in user {Account} ({Sid}), not to the account PC Checker runs as.", target.AccountName, target.Sid);
+            }
+            else if (target.Note is not null)
+            {
+                _logger.LogWarning("Debloat: {Note}", target.Note);
+            }
+
+            return target;
+        });
     }
 
-    public IRegistryAccessor Registry { get; } = new WindowsRegistryAccessor();
+    public IRegistryAccessor Registry => _registry;
+
+    public string? CurrentUserScopeId => _registry.Target.Sid;
+
+    /// <summary>Only reports the note once the target is known, so reading it never starts the WMI lookup.</summary>
+    public string? CurrentUserNote => _registry.ResolvedTarget?.Note;
+
+    public void NotifySettingsChanged()
+    {
+        if (!PlatformGuard.IsWindows)
+        {
+            return;
+        }
+
+        try
+        {
+            // "Policy" is what gpupdate broadcasts after applying policies; "TraySettings" makes the taskbar re-read its
+            // settings; the association change notice makes File Explorer refresh its windows. A hung window is skipped.
+            foreach (var area in new[] { "Policy", "TraySettings", "ImmersiveColorSet" })
+            {
+                NativeMethods.SendMessageTimeoutW(NativeMethods.HwndBroadcast, NativeMethods.WmSettingChange, UIntPtr.Zero, area,
+                    NativeMethods.SmtoAbortIfHung, 500, out _);
+            }
+
+            NativeMethods.SHChangeNotify(NativeMethods.ShcneAssocChanged, NativeMethods.ShcnfIdList, IntPtr.Zero, IntPtr.Zero);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Could not broadcast the settings change.");
+        }
+    }
 
     public int? OsBuild { get; }
 
@@ -214,6 +270,21 @@ public sealed class WindowsDebloatSystem : IDebloatSystem
         text.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).FirstOrDefault() ?? "no details";
 
     private static string Clean(string line) => string.IsNullOrWhiteSpace(line) ? "the command failed" : line;
+
+    private static class NativeMethods
+    {
+        public static readonly IntPtr HwndBroadcast = new(0xffff);
+        public const uint WmSettingChange = 0x001A;
+        public const uint SmtoAbortIfHung = 0x0002;
+        public const int ShcneAssocChanged = 0x08000000;
+        public const uint ShcnfIdList = 0x0000;
+
+        [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+        public static extern IntPtr SendMessageTimeoutW(IntPtr hWnd, uint msg, UIntPtr wParam, string lParam, uint flags, uint timeout, out UIntPtr result);
+
+        [DllImport("shell32.dll")]
+        public static extern void SHChangeNotify(int eventId, uint flags, IntPtr item1, IntPtr item2);
+    }
 
     private sealed class TaskRow
     {

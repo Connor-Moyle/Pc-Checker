@@ -71,6 +71,9 @@ public enum TweakOutcome
     Reverted,
     Failed,
     Skipped,
+
+    /// <summary>Everything the tweak changes was already in place, so nothing was written.</summary>
+    AlreadyApplied,
 }
 
 /// <summary>Per-tweak result of a batch, with the values before and after for the action journal.</summary>
@@ -86,8 +89,54 @@ public sealed record DebloatRunResult(
     public int Succeeded => Results.Count(r => r.Outcome is TweakOutcome.Applied or TweakOutcome.Reverted);
     public int Failed => Results.Count(r => r.Outcome == TweakOutcome.Failed);
     public int Skipped => Results.Count(r => r.Outcome == TweakOutcome.Skipped);
+    public int AlreadyApplied => Results.Count(r => r.Outcome == TweakOutcome.AlreadyApplied);
+
+    /// <summary>
+    /// Set when the batch was not started at all because its required restore point could not be created (the reason
+    /// Windows gave). The page then asks whether to turn on System Protection, continue without one, or cancel.
+    /// </summary>
+    public string? RestorePointBlockedReason { get; init; }
+
+    public bool BlockedByRestorePoint => RestorePointBlockedReason is not null;
+
+    /// <summary>A note from the change guard (for example "no restore point was created — …"), or null.</summary>
+    public string? Note { get; init; }
 
     public static DebloatRunResult Empty { get; } = new([], false, false, "Nothing to do.");
+}
+
+/// <summary>How a batch runs.</summary>
+/// <param name="WithoutRestorePoint">
+/// The user chose to continue without a restore point: no restore point is attempted, and only tweaks that can be
+/// undone from the page run (one-way changes and Windows feature changes are skipped with the reason).
+/// </param>
+public sealed record DebloatRunOptions(bool WithoutRestorePoint = false)
+{
+    public static DebloatRunOptions Default { get; } = new();
+}
+
+/// <summary>What stands in the way of the restore point a batch needs, checked before the batch starts.</summary>
+public enum RestorePointProblem
+{
+    /// <summary>Nothing known: the restore point is attempted (or the batch does not need one).</summary>
+    None,
+
+    /// <summary>System Protection is off for the system drive, so Windows cannot create restore points.</summary>
+    ProtectionOff,
+
+    /// <summary>A restore point was made in the last 24 hours and Windows' one-per-day limit is in force.</summary>
+    FrequencyLimit,
+
+    /// <summary>The batch was tried and Windows refused the restore point for another reason.</summary>
+    Failed,
+}
+
+/// <summary>Result of <see cref="IDebloatService.CheckRestorePointAsync"/>.</summary>
+public sealed record DebloatRestorePointCheck(bool Required, RestorePointProblem Problem, string Message)
+{
+    public bool WouldBlock => Required && Problem != RestorePointProblem.None;
+
+    public static DebloatRestorePointCheck Fine { get; } = new(false, RestorePointProblem.None, string.Empty);
 }
 
 /// <summary>A named selection of tweaks (Recommended, Gaming, Privacy max, ...).</summary>

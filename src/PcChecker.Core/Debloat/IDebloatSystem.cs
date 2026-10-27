@@ -11,6 +11,21 @@ public interface IDebloatSystem
 {
     IRegistryAccessor Registry { get; }
 
+    /// <summary>
+    /// The SID whose hive HKCU operations reach when that is not the app's own account (PC Checker elevated as a
+    /// different administrator), otherwise null. Captures of per-user tweaks are kept per account with it.
+    /// </summary>
+    string? CurrentUserScopeId { get; }
+
+    /// <summary>Whose per-user settings HKCU operations change, when that needs saying; otherwise null.</summary>
+    string? CurrentUserNote { get; }
+
+    /// <summary>
+    /// Tells running programs that settings and policies changed (WM_SETTINGCHANGE "Policy" and "TraySettings", as
+    /// gpupdate and the Settings app do), so the ones that listen pick the new values up without a restart. Never throws.
+    /// </summary>
+    void NotifySettingsChanged();
+
     /// <summary>The Windows build number (e.g. 26100), or null when it cannot be read.</summary>
     int? OsBuild { get; }
 

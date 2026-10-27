@@ -1,6 +1,7 @@
 using System.IO;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
+using PcChecker.App.Localization;
 using PcChecker.App.Services;
 using PcChecker.Core.Common;
 using PcChecker.Core.Debloat;
@@ -89,14 +90,15 @@ public sealed partial class DebloatViewModel
     {
         if (IsBusy)
         {
+            _notifications.Info(Loc.T("Please wait"), Loc.T("PC Checker is still busy on this page. Try again when it has finished."));
             return;
         }
 
         if (rows.Count == 0)
         {
-            _notifications.Info("Nothing to do", revert
-                ? "None of the selected tweaks is applied, or they cannot be undone here."
-                : "The selected tweaks are already applied or not available on this Windows.");
+            _notifications.Info(Loc.T("Nothing to do"), revert
+                ? Loc.T("None of the selected tweaks is applied, or they cannot be undone here.")
+                : Loc.T("The selected tweaks are already applied or not available on this Windows."));
             return;
         }
 
@@ -122,26 +124,75 @@ public sealed partial class DebloatViewModel
             return;
         }
 
+        var ids = tweaks.Select(t => t.Id).ToList();
+
+        // A batch with one-way changes or Windows feature changes only runs with a restore point. Ask first when Windows
+        // is going to refuse it, instead of letting the batch stop with nothing changed.
+        DebloatRestorePointCheck? check = null;
+        await RunBusyAsync(async ct => check = await _debloat.CheckRestorePointAsync(ids, revert, ct), Loc.T("Checking System Protection…"));
+        var options = DebloatRunOptions.Default;
+        if (check is { WouldBlock: true })
+        {
+            if (await AskWithoutRestorePointAsync(tweaks, revert, check.Problem, null) is not { } chosen)
+            {
+                return;
+            }
+
+            options = chosen;
+        }
+
+        var (result, states) = await ExecuteAsync(rows, ids, revert, options);
+        if (result is { BlockedByRestorePoint: true } && !options.WithoutRestorePoint)
+        {
+            // The check could not foresee it (or Windows refused for another reason). Nothing was changed, so ask now.
+            if (await AskWithoutRestorePointAsync(tweaks, revert, RestorePointProblem.Failed, result.RestorePointBlockedReason) is { } retry)
+            {
+                (result, states) = await ExecuteAsync(rows, ids, revert, retry);
+            }
+        }
+
+        if (result is null)
+        {
+            if (!HasError)
+            {
+                _notifications.Info(Loc.T("Cancelled"), Loc.T("The batch was cancelled before it started. Nothing was changed."));
+            }
+
+            return;
+        }
+
+        ShowResults(result, states, revert);
+    }
+
+    /// <summary>Runs the batch, then reads the state of every tweak in it (and of those sharing a setting) again.</summary>
+    private async Task<(DebloatRunResult? Result, IReadOnlyDictionary<string, TweakState>? States)> ExecuteAsync(IReadOnlyList<DebloatTweakRow> rows,
+        IReadOnlyList<string> ids, bool revert, DebloatRunOptions options)
+    {
         foreach (var row in rows)
         {
             row.IsBusy = true;
         }
 
         DebloatRunResult? result = null;
-        var ids = tweaks.Select(t => t.Id).ToList();
+        IReadOnlyDictionary<string, TweakState>? states = null;
         try
         {
             await RunBusyAsync(async ct =>
             {
                 var progress = new Progress<ProgressUpdate>(p => BusyText = p.Detail is null ? p.Stage : $"{p.Stage}: {p.Detail}");
                 result = revert
-                    ? await _debloat.RevertAsync(ids, progress, ct)
-                    : await _debloat.ApplyAsync(ids, progress, ct);
-            }, revert ? "Reverting tweaks…" : "Applying tweaks…");
+                    ? await _debloat.RevertAsync(ids, options, progress, ct)
+                    : await _debloat.ApplyAsync(ids, options, progress, ct);
+            }, revert ? Loc.T("Reverting tweaks…") : Loc.T("Applying tweaks…"));
 
             // Cancel stops the batch between tweaks, so the states are re-read even then. Only the tweaks in the batch
-            // (and those sharing a setting with them) are checked, and this check can be cancelled on its own.
-            await RunBusyAsync(async ct => ApplyStates(await _debloat.GetStatesAsync(ids, ct), partial: true), "Checking the result…");
+            // (and those sharing a setting with them) are checked, and this check can be cancelled on its own. Each
+            // result is judged against this re-read, not only against what the change reported.
+            await RunBusyAsync(async ct =>
+            {
+                states = await _debloat.GetStatesAsync(ids, ct);
+                ApplyStates(states, partial: true);
+            }, Loc.T("Checking the result…"));
         }
         finally
         {
@@ -151,32 +202,95 @@ public sealed partial class DebloatViewModel
             }
         }
 
-        if (result is not null)
+        UserScopeNote = _debloat.UserScopeNote;
+        return (result, states);
+    }
+
+    /// <summary>
+    /// Explains why the restore point cannot be made and offers: turn on System Protection, continue without a restore
+    /// point (only the tweaks that can be reverted from this page run), or cancel. Returns the options to run with, or
+    /// null for Cancel.
+    /// </summary>
+    private async Task<DebloatRunOptions?> AskWithoutRestorePointAsync(IReadOnlyList<DebloatTweak> tweaks, bool revert, RestorePointProblem problem, string? reason)
+    {
+        const string title = "No restore point possible";
+        bool canTurnOn = problem is RestorePointProblem.ProtectionOff or RestorePointProblem.Failed;
+        int needRestorePoint = tweaks.Count(t => DebloatRules.NeedsRestorePoint(t, revert));
+        bool canContinue = DebloatRestorePointRules.CanContinueWithout(needRestorePoint, tweaks.Count);
+        while (true)
         {
-            ShowResults(result, revert);
+            string text = DebloatRestorePointRules.DialogText(problem, _debloat.SystemDrive, reason, needRestorePoint, tweaks.Count, canTurnOn);
+            string? primary = canTurnOn ? "Turn on System Protection" : canContinue ? "Continue without" : null;
+            string? secondary = canTurnOn && canContinue ? "Continue without" : null;
+            if (primary is null)
+            {
+                await _dialogs.ShowMessageAsync(title, text);
+                return null;
+            }
+
+            var choice = await _dialogs.ChooseAsync(title, text, primary, secondary);
+            if (choice == DialogChoice.Cancel)
+            {
+                return null;
+            }
+
+            if (!(canTurnOn && choice == DialogChoice.Primary))
+            {
+                _logger.LogInformation("Debloat: continuing without a restore point ({Problem}).", problem);
+                return new DebloatRunOptions(WithoutRestorePoint: true);
+            }
+
+            OperationResult? enabled = null;
+            await RunBusyAsync(async ct => enabled = await _debloat.TurnOnSystemProtectionAsync(ct), Loc.T("Turning on System Protection…"), cancellable: false);
+            if (enabled is { Success: true })
+            {
+                _notifications.Success("System Protection", enabled.Message);
+                return DebloatRunOptions.Default;
+            }
+
+            // It could not be turned on: say why and offer what is left.
+            reason = enabled?.Message ?? ErrorMessage;
+            problem = RestorePointProblem.Failed;
+            canTurnOn = false;
         }
     }
 
-    private void ShowResults(DebloatRunResult result, bool revert)
+    private void ShowResults(DebloatRunResult result, IReadOnlyDictionary<string, TweakState>? states, bool revert)
     {
+        var views = DebloatResultClassifier.ClassifyAll(result.Results, states, revert);
         Results.Clear();
-        foreach (var r in result.Results.OrderBy(r => r.Outcome switch { TweakOutcome.Failed => 0, TweakOutcome.Skipped => 1, _ => 2 }))
+        foreach (var view in views)
         {
-            Results.Add(new DebloatResultRow(r));
+            Results.Add(new DebloatResultRow(view));
         }
 
         HasResults = Results.Count > 0;
-        ResultsTitle = revert ? "Revert finished" : "Debloat finished";
-        ResultsMessage = result.Summary;
-        ResultsSeverity = result.Failed > 0
-            ? (result.Succeeded > 0 ? InfoBarSeverity.Warning : InfoBarSeverity.Error)
-            : InfoBarSeverity.Success;
-        IsRestartExplorerSuggested |= result.RestartExplorerSuggested;
-        IsRebootRequired |= result.RebootRequired;
-        _logger.LogInformation("Debloat {Verb}: {Summary}", revert ? "revert" : "apply", result.Summary);
+        if (result.BlockedByRestorePoint)
+        {
+            ResultsTitle = Loc.T("Nothing was changed");
+            ResultsMessage = DebloatRestorePointRules.Describe(RestorePointProblem.Failed, _debloat.SystemDrive, result.RestorePointBlockedReason);
+            ResultsSeverity = InfoBarSeverity.Error;
+            _logger.LogWarning("Debloat {Verb} not started: {Reason}", revert ? "revert" : "apply", result.RestorePointBlockedReason);
+            _notifications.Show(ResultsTitle, ResultsMessage, NotificationKind.Warning);
+            return;
+        }
 
-        var kind = result.Failed > 0 ? NotificationKind.Warning : NotificationKind.Success;
-        _notifications.Show(ResultsTitle, result.Summary, kind);
+        var summary = DebloatResultClassifier.Summarize(views, revert, result.Note);
+        ResultsTitle = summary.Title;
+        ResultsMessage = summary.Message;
+        ResultsSeverity = summary.Failed > 0
+            ? (summary.Done > 0 ? InfoBarSeverity.Warning : InfoBarSeverity.Error)
+            : InfoBarSeverity.Success;
+        IsRestartExplorerSuggested |= summary.NeedsExplorerRestart;
+        IsSignOutSuggested |= summary.NeedsSignOut;
+        IsRebootRequired |= summary.NeedsWindowsRestart;
+        foreach (var failed in views.Where(v => v.Kind == DebloatResultKind.Failed))
+        {
+            _logger.LogWarning("Debloat {Tweak} not applied: {Message}", failed.TweakId, failed.Message);
+        }
+
+        _logger.LogInformation("Debloat {Verb}: {Summary}", revert ? "revert" : "apply", summary.Message);
+        _notifications.Show(ResultsTitle, summary.Message, summary.Failed > 0 ? NotificationKind.Warning : NotificationKind.Success);
     }
 
     [RelayCommand]
@@ -216,6 +330,9 @@ public sealed partial class DebloatViewModel
 
     [RelayCommand]
     private void DismissRestartExplorer() => IsRestartExplorerSuggested = false;
+
+    [RelayCommand]
+    private void DismissSignOut() => IsSignOutSuggested = false;
 
     [RelayCommand]
     private void OpenNote(DebloatNote? note)

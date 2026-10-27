@@ -753,9 +753,17 @@ Win11Debloat, O&O ShutUp10++, Sophia Script and others; full list and table in
 - **Apply selected** / **Revert selected** in the bar at the bottom, or per
   row. The confirmation lists every change grouped by risk. A restore point is
   always created first and previous values are saved, so *Revert* puts back
-  exactly what was there (or the Windows default, which it says).
-- **Restart Explorer** is offered after taskbar, Start and context menu
-  changes; a restart bar appears when Windows needs one.
+  exactly what was there (or the Windows default, which it says). When
+  Windows cannot make the restore point, the page asks whether to turn on
+  System Protection, continue without one (reversible tweaks only) or cancel.
+- **Results** are read back from the PC after every batch: *Applied*,
+  *Already applied*, *Skipped* or *Failed*, each with a plain reason, and
+  applied changes say whether they show after a File Explorer restart, a
+  sign-out or a Windows restart. Per-user tweaks go to the account signed in
+  to Windows, even when PC Checker runs as another administrator.
+- **Restart Explorer** (this session only, not elevated) or **Restart later**
+  is offered after taskbar, Start, File Explorer and context menu changes; a
+  sign-out note and a restart bar appear when those are needed.
 - **Import / Export** the selection as JSON, including WinUtil exports.
 - **Check these yourself** links to settings with no safe policy, and
   **Deliberately not offered** explains why disabling Defender or Windows

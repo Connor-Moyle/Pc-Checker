@@ -40,7 +40,11 @@ public sealed partial class DebloatViewModel : ViewModelBase
     [ObservableProperty] private string _resultsMessage = string.Empty;
     [ObservableProperty] private InfoBarSeverity _resultsSeverity = InfoBarSeverity.Success;
     [ObservableProperty] private bool _isRestartExplorerSuggested;
+    [ObservableProperty] private bool _isSignOutSuggested;
     [ObservableProperty] private bool _isRebootRequired;
+
+    /// <summary>Whose per-user settings the page changes, when PC Checker runs as a different account; otherwise null.</summary>
+    [ObservableProperty] [NotifyPropertyChangedFor(nameof(HasUserScopeNote))] private string? _userScopeNote;
     [ObservableProperty] private string? _activePresetName;
 
     public DebloatViewModel(ISettingsService settings, IDebloatService debloat, IDialogService dialogs, INotificationService notifications,
@@ -89,6 +93,8 @@ public sealed partial class DebloatViewModel : ViewModelBase
 
     public int TotalTweaks => _rows.Count;
 
+    public bool HasUserScopeNote => !string.IsNullOrWhiteSpace(UserScopeNote);
+
     public override Task InitializeAsync(CancellationToken cancellationToken) => LoadStatesAsync();
 
     public override Task RefreshAsync(CancellationToken cancellationToken) => LoadStatesAsync();
@@ -109,6 +115,7 @@ public sealed partial class DebloatViewModel : ViewModelBase
             {
                 var states = await _debloat.GetStatesAsync(ct);
                 ApplyStates(states);
+                UserScopeNote = _debloat.UserScopeNote;
             }, "Checking which tweaks are already applied…");
         }
         finally

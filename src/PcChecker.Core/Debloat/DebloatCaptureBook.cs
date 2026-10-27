@@ -199,8 +199,25 @@ public sealed class DebloatCaptureBook
             Directory.CreateDirectory(directory);
         }
 
+        // Antivirus and indexers briefly lock freshly written files; a short retry keeps such a lock from failing the
+        // tweak (a capture that cannot be saved means the tweak is not applied).
         var temp = _path + ".tmp";
-        File.WriteAllText(temp, Serialize(_captures));
-        File.Move(temp, _path, overwrite: true);
+        string json = Serialize(_captures);
+        for (int attempt = 1; ; attempt++)
+        {
+            try
+            {
+                File.WriteAllText(temp, json);
+                File.Move(temp, _path, overwrite: true);
+                return;
+            }
+            catch (IOException) when (attempt < SaveAttempts)
+            {
+                Thread.Sleep(SaveRetryDelay * attempt);
+            }
+        }
     }
+
+    private const int SaveAttempts = 3;
+    private static readonly TimeSpan SaveRetryDelay = TimeSpan.FromMilliseconds(150);
 }

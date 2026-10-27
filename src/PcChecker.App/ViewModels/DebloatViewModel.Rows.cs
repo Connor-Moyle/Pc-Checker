@@ -171,23 +171,32 @@ public sealed class DebloatPresetCard
     public ControlAppearance ButtonAppearance => IsRecommended ? ControlAppearance.Primary : ControlAppearance.Secondary;
 }
 
-/// <summary>One line of the results list after Apply or Revert.</summary>
+/// <summary>One line of the results list after Apply or Revert, as judged after the state was read again.</summary>
 public sealed class DebloatResultRow
 {
-    public DebloatResultRow(TweakRunResult result)
+    public DebloatResultRow(DebloatResultView view)
     {
-        Result = result;
+        View = view;
     }
 
-    public TweakRunResult Result { get; }
-    public string Title => Result.Title;
-    public string Message => Result.Message;
-    public string OutcomeText => Result.Outcome.ToString();
+    public DebloatResultView View { get; }
+    public string Title => View.Title;
+    public string Message => View.Message;
+    public string OutcomeText => View.Outcome;
 
-    public Brush OutcomeBrush => Result.Outcome switch
+    /// <summary>"Applied – restart Explorer to see it" and the like (tooltip and screen readers).</summary>
+    public string Label => View.Label;
+
+    /// <summary>What is still needed before the change shows ("Restart File Explorer to see it."), or null.</summary>
+    public string? NextStep => View.NextStep;
+
+    public bool HasNextStep => !string.IsNullOrEmpty(View.NextStep);
+
+    public Brush OutcomeBrush => View.Kind switch
     {
-        TweakOutcome.Applied or TweakOutcome.Reverted => HealthStatusToBrushConverter.Good,
-        TweakOutcome.Failed => HealthStatusToBrushConverter.Critical,
+        DebloatResultKind.Applied or DebloatResultKind.Reverted => HasNextStep ? HealthStatusToBrushConverter.Warning : HealthStatusToBrushConverter.Good,
+        DebloatResultKind.AlreadyApplied => HealthStatusToBrushConverter.Good,
+        DebloatResultKind.Failed => HealthStatusToBrushConverter.Critical,
         _ => HealthStatusToBrushConverter.Unknown,
     };
 }

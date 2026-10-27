@@ -50,6 +50,24 @@ public sealed class DebloatEngine
     /// <summary>When true, app removal also removes the app for other users and new accounts.</summary>
     public bool RemoveAppsForAllUsers { get; set; }
 
+    /// <summary>
+    /// The capture-book entry for <paramref name="tweak"/>. Tweaks with per-user values that go to another account's
+    /// hive (PC Checker elevated as a different administrator) are kept per account ("id@SID"), so two people who sign
+    /// in on the same PC each get their own original values back.
+    /// </summary>
+    public string CaptureId(DebloatTweak tweak)
+    {
+        ArgumentNullException.ThrowIfNull(tweak);
+        return CaptureIdFor(tweak, tweak.Operations.OfType<RegistryValueOp>().Any(o => o.Hive == DebloatHive.CurrentUser) ? SafeScopeId() : null);
+    }
+
+    /// <summary>"id" for the app's own account, "id@scope" for another account's hive.</summary>
+    public static string CaptureIdFor(DebloatTweak tweak, string? userScopeId)
+    {
+        ArgumentNullException.ThrowIfNull(tweak);
+        return string.IsNullOrWhiteSpace(userScopeId) ? tweak.Id : $"{tweak.Id}@{userScopeId}";
+    }
+
     /// <summary>Capture-file key that remembers whether a key existed before (for operations that delete a key on revert).</summary>
     public static string KeyExistenceKey(RegistryValueOp op) => $"key:{RegistryValueCodec.HiveName(op.Hive)}\\{op.DeleteKeyOnRevert}";
 
@@ -111,17 +129,20 @@ public sealed class DebloatEngine
 
         var tasks = await ReadTasksAsync(tweak, cancellationToken).ConfigureAwait(false);
         var (capture, before) = await CaptureAsync(tweak, tasks, cancellationToken).ConfigureAwait(false);
+        string captureId = CaptureId(tweak);
         bool newCapture;
         try
         {
-            newCapture = tweak.Reversible && _captures.TryAdd(tweak.Id, capture);
+            newCapture = tweak.Reversible && _captures.TryAdd(captureId, capture);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            return Result(tweak, TweakOutcome.Failed, $"Nothing was changed: the undo information could not be saved ({ex.Message}).");
+            // Without the saved values the change could not be reverted, so nothing is changed.
+            return Result(tweak, TweakOutcome.Failed,
+                $"Nothing was changed: the undo information could not be saved to {DebloatCaptureBook.FileName} ({ex.Message}). Check that the disk is not full and that security software is not blocking PC Checker's settings folder.");
         }
 
-        int changed = 0, skipped = 0;
+        int changed = 0, inPlace = 0, missing = 0;
         var errors = new List<string>();
         foreach (var op in tweak.Operations)
         {
@@ -129,8 +150,9 @@ public sealed class DebloatEngine
             var (outcome, message) = await ApplyOperationAsync(op, tasks, cancellationToken).ConfigureAwait(false);
             switch (outcome)
             {
-                case true: changed++; break;
-                case null: skipped++; break;
+                case OpOutcome.Changed: changed++; break;
+                case OpOutcome.AlreadyInPlace: inPlace++; break;
+                case OpOutcome.NotPresent: missing++; break;
                 default: errors.Add(message ?? op.Describe()); break;
             }
         }
@@ -138,12 +160,19 @@ public sealed class DebloatEngine
         string after = string.Join("; ", tweak.Operations.Select(o => o.Describe()));
         if (errors.Count == 0 && changed > 0)
         {
-            return Result(tweak, TweakOutcome.Applied, skipped == 0 ? "Applied." : $"Applied ({skipped} part{(skipped == 1 ? " is" : "s are")} not present on this PC).", before, after);
+            return Result(tweak, TweakOutcome.Applied, missing == 0 ? "Applied." : $"Applied ({missing} part{(missing == 1 ? " is" : "s are")} not present on this PC).", before, after);
         }
 
-        if (changed == 0 && newCapture)
+        // Keep the capture when something was already in place: it records the state before the user chose Apply, so a
+        // later Revert puts back exactly that (for example Recall stays off when it was off) instead of the defaults.
+        if (changed == 0 && inPlace == 0 && newCapture)
         {
-            _captures.Remove(tweak.Id); // best effort; a leftover entry is harmless
+            _captures.Remove(captureId); // best effort; a leftover entry is harmless
+        }
+
+        if (errors.Count == 0 && inPlace > 0)
+        {
+            return Result(tweak, TweakOutcome.AlreadyApplied, "Already applied: nothing needed to change.", before, after);
         }
 
         if (errors.Count == 0)
@@ -169,7 +198,8 @@ public sealed class DebloatEngine
             return Result(tweak, TweakOutcome.Skipped, UndoHint(tweak));
         }
 
-        var capture = _captures.Get(tweak.Id);
+        string captureId = CaptureId(tweak);
+        var capture = _captures.Get(captureId);
         var tasks = await ReadTasksAsync(tweak, cancellationToken).ConfigureAwait(false);
         int changed = 0;
         var errors = new List<string>();
@@ -192,7 +222,7 @@ public sealed class DebloatEngine
             return Result(tweak, TweakOutcome.Failed, (changed > 0 ? $"{changed} of {changed + errors.Count} values restored. " : string.Empty) + errors[0]);
         }
 
-        string? saveNote = _captures.Remove(tweak.Id);
+        string? saveNote = _captures.Remove(captureId);
         string reverted = capture is null
             ? "Reverted to the Windows default (no values had been saved before the change)."
             : "Restored the values saved before the change.";
@@ -262,13 +292,31 @@ public sealed class DebloatEngine
 
     // ---- apply ---------------------------------------------------------------------------------------------------
 
-    /// <summary>true = changed, null = skipped (not present), false = failed with message.</summary>
-    private async Task<(bool? Outcome, string? Message)> ApplyOperationAsync(DebloatOperation op, IReadOnlyDictionary<string, bool>? tasks, CancellationToken cancellationToken)
+    /// <summary>What happened to one operation when a tweak was applied.</summary>
+    private enum OpOutcome
+    {
+        Changed,
+        AlreadyInPlace,
+        NotPresent,
+        Failed,
+    }
+
+    /// <summary>
+    /// Applies one operation. An operation whose target is already in place (with the type Windows reads) is not
+    /// written again, so a tweak that was already applied is reported as such instead of as a fresh change.
+    /// </summary>
+    private async Task<(OpOutcome Outcome, string? Message)> ApplyOperationAsync(DebloatOperation op, IReadOnlyDictionary<string, bool>? tasks, CancellationToken cancellationToken)
     {
         switch (op)
         {
             case RegistryValueOp reg:
-                return Try(() =>
+            {
+                if (RegistryValueCodec.Matches(SafeRead(reg), reg.Kind, reg.AppliedValue))
+                {
+                    return (OpOutcome.AlreadyInPlace, null);
+                }
+
+                var (ok, message) = Try(() =>
                 {
                     if (reg.AppliedValue is null)
                     {
@@ -279,19 +327,37 @@ public sealed class DebloatEngine
                         _system.Registry.Write(reg.Hive, reg.Path, reg.Name, new RegistryData(reg.Kind, reg.AppliedValue));
                     }
                 }, reg);
+                return (ok ? OpOutcome.Changed : OpOutcome.Failed, message);
+            }
 
             case ServiceOp svc:
-                if (DebloatStateEvaluator.ReadStartMode(_system.Registry, svc.Name) is null)
+            {
+                var mode = DebloatStateEvaluator.ReadStartMode(_system.Registry, svc.Name);
+                if (mode is null)
                 {
-                    return (null, null);
+                    return (OpOutcome.NotPresent, null);
+                }
+
+                if (ServiceStartModes.Satisfies(mode.Value, svc.AppliedMode))
+                {
+                    return (OpOutcome.AlreadyInPlace, null);
                 }
 
                 return FromResult(await _system.SetServiceStartModeAsync(svc.Name, svc.AppliedMode, cancellationToken).ConfigureAwait(false));
+            }
 
             case ScheduledTaskOp task:
-                if (tasks is not null && !tasks.ContainsKey(task.Path))
+                if (tasks is not null)
                 {
-                    return (null, null);
+                    if (!tasks.TryGetValue(task.Path, out bool enabled))
+                    {
+                        return (OpOutcome.NotPresent, null);
+                    }
+
+                    if (enabled == !task.DisableWhenApplied)
+                    {
+                        return (OpOutcome.AlreadyInPlace, null);
+                    }
                 }
 
                 return FromResult(await _system.SetTaskEnabledAsync(task.Path, !task.DisableWhenApplied, cancellationToken).ConfigureAwait(false));
@@ -303,7 +369,7 @@ public sealed class DebloatEngine
                 var installed = await InstalledAppsAsync(RemoveAppsForAllUsers, cancellationToken).ConfigureAwait(false);
                 if (installed is not null && !installed.Contains(app.PackageName))
                 {
-                    return (null, null);
+                    return (OpOutcome.NotPresent, null);
                 }
 
                 return FromResult(await _system.RemoveAppAsync(app, RemoveAppsForAllUsers, cancellationToken).ConfigureAwait(false));
@@ -314,17 +380,30 @@ public sealed class DebloatEngine
                 var state = await SafeAsync(() => _system.GetOptionalFeatureStateAsync(feature.FeatureName, cancellationToken), FeatureState.Unknown).ConfigureAwait(false);
                 if (state == FeatureState.NotPresent)
                 {
-                    return (null, null);
+                    return (OpOutcome.NotPresent, null);
+                }
+
+                if (state == (feature.DisableWhenApplied ? FeatureState.Disabled : FeatureState.Enabled))
+                {
+                    return (OpOutcome.AlreadyInPlace, null);
                 }
 
                 return FromResult(await _system.SetOptionalFeatureAsync(feature, enabled: !feature.DisableWhenApplied, cancellationToken).ConfigureAwait(false));
             }
 
             case PowerShellOp ps:
+            {
+                // The detection script says whether the change is already there (for example OneDrive already removed).
+                if (await SafeAsync(() => _system.DetectAsync(ps, cancellationToken), null).ConfigureAwait(false) == true)
+                {
+                    return (OpOutcome.AlreadyInPlace, null);
+                }
+
                 return FromResult(await _system.RunScriptAsync(ps.ApplyScript, cancellationToken).ConfigureAwait(false));
+            }
 
             default:
-                return (false, "Unknown operation type.");
+                return (OpOutcome.Failed, "Unknown operation type.");
         }
     }
 
@@ -336,7 +415,10 @@ public sealed class DebloatEngine
         switch (op)
         {
             case RegistryValueOp reg:
-                return Try(() => RevertRegistry(reg, capture), reg);
+            {
+                var (ok, message) = Try(() => RevertRegistry(reg, capture), reg);
+                return (ok, message);
+            }
 
             case ServiceOp svc:
             {
@@ -346,7 +428,7 @@ public sealed class DebloatEngine
                 }
 
                 var target = capture is not null && capture.TryGetValue(svc.Key, out var saved) && ServiceStartModes.TryParse(saved, out var parsed) ? parsed : svc.DefaultMode;
-                return FromResult(await _system.SetServiceStartModeAsync(svc.Name, target, cancellationToken).ConfigureAwait(false));
+                return ToRevert(await _system.SetServiceStartModeAsync(svc.Name, target, cancellationToken).ConfigureAwait(false));
             }
 
             case ScheduledTaskOp task:
@@ -359,7 +441,7 @@ public sealed class DebloatEngine
                 bool enable = capture is not null && capture.TryGetValue(task.Key, out var saved) && saved is not null
                     ? saved.Equals(Enabled, StringComparison.OrdinalIgnoreCase)
                     : task.DisableWhenApplied;
-                return FromResult(await _system.SetTaskEnabledAsync(task.Path, enable, cancellationToken).ConfigureAwait(false));
+                return ToRevert(await _system.SetTaskEnabledAsync(task.Path, enable, cancellationToken).ConfigureAwait(false));
             }
 
             case OptionalFeatureOp feature:
@@ -376,11 +458,11 @@ public sealed class DebloatEngine
                               && previous is FeatureState.Enabled or FeatureState.Disabled
                     ? previous == FeatureState.Enabled
                     : feature.DisableWhenApplied;
-                return FromResult(await _system.SetOptionalFeatureAsync(feature, enable, cancellationToken).ConfigureAwait(false));
+                return ToRevert(await _system.SetOptionalFeatureAsync(feature, enable, cancellationToken).ConfigureAwait(false));
             }
 
             case PowerShellOp { RevertScript: not null } ps:
-                return FromResult(await _system.RunScriptAsync(ps.RevertScript, cancellationToken).ConfigureAwait(false));
+                return ToRevert(await _system.RunScriptAsync(ps.RevertScript, cancellationToken).ConfigureAwait(false));
 
             default:
                 return (null, null);
@@ -489,7 +571,7 @@ public sealed class DebloatEngine
         }
     }
 
-    private static (bool?, string?) Try(Action action, RegistryValueOp reg)
+    private static (bool Ok, string? Message) Try(Action action, RegistryValueOp reg)
     {
         try
         {
@@ -505,7 +587,21 @@ public sealed class DebloatEngine
         }
     }
 
-    private static (bool?, string?) FromResult(OperationResult result) => (result.Success ? true : false, result.Success ? null : result.Message);
+    private static (OpOutcome, string?) FromResult(OperationResult result) => (result.Success ? OpOutcome.Changed : OpOutcome.Failed, result.Success ? null : result.Message);
+
+    private static (bool?, string?) ToRevert(OperationResult result) => (result.Success, result.Success ? null : result.Message);
+
+    private string? SafeScopeId()
+    {
+        try
+        {
+            return _system.CurrentUserScopeId;
+        }
+        catch (Exception)
+        {
+            return null;
+        }
+    }
 
     private static async Task<T> SafeAsync<T>(Func<Task<T>> read, T fallback)
     {

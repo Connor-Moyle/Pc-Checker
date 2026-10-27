@@ -45,6 +45,9 @@ public sealed class DialogService : IDialogService
     public async Task<DialogChoice> AskAsync(string title, string message, string primaryText, string? secondaryText, string closeText)
     {
         var result = await ShowAsync(new ContentDialog
+    public async Task<DialogChoice> ChooseAsync(string title, string message, string primaryText, string? secondaryText, string closeText = "Cancel")
+    {
+        var dialog = new ContentDialog
         {
             Title = Localization.Loc.T(title),
             Content = Localization.Loc.T(message),
@@ -59,6 +62,34 @@ public sealed class DialogService : IDialogService
             ContentDialogResult.Primary => DialogChoice.Primary,
             ContentDialogResult.Secondary => DialogChoice.Secondary,
             _ => DialogChoice.Close,
+            CloseButtonText = Localization.Loc.T(closeText),
+            DefaultButton = ContentDialogButton.Close,
+        };
+        if (!string.IsNullOrEmpty(secondaryText))
+        {
+            dialog.SecondaryButtonText = Localization.Loc.T(secondaryText);
+        }
+
+        if (_dialogs.GetDialogHost() is null)
+        {
+            // Before the main window is ready: Yes = primary, No = secondary, Cancel = close.
+            var text = $"{dialog.Content}\n\n{Localization.Loc.T("Yes")}: {dialog.PrimaryButtonText}"
+                       + (string.IsNullOrEmpty(secondaryText) ? string.Empty : $"\n{Localization.Loc.T("No")}: {dialog.SecondaryButtonText}");
+            var r = System.Windows.MessageBox.Show(text, dialog.Title?.ToString() ?? "PC Checker",
+                string.IsNullOrEmpty(secondaryText) ? System.Windows.MessageBoxButton.OKCancel : System.Windows.MessageBoxButton.YesNoCancel);
+            return r switch
+            {
+                System.Windows.MessageBoxResult.OK or System.Windows.MessageBoxResult.Yes => DialogChoice.Primary,
+                System.Windows.MessageBoxResult.No => DialogChoice.Secondary,
+                _ => DialogChoice.Cancel,
+            };
+        }
+
+        return await _dialogs.ShowAsync(dialog, CancellationToken.None) switch
+        {
+            ContentDialogResult.Primary => DialogChoice.Primary,
+            ContentDialogResult.Secondary => DialogChoice.Secondary,
+            _ => DialogChoice.Cancel,
         };
     }
 

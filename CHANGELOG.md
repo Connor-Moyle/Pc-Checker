@@ -66,6 +66,17 @@ All notable changes to PC Checker are recorded here. The format follows
   notes meet WCAG AA contrast in both themes, and Windows high-contrast mode
   switches the whole app to the system colours.
 
+### Fixed
+- **Debloat tweaks that did not seem to apply.** Batches that need a restore
+  point now ask (turn on System Protection, continue without, or cancel)
+  instead of stopping with every tweak failed; per-user tweaks go to the
+  account signed in to Windows when PC Checker runs as another administrator;
+  every tweak is read back after a batch and shows *Applied*, *Already
+  applied*, *Skipped* or *Failed* with the reason, plus whether it shows after
+  a File Explorer restart, a sign-out or a Windows restart; a number stored as
+  text no longer counts as applied; and a briefly locked undo file no longer
+  fails the tweak. See DEBLOAT.md, *Troubleshooting*.
+
 ## [0.4.0] - 2026-10-27
 
 Six new tools: Disk space, Processes, History, Benchmark, Windows Update and quick search.

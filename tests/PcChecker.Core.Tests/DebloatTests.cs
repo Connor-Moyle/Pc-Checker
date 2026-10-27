@@ -531,7 +531,9 @@ public class DebloatHelperTests
         Assert.Equal(data, RegistryValueCodec.Decode(RegistryValueCodec.Encode(data)));
         Assert.Null(RegistryValueCodec.Decode(null));
         Assert.Null(RegistryValueCodec.Decode("nonsense"));
-        Assert.True(RegistryValueCodec.Matches(new RegistryData(DebloatValueKind.String, "0"), DebloatValueKind.DWord, "0"));
+        // Windows reads these settings as REG_DWORD and ignores a "0" stored as text, so that is not a match.
+        Assert.False(RegistryValueCodec.Matches(new RegistryData(DebloatValueKind.String, "0"), DebloatValueKind.DWord, "0"));
+        Assert.True(RegistryValueCodec.Matches(new RegistryData(DebloatValueKind.ExpandString, "Deny"), DebloatValueKind.String, "deny"));
         Assert.True(RegistryValueCodec.Matches(new RegistryData(DebloatValueKind.DWord, "4294967295"), DebloatValueKind.DWord, "-1"));
         Assert.True(RegistryValueCodec.Matches(new RegistryData(DebloatValueKind.Binary, "03000000aabbccdd"), DebloatValueKind.Binary, "030000000000000000000000"));
         Assert.False(RegistryValueCodec.Matches(new RegistryData(DebloatValueKind.Binary, "02000000"), DebloatValueKind.Binary, "03"));
@@ -700,9 +702,23 @@ public class DebloatBatchTests
 
         public override OperationResult OpenSettings(string settingsUri) => OperationResult.Ok("ok");
 
+        public override Task<OperationResult> TurnOnSystemProtectionAsync(CancellationToken cancellationToken) => Task.FromResult(OperationResult.Ok("on"));
+
+        /// <summary>When true, a batch that needs a restore point is refused before it starts (like System Protection off).</summary>
+        public bool RefuseRestorePoint { get; set; }
+
+        /// <summary>The createRestorePoint flag of every batch.</summary>
+        public List<bool> RestorePointFlags { get; } = [];
+
         protected override async Task<OperationResult<IReadOnlyList<TweakRunResult>>> RunGuardedAsync(string description, IReadOnlyList<DebloatTweak> tweaks, bool revert,
-            Func<CancellationToken, Task<IReadOnlyList<TweakRunResult>>> work, IProgress<ProgressUpdate>? progress, CancellationToken cancellationToken)
+            bool createRestorePoint, Func<CancellationToken, Task<IReadOnlyList<TweakRunResult>>> work, IProgress<ProgressUpdate>? progress, CancellationToken cancellationToken)
         {
+            RestorePointFlags.Add(createRestorePoint);
+            if (RefuseRestorePoint && createRestorePoint && WindowsDebloatService.RequiresRestorePoint(tweaks, revert))
+            {
+                return OperationResult<IReadOnlyList<TweakRunResult>>.Fail("Apply 2 debloat tweaks was not started because System Protection is off.");
+            }
+
             Batches.Add(tweaks.Select(t => t.Id).ToList());
             var results = await work(cancellationToken);
             return OperationResult<IReadOnlyList<TweakRunResult>>.Ok(results, "done");

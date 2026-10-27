@@ -38,16 +38,34 @@ re-implemented; none of their code is used):
   runs the whole selection as one guarded batch: a restore point first (always,
   for this page, whatever the global setting), then each tweak. App and Windows
   feature removals and the linked Optimize page actions are part of that batch
-  and share its restore point instead of each trying to create their own; a
+  and share its restore point instead of each trying to create their own. A
   batch that contains one-way changes (app or OneDrive removal) or a Windows
-  optional feature change (Recall) is not started at all when the restore point
-  cannot be created. Two tweaks that set the same value differently (for example
-  two search box styles) cannot be applied together; the page asks you to untick
-  one.
+  optional feature change (Recall) only runs with a restore point. When
+  Windows is going to refuse it (System Protection off, or one restore point
+  per day already used) the page asks first, and asks again if Windows refuses
+  it anyway: **Turn on System Protection** (for the system drive, then the
+  batch runs with a restore point), **Continue without** (only the tweaks that
+  can be reverted from this page run; one-way changes and Windows features are
+  skipped and say why) or **Cancel** (nothing changes). Two tweaks that set the
+  same value differently (for example two search box styles) cannot be applied
+  together; the page asks you to untick one.
   Before a tweak changes anything its current values (with their exact registry
-  type) are saved to `%LOCALAPPDATA%\PcChecker\debloat-capture.json`. Each tweak
-  gets its own result and its own Action Journal entry with the values before
-  and after.
+  type) are saved to `%LOCALAPPDATA%\PcChecker\debloat-capture.json`; if that
+  file cannot be written the tweak is not applied and says so. Values already
+  in place are not written again. Each tweak gets its own Action Journal entry
+  with the values before and after.
+- **Results** are checked against the PC: after a batch every tweak in it is
+  read again, and each one shows *Applied*, *Already applied*, *Skipped* (with
+  the reason) or *Failed* (with a plain reason). A change that Windows did not
+  keep (the setting still reads as before, usually because a policy from an
+  organisation or another tool sets it back) is reported as failed, not as
+  applied. Applied changes that only show later say so: *restart Explorer to
+  see it* (taskbar, Start, File Explorer and right-click menu settings),
+  *sign out to see it* (Copilot, Recall, search and other shell policies) or
+  *restart Windows to finish* (optional features, services set to Disabled,
+  long paths). A summary bar counts what was applied, already applied, skipped
+  and failed, and running programs are told that settings changed (as gpupdate
+  and the Settings app do) so whatever can pick them up at once does.
 - **Cancel** stops the batch between tweaks: a tweak that has started always
   finishes, the ones after it are reported as skipped, and everything already
   applied can be reverted as usual.
@@ -57,8 +75,10 @@ re-implemented; none of their code is used):
   Home/Gallery) are removed again.
 - **One-way** changes are labelled: removed apps come back from the Microsoft
   Store, and OneDrive from microsoft.com or `winget install Microsoft.OneDrive`.
-- **Restart File Explorer** is offered after taskbar, Start and context menu
-  changes; a Windows restart bar appears for the few changes that need it.
+- **Restart Explorer** is offered after taskbar, Start, File Explorer and
+  context menu changes, with **Restart later**. It restarts only the File
+  Explorer of your own session, as you and not as administrator. A sign-out
+  note and a Windows restart bar appear for the changes that need those.
 - **Advanced mode** shows the service, Windows Update, Xbox service, OneDrive
   removal and policy-only tweaks. They are hidden otherwise.
 - The Print Spooler and Fax tweaks are only applied when no physical printer is
@@ -73,13 +93,65 @@ re-implemented; none of their code is used):
 ### Which account the changes apply to
 
 PC Checker runs as administrator. Most Safe tweaks are per-user settings
-(`HKCU`), and they are written to the account PC Checker runs as. When you
-sign in as a standard user and enter a *different* administrator account's
-password to start PC Checker, those settings (and the states the page shows)
-belong to that administrator account, not to you. To debloat your own account
-in that case, sign in as an administrator or make your account an
-administrator for the duration. Machine-wide tweaks (`HKLM`, services, tasks,
-apps removed for all users) are not affected.
+(`HKCU`). They go to the account signed in to Windows, even when PC Checker
+runs as a *different* administrator account (you sign in as a standard user
+and enter an administrator's password at the UAC prompt): the page finds the
+owner of your session's File Explorer and reads and writes that account's
+registry (`HKEY_USERS\<SID>`, and `HKEY_USERS\<SID>_Classes` for
+`HKCU\Software\Classes`), and a note at the top of the page says whose
+settings change. Their saved "before" values are kept per account, so two
+people who use the same administrator password each get their own values back
+on Revert.
+
+When the signed-in account cannot be found or its settings are not loaded,
+PC Checker falls back to the account it runs as and the note says so. In
+that case, and for app removals for one account and the linked Optimize page
+actions (Game Mode, Game Bar, background apps, telemetry), the change belongs
+to the administrator account; to debloat your own account then, sign in as an
+administrator or remove apps for all users. Machine-wide tweaks (`HKLM`,
+services, tasks, apps removed for all users) are not affected.
+
+## Troubleshooting
+
+**"Debloat tweaks don't seem to apply."** This report came from real PCs and
+had several causes, all fixed in this version:
+
+- **The batch was not started.** Batches with app removals, OneDrive removal
+  or the Recall feature require a restore point. With System Protection off
+  (the default on many PCs) every tweak was marked *Failed* with a long
+  message and nothing changed. The page now asks first and offers to turn on
+  System Protection, continue without a restore point (reversible tweaks
+  only) or cancel.
+- **The change went to the wrong account.** When PC Checker was started with
+  another administrator's password, per-user tweaks were written to that
+  administrator's registry, so the person at the PC saw no change. They now go
+  to the signed-in user's hive (see *Which account the changes apply to*).
+- **The change was written but not shown yet.** Taskbar, Start, File Explorer
+  and context-menu settings are read when File Explorer starts, shell policies
+  when you sign in, and a disabled service keeps running until Windows
+  restarts. Only some tweaks said so. Every result now says which step is
+  needed, the page offers *Restart Explorer*, and running programs are told
+  that settings changed.
+- **A value of the wrong type looked applied.** A number stored as text (for
+  example `HideFileExt` = `"0"` as `REG_SZ`, as some scripts and `.reg` files
+  write it) counted as applied, so the row showed *Applied*, Apply was
+  greyed out and Windows, which reads a `REG_DWORD`, ignored it. Such a value
+  now shows *Not applied* with "Stored as REG_SZ; Windows needs REG_DWORD",
+  and applying writes the right type (Revert puts the original back).
+- **Results were not checked.** A tweak was shown as *Applied* when the
+  write succeeded, even if Windows or a policy set it straight back. Every
+  tweak is now read again after the batch and reported as failed with the
+  reason when the change did not stick. Tweaks already in place (including
+  linked Optimize page actions) say *Already applied* instead of looking like
+  a change that did nothing.
+- **The undo file could not be saved.** A brief lock on
+  `debloat-capture.json` (antivirus, indexer) failed the tweak; saving now
+  retries, and the message names the file and what to check.
+
+If a tweak still fails, the result line gives Windows' reason. *Access
+denied* on a policy usually means the PC is managed by an organisation (work
+or school), which sets those values itself; the log (Settings, Log folder) has the
+details.
 
 ## Presets
 

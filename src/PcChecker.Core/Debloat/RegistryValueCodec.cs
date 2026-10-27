@@ -51,8 +51,10 @@ public static class RegistryValueCodec
     };
 
     /// <summary>
-    /// True when the current value equals the expected catalog value. DWORDs compare numerically (so "0" matches a
-    /// value stored as a string "0"), strings case-insensitively, and binary values by their first byte because Windows
+    /// True when the current value equals the expected catalog value AND has a type Windows accepts for it. DWORDs
+    /// compare numerically but must be stored as REG_DWORD: Windows reads these settings as numbers, so a "0" stored as
+    /// text (REG_SZ, as some scripts and .reg files write it) is ignored and the setting stays at its default. Strings
+    /// compare case-insensitively (REG_SZ or REG_EXPAND_SZ), and binary values by their first byte because Windows
     /// stores a timestamp after it in the StartupApproved flags.
     /// </summary>
     public static bool Matches(RegistryData? current, DebloatValueKind kind, string? expected)
@@ -62,7 +64,7 @@ public static class RegistryValueCodec
             return current is null;
         }
 
-        if (current is null)
+        if (current is null || !KindAccepted(current.Kind, kind))
         {
             return false;
         }
@@ -82,6 +84,38 @@ public static class RegistryValueCodec
                 return string.Equals(current.Value, expected, StringComparison.OrdinalIgnoreCase);
         }
     }
+
+    /// <summary>True when a value stored as <paramref name="actual"/> is read by Windows as <paramref name="wanted"/>.</summary>
+    public static bool KindAccepted(DebloatValueKind actual, DebloatValueKind wanted) => wanted switch
+    {
+        DebloatValueKind.String or DebloatValueKind.ExpandString => actual is DebloatValueKind.String or DebloatValueKind.ExpandString,
+        _ => actual == wanted,
+    };
+
+    /// <summary>
+    /// A plain sentence when <paramref name="current"/> holds the wanted value but with a type Windows ignores (for
+    /// example the number 0 stored as text), otherwise null.
+    /// </summary>
+    public static string? WrongTypeDetail(RegistryData? current, DebloatValueKind wanted)
+    {
+        if (current is null || KindAccepted(current.Kind, wanted))
+        {
+            return null;
+        }
+
+        return $"Stored as {TypeName(current.Kind)}; Windows needs {TypeName(wanted)}";
+    }
+
+    /// <summary>The registry type name (REG_DWORD, REG_SZ, …).</summary>
+    public static string TypeName(DebloatValueKind kind) => kind switch
+    {
+        DebloatValueKind.DWord => "REG_DWORD",
+        DebloatValueKind.QWord => "REG_QWORD",
+        DebloatValueKind.Binary => "REG_BINARY",
+        DebloatValueKind.ExpandString => "REG_EXPAND_SZ",
+        DebloatValueKind.MultiString => "REG_MULTI_SZ",
+        _ => "REG_SZ",
+    };
 
     /// <summary>Parses QWORD text: decimal (signed or unsigned) or 0x-prefixed hex.</summary>
     public static bool TryParseQword(string? text, out ulong value)

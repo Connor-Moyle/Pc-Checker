@@ -27,14 +27,18 @@ public sealed class WindowsDebloatService : DebloatServiceBase
     private readonly IOptimizationService _optimization;
     private readonly IOptimizationService _batchOptimization;
     private readonly ILogger<WindowsDebloatService> _logger;
+    private readonly IRestorePointService _restorePoints;
+    private readonly ISettingsService _settings;
 
     public WindowsDebloatService(IChangeGuard guard, IActionJournal journal, IOptimizationService optimization, IWindowsFeatureService features,
-        IStartupService startup, ISettingsService settings, ILogger<WindowsDebloatService> logger, ILogger<WindowsFeatureService> featureLogger,
-        ILogger<WindowsOptimizationService> optimizationLogger)
+        IStartupService startup, ISettingsService settings, IRestorePointService restorePoints, ILogger<WindowsDebloatService> logger,
+        ILogger<WindowsFeatureService> featureLogger, ILogger<WindowsOptimizationService> optimizationLogger)
         : base(new DebloatEngine(new WindowsDebloatSystem(BatchFeatures(features, guard, featureLogger), logger), new DebloatCaptureBook(CapturePath(settings, logger))))
     {
         _guard = guard;
         _journal = journal;
+        _restorePoints = restorePoints;
+        _settings = settings;
         _optimization = optimization;
         _batchOptimization = BatchOptimization(optimization, guard, startup, optimizationLogger);
         _logger = logger;
@@ -49,7 +53,7 @@ public sealed class WindowsDebloatService : DebloatServiceBase
     /// optional feature changes (Recall), which the Windows Features page also never makes without one.
     /// </summary>
     public static bool RequiresRestorePoint(IReadOnlyList<DebloatTweak> tweaks, bool revert) =>
-        tweaks.Any(t => t.Operations.Any(o => o is OptionalFeatureOp)) || (!revert && tweaks.Any(t => !t.Reversible));
+        tweaks.Any(t => DebloatRules.NeedsRestorePoint(t, revert));
 
     public override async Task<IReadOnlyDictionary<string, TweakState>> GetStatesAsync(CancellationToken cancellationToken)
     {
@@ -116,6 +120,82 @@ public sealed class WindowsDebloatService : DebloatServiceBase
             : OperationResult.Fail("File Explorer could not be restarted. Sign out and back in to see the changes.");
     }
 
+    /// <summary>The Windows system drive ("C:" on almost every PC).</summary>
+    public override string SystemDrive
+    {
+        get
+        {
+            try
+            {
+                var root = Path.GetPathRoot(Environment.SystemDirectory);
+                return PlatformGuard.IsWindows && !string.IsNullOrWhiteSpace(root) ? root.TrimEnd('\\') : "C:";
+            }
+            catch (Exception)
+            {
+                return "C:";
+            }
+        }
+    }
+
+    public override async Task<DebloatRestorePointCheck> CheckRestorePointAsync(IReadOnlyList<string> tweakIds, bool revert, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(tweakIds);
+        var tweaks = tweakIds.Select(DebloatCatalog.Find).OfType<DebloatTweak>().ToList();
+        if (!RequiresRestorePoint(tweaks, revert) || !PlatformGuard.IsWindows)
+        {
+            return DebloatRestorePointCheck.Fine;
+        }
+
+        try
+        {
+            bool protectionOn = await _restorePoints.IsEnabledAsync(cancellationToken).ConfigureAwait(false);
+            DateTimeOffset? newest = null;
+            bool limitLifted = _settings.Current.RestorePoints.BypassFrequencyLimit;
+            if (protectionOn && !limitLifted)
+            {
+                var points = await _restorePoints.ListAsync(cancellationToken).ConfigureAwait(false);
+                newest = points.Count == 0 ? null : points.Max(p => p.CreationTime);
+            }
+
+            var problem = DebloatRestorePointRules.Assess(protectionOn, newest, DateTimeOffset.Now, limitLifted);
+            _logger.LogInformation("Debloat restore point check: {Problem}.", problem);
+            return new DebloatRestorePointCheck(true, problem, DebloatRestorePointRules.Describe(problem, SystemDrive));
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            // Unknown: the batch tries anyway, and an actual failure is reported (and asked about) afterwards.
+            _logger.LogWarning(ex, "Could not check System Protection before the debloat batch.");
+            return new DebloatRestorePointCheck(true, RestorePointProblem.None, string.Empty);
+        }
+    }
+
+    public override async Task<OperationResult> TurnOnSystemProtectionAsync(CancellationToken cancellationToken)
+    {
+        if (!PlatformGuard.IsWindows)
+        {
+            return OperationResult.Fail("System Protection is only available on Windows.");
+        }
+
+        var drive = SystemDrive;
+        var result = await _restorePoints.EnableAsync(drive, cancellationToken).ConfigureAwait(false);
+        _logger.LogInformation("Debloat: turning on System Protection for {Drive}: {Message}", drive, result.Message);
+        try
+        {
+            await _journal.RecordAsync(ActionRecord.Create(ModuleName, "Turn on System Protection", drive, (result.Success ? "Succeeded: " : "Failed: ") + result.Message,
+                reversible: true, undoHint: "Turn it off again in System Properties > System Protection > Configure.")).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not journal turning on System Protection.");
+        }
+
+        return result;
+    }
+
     public override OperationResult OpenSettings(string settingsUri)
     {
         if (string.IsNullOrWhiteSpace(settingsUri) ||
@@ -128,12 +208,15 @@ public sealed class WindowsDebloatService : DebloatServiceBase
     }
 
     protected override async Task<OperationResult<IReadOnlyList<TweakRunResult>>> RunGuardedAsync(string description, IReadOnlyList<DebloatTweak> tweaks, bool revert,
-        Func<CancellationToken, Task<IReadOnlyList<TweakRunResult>>> work, IProgress<ProgressUpdate>? progress, CancellationToken cancellationToken)
+        bool createRestorePoint, Func<CancellationToken, Task<IReadOnlyList<TweakRunResult>>> work, IProgress<ProgressUpdate>? progress, CancellationToken cancellationToken)
     {
         var target = string.Join(", ", tweaks.Select(t => t.Id));
         bool oneWay = !revert && tweaks.Any(t => !t.Reversible);
-        bool mustHaveRestorePoint = RequiresRestorePoint(tweaks, revert);
-        var options = new ChangeOptions(CreateBefore: true, CreateAfter: null, ModuleName, target, Reversible: !oneWay,
+
+        // Without a restore point (the user's choice) only tweaks that can be reverted from the capture book are in the
+        // batch, so nothing in it needs one.
+        bool mustHaveRestorePoint = createRestorePoint && RequiresRestorePoint(tweaks, revert);
+        var options = new ChangeOptions(CreateBefore: createRestorePoint, CreateAfter: createRestorePoint ? null : false, ModuleName, target, Reversible: !oneWay,
             UndoHint: revert
                 ? "Apply the tweaks again on the Debloat page."
                 : "Select the tweaks on the Debloat page and choose Revert (previous values are saved in debloat-capture.json), or use the restore point.")

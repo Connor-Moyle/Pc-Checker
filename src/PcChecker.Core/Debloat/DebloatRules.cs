@@ -87,6 +87,17 @@ public static class DebloatRules
             : $"{physical.Count} printer{(physical.Count == 1 ? string.Empty : "s")} installed ({string.Join(", ", physical.Take(3))}); left on so printing keeps working.";
     }
 
+    /// <summary>
+    /// True when this tweak must not run without a restore point behind it: one-way changes (app or OneDrive removal)
+    /// when applying, and Windows optional feature changes either way (the Windows Features page never makes those
+    /// without one). Everything else can be undone from the values saved before the change.
+    /// </summary>
+    public static bool NeedsRestorePoint(DebloatTweak tweak, bool revert)
+    {
+        ArgumentNullException.ThrowIfNull(tweak);
+        return tweak.Operations.Any(o => o is OptionalFeatureOp) || (!revert && !tweak.Reversible);
+    }
+
     /// <summary>The tweaks named by <paramref name="ids"/> plus every tweak with an operation on the same setting.</summary>
     public static IReadOnlyList<DebloatTweak> WithRelated(IEnumerable<string> ids, IEnumerable<DebloatTweak> all)
     {

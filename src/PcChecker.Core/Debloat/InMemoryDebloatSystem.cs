@@ -125,6 +125,15 @@ public sealed class InMemoryDebloatSystem : IDebloatSystem
 
     public IRegistryAccessor Registry => Memory;
 
+    public string? CurrentUserScopeId { get; set; }
+
+    public string? CurrentUserNote { get; set; }
+
+    /// <summary>How many times running programs were told about changed settings (for tests).</summary>
+    public int SettingsBroadcasts { get; private set; }
+
+    public void NotifySettingsChanged() => SettingsBroadcasts++;
+
     public int? OsBuild { get; set; }
 
     public Dictionary<string, bool> Tasks { get; } = new(StringComparer.OrdinalIgnoreCase);

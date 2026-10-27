@@ -54,8 +54,9 @@ public static class DebloatStateEvaluator
             TweakStatus.Applied when tweak.Operations.All(o => o is AppxRemovalOp) => "Not installed",
             TweakStatus.NotApplied when tweak.Operations.All(o => o is AppxRemovalOp) => "Installed",
             TweakStatus.Applied => "Applied",
-            TweakStatus.NotApplied => states.Count == 1 && states[0].Detail is not null ? states[0].Detail! : "Not applied",
-            TweakStatus.Partial => $"{states.Count(s => s.State == OperationState.Applied)} of {states.Count(s => s.State is OperationState.Applied or OperationState.NotApplied)} changes in place",
+            TweakStatus.NotApplied => WrongType(states) ?? (states.Count == 1 && states[0].Detail is not null ? states[0].Detail! : "Not applied"),
+            TweakStatus.Partial => $"{states.Count(s => s.State == OperationState.Applied)} of {states.Count(s => s.State is OperationState.Applied or OperationState.NotApplied)} changes in place"
+                                   + (WrongType(states) is { } wrong ? $" ({wrong})" : string.Empty),
             TweakStatus.NotApplicable => states.Select(s => s.Detail).FirstOrDefault(d => d is not null) ?? "Not present on this PC",
             _ => states.Select(s => s.Detail).FirstOrDefault(d => d is not null) ?? "Could not be checked",
         };
@@ -68,6 +69,10 @@ public static class DebloatStateEvaluator
 
         return new TweakState(tweak.Id, status, detail);
     }
+
+    private static string? WrongType(IEnumerable<(OperationState State, string? Detail)> states) =>
+        states.Where(s => s.State == OperationState.NotApplied).Select(s => s.Detail)
+            .FirstOrDefault(d => d is not null && d.StartsWith("Stored as ", StringComparison.Ordinal));
 
     /// <summary>
     /// Combines operation states: operations that do not exist on this PC are ignored; all applied → Applied, none →
@@ -140,7 +145,14 @@ public static class DebloatStateEvaluator
         }
 
         bool applied = RegistryValueCodec.Matches(current, op.Kind, op.AppliedValue);
-        return (applied ? OperationState.Applied : OperationState.NotApplied, current is null ? "Windows default" : null);
+        if (applied)
+        {
+            return (OperationState.Applied, null);
+        }
+
+        // A value with the right number but the wrong type (REG_SZ "0" where Windows reads a DWORD) is ignored by
+        // Windows, so it counts as not applied and says why; applying writes it again with the right type.
+        return (OperationState.NotApplied, current is null ? "Windows default" : RegistryValueCodec.WrongTypeDetail(current, op.Kind));
     }
 
     private static (OperationState, string?) EvaluateService(ServiceOp op, IRegistryAccessor registry)
