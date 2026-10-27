@@ -405,6 +405,11 @@ Options *Debugger* value for `taskmgr.exe`. When Windows launches Task Manager
   runs from Program Files and neither the program nor its folder can be
   changed by standard users. A user-writable copy could let another program
   take Task Manager's elevated slot, so the option stays off and explains why.
+  **Settings → General → Install in Program Files** (shown only while PC
+  Checker runs from somewhere else) copies the running exe to
+  `C:\Program Files\PC Checker\PcChecker.exe` in a folder it creates with
+  Program Files' own permissions, adds an all-users Start menu shortcut and
+  reopens from there. Settings are kept; the original copy is left alone.
 - **Safe and reversible**: turning it on and off is confirmed and journaled.
   When another program (such as Process Explorer) is already set in Task
   Manager's place, the confirmation names it; its value is saved and put back
@@ -2103,7 +2108,8 @@ How it works:
   From a folder such as Downloads or the Desktop, another program running as
   you could replace `PcChecker.exe` and be started with administrator rights
   without a UAC prompt, so PC Checker asks you to move it to
-  `C:\Program Files\PC Checker` first.
+  `C:\Program Files\PC Checker` first (*Install in Program Files* in
+  Settings → General does this).
 - When PC Checker runs as a different administrator account than the person
   signed in (a standard account that typed an administrator's password at the
   UAC prompt), no task is created: Task Scheduler would only start it while

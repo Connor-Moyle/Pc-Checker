@@ -40,6 +40,11 @@ point and written to a journal with an undo hint.
 and double-click it. That is the whole install: one file, nothing to set up, and .NET is built in. Run it from
 your Downloads folder, a tools folder or a USB stick.
 
+Three options start PC Checker with administrator rights without a UAC prompt: *Replace Task Manager*, *Start with
+Windows* and schedules. They only work when the exe is in a folder only administrators can change, so another
+program cannot swap it. **Settings → General → Install in Program Files** copies PC Checker to
+`C:\Program Files\PC Checker`, adds a Start menu shortcut and reopens from there; your settings are kept.
+
 Every release on the [Releases page](https://github.com/Connor-Moyle/Pc-Checker/releases) is that single
 `PcChecker.exe`, with its SHA-256 checksum in the release notes. The app **updates itself**: when a new version is
 out it downloads the new exe, checks the checksum, swaps it in and restarts (Settings → Updates; pick the Beta

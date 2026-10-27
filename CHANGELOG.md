@@ -14,6 +14,14 @@ All notable changes to PC Checker are recorded here. The format follows
   DirectX June 2010 runtime, Visual C++ 2005–2022 (32 and 64-bit), .NET 3.5,
   DirectPlay, XNA 4.0, OpenAL or NVIDIA PhysX from the maker over HTTPS, only
   after a valid signature check, and never single DLL files.
+- **Install in Program Files** (Settings → General): the portable exe copies
+  itself to `C:\Program Files\PC Checker`, adds a Start menu shortcut and
+  reopens from there, so *Replace Task Manager*, *Start with Windows* and
+  schedules can be turned on.
+
+### Fixed
+- The message for an unsafe install folder no longer tells you to use an
+  installer that does not exist.
 
 ## [0.6.0] - 2026-10-27
 
