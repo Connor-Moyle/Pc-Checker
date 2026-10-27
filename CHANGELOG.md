@@ -7,7 +7,20 @@ All notable changes to PC Checker are recorded here. The format follows
 ## [Unreleased]
 
 ### Added
-- Nothing yet.
+- **Network** (its own section): Wi-Fi analysis with signal, band, channel
+  congestion and link-rate checks; a speed test with download, upload,
+  loaded latency (bufferbloat), jitter and packet loss; and Wi-Fi tuning
+  (DNS choice, DNS over HTTPS, adapter power saving, roaming and band
+  preferences, saved-network clean-up) with a *Quick improve* that measures
+  before and after. Every change can be reverted.
+- **Registry** (under Clean up): scans for broken file associations, missing
+  shared DLLs, dead uninstall entries, orphaned startup and App Paths
+  entries and similar faults. Fixes are backed up to a `.reg` file first and
+  can be restored.
+- **Debloat** (under Clean up): privacy, telemetry, ads and suggestions,
+  Copilot and Recall, and built-in app removal, collected from the well-known
+  debloating tools into one reviewed list with presets. Each tweak shows what
+  it changes and can be reverted. See `docs/DEBLOAT.md`.
 
 ## [0.1.1] - 2026-10-27
 
