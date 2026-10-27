@@ -3,9 +3,10 @@ using PcChecker.Core.Common;
 namespace PcChecker.Core.Lighting;
 
 /// <summary>
-/// Demo lighting for the sample gaming desktop: a motherboard with two headers, two RAM sticks, a GPU, an AIO
-/// cooler, a keyboard, a mouse and a headset — all "connected" to a pretend OpenRGB server. Pure .NET; every change
-/// is remembered so the page reflects what was applied.
+/// Demo lighting for the sample gaming desktop: OpenRGB controls the motherboard (with a resizable addressable
+/// header), the graphics card and the keyboard; the Corsair cooler hub and RAM are found by the detection pass but held
+/// by iCUE (see <see cref="DemoRgbHardwareService"/>). Pure .NET; every change is remembered so the page reflects
+/// what was applied.
 /// </summary>
 public sealed class DemoLightingService : ILightingService
 {
@@ -33,12 +34,13 @@ public sealed class DemoLightingService : ILightingService
     private readonly object _gate = new();
     private readonly List<RgbDevice> _devices =
     [
-        new(0, DemoData.MotherboardName, "ASUS", OpenRgbDeviceTypes.Motherboard, null, 24, [new(0, "Aura header 1", 12), new(1, "Aura header 2", 12)], StandardModes, 0, DefaultBlue),
-        new(1, "G.Skill Trident Z5 RGB (slot A2)", "G.Skill", OpenRgbDeviceTypes.Ram, null, 8, [new(0, "Stick", 8)], StandardModes, 0, DefaultBlue),
-        new(2, "G.Skill Trident Z5 RGB (slot B2)", "G.Skill", OpenRgbDeviceTypes.Ram, null, 8, [new(0, "Stick", 8)], StandardModes, 0, DefaultBlue),
-        new(3, DemoData.GpuName, "NVIDIA", OpenRgbDeviceTypes.Gpu, null, 1, [new(0, "Logo", 1)], StandardModes, 1, DefaultBlue),
-        new(4, DemoData.KeyboardName, "Corsair", OpenRgbDeviceTypes.Keyboard, "K70-DEMO", 104, [new(0, "Keys", 104)], KeyboardModes, 3, null),
-        new(5, DemoData.MouseName, "Logitech", OpenRgbDeviceTypes.Mouse, null, 1, [new(0, "Logo", 1)], StandardModes, 1, new RgbColor(0xA7, 0x8B, 0xFA)),
+        new(0, DemoData.MotherboardName, "ASUS", OpenRgbDeviceTypes.Motherboard, null, 32,
+            [new(0, "Aura Mainboard", 8, 8, 8), new(1, "Addressable header 1", 24, 0, 120)], StandardModes, 0, DefaultBlue,
+            @"HID: \\?\HID#VID_0B05&PID_19AF&MI_02#8&2d4bd25e&0&0000#{4d1e55b2-f16f-11cf-88cb-001111000030}"),
+        new(1, DemoData.GpuName, "NVIDIA", OpenRgbDeviceTypes.Gpu, null, 1, [new(0, "Logo", 1, 1, 1)], StandardModes, 1, DefaultBlue,
+            "I2C: NVIDIA GPU, address 0x49"),
+        new(2, DemoData.KeyboardName, "Corsair", OpenRgbDeviceTypes.Keyboard, "K70-DEMO", 104, [new(0, "Keys", 104, 104, 104)], KeyboardModes, 3, null,
+            @"HID: \\?\HID#VID_1B1C&PID_1BC4&MI_01#8&1a2b3c4d&0&0000#{4d1e55b2-f16f-11cf-88cb-001111000030}"),
     ];
 
     private readonly Dictionary<int, (int Brightness, int Speed)> _levels = [];
@@ -53,6 +55,10 @@ public sealed class DemoLightingService : ILightingService
     public bool IsOpenRgbInstalled => true;
 
     public string? OpenRgbPath => @"C:\Program Files\OpenRGB\OpenRGB.exe";
+
+    public string ServerAddress => "127.0.0.1:6742";
+
+    public OpenRgbAvailability Availability => IsConnected ? OpenRgbAvailability.Connected : OpenRgbAvailability.InstalledNotRunning;
 
     public IReadOnlyList<LightingProfile> BuiltInProfiles => LightingProfileCatalog.BuiltIn;
 
@@ -128,6 +134,24 @@ public sealed class DemoLightingService : ILightingService
             var target = LightingApplyPlanner.PickColorModeIndex(d.Modes, d.ActiveModeIndex) ?? d.ActiveModeIndex;
             return d with { Color = color, ActiveModeIndex = target };
         }, d => $"{d.Zones[zoneIndex].Name} on {d.Name} set to {color.ToHex()}.", cancellationToken);
+
+    public Task<OperationResult> ResizeZoneAsync(int deviceIndex, int zoneIndex, int ledCount, CancellationToken cancellationToken)
+    {
+        int applied = 0;
+        return UpdateAsync(deviceIndex, d =>
+        {
+            if (zoneIndex < 0 || zoneIndex >= d.Zones.Count || !d.Zones[zoneIndex].IsResizable)
+            {
+                throw new ArgumentOutOfRangeException(nameof(zoneIndex), $"{d.Name} has no resizable zone {zoneIndex}.");
+            }
+
+            var zone = d.Zones[zoneIndex];
+            applied = LightingApplyPlanner.ClampZoneSize(zone, ledCount);
+            var zones = d.Zones.ToList();
+            zones[zoneIndex] = zone with { LedCount = applied };
+            return d with { Zones = zones, LedCount = zones.Sum(z => z.LedCount) };
+        }, d => $"{d.Zones[zoneIndex].Name} on {d.Name} now has {applied} LEDs.", cancellationToken);
+    }
 
     public Task<OperationResult> SetModeAsync(int deviceIndex, int modeIndex, RgbColor? color, int? speed, int? brightness, CancellationToken cancellationToken) =>
         UpdateAsync(deviceIndex, d =>

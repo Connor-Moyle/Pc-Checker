@@ -25,7 +25,65 @@ public static class OpenRgbInstallLocator
         Add(Environment.GetEnvironmentVariable("LOCALAPPDATA"), "Programs", "OpenRGB", "OpenRGB.exe");
         Add(Environment.GetEnvironmentVariable("ProgramW6432"), "OpenRGB", "OpenRGB.exe");
         Add(Environment.GetEnvironmentVariable("LOCALAPPDATA"), "Microsoft", "WinGet", "Packages", "OpenRGB.OpenRGB_Microsoft.Winget.Source_8wekyb3d8bbwe", "OpenRGB.exe");
+        // winget installs OpenRGB's zip as a "portable" package: machine scope under Program Files, user scope under AppData.
+        foreach (var root in new[] { Environment.GetEnvironmentVariable("ProgramFiles"), Environment.GetEnvironmentVariable("LOCALAPPDATA") is { } local ? Path.Combine(local, "Microsoft") : null })
+        {
+            foreach (var exe in WingetPortableCandidates(root))
+            {
+                list.Add(exe);
+            }
+        }
+
         return list.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+    }
+
+    /// <summary>Folders only administrators can change; PC Checker (running as administrator) only starts OpenRGB from these.</summary>
+    public static IReadOnlyList<string?> ProtectedRoots() =>
+    [
+        Environment.GetEnvironmentVariable("ProgramFiles"),
+        Environment.GetEnvironmentVariable("ProgramFiles(x86)"),
+        Environment.GetEnvironmentVariable("ProgramW6432"),
+    ];
+
+    /// <summary>OpenRGB.exe inside winget's portable package folders (CalcProgrammer1.OpenRGB_…), up to two folders deep.</summary>
+    private static IEnumerable<string> WingetPortableCandidates(string? root)
+    {
+        if (string.IsNullOrWhiteSpace(root))
+        {
+            yield break;
+        }
+
+        string packages = Path.Combine(root, "WinGet", "Packages");
+        List<string> folders;
+        try
+        {
+            folders = Directory.Exists(packages)
+                ? Directory.EnumerateDirectories(packages, OpenRgbInstallRules.WingetPackageId + "*").ToList()
+                : [];
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+        {
+            folders = [];
+        }
+
+        foreach (var folder in folders)
+        {
+            yield return Path.Combine(folder, "OpenRGB.exe");
+            List<string> subs;
+            try
+            {
+                subs = Directory.EnumerateDirectories(folder).ToList();
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+            {
+                continue;
+            }
+
+            foreach (var sub in subs)
+            {
+                yield return Path.Combine(sub, "OpenRGB.exe");
+            }
+        }
     }
 
     /// <summary>Full path to OpenRGB.exe, or null when it is not installed (or we are not on Windows).</summary>
@@ -207,7 +265,10 @@ public static class OpenRgbInstallLocator
         }
     }
 
-    /// <summary>Starts OpenRGB with its SDK server enabled and minimized. Returns the error text when it cannot start.</summary>
+    /// <summary>
+    /// Starts OpenRGB with its SDK server enabled and minimized, only from a protected folder (Program Files).
+    /// Returns the error text when it cannot or may not start.
+    /// </summary>
     public static OperationResult StartServer(string executablePath, int port)
     {
         if (!PlatformGuard.IsWindows)
@@ -217,13 +278,21 @@ public static class OpenRgbInstallLocator
 
         try
         {
+            if (!OpenRgbInstallRules.MayStart(executablePath, ProtectedRoots()))
+            {
+                return OperationResult.Fail(OpenRgbInstallRules.StartRefusal(executablePath));
+            }
+
             var psi = new ProcessStartInfo(executablePath)
             {
-                Arguments = $"--server --server-port {port} --startminimized",
-                UseShellExecute = true,
+                UseShellExecute = false,
                 WorkingDirectory = Path.GetDirectoryName(executablePath) ?? string.Empty,
             };
-            Process.Start(psi);
+            psi.ArgumentList.Add("--server");
+            psi.ArgumentList.Add("--server-port");
+            psi.ArgumentList.Add(port.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            psi.ArgumentList.Add("--startminimized");
+            using var started = Process.Start(psi);
             return OperationResult.Ok("OpenRGB is starting with its SDK server enabled.");
         }
         catch (Exception ex)
