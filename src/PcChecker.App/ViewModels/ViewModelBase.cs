@@ -14,6 +14,9 @@ public abstract partial class ViewModelBase : ObservableObject
     private readonly object _initGate = new();
     private CancellationTokenSource? _busyCts;
     private Task? _initializeTask;
+    private int _busyCancellations;
+    private bool _isInitialized;
+    private bool _initializationCancelled;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsNotBusy))]
@@ -43,19 +46,37 @@ public abstract partial class ViewModelBase : ObservableObject
 
     public bool IsNotBusy => !IsBusy;
 
-    /// <summary>True once <see cref="InitializeAsync"/> has completed (successfully or with an error shown).</summary>
-    public bool IsInitialized { get; private set; }
+    /// <summary>
+    /// True once <see cref="InitializeAsync"/> has completed (successfully or with an error shown). Stays false when the
+    /// user cancelled the first load, so the next <see cref="EnsureInitializedAsync"/> runs it again.
+    /// </summary>
+    public bool IsInitialized
+    {
+        get => _isInitialized;
+        private set => SetProperty(ref _isInitialized, value);
+    }
+
+    /// <summary>True when the last initialization attempt was cancelled; the page loads again when shown next.</summary>
+    public bool InitializationCancelled
+    {
+        get => _initializationCancelled;
+        private set => SetProperty(ref _initializationCancelled, value);
+    }
 
     public bool HasError => !string.IsNullOrWhiteSpace(ErrorMessage);
 
     protected ISettingsService Settings => _settings ?? throw new InvalidOperationException("This view model was created without settings.");
 
-    /// <summary>Runs a long operation with the busy overlay shown; exceptions become <see cref="ErrorMessage"/>.</summary>
-    protected async Task RunBusyAsync(Func<CancellationToken, Task> work, string busyText = "Working…")
+    /// <summary>
+    /// Runs a long operation with the busy overlay shown; exceptions become <see cref="ErrorMessage"/>. Returns false
+    /// when the operation was skipped (already busy) or cancelled. A cancellation is also recorded so that
+    /// <see cref="EnsureInitializedAsync"/> can tell a cancelled first load from a finished one.
+    /// </summary>
+    protected async Task<bool> RunBusyAsync(Func<CancellationToken, Task> work, string busyText = "Working…")
     {
         if (IsBusy)
         {
-            return;
+            return false;
         }
 
         _busyCts?.Dispose();
@@ -67,15 +88,19 @@ public abstract partial class ViewModelBase : ObservableObject
         try
         {
             await work(token);
+            return true;
         }
         catch (OperationCanceledException)
         {
-            // Cancelled by the user; nothing to report.
+            // Cancelled by the user; nothing to report, but let a pending initialization know it did not finish.
+            Interlocked.Increment(ref _busyCancellations);
+            return false;
         }
         catch (Exception ex)
         {
             ErrorMessage = ex.Message;
             OnBusyError(ex);
+            return false;
         }
         finally
         {
@@ -108,24 +133,43 @@ public abstract partial class ViewModelBase : ObservableObject
     {
         lock (_initGate)
         {
-            _initializeTask ??= InitializeCoreAsync(cancellationToken);
-            return _initializeTask;
+            if (_initializeTask is not null)
+            {
+                return _initializeTask;
+            }
+
+            var task = InitializeCoreAsync(cancellationToken);
+
+            // A run cancelled synchronously has already cleared the slot; keep it clear so the next call retries.
+            if (!(task.IsCompleted && InitializationCancelled))
+            {
+                _initializeTask = task;
+            }
+
+            return task;
         }
     }
 
     private async Task InitializeCoreAsync(CancellationToken cancellationToken)
     {
+        // Most pages load through RunBusyAsync, which swallows the user's Cancel; compare its cancellation count so a
+        // cancelled first load is not mistaken for a finished one.
+        var cancellationsBefore = Volatile.Read(ref _busyCancellations);
+        InitializationCancelled = false;
         try
         {
             await InitializeAsync(cancellationToken);
+            if (Volatile.Read(ref _busyCancellations) != cancellationsBefore)
+            {
+                MarkInitializationCancelled();
+                return;
+            }
+
             IsInitialized = true;
         }
         catch (OperationCanceledException)
         {
-            lock (_initGate)
-            {
-                _initializeTask = null;
-            }
+            MarkInitializationCancelled();
         }
         catch (Exception ex)
         {
@@ -133,6 +177,16 @@ public abstract partial class ViewModelBase : ObservableObject
             OnBusyError(ex);
             IsInitialized = true;
         }
+    }
+
+    private void MarkInitializationCancelled()
+    {
+        lock (_initGate)
+        {
+            _initializeTask = null;
+        }
+
+        InitializationCancelled = true;
     }
 
     [RelayCommand(CanExecute = nameof(IsBusy))]
