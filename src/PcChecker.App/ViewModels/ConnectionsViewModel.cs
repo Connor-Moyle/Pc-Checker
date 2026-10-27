@@ -84,7 +84,7 @@ public sealed partial class ConnectionsViewModel : ViewModelBase
     private ConnectionProgramRow? _selectedProgram;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasSelection))]
+    [NotifyPropertyChangedFor(nameof(HasSelection), nameof(EndProcessNote))]
     [NotifyCanExecuteChangedFor(nameof(EndProcessCommand), nameof(CloseConnectionCommand), nameof(CopyCommand), nameof(SearchRemoteCommand),
         nameof(OpenFileLocationCommand), nameof(GoToProcessCommand))]
     private ConnectionRow? _selectedRow;
@@ -118,6 +118,12 @@ public sealed partial class ConnectionsViewModel : ViewModelBase
     partial void OnWarningTextChanged(string? value) => OnPropertyChanged(nameof(HasWarning));
 
     public bool HasSelection => SelectedRow is not null;
+
+    /// <summary>Why the selected program cannot be ended here (Windows' critical processes and the like), or null.</summary>
+    public string? EndProcessNote => SelectedRow is { } row
+        && ConnectionProcesses.EndRefusal(row.Process, row.Endpoint.Pid, _processes.OwnProcessId) is { } reason
+            ? Loc.T(reason)
+            : null;
 
     public string PauseText => IsPaused ? Loc.T("Resume") : Loc.T("Pause");
 
@@ -350,7 +356,7 @@ public sealed partial class ConnectionsViewModel : ViewModelBase
         ProgramsText = groups.Count.ToString(CultureInfo.CurrentCulture);
         ConnectedText = all.Count(e => e.Protocol == ConnectionProtocol.Tcp && e.State == TcpState.Established && !ConnectionRules.IsLocalOnly(e))
             .ToString(CultureInfo.CurrentCulture);
-        ListeningText = all.Count(e => e.Protocol == ConnectionProtocol.Tcp && e.State == TcpState.Listen).ToString(CultureInfo.CurrentCulture);
+        ListeningText = all.Count(ConnectionRules.IsListening).ToString(CultureInfo.CurrentCulture);
 
         var exposed = all.Where(e => ConnectionRules.AcceptsFromOtherDevices(e, processes.GetValueOrDefault(e.Pid)?.IsWindows ?? false))
             .GroupBy(e => ConnectionProcesses.NameOf(processes.GetValueOrDefault(e.Pid), e.Pid), StringComparer.OrdinalIgnoreCase)
@@ -421,7 +427,8 @@ public sealed partial class ConnectionsViewModel : ViewModelBase
 
     private bool HasSelectionForCommand() => SelectedRow is not null;
 
-    private bool CanEndProcess() => SelectedRow is { Process: not null } row && row.Endpoint.Pid > 4 && row.Endpoint.Pid != _processes.OwnProcessId;
+    private bool CanEndProcess() => SelectedRow is { Process: not null } row
+        && ConnectionProcesses.EndRefusal(row.Process, row.Endpoint.Pid, _processes.OwnProcessId) is null;
 
     private bool CanCloseConnection() => SelectedRow is { } row && _connections.CanCloseConnections && ConnectionRules.CloseRefusal(row.Endpoint) is null;
 
@@ -554,6 +561,7 @@ public sealed partial class ConnectionsViewModel : ViewModelBase
     private void NotifyCommands()
     {
         EndProcessCommand.NotifyCanExecuteChanged();
+        OnPropertyChanged(nameof(EndProcessNote));
         CloseConnectionCommand.NotifyCanExecuteChanged();
         SearchRemoteCommand.NotifyCanExecuteChanged();
         OpenFileLocationCommand.NotifyCanExecuteChanged();

@@ -38,6 +38,28 @@ public static class TaskAnalysis
         };
     }
 
+    /// <summary>
+    /// True when the program's signature should be checked: always for other companies' tasks, and for Windows' own
+    /// upkeep tasks (\Microsoft\Windows\) when the program lies outside the Windows folder, because a program
+    /// planted under a Microsoft folder would otherwise pass as Microsoft's and stay out of the default view.
+    /// </summary>
+    public static bool NeedsSignatureCheck(ScheduledTaskInfo task, string? programPath, string windowsDirectory)
+    {
+        ArgumentNullException.ThrowIfNull(task);
+        if (string.IsNullOrWhiteSpace(programPath))
+        {
+            return false;
+        }
+
+        if (!task.IsWindowsTask)
+        {
+            return true;
+        }
+
+        var windows = windowsDirectory.Replace('/', '\\').TrimEnd('\\') + "\\";
+        return !programPath.Replace('/', '\\').StartsWith(windows, StringComparison.OrdinalIgnoreCase);
+    }
+
     /// <summary>A privacy-friendly web search for the task name and its program's file name.</summary>
     public static string SearchUrl(ScheduledTaskInfo task)
     {

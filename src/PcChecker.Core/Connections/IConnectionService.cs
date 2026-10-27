@@ -38,6 +38,28 @@ public static class ConnectionProcesses
         return new ProcessInfo(process.Pid, 0, process.Name, process.Path, null, process.StartTime, 0, 0, 0, 0, null, null, SignatureInfo.Unknown);
     }
 
+    /// <summary>
+    /// Why "End process" is not offered for this program, or null. The same checks the process service makes before
+    /// ending anything (Windows' critical processes, PC Checker itself, a process whose start time is unknown), made up
+    /// front so the page can say why instead of refusing after the confirmation.
+    /// </summary>
+    public static string? EndRefusal(ConnectionProcess? process, int pid, int ownPid)
+    {
+        if (CriticalProcessRules.Reason(process?.Name ?? NameOf(process, pid), pid, ownPid) is { } reason)
+        {
+            return reason;
+        }
+
+        if (process is null)
+        {
+            return "This program has already closed.";
+        }
+
+        return process.StartTime is null
+            ? $"PC Checker cannot tell {process.Name} apart from a newer process with the same ID, so it leaves it alone. Use Task Manager if you need to end it."
+            : null;
+    }
+
     /// <summary>The name to show for a process id that has no process record (it ended between two reads).</summary>
     public static string NameOf(ConnectionProcess? process, int pid) =>
         process?.Name ?? (pid switch

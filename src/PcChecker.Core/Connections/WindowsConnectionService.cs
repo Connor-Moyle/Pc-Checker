@@ -179,21 +179,50 @@ public sealed class WindowsConnectionService : IConnectionService
         });
     }
 
+    private static readonly TimeSpan LookupTimeout = TimeSpan.FromSeconds(5);
+
+    /// <summary>
+    /// The reverse DNS name of the address, or null. The system lookup cannot be stopped once it runs, so the wait for it
+    /// is limited instead: after five seconds the answer is "no name" (and the cache remembers that), while the lookup
+    /// finishes on its own in the background. Only cancellation by the caller throws.
+    /// </summary>
     public async Task<string?> LookUpHostAsync(IPAddress address, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(address);
-        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeout.CancelAfter(TimeSpan.FromSeconds(5));
+        Task<IPHostEntry> lookup;
         try
         {
-            var entry = await Dns.GetHostEntryAsync(address.ToString(), timeout.Token).ConfigureAwait(false);
+            lookup = Dns.GetHostEntryAsync(address);
+        }
+        catch (Exception ex) when (ex is System.Net.Sockets.SocketException or ArgumentException)
+        {
+            return null;
+        }
+
+        try
+        {
+            var entry = await lookup.WaitAsync(LookupTimeout, cancellationToken).ConfigureAwait(false);
             return entry.HostName;
+        }
+        catch (TimeoutException)
+        {
+            Observe(lookup);
+            return null;
+        }
+        catch (OperationCanceledException)
+        {
+            Observe(lookup);
+            throw;
         }
         catch (Exception ex) when (ex is System.Net.Sockets.SocketException or ArgumentException)
         {
             return null;
         }
     }
+
+    // A lookup left running after a timeout may still fail; read its error so it is not reported as unobserved.
+    private static void Observe(Task task) =>
+        _ = task.ContinueWith(t => _ = t.Exception, CancellationToken.None, TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
 
     public Task<OperationResult> CloseConnectionAsync(NetworkEndpoint endpoint, ConnectionProcess? process, CancellationToken cancellationToken)
     {

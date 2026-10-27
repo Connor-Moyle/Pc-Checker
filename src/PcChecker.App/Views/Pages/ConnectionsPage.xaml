@@ -270,6 +270,8 @@
               <ui:Button Content="End process…" Icon="{ui:SymbolIcon Dismiss24}" Appearance="Danger" Margin="0,0,8,8" Command="{Binding EndProcessCommand}"
                          ToolTip="Close the program and all its connections" />
             </WrapPanel>
+            <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Text="{Binding EndProcessNote}"
+                          Visibility="{Binding EndProcessNote, Converter={StaticResource NullToVisibility}}" />
           </StackPanel>
         </ui:Card>
 

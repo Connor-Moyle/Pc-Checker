@@ -82,7 +82,7 @@ public static partial class TaskSuspicionRules
         return reasons;
     }
 
-    /// <summary>"AppData", "the Temp folder", "the Public user folder" or "Downloads" when the text points into one; otherwise null.</summary>
+    /// <summary>"AppData", "the Temp folder", "the Public user folder", "Downloads" or "ProgramData" when the text points into one; otherwise null.</summary>
     public static string? WritableFolder(string? text)
     {
         if (string.IsNullOrWhiteSpace(text))
@@ -111,6 +111,13 @@ public static partial class TaskSuspicionRules
         if (t.Contains(@"\Downloads\", StringComparison.OrdinalIgnoreCase))
         {
             return "Downloads";
+        }
+
+        // Any user can create folders and files under C:\ProgramData.
+        if (t.Contains(@":\ProgramData\", StringComparison.OrdinalIgnoreCase) || t.Contains("%ProgramData%", StringComparison.OrdinalIgnoreCase)
+            || t.Contains("%ALLUSERSPROFILE%", StringComparison.OrdinalIgnoreCase))
+        {
+            return "ProgramData";
         }
 
         return null;

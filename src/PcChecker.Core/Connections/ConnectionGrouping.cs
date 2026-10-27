@@ -30,7 +30,7 @@ public static class ConnectionGrouping
                     list.Select(e => processes.GetValueOrDefault(e.Pid)?.Publisher).FirstOrDefault(p => !string.IsNullOrWhiteSpace(p)),
                     list.Select(e => e.Pid).Distinct().Order().ToList(),
                     list,
-                    list.Count(e => e.Protocol == ConnectionProtocol.Tcp && e.State == TcpState.Listen),
+                    list.Count(ConnectionRules.IsListening),
                     list.Count(e => e.Protocol == ConnectionProtocol.Tcp && e.State == TcpState.Established),
                     list.Any(e => ConnectionRules.AcceptsFromOtherDevices(e, windows)),
                     windows);
@@ -60,7 +60,7 @@ public static class ConnectionGrouping
 
                 bool kind = filter switch
                 {
-                    ConnectionFilterKind.Listening => e.Protocol == ConnectionProtocol.Tcp && e.State == TcpState.Listen,
+                    ConnectionFilterKind.Listening => ConnectionRules.IsListening(e),
                     ConnectionFilterKind.Established => e.Protocol == ConnectionProtocol.Tcp && e.State == TcpState.Established,
                     _ => true,
                 };

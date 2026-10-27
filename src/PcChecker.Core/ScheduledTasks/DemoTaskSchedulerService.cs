@@ -55,11 +55,12 @@ public sealed class DemoTaskSchedulerService : ITaskSchedulerService
         return OperationResult.Ok($"{task.Name} was stopped.");
     }
 
-    public async Task<OperationResult> SetEnabledAsync(ScheduledTaskInfo task, bool enabled, CancellationToken cancellationToken)
+    public async Task<OperationResult> SetEnabledAsync(ScheduledTaskInfo task, bool enabled, bool advancedMode, CancellationToken cancellationToken)
     {
-        if (task.IsPcCheckerTask)
+        ArgumentNullException.ThrowIfNull(task);
+        if (TaskSafetyRules.ToggleRefusal(task, advancedMode) is { } refusal)
         {
-            return OperationResult.Fail(TaskSafetyRules.OwnTaskReason);
+            return OperationResult.Fail(refusal);
         }
 
         await DemoData.DelayAsync(cancellationToken).ConfigureAwait(false);

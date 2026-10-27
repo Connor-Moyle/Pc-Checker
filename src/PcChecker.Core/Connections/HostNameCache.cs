@@ -63,14 +63,15 @@ public sealed class HostNameCache
             entered = true;
             name = Clean(await _lookup(address, cancellationToken).ConfigureAwait(false), address);
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
+            // The page stopped asking: forget the attempt so it is made again later.
             _pending.TryRemove(address, out _);
             return;
         }
         catch (Exception)
         {
-            // No reverse name (or no DNS server): remember that, so it is not asked again.
+            // No reverse name, no DNS server or a lookup that timed out: remember that, so it is not asked again.
         }
         finally
         {

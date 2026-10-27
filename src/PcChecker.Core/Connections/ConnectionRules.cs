@@ -53,6 +53,7 @@ public static class ConnectionRules
         return endpoint.RemoteAddress is null || IsAnyAddress(endpoint.RemoteAddress) || IsLoopback(endpoint.RemoteAddress);
     }
 
+    /// <summary>A TCP listener, or any UDP socket (UDP has no connections, so every UDP socket receives from anyone).</summary>
     public static bool IsListening(NetworkEndpoint endpoint)
     {
         ArgumentNullException.ThrowIfNull(endpoint);
@@ -80,17 +81,24 @@ public static class ConnectionRules
         return path.Replace('/', '\\').StartsWith(folder, StringComparison.OrdinalIgnoreCase);
     }
 
+    // Windows hands out outgoing (client) ports from 49152 up; an unconnected UDP socket there is almost always a
+    // program's own client socket, not a service waiting for others.
+    private const int FirstEphemeralPort = 49152;
+
     /// <summary>
-    /// True for a TCP listener on every network adapter (0.0.0.0 or ::) on a port Windows does not open itself: other
-    /// devices on the network (and, without a firewall rule against it, the internet) can connect to it.
+    /// True for a TCP listener or a UDP socket on every network adapter (0.0.0.0 or ::) on a port Windows does not open
+    /// itself: other devices on the network (and, without a firewall rule against it, the internet) can reach it. UDP
+    /// sockets on Windows' client port range (49152 and up) are left out, since programs open those to send.
     /// </summary>
     public static bool AcceptsFromOtherDevices(NetworkEndpoint endpoint, bool windowsProcess)
     {
         ArgumentNullException.ThrowIfNull(endpoint);
-        return endpoint.Protocol == ConnectionProtocol.Tcp
-               && endpoint.State == TcpState.Listen
-               && IsAnyAddress(endpoint.LocalAddress)
-               && !IsWindowsPort(endpoint.LocalPort, windowsProcess);
+        if (!IsListening(endpoint) || !IsAnyAddress(endpoint.LocalAddress) || IsWindowsPort(endpoint.LocalPort, windowsProcess))
+        {
+            return false;
+        }
+
+        return endpoint.Protocol == ConnectionProtocol.Tcp || endpoint.LocalPort is > 0 and < FirstEphemeralPort;
     }
 
     /// <summary>Only IPv4 TCP connections that are not listening can be closed with SetTcpEntry.</summary>

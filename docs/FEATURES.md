@@ -1158,12 +1158,13 @@ Startup.
   adware, plus any task with a warning), *All tasks*, *Microsoft*, *With
   warnings* and *Turned off*, and a search over name, program and company.
 - **Warnings** with a plain reason: the program runs from AppData, Temp,
-  the Public folder or Downloads and is not validly signed; a script host
+  the Public folder, Downloads or ProgramData and is not validly signed; a script host
   (PowerShell, wscript, mshta…) runs an encoded command or downloads code;
   the task is hidden from Task Scheduler's list (outside Microsoft's
   folder); the program has no valid signature. A task that only claims to be
   from Microsoft (its program is unsigned or signed by someone else) is not
-  treated as Microsoft's. A note explains tasks whose program is gone.
+  treated as Microsoft's; this is checked for Windows' own folder too
+  whenever the program lies outside the Windows folder. A note explains tasks whose program is gone.
 - **Details card**: what it runs, as which account (SYSTEM, a user, highest
   privileges), every trigger, the last result and next run.
 - **Actions** (right-click, *More*, buttons and shortcuts): *Run now*
@@ -1562,11 +1563,12 @@ section.
   closed…, with the technical name as a tooltip) and, with *Show host
   names* on, the remote host name (reverse DNS through your own DNS server,
   looked up in the background and remembered; off by default).
-- **Filters**: all, listening or connected; *Hide this-PC-only* (on by
+- **Filters**: all, listening (TCP listeners and UDP sockets) or connected; *Hide this-PC-only* (on by
   default) hides traffic between programs on the PC itself; a search over
   program, address, port, state and host name.
 - **Open to other devices**: a program listening on every network adapter
-  (0.0.0.0 or ::) on a port Windows does not open itself is marked
+  (0.0.0.0 or ::) on a port Windows does not open itself (TCP, or UDP below
+  Windows' outgoing port range 49152) is marked
   "Accepts connections from other devices", counted in a tile and listed in
   a banner with its ports.
 - Refreshes every 2 seconds while the page is visible, with *Pause*

@@ -407,6 +407,47 @@ public class ScheduledTasksTests
         Assert.Contains("duckduckgo.com", TaskAnalysis.SearchUrl(info));
     }
 
+    [Fact]
+    public void A_program_planted_under_a_Windows_task_folder_is_checked_and_shown()
+    {
+        // Windows' own tasks are only signature-checked when their program lies outside the Windows folder.
+        var planted = Info(@"\Microsoft\Windows\Foo\Bar", program: @"C:\ProgramData\x\y.exe");
+        Assert.True(TaskAnalysis.NeedsSignatureCheck(planted, planted.ProgramPath, @"C:\Windows"));
+        Assert.False(TaskAnalysis.NeedsSignatureCheck(planted, @"C:\Windows\System32\defrag.exe", @"C:\Windows\"));
+        Assert.True(TaskAnalysis.NeedsSignatureCheck(Info(@"\Vendor\Update"), @"C:\Windows\System32\cmd.exe", @"C:\Windows"));
+        Assert.False(TaskAnalysis.NeedsSignatureCheck(planted, null, @"C:\Windows"));
+
+        Assert.Equal("ProgramData", TaskSuspicionRules.WritableFolder(@"C:\ProgramData\x\y.exe"));
+        Assert.Equal("ProgramData", TaskSuspicionRules.WritableFolder(@"%ProgramData%\x\y.exe"));
+
+        var info = TaskAnalysis.Complete(planted, planted.ProgramPath, true, Unsigned);
+        Assert.False(info.IsMicrosoft);
+        Assert.Contains(info.Flags, f => f.Contains("ProgramData", StringComparison.Ordinal));
+        Assert.Contains(TaskSuspicionRules.UnsignedReason, info.Flags);
+        Assert.Contains(info, TaskSafetyRules.Filter([info], TaskListFilter.NotMicrosoft, null));
+
+        // Windows Defender runs from ProgramData too, signed by Microsoft: no flag.
+        var defender = TaskAnalysis.Complete(Info(@"\Microsoft\Windows\Windows Defender\Windows Defender Scheduled Scan",
+                program: @"C:\ProgramData\Microsoft\Windows Defender\Platform\4.18.24090.11-0\MpCmdRun.exe"),
+            @"C:\ProgramData\Microsoft\Windows Defender\Platform\4.18.24090.11-0\MpCmdRun.exe", true, MicrosoftSigned);
+        Assert.True(defender.IsMicrosoft);
+        Assert.Empty(defender.Flags);
+    }
+
+    [Fact]
+    public async Task The_service_itself_refuses_to_toggle_Windows_tasks_outside_Advanced_mode()
+    {
+        var service = new DemoTaskSchedulerService();
+        var windowsTask = (await service.GetTasksAsync(CancellationToken.None)).Tasks.First(t => t.IsWindowsTask);
+
+        var refused = await service.SetEnabledAsync(windowsTask, false, advancedMode: false, CancellationToken.None);
+        Assert.False(refused.Success);
+        Assert.Equal(TaskSafetyRules.WindowsReadOnlyReason, refused.Message);
+
+        var allowed = await service.SetEnabledAsync(windowsTask, false, advancedMode: true, CancellationToken.None);
+        Assert.True(allowed.Success);
+    }
+
     private static TaskDefinition Definition(string command, string? arguments, bool hidden = false, string? user = null, bool highest = false) =>
         new(null, null, [new TaskTrigger(TaskTriggerKind.Logon)], [new TaskAction(TaskActionKind.Exec, command, arguments)], user, null, "InteractiveToken", highest, hidden, true);
 

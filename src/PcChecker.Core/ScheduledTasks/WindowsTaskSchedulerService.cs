@@ -175,7 +175,10 @@ public sealed partial class WindowsTaskSchedulerService : ITaskSchedulerService
         return new ScheduledTaskList(tasks, 0, false, "Only the task definitions could be read, so state, last run and next run are not shown.");
     }
 
-    /// <summary>Resolves each program, checks signatures (not for Windows' own upkeep tasks) and applies the rules.</summary>
+    /// <summary>
+    /// Resolves each program, checks signatures and applies the rules. Windows' own upkeep tasks are only checked when
+    /// their program lies outside the Windows folder, so a planted program cannot hide under a Microsoft folder.
+    /// </summary>
     private IReadOnlyList<ScheduledTaskInfo> Enrich(IReadOnlyList<ScheduledTaskInfo> tasks, CancellationToken cancellationToken)
     {
         var resolved = tasks.Select(t =>
@@ -186,7 +189,7 @@ public sealed partial class WindowsTaskSchedulerService : ITaskSchedulerService
         }).ToList();
 
         var toCheck = resolved
-            .Where(r => r.Exists == true && (!r.Task.IsWindowsTask || TaskSuspicionRules.WritableFolder(r.Program) is not null))
+            .Where(r => r.Exists == true && TaskAnalysis.NeedsSignatureCheck(r.Task, r.Program, WindowsDirectory))
             .Select(r => r.Program!)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .Where(p => !_signatures.ContainsKey(p))
@@ -247,12 +250,12 @@ public sealed partial class WindowsTaskSchedulerService : ITaskSchedulerService
         }, null, cancellationToken);
     }
 
-    public Task<OperationResult> SetEnabledAsync(ScheduledTaskInfo task, bool enabled, CancellationToken cancellationToken)
+    public Task<OperationResult> SetEnabledAsync(ScheduledTaskInfo task, bool enabled, bool advancedMode, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(task);
-        if (task.IsPcCheckerTask)
+        if (TaskSafetyRules.ToggleRefusal(task, advancedMode) is { } refusal)
         {
-            return Task.FromResult(OperationResult.Fail(TaskSafetyRules.OwnTaskReason));
+            return Task.FromResult(OperationResult.Fail(refusal));
         }
 
         if (!PlatformGuard.IsWindows)

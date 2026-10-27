@@ -177,7 +177,11 @@ public class ConnectionsTests
         Assert.False(ConnectionRules.AcceptsFromOtherDevices(Listen(IPAddress.Any, 445, 4), windowsProcess: true));
         Assert.False(ConnectionRules.AcceptsFromOtherDevices(Listen(IPAddress.Any, 49664, 1012), windowsProcess: true));
         Assert.True(ConnectionRules.AcceptsFromOtherDevices(Listen(IPAddress.Any, 49664, 11840), windowsProcess: false));
-        Assert.False(ConnectionRules.AcceptsFromOtherDevices(Udp(IPAddress.Any, 27036, 11840), windowsProcess: false));
+        Assert.True(ConnectionRules.AcceptsFromOtherDevices(Udp(IPAddress.Any, 27036, 11840), windowsProcess: false));
+        Assert.True(ConnectionRules.AcceptsFromOtherDevices(Udp(IPAddress.IPv6Any, 6881, 11840), windowsProcess: false));
+        Assert.False(ConnectionRules.AcceptsFromOtherDevices(Udp(IPAddress.Any, 5353, 1012), windowsProcess: true));
+        Assert.False(ConnectionRules.AcceptsFromOtherDevices(Udp(IPAddress.Any, 61542, 9412), windowsProcess: false));
+        Assert.False(ConnectionRules.AcceptsFromOtherDevices(Udp(IPAddress.Loopback, 27036, 11840), windowsProcess: false));
         Assert.False(ConnectionRules.AcceptsFromOtherDevices(Connected(25565, "192.168.1.42", 51022, 11840), windowsProcess: false));
         Assert.True(ConnectionRules.IsWindowsProcess("svchost.exe", null));
         Assert.True(ConnectionRules.IsWindowsProcess("helper.exe", @"C:\WINDOWS\system32\helper.exe"));
@@ -209,6 +213,7 @@ public class ConnectionsTests
         Assert.Equal("Google LLC", chrome.Publisher);
         Assert.False(groups[1].AcceptsFromOtherDevices);
         Assert.True(groups[1].IsWindows);
+        Assert.Equal(3, groups[1].Listening);
         Assert.True(groups[2].AcceptsFromOtherDevices);
         Assert.Equal(1, groups[2].Listening);
     }
@@ -225,8 +230,9 @@ public class ConnectionsTests
             Udp(IPAddress.Any, 5353, 1012),
         };
 
-        Assert.Equal(2, ConnectionGrouping.Filter(endpoints, Processes, ConnectionFilterKind.Listening, false, null).Count);
-        Assert.Single(ConnectionGrouping.Filter(endpoints, Processes, ConnectionFilterKind.Listening, true, null));
+        // UDP sockets count as listening, as ConnectionRules.IsListening says.
+        Assert.Equal(3, ConnectionGrouping.Filter(endpoints, Processes, ConnectionFilterKind.Listening, false, null).Count);
+        Assert.Equal(2, ConnectionGrouping.Filter(endpoints, Processes, ConnectionFilterKind.Listening, true, null).Count);
         Assert.Equal(2, ConnectionGrouping.Filter(endpoints, Processes, ConnectionFilterKind.Established, false, null).Count);
         Assert.Equal(3, ConnectionGrouping.Filter(endpoints, Processes, ConnectionFilterKind.All, true, null).Count);
         Assert.Single(ConnectionGrouping.Filter(endpoints, Processes, ConnectionFilterKind.All, true, "chrome 443"));
@@ -285,6 +291,48 @@ public class ConnectionsTests
         Assert.Equal(1, calls);
         Assert.Null(HostNameCache.Clean("140.82.112.25", github));
         Assert.Null(HostNameCache.Clean("  ", github));
+    }
+
+    [Fact]
+    public async Task A_lookup_that_times_out_is_remembered_but_a_cancelled_one_is_not()
+    {
+        int calls = 0;
+        var cache = new HostNameCache((_, _) =>
+        {
+            Interlocked.Increment(ref calls);
+            // What a lookup's own time limit throws: the caller did not cancel.
+            return Task.FromException<string?>(new OperationCanceledException());
+        });
+
+        var address = IPAddress.Parse("203.0.113.7");
+        Assert.Null(cache.Get(address, startLookup: true));
+        for (int i = 0; i < 100 && cache.Count == 0; i++)
+        {
+            await Task.Delay(20);
+        }
+
+        Assert.Equal(1, cache.Count);
+        Assert.Null(cache.Get(address, startLookup: true));
+        Assert.Equal(1, calls);
+
+        using var stopped = new CancellationTokenSource();
+        stopped.Cancel();
+        var other = new HostNameCache((_, ct) => Task.FromCanceled<string?>(ct));
+        Assert.Null(other.Get(address, startLookup: true, stopped.Token));
+        await Task.Delay(50);
+        Assert.Equal(0, other.Count);
+    }
+
+    [Fact]
+    public void End_process_is_refused_up_front_for_protected_processes()
+    {
+        var started = DateTimeOffset.Now.AddHours(-1);
+        Assert.NotNull(ConnectionProcesses.EndRefusal(new ConnectionProcess(812, "lsass.exe", @"C:\Windows\System32\lsass.exe", "Microsoft Windows", started, true), 812, 5000));
+        Assert.NotNull(ConnectionProcesses.EndRefusal(new ConnectionProcess(640, "csrss.exe", null, null, started, true), 640, 5000));
+        Assert.NotNull(ConnectionProcesses.EndRefusal(null, 4, 5000));
+        Assert.NotNull(ConnectionProcesses.EndRefusal(new ConnectionProcess(5000, "PcChecker.exe", null, null, started, false), 5000, 5000));
+        Assert.NotNull(ConnectionProcesses.EndRefusal(new ConnectionProcess(9412, "chrome.exe", null, null, null, false), 9412, 5000));
+        Assert.Null(ConnectionProcesses.EndRefusal(new ConnectionProcess(9412, "chrome.exe", null, "Google LLC", started, false), 9412, 5000));
     }
 
     private static NetworkEndpoint Listen(IPAddress address, int port, int pid) =>

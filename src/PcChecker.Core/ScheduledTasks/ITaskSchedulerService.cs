@@ -18,8 +18,11 @@ public interface ITaskSchedulerService
     /// <summary>Stops the running instances of the task. Journaled.</summary>
     Task<OperationResult> EndAsync(ScheduledTaskInfo task, CancellationToken cancellationToken);
 
-    /// <summary>Turns the task off or on. Journaled with the previous state; Windows' own tasks get a restore point first.</summary>
-    Task<OperationResult> SetEnabledAsync(ScheduledTaskInfo task, bool enabled, CancellationToken cancellationToken);
+    /// <summary>
+    /// Turns the task off or on. Journaled with the previous state; Windows' own tasks get a restore point first and
+    /// are refused unless <paramref name="advancedMode"/> is on (<see cref="TaskSafetyRules.ToggleRefusal"/>).
+    /// </summary>
+    Task<OperationResult> SetEnabledAsync(ScheduledTaskInfo task, bool enabled, bool advancedMode, CancellationToken cancellationToken);
 
     /// <summary>Saves the task's definition and deletes it (other companies' tasks only). It can be put back with <see cref="RestoreAsync"/>.</summary>
     Task<OperationResult> DeleteAsync(ScheduledTaskInfo task, CancellationToken cancellationToken);

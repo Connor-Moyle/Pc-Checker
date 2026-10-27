@@ -292,7 +292,7 @@ public sealed partial class ScheduledTasksViewModel : ViewModelBase
 
         if (await _dialogs.ConfirmAsync(Loc.T("Turn off task?"), message, Loc.T("Turn off"), isDanger: row.Task.IsWindowsTask))
         {
-            await RunActionAsync(() => _tasks.SetEnabledAsync(row.Task, false, CancellationToken.None));
+            await RunActionAsync(() => _tasks.SetEnabledAsync(row.Task, false, IsAdvancedMode, CancellationToken.None));
         }
     }
 
@@ -312,7 +312,7 @@ public sealed partial class ScheduledTasksViewModel : ViewModelBase
 
         if (await _dialogs.ConfirmAsync(Loc.T("Turn on task?"), message, Loc.T("Turn on"), isDanger: row.IsFlagged))
         {
-            await RunActionAsync(() => _tasks.SetEnabledAsync(row.Task, true, CancellationToken.None));
+            await RunActionAsync(() => _tasks.SetEnabledAsync(row.Task, true, IsAdvancedMode, CancellationToken.None));
         }
     }
 
