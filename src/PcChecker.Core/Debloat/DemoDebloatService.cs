@@ -102,6 +102,7 @@ public sealed class DemoDebloatService : DebloatServiceBase
         system.SetService("XboxNetApiSvc", DebloatStartMode.Manual);
         system.SetService("XboxGipSvc", DebloatStartMode.Manual);
         system.SetService("Fax", DebloatStartMode.Manual);
+        system.SetService("WerSvc", DebloatStartMode.Manual);
         system.SetService("Spooler", DebloatStartMode.Automatic);
         system.SetService("RemoteRegistry", DebloatStartMode.Disabled);
         system.SetService("MapsBroker", DebloatStartMode.AutomaticDelayed);

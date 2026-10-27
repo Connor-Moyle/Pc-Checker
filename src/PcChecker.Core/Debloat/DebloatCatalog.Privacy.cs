@@ -106,6 +106,7 @@ public static partial class DebloatCatalog
             [
                 Machine(@"SOFTWARE\Microsoft\Windows\Windows Error Reporting", "Disabled", 1, null),
                 Machine(@"SOFTWARE\Policies\Microsoft\Windows\Windows Error Reporting", "Disabled", 1, null),
+                Service("WerSvc", DebloatStartMode.Manual, DebloatStartMode.Manual),
             ],
             warning: "Microsoft no longer receives the reports it uses to offer fixes for crashing apps."),
 

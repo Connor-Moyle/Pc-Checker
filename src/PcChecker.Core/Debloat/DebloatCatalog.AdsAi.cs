@@ -26,9 +26,12 @@ public static partial class DebloatCatalog
             RiskLevel.Safe, From(Win11Debloat, ShutUp10, Sophia),
             [ContentFlagOff("SubscribedContent-338393Enabled"), ContentFlagOff("SubscribedContent-353694Enabled"), ContentFlagOff("SubscribedContent-353696Enabled")]),
 
-        Linked("ads.tips", AdsCategory, "Turn off tips, tricks and the welcome experience",
-            "No more \"Get tips and suggestions\" notifications or the welcome screen after updates. Same change as the Optimize page's notification action.",
-            RiskLevel.Safe, From(WinUtil, Win11Debloat, ShutUp10, Sophia, Privatezilla), "notifications.focus"),
+        // Own operations rather than the Optimize page's notification action: that action also switches
+        // SubscribedContent-338388Enabled, which belongs to ads.start, so reverting it would undo half of ads.start.
+        Tweak("ads.tips", AdsCategory, "Turn off tips, tricks and the welcome experience",
+            "No more \"Get tips and suggestions\" notifications or the welcome screen after updates.",
+            RiskLevel.Safe, From(WinUtil, Win11Debloat, ShutUp10, Sophia, Privatezilla),
+            [ContentFlagOff("SubscribedContent-338389Enabled"), ContentFlagOff("SubscribedContent-310093Enabled"), ContentFlagOff("SoftLandingEnabled")]),
 
         Tweak("ads.silentinstall", AdsCategory, "Stop automatic installs of suggested apps",
             "Windows stops silently installing promoted apps (games, social apps) for your account.",

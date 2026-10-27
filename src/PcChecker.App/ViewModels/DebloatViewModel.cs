@@ -24,8 +24,13 @@ public sealed partial class DebloatViewModel : ViewModelBase
 
     [ObservableProperty] private string _searchText = string.Empty;
     [ObservableProperty] private int _selectedCount;
-    [ObservableProperty] private int _applicableCount;
-    [ObservableProperty] private int _revertibleCount;
+    [ObservableProperty] [NotifyPropertyChangedFor(nameof(ApplyButtonText))] private int _applicableCount;
+    [ObservableProperty] [NotifyPropertyChangedFor(nameof(RevertButtonText))] private int _revertibleCount;
+
+    /// <summary>Footer button text (Button.Content is an object, so a binding StringFormat would be ignored).</summary>
+    public string ApplyButtonText => $"Apply selected ({ApplicableCount})";
+
+    public string RevertButtonText => $"Revert selected ({RevertibleCount})";
     [ObservableProperty] private string _selectionText = "Nothing selected";
     [ObservableProperty] private string _stateSummary = "Checking the current state of each tweak…";
     [ObservableProperty] private bool _isLoadingStates;

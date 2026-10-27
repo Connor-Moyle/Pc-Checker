@@ -32,6 +32,9 @@ public static class RegistryValueCodec
             "dword" => DebloatValueKind.DWord,
             "sz" => DebloatValueKind.String,
             "binary" => (DebloatValueKind?)DebloatValueKind.Binary,
+            "expand_sz" => DebloatValueKind.ExpandString,
+            "multi_sz" => DebloatValueKind.MultiString,
+            "qword" => DebloatValueKind.QWord,
             _ => null,
         };
         return kind is null ? null : new RegistryData(kind.Value, encoded[(colon + 1)..]);
@@ -41,6 +44,9 @@ public static class RegistryValueCodec
     {
         DebloatValueKind.DWord => "dword",
         DebloatValueKind.Binary => "binary",
+        DebloatValueKind.ExpandString => "expand_sz",
+        DebloatValueKind.MultiString => "multi_sz",
+        DebloatValueKind.QWord => "qword",
         _ => "sz",
     };
 
@@ -75,6 +81,35 @@ public static class RegistryValueCodec
             default:
                 return string.Equals(current.Value, expected, StringComparison.OrdinalIgnoreCase);
         }
+    }
+
+    /// <summary>Parses QWORD text: decimal (signed or unsigned) or 0x-prefixed hex.</summary>
+    public static bool TryParseQword(string? text, out ulong value)
+    {
+        value = 0;
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return false;
+        }
+
+        text = text.Trim();
+        if (text.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+        {
+            return ulong.TryParse(text[2..], NumberStyles.HexNumber, CultureInfo.InvariantCulture, out value);
+        }
+
+        if (ulong.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out value))
+        {
+            return true;
+        }
+
+        if (long.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out long signed))
+        {
+            value = unchecked((ulong)signed);
+            return true;
+        }
+
+        return false;
     }
 
     /// <summary>Parses DWORD text: decimal (signed or unsigned) or 0x-prefixed hex.</summary>
@@ -136,7 +171,8 @@ public static class RegistryValueCodec
     /// <summary>Short display form for dialogs: 0, "text", or hex bytes.</summary>
     public static string Display(DebloatValueKind kind, string value) => kind switch
     {
-        DebloatValueKind.String => value.Length == 0 ? "(empty)" : $"\"{value}\"",
+        DebloatValueKind.String or DebloatValueKind.ExpandString => value.Length == 0 ? "(empty)" : $"\"{value}\"",
+        DebloatValueKind.MultiString => value.Length == 0 ? "(empty)" : "\"" + value.Replace("\n", "\", \"", StringComparison.Ordinal) + "\"",
         DebloatValueKind.Binary => "hex:" + value,
         _ => value,
     };

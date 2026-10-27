@@ -1,5 +1,7 @@
+using PcChecker.Core.Common;
 using PcChecker.Core.Debloat;
 using PcChecker.Core.Optimization;
+using PcChecker.Core.Restore;
 using PcChecker.Core.WindowsFeatures;
 using Xunit;
 
@@ -631,5 +633,190 @@ public class DemoDebloatServiceTests
 
         var (importIds, _) = svc.ImportSelection(svc.ExportSelection(["ai.bing"]));
         Assert.Equal(["ai.bing"], importIds);
+    }
+}
+
+public class DebloatBatchTests
+{
+    /// <summary>Debloat service over the demo PC that records every guarded batch and can cancel part-way.</summary>
+    private sealed class ProbeService : DebloatServiceBase
+    {
+        private readonly IOptimizationService _optimization = new DemoOptimizationService([]);
+
+        public ProbeService()
+            : base(new DebloatEngine(DemoDebloatService.CreateSampleSystem(), new DebloatCaptureBook()))
+        {
+            ((InMemoryDebloatSystem)Engine.System).DelayMs = 0;
+        }
+
+        public List<IReadOnlyList<string>> Batches { get; } = [];
+
+        public CancellationTokenSource? CancelAfterFirst { get; set; }
+
+        public int DelegatedCalls { get; private set; }
+
+        public override Task<OperationResult> RestartExplorerAsync(CancellationToken cancellationToken) => Task.FromResult(OperationResult.Ok("ok"));
+
+        public override OperationResult OpenSettings(string settingsUri) => OperationResult.Ok("ok");
+
+        protected override async Task<OperationResult<IReadOnlyList<TweakRunResult>>> RunGuardedAsync(string description, IReadOnlyList<DebloatTweak> tweaks, bool revert,
+            Func<CancellationToken, Task<IReadOnlyList<TweakRunResult>>> work, IProgress<ProgressUpdate>? progress, CancellationToken cancellationToken)
+        {
+            Batches.Add(tweaks.Select(t => t.Id).ToList());
+            var results = await work(cancellationToken);
+            return OperationResult<IReadOnlyList<TweakRunResult>>.Ok(results, "done");
+        }
+
+        protected override Task<OperationResult> RunDelegatedAsync(string optimizationId, bool revert, CancellationToken cancellationToken)
+        {
+            DelegatedCalls++;
+            CancelAfterFirst?.Cancel();
+            return revert ? _optimization.RevertAsync(optimizationId, cancellationToken) : _optimization.ApplyAsync(optimizationId, cancellationToken);
+        }
+
+        protected override Task<ActionState> GetDelegatedStateAsync(string optimizationId, CancellationToken cancellationToken) =>
+            _optimization.GetStateAsync(optimizationId, cancellationToken);
+    }
+
+    [Fact]
+    public async Task App_removals_and_delegated_actions_run_inside_the_one_guarded_batch()
+    {
+        var svc = new ProbeService();
+        var ids = new[] { "apps.clipchamp", "privacy.telemetry", "ai.copilot", "gaming.gamemode" };
+        var result = await svc.ApplyAsync(ids, null, default);
+
+        var batch = Assert.Single(svc.Batches);
+        Assert.Equal(ids.Length, batch.Count);
+        Assert.Equal("ai.copilot", batch[0]); // in-place tweaks run first, then the external ones
+        Assert.Contains("apps.clipchamp", batch);
+        Assert.Equal(ids.Length, result.Results.Count);
+    }
+
+    [Fact]
+    public async Task Cancel_stops_between_tweaks_and_reports_the_rest_as_skipped()
+    {
+        var svc = new ProbeService();
+        using var cts = new CancellationTokenSource();
+        svc.CancelAfterFirst = cts;
+        var ids = new[] { "ai.copilot", "privacy.telemetry", "gaming.gamemode", "apps.clipchamp" };
+        var result = await svc.ApplyAsync(ids, null, cts.Token);
+
+        Assert.Equal(TweakOutcome.Applied, result.Results.Single(r => r.TweakId == "ai.copilot").Outcome);
+        Assert.Equal(TweakOutcome.Applied, result.Results.Single(r => r.TweakId == "privacy.telemetry").Outcome);
+        Assert.Equal(1, svc.DelegatedCalls);
+        var skipped = result.Results.Where(r => r.Outcome == TweakOutcome.Skipped).ToList();
+        Assert.Equal(2, skipped.Count);
+        Assert.All(skipped, r => Assert.Contains("Cancelled", r.Message));
+        Assert.Equal(TweakStatus.Applied, (await svc.GetStatesAsync(default))["ai.copilot"].Status);
+    }
+
+    [Fact]
+    public void Batch_guard_skips_per_change_restore_points_but_keeps_the_rest()
+    {
+        var options = new ChangeOptions(null, true, "Windows Features", "Clipchamp.Clipchamp", true, "Reinstall from the Store")
+        { OnRestorePointFailed = RestorePointFailedBehavior.Abort };
+        var inner = DebloatBatchChangeGuard.WithoutRestorePoint(options);
+        Assert.False(inner.CreateBefore);
+        Assert.False(inner.CreateAfter);
+        Assert.Equal(RestorePointFailedBehavior.Continue, inner.OnRestorePointFailed);
+        Assert.Equal(options.Module, inner.Module);
+        Assert.Equal(options.Target, inner.Target);
+        Assert.Equal(options.UndoHint, inner.UndoHint);
+    }
+
+    [Fact]
+    public async Task Batch_guard_forwards_to_the_real_guard()
+    {
+        var recorder = new RecordingGuard();
+        var guard = new DebloatBatchChangeGuard(recorder);
+        var result = await guard.RunGuardedAsync("Remove Clipchamp", ChangeOptions.For("Windows Features", "Clipchamp"),
+            _ => Task.FromResult(OperationResult.Ok("removed")), null, default);
+        Assert.True(result.Success);
+        Assert.Equal(false, Assert.Single(recorder.Options).CreateBefore);
+    }
+
+    [Fact]
+    public void Tips_tweak_does_not_share_registry_values_with_start_suggestions()
+    {
+        var tips = DebloatCatalog.Find("ads.tips")!;
+        Assert.Null(tips.DelegatesToOptimizationId);
+        var startKeys = DebloatCatalog.Find("ads.start")!.Operations.Select(o => o.Key).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        Assert.DoesNotContain(tips.Operations, o => startKeys.Contains(o.Key));
+        Assert.Empty(DebloatRules.Conflicts([tips, DebloatCatalog.Find("ads.start")!]));
+    }
+
+    [Fact]
+    public void Fax_and_spooler_wait_for_no_printers_and_error_reporting_sets_the_service()
+    {
+        Assert.Equal(DebloatPrecondition.NoPhysicalPrinters, DebloatCatalog.Find("svc.fax")!.Precondition);
+        Assert.Equal(DebloatPrecondition.NoPhysicalPrinters, DebloatCatalog.Find("svc.spooler")!.Precondition);
+        Assert.Contains(DebloatCatalog.Find("privacy.wer")!.Operations, o => o is ServiceOp { Name: "WerSvc", AppliedMode: DebloatStartMode.Manual });
+    }
+
+    [Fact]
+    public void Confirmation_lists_the_exact_changes()
+    {
+        var tweaks = new[] { "privacy.wer", "apps.clipchamp", "gaming.gamemode" }.Select(id => DebloatCatalog.Find(id)!).ToList();
+        var text = DebloatConfirmationText.Build(tweaks, revert: false);
+        Assert.Contains(@"Set HKLM\SOFTWARE\Microsoft\Windows\Windows Error Reporting\Disabled = 1", text);
+        Assert.Contains("Set service WerSvc to Manual", text);
+        Assert.Contains("Remove the Clipchamp app", text);
+        Assert.Contains("One restore point is created before the first change", text);
+
+        var revert = DebloatConfirmationText.Build(tweaks, revert: true);
+        Assert.Contains(@"Restore HKLM\SOFTWARE\Microsoft\Windows\Windows Error Reporting\Disabled", revert);
+    }
+
+    [Fact]
+    public void Confirmation_stays_bounded_for_large_batches()
+    {
+        var text = DebloatConfirmationText.Build(DebloatCatalog.All, revert: false);
+        int changeLines = text.Split('\n').Count(l => l.StartsWith("      - ", StringComparison.Ordinal));
+        Assert.True(changeLines <= DebloatConfirmationText.MaxChangeLines + DebloatConfirmationText.MaxChangesPerTweak + 1, $"{changeLines} change lines");
+        Assert.Contains("point at their rows", text);
+    }
+
+    [Theory]
+    [InlineData(DebloatValueKind.QWord, "18446744073709551615")]
+    [InlineData(DebloatValueKind.ExpandString, @"%SystemRoot%\system32")]
+    [InlineData(DebloatValueKind.MultiString, "a\nb")]
+    public void Captured_value_kinds_survive_encoding(DebloatValueKind kind, string value)
+    {
+        var name = RegistryValueCodec.KindName(kind);
+        var parsed = RegistryValueCodec.Decode(name + ":" + value);
+        Assert.NotNull(parsed);
+        Assert.Equal(kind, parsed!.Kind);
+        Assert.Equal(value, parsed.Value);
+    }
+
+    [Fact]
+    public void Qword_text_parses_beyond_the_dword_range()
+    {
+        Assert.True(RegistryValueCodec.TryParseQword("5000000000", out var a));
+        Assert.Equal(5_000_000_000UL, a);
+        Assert.True(RegistryValueCodec.TryParseQword("0xFFFFFFFFFF", out var b));
+        Assert.Equal(0xFFFFFFFFFFUL, b);
+        Assert.True(RegistryValueCodec.TryParseQword("-1", out var c));
+        Assert.Equal(ulong.MaxValue, c);
+        Assert.False(RegistryValueCodec.TryParseQword("nope", out _));
+    }
+
+    private sealed class RecordingGuard : IChangeGuard
+    {
+        public List<ChangeOptions> Options { get; } = [];
+
+        public Task<OperationResult<T>> RunGuardedAsync<T>(string description, ChangeOptions options,
+            Func<CancellationToken, Task<OperationResult<T>>> change, IProgress<ProgressUpdate>? progress, CancellationToken cancellationToken)
+        {
+            Options.Add(options);
+            return change(cancellationToken);
+        }
+
+        public Task<OperationResult> RunGuardedAsync(string description, ChangeOptions options,
+            Func<CancellationToken, Task<OperationResult>> change, IProgress<ProgressUpdate>? progress, CancellationToken cancellationToken)
+        {
+            Options.Add(options);
+            return change(cancellationToken);
+        }
     }
 }

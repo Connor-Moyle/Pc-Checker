@@ -9,10 +9,12 @@ using PcChecker.Core.WindowsFeatures;
 namespace PcChecker.Core.Debloat;
 
 /// <summary>
-/// Windows implementation of <see cref="IDebloatService"/>. In-place tweaks run as one <see cref="IChangeGuard"/>
-/// change that always asks for a restore point first (whatever the global setting says), with the previous values
-/// captured to <c>debloat-capture.json</c>. Optimize page actions and app/feature removals run through their own
-/// services. Each tweak gets its own action journal record with the values before and after.
+/// Windows implementation of <see cref="IDebloatService"/>. Every batch runs as one <see cref="IChangeGuard"/> change
+/// that always asks for a restore point first (whatever the global setting says), with the previous values captured to
+/// <c>debloat-capture.json</c>. A batch that removes apps or runs another one-way change is not started when that
+/// restore point cannot be created. App and Windows feature removals in the batch go through a Windows Features service
+/// that shares this restore point instead of creating one per app; Optimize page actions run through that service.
+/// Each tweak gets its own action journal record with the values before and after.
 /// </summary>
 public sealed class WindowsDebloatService : DebloatServiceBase
 {
@@ -24,8 +26,8 @@ public sealed class WindowsDebloatService : DebloatServiceBase
     private readonly ILogger<WindowsDebloatService> _logger;
 
     public WindowsDebloatService(IChangeGuard guard, IActionJournal journal, IOptimizationService optimization, IWindowsFeatureService features,
-        ISettingsService settings, ILogger<WindowsDebloatService> logger)
-        : base(new DebloatEngine(new WindowsDebloatSystem(features, logger), new DebloatCaptureBook(CapturePath(settings, logger))))
+        ISettingsService settings, ILogger<WindowsDebloatService> logger, ILogger<WindowsFeatureService> featureLogger)
+        : base(new DebloatEngine(new WindowsDebloatSystem(BatchFeatures(features, guard, featureLogger), logger), new DebloatCaptureBook(CapturePath(settings, logger))))
     {
         _guard = guard;
         _journal = journal;
@@ -82,10 +84,15 @@ public sealed class WindowsDebloatService : DebloatServiceBase
         Func<CancellationToken, Task<IReadOnlyList<TweakRunResult>>> work, IProgress<ProgressUpdate>? progress, CancellationToken cancellationToken)
     {
         var target = string.Join(", ", tweaks.Select(t => t.Id));
-        var options = new ChangeOptions(CreateBefore: true, CreateAfter: null, ModuleName, target, Reversible: true,
+        bool oneWay = !revert && tweaks.Any(t => !t.Reversible);
+        var options = new ChangeOptions(CreateBefore: true, CreateAfter: null, ModuleName, target, Reversible: !oneWay,
             UndoHint: revert
                 ? "Apply the tweaks again on the Debloat page."
-                : "Select the tweaks on the Debloat page and choose Revert (previous values are saved in debloat-capture.json), or use the restore point.");
+                : "Select the tweaks on the Debloat page and choose Revert (previous values are saved in debloat-capture.json), or use the restore point.")
+        {
+            // One-way changes (app removal, OneDrive removal) only run with a restore point behind them.
+            OnRestorePointFailed = oneWay ? RestorePointFailedBehavior.Abort : RestorePointFailedBehavior.Continue,
+        };
 
         return await _guard.RunGuardedAsync<IReadOnlyList<TweakRunResult>>(description, options, async ct =>
         {
@@ -132,6 +139,13 @@ public sealed class WindowsDebloatService : DebloatServiceBase
             _logger.LogInformation("Debloat {Verb} {Tweak}: {Outcome} — {Message}", revert ? "revert" : "apply", tweak.Id, result.Outcome, result.Message);
         }
     }
+
+    /// <summary>
+    /// The Windows Features service used for removals inside a batch: the real one, but behind a guard that relies on the
+    /// batch's restore point. Anything else (tests, a decorated service) is used as given.
+    /// </summary>
+    private static IWindowsFeatureService BatchFeatures(IWindowsFeatureService features, IChangeGuard guard, ILogger<WindowsFeatureService> featureLogger) =>
+        features is WindowsFeatureService ? new WindowsFeatureService(new DebloatBatchChangeGuard(guard), featureLogger) : features;
 
     private static string? CapturePath(ISettingsService settings, ILogger logger)
     {

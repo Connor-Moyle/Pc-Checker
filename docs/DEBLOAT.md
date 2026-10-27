@@ -26,18 +26,27 @@ re-implemented; none of their code is used):
   one is a group of operations: a registry value, a service start type, a
   scheduled task, a Store app removal, a Windows optional feature, or (only for
   OneDrive) a reviewed PowerShell script. Tweaks that the Optimize page already
-  offers (telemetry, Game Bar, Game Mode, background apps, tips, search
-  indexing, SysMain) reuse that action instead of duplicating it, and Store app
+  offers (telemetry, Game Bar, Game Mode, background apps, search indexing,
+  SysMain) reuse that action instead of duplicating it, and Store app
   removal goes through the Windows Features service.
 - **State** is read from the PC: every row shows *Applied*, *Not applied*,
   *Partly applied* or *Not available* (with the reason, such as "Needs Windows
   11 24H2 or newer" or "Only for Windows 10"). Hover a row to see the exact
   registry values, services and tasks it touches.
-- **Apply** shows a confirmation that lists every selected change grouped by
-  risk, then runs one guarded batch: a restore point first (always, for this
-  page), then each tweak. Before a tweak changes anything its current values are
-  saved to `%LOCALAPPDATA%\PcChecker\debloat-capture.json`. Each tweak gets its
-  own result and its own Action Journal entry with the values before and after.
+- **Apply** shows a confirmation that lists every selected tweak grouped by
+  risk with its exact registry, service, task, app and feature changes, then
+  runs the whole selection as one guarded batch: a restore point first (always,
+  for this page, whatever the global setting), then each tweak. App and Windows
+  feature removals are part of that batch and share its restore point instead of
+  creating one per app; a batch that contains one-way changes (app or OneDrive
+  removal) is not started at all when the restore point cannot be created.
+  Before a tweak changes anything its current values (with their exact registry
+  type) are saved to `%LOCALAPPDATA%\PcChecker\debloat-capture.json`. Each tweak
+  gets its own result and its own Action Journal entry with the values before
+  and after.
+- **Cancel** stops the batch between tweaks: a tweak that has started always
+  finishes, the ones after it are reported as skipped, and everything already
+  applied can be reverted as usual.
 - **Revert** restores the saved values. If nothing was saved (for example the
   setting was changed by another tool) it restores the documented Windows
   default and says so. Keys that a tweak created (the classic context menu,
@@ -48,8 +57,24 @@ re-implemented; none of their code is used):
   changes; a Windows restart bar appears for the few changes that need it.
 - **Advanced mode** shows the service, Windows Update, Xbox service, OneDrive
   removal and policy-only tweaks. They are hidden otherwise.
-- The Print Spooler tweak is only applied when no physical printer is
-  installed; the row explains which printer keeps it on.
+- The Print Spooler and Fax tweaks are only applied when no physical printer is
+  installed; the row explains which printer keeps them on.
+- **OneDrive autostart** is turned off through the Startup apps switch
+  (`StartupApproved\Run`, the same one Task Manager uses) instead of deleting the
+  `Run` value. OneDrive rewrites its `Run` value when it updates, so the switch
+  is the change that stays put, and reverting it cannot lose the original
+  command line.
+
+### Which account the changes apply to
+
+PC Checker runs as administrator. Most Safe tweaks are per-user settings
+(`HKCU`), and they are written to the account PC Checker runs as. When you
+sign in as a standard user and enter a *different* administrator account's
+password to start PC Checker, those settings (and the states the page shows)
+belong to that administrator account, not to you. To debloat your own account
+in that case, sign in as an administrator or make your account an
+administrator for the duration. Machine-wide tweaks (`HKLM`, services, tasks,
+apps removed for all users) are not affected.
 
 ## Presets
 
@@ -131,7 +156,7 @@ Windows builds: 22000 = Windows 11 21H2, 22621 = 22H2, 22631 = 23H2,
 | **Don't share handwriting data**<br>`privacy.handwriting` | Stops handwriting samples and handwriting error reports being sent to Microsoft.<br>`Set HKLM\SOFTWARE\Policies\Microsoft\Windows\TabletPC\PreventHandwritingDataSharing = 1`<br>`Set HKLM\SOFTWARE\Policies\Microsoft\Windows\HandwritingErrorReports\PreventHandwritingErrorReports = 1` | ShutUp10++, Privatezilla, Windows-Optimize-Harden-Debloat | Safe | Yes |
 | **Stop Store apps running in the background**<br>`privacy.backgroundapps` | Store apps only run while they are open. Same change as the Optimize page's background apps action. (uses the Optimize action `backgroundapps.disable`) | WinUtil, ShutUp10++, Sophia Script, Privatezilla, Optimizer | Safe | Yes |
 | **Turn off location access for apps**<br>`privacy.location` | Apps and Windows services can no longer ask for your location.<br>`Set HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\location\Value = "Deny"` | WinUtil, ShutUp10++, Sophia Script, Privatezilla, Windows-Optimize-Harden-Debloat | Moderate | Yes |
-| **Don't send error reports to Microsoft**<br>`privacy.wer` | Windows Error Reporting stops uploading crash reports. Crash dumps are still written locally for troubleshooting.<br>`Set HKLM\SOFTWARE\Microsoft\Windows\Windows Error Reporting\Disabled = 1`<br>`Set HKLM\SOFTWARE\Policies\Microsoft\Windows\Windows Error Reporting\Disabled = 1` | ShutUp10++, Sophia Script, Privatezilla, Debloat-Windows-10, AtlasOS, Windows-Optimize-Harden-Debloat | Moderate | Yes |
+| **Don't send error reports to Microsoft**<br>`privacy.wer` | Windows Error Reporting stops uploading crash reports. Crash dumps are still written locally for troubleshooting.<br>`Set HKLM\SOFTWARE\Microsoft\Windows\Windows Error Reporting\Disabled = 1`<br>`Set HKLM\SOFTWARE\Policies\Microsoft\Windows\Windows Error Reporting\Disabled = 1`<br>`Set service WerSvc to Manual` | ShutUp10++, Sophia Script, Privatezilla, Debloat-Windows-10, AtlasOS, Windows-Optimize-Harden-Debloat | Moderate | Yes |
 | **Disable telemetry scheduled tasks**<br>`privacy.ceiptasks` | Disables the Customer Experience Improvement Program, compatibility appraiser, disk diagnostic and feedback data-collection tasks.<br>`Disable scheduled task \Microsoft\Windows\Customer Experience Improvement Program\Consolidator`<br>`Disable scheduled task \Microsoft\Windows\Customer Experience Improvement Program\UsbCeip`<br>`Disable scheduled task \Microsoft\Windows\Customer Experience Improvement Program\KernelCeipTask`<br>… and 6 more | WinUtil, Sophia Script, Privatezilla, Debloat-Windows-10, Optimizer, Windows-Optimize-Harden-Debloat | Moderate | Yes |
 | **Don't download device companion apps and info**<br>`privacy.devicemetadata` | Windows stops fetching manufacturer apps, icons and descriptions for new devices from the internet (blocks surprise installs such as vendor control panels).<br>`Set HKLM\SOFTWARE\Policies\Microsoft\Windows\Device Metadata\PreventDeviceMetadataFromNetwork = 1` | WinUtil, ShutUp10++ | Moderate | Yes |
 | **Turn off clipboard sync across devices**<br>`privacy.clipboardcloud` | Text you copy is no longer uploaded to sync with your other devices. The local clipboard history (Win+V) keeps working.<br>`Set HKLM\SOFTWARE\Policies\Microsoft\Windows\System\AllowCrossDeviceClipboard = 0` | ShutUp10++, Windows-Optimize-Harden-Debloat | Moderate | Yes |
@@ -145,7 +170,7 @@ Windows builds: 22000 = Windows 11 21H2, 22621 = 22H2, 22631 = 23H2,
 | **Turn off app suggestions in Start**<br>`ads.start` | Start stops showing "suggested" apps and promoted Store content.<br>`Set HKCU\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager\SystemPaneSuggestionsEnabled = 0`<br>`Set HKCU\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager\SubscribedContent-338388Enabled = 0` | Win11Debloat, ShutUp10++, Sophia Script, Privatezilla, Debloat-Windows-10, Optimizer | Safe | Yes |
 | **Turn off fun facts and tips on the lock screen**<br>`ads.lockscreen` | The lock screen stops showing tips, tricks and promotional text over the picture.<br>`Set HKCU\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager\RotatingLockScreenOverlayEnabled = 0`<br>`Set HKCU\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager\SubscribedContent-338387Enabled = 0` | Win11Debloat, ShutUp10++, Sophia Script, Privatezilla | Safe | Yes |
 | **Turn off suggested content in Settings**<br>`ads.settings` | The Settings app stops showing suggested content and offers.<br>`Set HKCU\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager\SubscribedContent-338393Enabled = 0`<br>`Set HKCU\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager\SubscribedContent-353694Enabled = 0`<br>`Set HKCU\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager\SubscribedContent-353696Enabled = 0` | Win11Debloat, ShutUp10++, Sophia Script | Safe | Yes |
-| **Turn off tips, tricks and the welcome experience**<br>`ads.tips` | No more "Get tips and suggestions" notifications or the welcome screen after updates. Same change as the Optimize page's notification action. (uses the Optimize action `notifications.focus`) | WinUtil, Win11Debloat, ShutUp10++, Sophia Script, Privatezilla | Safe | Yes |
+| **Turn off tips, tricks and the welcome experience**<br>`ads.tips` | No more "Get tips and suggestions" notifications or the welcome screen after updates.<br>`Set HKCU\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager\SubscribedContent-338389Enabled = 0`<br>`Set HKCU\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager\SubscribedContent-310093Enabled = 0`<br>`Set HKCU\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager\SoftLandingEnabled = 0` | WinUtil, Win11Debloat, ShutUp10++, Sophia Script, Privatezilla | Safe | Yes |
 | **Stop automatic installs of suggested apps**<br>`ads.silentinstall` | Windows stops silently installing promoted apps (games, social apps) for your account.<br>`Set HKCU\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager\SilentInstalledAppsEnabled = 0`<br>`Set HKCU\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager\OemPreInstalledAppsEnabled = 0`<br>`Set HKCU\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager\PreInstalledAppsEnabled = 0`<br>… and 1 more | WinUtil, Win11Debloat, Sophia Script, Privatezilla, Debloat-Windows-10, Optimizer | Safe | Yes |
 | **Turn off sync provider ads in File Explorer**<br>`ads.explorersync` | File Explorer stops showing OneDrive and Microsoft 365 promotions at the top of the window.<br>`Set HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced\ShowSyncProviderNotifications = 0` | Win11Debloat, ShutUp10++, Sophia Script | Safe | Yes |
 | **Turn off promotions and account notices in Start**<br>`ads.startrecommended` · Windows 11 (build 22621+) | Removes app promotions from Start's Recommended section and the Microsoft account badges on your profile picture.<br>`Set HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced\Start_IrisRecommendations = 0`<br>`Set HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced\Start_AccountNotifications = 0` | WinUtil, Win11Debloat, Sophia Script | Safe | Yes |
@@ -235,7 +260,7 @@ Windows builds: 22000 = Windows 11 21H2, 22621 = 22H2, 22631 = 23H2,
 
 | Tweak | What it does | Offered by | Risk | Reversible |
 |---|---|---|---|---|
-| **Disable the Fax service**<br>`svc.fax` | Safe if you never send faxes from this PC.<br>`Set service Fax to Disabled` | WinUtil, Debloat-Windows-10, AtlasOS, ReviOS | Advanced (Advanced mode) | Yes |
+| **Disable the Fax service**<br>`svc.fax` | Safe if you never send faxes from this PC. Applied only when no physical printer is installed (multifunction printers can fax through it).<br>`Set service Fax to Disabled` | WinUtil, Debloat-Windows-10, AtlasOS, ReviOS | Advanced (Advanced mode) | Yes |
 | **Disable the Print Spooler**<br>`svc.spooler` | Safe if you never print. Applied only when no physical printer is installed.<br>`Set service Spooler to Disabled` | AtlasOS, ReviOS, Windows-Optimize-Harden-Debloat | Advanced (Advanced mode) | Yes |
 | **Keep Remote Registry disabled**<br>`svc.remoteregistry` | Makes sure other computers cannot edit this PC's registry over the network. Already disabled on most PCs.<br>`Set service RemoteRegistry to Disabled` | Debloat-Windows-10, Windows-Optimize-Harden-Debloat, AtlasOS | Advanced (Advanced mode) | Yes |
 | **Set Downloaded Maps Manager to manual**<br>`svc.mapsbroker` | Safe if you don't use offline maps; the Maps app starts the service when it needs it.<br>`Set service MapsBroker to Manual` | WinUtil, Debloat-Windows-10, AtlasOS | Advanced (Advanced mode) | Yes |

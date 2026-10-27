@@ -4,14 +4,11 @@ using PcChecker.Core.Optimization;
 namespace PcChecker.Core.Debloat;
 
 /// <summary>
-/// Shared batch logic of the Windows and Demo debloat services. A batch runs in two phases:
-/// <list type="number">
-/// <item>Tweaks with their own registry/service/task/script operations run inside ONE guarded change (restore point
-/// first), each captured before it is changed.</item>
-/// <item>Tweaks done by another PC Checker service (Optimize page actions, app and Windows feature removal) run after
-/// that, one by one, through that service, which guards and journals them itself.</item>
-/// </list>
-/// Every tweak gets its own result, and derived classes journal one record per tweak.
+/// Shared batch logic of the Windows and Demo debloat services. The whole batch runs inside ONE guarded change, so the
+/// restore point is created before any tweak in it. Inside it, tweaks with their own registry/service/task/script
+/// operations run first (each captured before it is changed), then the tweaks done by another PC Checker service
+/// (Optimize page actions, app and Windows feature removal). Cancelling stops between tweaks, never in the middle of
+/// one. Every tweak gets its own result, and derived classes journal one record per tweak.
 /// </summary>
 public abstract class DebloatServiceBase : IDebloatService
 {
@@ -68,7 +65,7 @@ public abstract class DebloatServiceBase : IDebloatService
         return (result.Ids, result.Unmapped);
     }
 
-    /// <summary>Runs the in-place batch inside the derived class's change guard (restore point, journal, log).</summary>
+    /// <summary>Runs the whole batch inside the derived class's change guard (restore point, journal, log).</summary>
     protected abstract Task<OperationResult<IReadOnlyList<TweakRunResult>>> RunGuardedAsync(string description, IReadOnlyList<DebloatTweak> tweaks, bool revert,
         Func<CancellationToken, Task<IReadOnlyList<TweakRunResult>>> work, IProgress<ProgressUpdate>? progress, CancellationToken cancellationToken);
 
@@ -121,43 +118,45 @@ public abstract class DebloatServiceBase : IDebloatService
         }
 
         string verb = revert ? "Reverting" : "Applying";
-        int total = tweaks.Count, done = 0;
-        var local = tweaks.Where(t => !t.IsExternal).ToList();
-        var external = tweaks.Where(t => t.IsExternal).ToList();
+        int total = tweaks.Count;
+
+        // In-place tweaks first (each is captured and reversible), then the ones done through another service. The whole
+        // batch is ONE guarded change, so the restore point is created before anything in it, app removals included.
+        var ordered = tweaks.Where(t => !t.IsExternal).Concat(tweaks.Where(t => t.IsExternal)).ToList();
+        var description = $"{(revert ? "Revert" : "Apply")} {ordered.Count} debloat tweak{(ordered.Count == 1 ? string.Empty : "s")}";
         string? guardNote = null;
 
-        if (local.Count > 0)
+        var guarded = await RunGuardedAsync(description, ordered, revert, async ct =>
         {
-            var description = $"{(revert ? "Revert" : "Apply")} {local.Count} debloat tweak{(local.Count == 1 ? string.Empty : "s")}";
-            var guarded = await RunGuardedAsync(description, local, revert, async ct =>
+            var batch = new List<TweakRunResult>();
+            for (int i = 0; i < ordered.Count; i++)
             {
-                var batch = new List<TweakRunResult>();
-                foreach (var tweak in local)
+                var tweak = ordered[i];
+                if (ct.IsCancellationRequested)
                 {
-                    progress?.Report(new ProgressUpdate($"{verb} tweaks", 100.0 * done++ / total, tweak.Title));
-                    batch.Add(revert ? await Engine.RevertAsync(tweak, ct).ConfigureAwait(false) : await Engine.ApplyAsync(tweak, ct).ConfigureAwait(false));
+                    // Stop between tweaks: the ones already done stay done (and can be reverted), the rest are not started.
+                    batch.AddRange(ordered.Skip(i).Select(t => new TweakRunResult(t.Id, t.Title, TweakOutcome.Skipped, "Cancelled before it started.")));
+                    break;
                 }
 
-                return batch;
-            }, progress, cancellationToken).ConfigureAwait(false);
+                progress?.Report(new ProgressUpdate($"{verb} tweaks", 100.0 * i / total, tweak.Title));
 
-            if (guarded.Value is { } batchResults)
-            {
-                results.AddRange(batchResults);
-                int noteStart = guarded.Message.IndexOf("(Note:", StringComparison.Ordinal);
-                guardNote = noteStart >= 0 ? guarded.Message[noteStart..].Trim('(', ')', ' ') : null;
+                // A started tweak always runs to the end so it is never left half applied.
+                batch.Add(await RunTweakAsync(tweak, revert, CancellationToken.None).ConfigureAwait(false));
             }
-            else
-            {
-                results.AddRange(local.Select(t => new TweakRunResult(t.Id, t.Title, TweakOutcome.Failed, guarded.Message)));
-            }
-        }
 
-        foreach (var tweak in external)
+            return batch;
+        }, progress, cancellationToken).ConfigureAwait(false);
+
+        if (guarded.Value is { } batchResults)
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            progress?.Report(new ProgressUpdate($"{verb} tweaks", 100.0 * done++ / total, tweak.Title));
-            results.Add(await RunExternalAsync(tweak, revert, cancellationToken).ConfigureAwait(false));
+            results.AddRange(batchResults);
+            int noteStart = guarded.Message.IndexOf("(Note:", StringComparison.Ordinal);
+            guardNote = noteStart >= 0 ? guarded.Message[noteStart..].Trim('(', ')', ' ') : null;
+        }
+        else
+        {
+            results.AddRange(ordered.Select(t => new TweakRunResult(t.Id, t.Title, TweakOutcome.Failed, guarded.Message)));
         }
 
         foreach (var result in results)
@@ -172,7 +171,7 @@ public abstract class DebloatServiceBase : IDebloatService
         return Finish(results, revert, guardNote);
     }
 
-    private async Task<TweakRunResult> RunExternalAsync(DebloatTweak tweak, bool revert, CancellationToken cancellationToken)
+    private async Task<TweakRunResult> RunTweakAsync(DebloatTweak tweak, bool revert, CancellationToken cancellationToken)
     {
         if (tweak.DelegatesToOptimizationId is not { } optimizationId)
         {

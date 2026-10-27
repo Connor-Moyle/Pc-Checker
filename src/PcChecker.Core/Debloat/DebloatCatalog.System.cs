@@ -136,9 +136,10 @@ public static partial class DebloatCatalog
     private static IEnumerable<DebloatTweak> ServiceTweaks() =>
     [
         Tweak("svc.fax", ServicesCategory, "Disable the Fax service",
-            "Safe if you never send faxes from this PC.",
+            "Safe if you never send faxes from this PC. Applied only when no physical printer is installed (multifunction printers can fax through it).",
             RiskLevel.Advanced, From(WinUtil, DebloatWindows10, AtlasOS, ReviOS),
-            [Service("Fax", DebloatStartMode.Disabled, DebloatStartMode.Manual)], advancedOnly: true),
+            [Service("Fax", DebloatStartMode.Disabled, DebloatStartMode.Manual)], advancedOnly: true)
+        with { Precondition = DebloatPrecondition.NoPhysicalPrinters },
 
         Tweak("svc.spooler", ServicesCategory, "Disable the Print Spooler",
             "Safe if you never print. Applied only when no physical printer is installed.",

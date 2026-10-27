@@ -64,7 +64,7 @@
     <StackPanel Grid.Row="1">
       <ui:InfoBar Severity="Error" Title="Something went wrong" Message="{Binding ErrorMessage}" IsOpen="{Binding HasError, Mode=OneWay}" IsClosable="True" Margin="0,0,0,12" />
       <ui:InfoBar Severity="Informational" Title="What debloating does" IsOpen="{Binding IsIntroOpen, Mode=TwoWay}" IsClosable="True" Margin="0,0,0,12"
-                  Message="Debloating switches off advertising, tips, data collection and AI features, tidies the taskbar and File Explorer, and removes pre-installed apps you don't use. Every batch starts with a restore point and saves the current values, so you can revert any tweak here later. Some things other tools do are deliberately not offered (turning off Defender or Windows Update, removing Edge or the Store): see the list at the bottom of the page." />
+                  Message="Debloating switches off advertising, tips, data collection and AI features, tidies the taskbar and File Explorer, and removes pre-installed apps you don't use. Every batch, app removals included, starts with one restore point and saves the current values, so you can revert any reversible tweak here later. Per-user settings apply to the account PC Checker runs as: if you started it with a different administrator's password, they go to that account. Some things other tools do are deliberately not offered (turning off Defender or Windows Update, removing Edge or the Store): see the list at the bottom of the page." />
       <ui:InfoBar Severity="{Binding ResultsSeverity}" Title="{Binding ResultsTitle}" Message="{Binding ResultsMessage}" IsOpen="{Binding HasResults, Mode=OneWay}" IsClosable="False" Margin="0,0,0,12" />
       <ui:Card Style="{StaticResource CardSpacing}" Visibility="{Binding IsRestartExplorerSuggested, Converter={StaticResource BoolToVisibility}}">
         <Grid>
@@ -372,9 +372,9 @@
         </StackPanel>
         <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
           <ui:Button Content="Clear" Icon="{ui:SymbolIcon Dismiss24}" Command="{Binding ClearSelectionCommand}" Margin="0,0,8,0" />
-          <ui:Button Content="{Binding RevertibleCount, StringFormat='Revert selected ({0})'}" Icon="{ui:SymbolIcon ArrowUndo24}" Command="{Binding RevertSelectedCommand}" Margin="0,0,8,0"
+          <ui:Button Content="{Binding RevertButtonText}" Icon="{ui:SymbolIcon ArrowUndo24}" Command="{Binding RevertSelectedCommand}" Margin="0,0,8,0"
                      ToolTip="Puts the selected tweaks back to the values saved before they were applied." />
-          <ui:Button Appearance="Primary" Content="{Binding ApplicableCount, StringFormat='Apply selected ({0})'}" Icon="{ui:SymbolIcon Checkmark24}" Command="{Binding ApplySelectedCommand}"
+          <ui:Button Appearance="Primary" Content="{Binding ApplyButtonText}" Icon="{ui:SymbolIcon Checkmark24}" Command="{Binding ApplySelectedCommand}"
                      ToolTip="Shows exactly what will change, then creates a restore point and applies the selected tweaks." />
         </StackPanel>
       </Grid>

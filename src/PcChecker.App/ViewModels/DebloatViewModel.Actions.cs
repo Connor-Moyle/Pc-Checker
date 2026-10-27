@@ -127,8 +127,10 @@ public sealed partial class DebloatViewModel
                     ? await _debloat.RevertAsync(tweaks.Select(t => t.Id).ToList(), progress, ct)
                     : await _debloat.ApplyAsync(tweaks.Select(t => t.Id).ToList(), progress, ct);
                 BusyText = "Checking the result…";
-                ApplyStates(await _debloat.GetStatesAsync(ct));
-            }, revert ? "Reverting tweaks…" : "Applying tweaks…", cancellable: false);
+
+                // Cancel stops the batch between tweaks; the states are always re-read so the page shows what changed.
+                ApplyStates(await _debloat.GetStatesAsync(CancellationToken.None));
+            }, revert ? "Reverting tweaks…" : "Applying tweaks…");
         }
         finally
         {

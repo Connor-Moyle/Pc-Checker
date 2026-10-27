@@ -13,6 +13,15 @@ public enum DebloatValueKind
     DWord,
     String,
     Binary,
+
+    /// <summary>REG_EXPAND_SZ (only ever captured, so a revert writes back the exact type it found).</summary>
+    ExpandString,
+
+    /// <summary>REG_MULTI_SZ, stored as lines separated by "\n" (captured only).</summary>
+    MultiString,
+
+    /// <summary>REG_QWORD, stored as decimal text (captured only).</summary>
+    QWord,
 }
 
 /// <summary>Windows service start types (as shown in services.msc).</summary>

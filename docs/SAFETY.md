@@ -28,15 +28,16 @@ follows, so you know what to expect and contributors know what to build.
 
 ## Debloat rules
 
-- Each batch on the Debloat page always starts with a restore point, whatever
-  the global setting, and the values about to change are saved to
-  `debloat-capture.json` first. *Revert* restores them; without a saved value it
+- Each batch on the Debloat page is one guarded change that always starts with
+  a restore point, whatever the global setting; app and feature removals in the
+  batch share it, and a batch with one-way changes does not start without it.
+  The values about to change are saved to `debloat-capture.json` first. *Revert* restores them; without a saved value it
   restores the documented Windows default and says so.
 - Only documented registry values, policies, service start types, scheduled
   tasks and Store app removal are used. The single script (OneDrive uninstall)
   runs Microsoft's own `OneDriveSetup.exe /uninstall`; nothing is downloaded.
 - Services are never deleted, only set to Manual or Disabled; the Print
-  Spooler is left on while a physical printer is installed.
+  Spooler and Fax service are left on while a physical printer is installed.
 - Never offered: disabling Defender, Windows Update, UAC or SmartScreen,
   removing Edge or the Store, stripping Windows components, hosts-file blocking
   or turning off CPU mitigations.

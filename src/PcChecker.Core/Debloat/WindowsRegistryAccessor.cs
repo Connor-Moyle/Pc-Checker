@@ -35,9 +35,10 @@ public sealed class WindowsRegistryAccessor : IRegistryAccessor
             return key.GetValueKind(name) switch
             {
                 RegistryValueKind.DWord => new RegistryData(DebloatValueKind.DWord, unchecked((uint)(int)value).ToString(System.Globalization.CultureInfo.InvariantCulture)),
-                RegistryValueKind.QWord => new RegistryData(DebloatValueKind.DWord, ((long)value).ToString(System.Globalization.CultureInfo.InvariantCulture)),
+                RegistryValueKind.QWord => new RegistryData(DebloatValueKind.QWord, unchecked((ulong)(long)value).ToString(System.Globalization.CultureInfo.InvariantCulture)),
                 RegistryValueKind.Binary => new RegistryData(DebloatValueKind.Binary, RegistryValueCodec.ToHex((byte[])value)),
-                RegistryValueKind.MultiString => new RegistryData(DebloatValueKind.String, string.Join("\n", (string[])value)),
+                RegistryValueKind.MultiString => new RegistryData(DebloatValueKind.MultiString, string.Join("\n", (string[])value)),
+                RegistryValueKind.ExpandString => new RegistryData(DebloatValueKind.ExpandString, value.ToString() ?? string.Empty),
                 _ => new RegistryData(DebloatValueKind.String, value.ToString() ?? string.Empty),
             };
         }
@@ -103,6 +104,20 @@ public sealed class WindowsRegistryAccessor : IRegistryAccessor
                 break;
             case DebloatValueKind.Binary:
                 key.SetValue(name, RegistryValueCodec.ParseHex(data.Value) ?? throw new FormatException($"\"{data.Value}\" is not valid hex."), RegistryValueKind.Binary);
+                break;
+            case DebloatValueKind.QWord:
+                if (!RegistryValueCodec.TryParseQword(data.Value, out ulong qword))
+                {
+                    throw new FormatException($"\"{data.Value}\" is not a valid QWORD.");
+                }
+
+                key.SetValue(name, unchecked((long)qword), RegistryValueKind.QWord);
+                break;
+            case DebloatValueKind.ExpandString:
+                key.SetValue(name, data.Value, RegistryValueKind.ExpandString);
+                break;
+            case DebloatValueKind.MultiString:
+                key.SetValue(name, data.Value.Length == 0 ? Array.Empty<string>() : data.Value.Split('\n'), RegistryValueKind.MultiString);
                 break;
             default:
                 key.SetValue(name, data.Value, RegistryValueKind.String);
