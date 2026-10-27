@@ -36,7 +36,7 @@ public static class OverclockStartupGuard
                 : "The last session did not end cleanly and the tuning could not be reverted automatically: " + result.Message +
                   " Open the Overclock page and press Reset to defaults.";
             logger.LogWarning("Unclean shutdown handled: {Message}", result.Message);
-            StartupNotices.Add(title, text, result.Success ? Severity.Medium : Severity.High);
+            StartupNotices.Add(title, text, result.Success ? Severity.Medium : Severity.High, typeof(Views.Pages.OverclockPage), "Overclock");
             services.GetService<OverclockViewModel>()?.ShowRecoveryNotice(text);
             services.GetService<INotificationService>()?.Warning(title, result.Message);
         }

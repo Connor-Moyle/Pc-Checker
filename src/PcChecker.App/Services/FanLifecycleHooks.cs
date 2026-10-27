@@ -31,7 +31,8 @@ public static class FanLifecycleHooks
                 var notices = await fans.RunStartupAsync(cts.Token).ConfigureAwait(false);
                 foreach (var notice in notices)
                 {
-                    StartupNotices.Add("Fans", notice, notice.Contains("could not", StringComparison.OrdinalIgnoreCase) ? Severity.Medium : Severity.Info);
+                    StartupNotices.Add("Fans", notice, notice.Contains("could not", StringComparison.OrdinalIgnoreCase) ? Severity.Medium : Severity.Info,
+                        typeof(Views.Pages.FansPage), "Fans");
                 }
             }
             catch (Exception ex)
