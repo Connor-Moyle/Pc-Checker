@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
+using PcChecker.App.Localization;
 using PcChecker.App.Services;
 using PcChecker.Core.Common;
 using PcChecker.Core.Memory;
@@ -124,8 +125,8 @@ public sealed partial class MemoryViewModel : ViewModelBase
     public IReadOnlyList<int> TestPassOptions { get; } = [1, 2, 3, 5];
 
     public bool HasOverview => Overview is not null;
-    public string CompressionButtonText => MemoryCompressionEnabled ? "Turn memory compression off" : "Turn memory compression on";
-    public string SysMainButtonText => SysMainEnabled ? "Turn SysMain off" : "Turn SysMain on";
+    public string CompressionButtonText => MemoryCompressionEnabled ? Loc.T("Turn memory compression off") : Loc.T("Turn memory compression on");
+    public string SysMainButtonText => SysMainEnabled ? Loc.T("Turn SysMain off") : Loc.T("Turn SysMain on");
     public bool IsNotTestRunning => !IsTestRunning;
     public bool PageFileIsCustom => !PageFileSystemManaged;
     public bool HasWarnings => !string.IsNullOrWhiteSpace(WarningsText);

@@ -175,4 +175,36 @@ public class DriveInventoryReviewTests
         Assert.Equal(DriveSleepRules.ReadingDay.Yesterday, DriveSleepRules.DayOf(now.AddDays(-1), now));
         Assert.Equal(DriveSleepRules.ReadingDay.Earlier, DriveSleepRules.DayOf(now.AddDays(-9), now));
     }
+
+    [Fact]
+    public void DriveKey_StaysTheSame_WhenSatReplacesAPlaceholderSerial()
+    {
+        // A USB bridge reports a placeholder serial; awake, IDENTIFY over SAT shows the real one. The key the Storage
+        // page holds must still match the key a single-drive refresh (and the reading cache) computes from Windows' data.
+        var joined = new JoinedDrive
+        {
+            Number = 3,
+            Model = "WD Elements 25A3 USB Device",
+            Serial = "0123456789ABCDEF",
+            SizeBytes = 2_000_398_934_016,
+            BusTypeCode = DriveMediaRules.BusUsb,
+        };
+        var identity = new AtaIdentity("WDC WD20SPZX-22UA7T0", "WD-WX12A3456789", "01.01A01", 5400, null, null, true, true);
+
+        var awake = DriveFactsBuilder.Build(joined, new DriveProbe(Power: DrivePowerState.Active, Identity: identity), SmartAccess.Read, null, "C:\\");
+        var asleep = DriveFactsBuilder.Build(joined, new DriveProbe(Power: DrivePowerState.Asleep), SmartAccess.SkippedAsleep, null, "C:\\");
+
+        Assert.Equal("WD-WX12A3456789", awake.Serial);
+        Assert.Equal(DriveFactsBuilder.KeyFor(joined), awake.Key);
+        Assert.Equal(asleep.Key, awake.Key);
+        Assert.Equal(awake.Key, (awake with { Serial = "OTHER123" }).Key);
+    }
+
+    [Fact]
+    public void DriveKey_WithoutAnInventoryKey_UsesSerialThenModelAndSize()
+    {
+        Assert.Equal("SN:S64DNX0R1", new PhysicalDrive { Serial = "s64dnx0r1", Model = "Samsung SSD 980", SizeBytes = 1, Number = 0 }.Key);
+        Assert.Equal("MD:SAMSUNGSSD980:1:0", new PhysicalDrive { Serial = "000000000000", Model = "Samsung SSD 980", SizeBytes = 1, Number = 0 }.Key);
+        Assert.Equal("MD::5:-1", PhysicalDrive.KeyOf(null, null, 5, -1));
+    }
 }

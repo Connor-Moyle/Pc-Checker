@@ -108,7 +108,7 @@ public sealed partial class LightingViewModel : ViewModelBase
     public bool HasComponents => Components.Count > 0;
     public bool HasPeripherals => Peripherals.Count > 0;
     public bool ShowEmptyState => HasInitialized && !HasDevices && AllDevices.Count == 0;
-    public string ConnectButtonText => IsConnected ? "Reconnect" : "Connect";
+    public string ConnectButtonText => IsConnected ? Loc.T("Reconnect") : Loc.T("Connect");
     public string StatusIconName => IsConnected ? "PlugConnected24" : "PlugDisconnected24";
     public Brush SyncColorBrush => new SolidColorBrush(SyncColor);
     public bool CanDeleteProfile => SelectedProfile is { IsBuiltIn: false };
@@ -316,24 +316,24 @@ public sealed partial class LightingViewModel : ViewModelBase
         var name = NewProfileName?.Trim();
         if (string.IsNullOrEmpty(name))
         {
-            ErrorMessage = "Give the profile a name first.";
+            ErrorMessage = Loc.T("Give the profile a name first.");
             return;
         }
 
         if (_lighting.BuiltInProfiles.Any(p => p.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
         {
-            ErrorMessage = $"\"{name}\" is a built-in profile; choose another name.";
+            ErrorMessage = Loc.F("\"{0}\" is a built-in profile; choose another name.", name);
             return;
         }
 
         if (Devices.Count == 0)
         {
-            ErrorMessage = "Connect to OpenRGB first so there is something to save.";
+            ErrorMessage = Loc.T("Connect to OpenRGB first so there is something to save.");
             return;
         }
 
         var existing = Settings.Current.Lighting.Profiles.FirstOrDefault(p => p.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
-        if (existing is not null && !await _dialogs.ConfirmAsync("Replace profile?", $"A profile called \"{name}\" already exists. Replace it with the current lighting?", "Replace"))
+        if (existing is not null && !await _dialogs.ConfirmAsync(Loc.T("Replace profile?"), Loc.F("A profile called \"{0}\" already exists. Replace it with the current lighting?", name), Loc.T("Replace")))
         {
             return;
         }
@@ -351,7 +351,7 @@ public sealed partial class LightingViewModel : ViewModelBase
         SelectedProfile = Profiles.FirstOrDefault(p => p.Name == name);
         ActiveProfileName = name;
         NewProfileName = null;
-        _notifications.Success("Profile saved", $"\"{name}\" now holds the current lighting of {profile.Devices.Count} device(s).");
+        _notifications.Success(Loc.T("Profile saved"), Loc.F("\"{0}\" now holds the current lighting of {1} device(s).", name, profile.Devices.Count));
     }
 
     [RelayCommand]
@@ -362,7 +362,7 @@ public sealed partial class LightingViewModel : ViewModelBase
             return;
         }
 
-        if (!await _dialogs.ConfirmAsync("Delete profile?", $"Delete the lighting profile \"{profile.Name}\"? Your devices keep their current colours.", "Delete", isDanger: true))
+        if (!await _dialogs.ConfirmAsync(Loc.T("Delete profile?"), Loc.F("Delete the lighting profile \"{0}\"? Your devices keep their current colours.", profile.Name), Loc.T("Delete"), isDanger: true))
         {
             return;
         }
@@ -377,7 +377,7 @@ public sealed partial class LightingViewModel : ViewModelBase
         await SaveSettingsAsync();
         RebuildProfiles();
         SelectedProfile = Profiles.FirstOrDefault();
-        _notifications.Info("Profile deleted", $"\"{profile.Name}\" was removed.");
+        _notifications.Info(Loc.T("Profile deleted"), Loc.F("\"{0}\" was removed.", profile.Name));
     }
 
     /// <summary>Snapshot of what every device card currently shows, keyed by device name. Pure, so tests can cover it.</summary>

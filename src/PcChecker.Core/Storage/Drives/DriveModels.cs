@@ -212,10 +212,24 @@ public sealed record PhysicalDrive
     /// <summary>True when the drive can be opened by number for scans and benchmarks.</summary>
     public bool HasDiskNumber => Number >= 0;
 
-    /// <summary>A key that identifies the same drive across refreshes (serial when known, else model + size).</summary>
-    public string Key => DriveSerial.Normalize(Serial) is { Length: > 0 } s && !DriveSerial.IsPlaceholder(Serial)
-        ? "SN:" + s
-        : $"MD:{DriveSerial.Normalize(Model)}:{SizeBytes}:{Number}";
+    /// <summary>
+    /// A key that identifies the same drive across refreshes (serial when known, else model + size). The inventory sets
+    /// it from what Windows reports, so it stays the same when a USB bridge's placeholder serial is replaced by the real
+    /// one read over SAT (which only happens while the drive is awake).
+    /// </summary>
+    public string Key
+    {
+        get => _key ?? KeyOf(Serial, Model, SizeBytes, Number);
+        init => _key = value;
+    }
+
+    private readonly string? _key;
+
+    /// <summary>The drive key for a serial, model, size and disk number (see <see cref="Key"/>).</summary>
+    public static string KeyOf(string? serial, string? model, long sizeBytes, int number) =>
+        DriveSerial.Normalize(serial) is { Length: > 0 } s && !DriveSerial.IsPlaceholder(serial)
+            ? "SN:" + s
+            : $"MD:{DriveSerial.Normalize(model)}:{sizeBytes}:{number}";
 }
 
 /// <summary>How hard the inventory may try to read SMART.</summary>

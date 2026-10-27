@@ -147,14 +147,16 @@ public sealed partial class StorageViewModel
                 : volume.IsSystemVolume
                     ? $"runs the full offline check. {volume.Letter} is the Windows drive, so it happens at the next restart and can take a long time."
                     : $"takes {volume.Letter} offline and runs the full check right now; programs using it lose access until it finishes, which can take a long time. Save your work first.";
-            bool ok = await _dialogs.ConfirmAsync($"Repair-Volume {mode} on {volume.Letter}?", $"Repair-Volume -{mode} {what}", "Run repair", isDanger: mode == RepairMode.OfflineScanAndFix);
+            bool ok = await _dialogs.ConfirmAsync($"Repair-Volume {mode} on {volume.Letter}?", $"Repair-Volume -{mode} {what} Once started it cannot be cancelled: stopping a repair half-way leaves the volume marked dirty.", "Run repair", isDanger: mode == RepairMode.OfflineScanAndFix);
             if (!ok)
             {
                 return;
             }
         }
 
-        await RunToolAsync($"Repair-Volume {mode} on {volume.Letter}", ct => _storage.RepairVolumeAsync(volume.Letter, mode, ToolProgress(), ct));
+        // Only the read-only scan can be stopped: a repair runs inside the Windows storage service, and stopping
+        // PowerShell half-way would not reliably stop it (like chkdsk, a half-done repair leaves the volume dirty).
+        await RunToolAsync($"Repair-Volume {mode} on {volume.Letter}", ct => _storage.RepairVolumeAsync(volume.Letter, mode, ToolProgress(), ct), canCancel: mode == RepairMode.Scan);
     }
 
     [RelayCommand(CanExecute = nameof(CanRunTool))]

@@ -5,8 +5,9 @@ src/PcChecker.App/Localization/strings.txt. Translators fill in src/PcChecker.Ap
 
 Sources: literal XAML attributes that hold interface text (access key markers removed), setters of those properties,
 screen-reader names and help text (AutomationProperties.Name and HelpText), section and page names in
-NavigationCatalog.cs, C# string literals passed to Loc.T(...) or Loc.F(...), and the quick search catalogs in
-src/PcChecker.Core/Shell, where interface text is marked with T("...").
+NavigationCatalog.cs, C# string literals passed to Loc.T(...) or Loc.F(...), plain literals passed to the dialog and
+notification services (_dialogs.ConfirmAsync(...), _notifications.Success(...) and so on, which translate their text
+when shown), and the quick search catalogs in src/PcChecker.Core/Shell, where interface text is marked with T("...").
 
 Usage: python3 build/extract-strings.py [--check]   (--check fails when strings.txt is out of date)
 """
@@ -28,6 +29,14 @@ CODE = re.compile(r'\bLoc\.[TF]\(\s*"((?:[^"\\]|\\.)*)"')
 DESCRIPTION = re.compile(r'\bDescription\(\s*"((?:[^"\\]|\\.)*)"\s*\)')
 CATALOG = re.compile(r'\b(?:Section|Footer|Page)\("([^"]+)"')
 MARKED = re.compile(r'(?<![\w.])T\(\s*"((?:[^"\\]|\\.)*)"')
+# Calls on the dialog and notification services; both translate the title, message and button text they are given.
+SERVICE_CALL = re.compile(r'\b_(?:dialogs\.(?:ConfirmAsync|ShowMessageAsync|ChooseAsync)'
+                          r'|notifications\.(?:Success|Info|Warning|Error|Show))\(')
+LITERAL = re.compile(r'"((?:[^"\\]|\\.)*)"')
+# An argument made only of plain literals ("a" or "a" + "b"), or a condition choosing between two such arguments.
+LITERALS_ONLY = r'"(?:[^"\\]|\\.)*"(?:\s*\+\s*"(?:[^"\\]|\\.)*")*'
+PLAIN_ARG = re.compile(r'\s*(' + LITERALS_ONLY + r')\s*')
+CHOICE_ARG = re.compile(r'[^"?]+\?\s*(' + LITERALS_ONLY + r')\s*:\s*(' + LITERALS_ONLY + r')\s*', re.S)
 
 
 def wanted(text: str) -> bool:
@@ -56,6 +65,47 @@ def unescape_csharp(text: str) -> str:
     return re.sub(r"\\(?:u([0-9A-Fa-f]{4})|U([0-9A-Fa-f]{8})|x([0-9A-Fa-f]{1,4})|(.))", replace, text)
 
 
+def call_arguments(source: str, start: int) -> list[str]:
+    """Splits the argument list that starts after the "(" at <start> at its top-level commas (strings and nesting aware)."""
+    args, depth, i, begin = [], 0, start, start
+    while i < len(source):
+        ch = source[i]
+        if ch == '"':
+            # Skip the string (a backslash escapes the next character except in a verbatim @"..." string).
+            verbatim = source[i - 1] == "@"
+            i += 1
+            while i < len(source) and source[i] != '"':
+                i += 2 if source[i] == "\\" and not verbatim else 1
+        elif ch in "([{":
+            depth += 1
+        elif ch in ")]}":
+            if depth == 0:
+                args.append(source[begin:i])
+                return args
+            depth -= 1
+        elif ch == "," and depth == 0:
+            args.append(source[begin:i])
+            begin = i + 1
+        i += 1
+    return args
+
+
+def literal_text(arg: str) -> str:
+    return "".join(unescape_csharp(m.group(1)) for m in LITERAL.finditer(arg))
+
+
+def service_literals(source: str):
+    """Plain (not interpolated) literal arguments of dialog and notification calls."""
+    for call in SERVICE_CALL.finditer(source):
+        for arg in call_arguments(source, call.end()):
+            arg = re.sub(r"^\s*\w+\s*:", "", arg)  # a named argument
+            if PLAIN_ARG.fullmatch(arg):
+                yield literal_text(arg)
+            elif choice := CHOICE_ARG.fullmatch(arg):
+                yield literal_text(choice.group(1))
+                yield literal_text(choice.group(2))
+
+
 def collect():
     found = set()
     for path in APP.rglob("*.xaml"):
@@ -74,6 +124,7 @@ def collect():
             found.add(unescape_csharp(match.group(1)))
         for match in DESCRIPTION.finditer(source):
             found.add(unescape_csharp(match.group(1)))
+        found.update(text for text in service_literals(source) if wanted(text))
         if path.name == "NavigationCatalog.cs":
             found.update(m.group(1) for m in CATALOG.finditer(source))
     for path in (ROOT / "src" / "PcChecker.Core").rglob("*.cs"):

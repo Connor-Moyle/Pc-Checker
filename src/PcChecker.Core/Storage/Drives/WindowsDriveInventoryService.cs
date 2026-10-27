@@ -468,7 +468,7 @@ public sealed class WindowsDriveInventoryService : IDriveInventoryService
         }
     }
 
-    private static string KeyFor(JoinedDrive joined) => new PhysicalDrive { Number = joined.Number, Model = joined.Model ?? string.Empty, Serial = joined.Serial, SizeBytes = joined.SizeBytes }.Key;
+    private static string KeyFor(JoinedDrive joined) => DriveFactsBuilder.KeyFor(joined);
 
     private static string? SafeSystemRoot()
     {

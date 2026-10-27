@@ -118,6 +118,8 @@ public sealed partial class StorageViewModel : ViewModelBase
     {
         var devices = await _storage.GetDevicesAsync(cancellationToken);
         var tools = _storage.GetVendorTools(devices);
+        // Hidden pool members all have number -1, so the drive key (when known) is what identifies the selection.
+        string? previousKey = SelectedDevice?.Drive?.Key;
         int previous = SelectedDevice?.Number ?? -1;
 
         Devices.Clear();
@@ -134,7 +136,10 @@ public sealed partial class StorageViewModel : ViewModelBase
 
         OnPropertyChanged(nameof(HasVendorTools));
         DevicesSummary = BuildDevicesSummary(devices);
-        SelectedDevice = Devices.FirstOrDefault(d => d.Number == previous) ?? Devices.FirstOrDefault(d => d.IsSystemDisk) ?? Devices.FirstOrDefault();
+        SelectedDevice = (previousKey is null ? null : Devices.FirstOrDefault(d => d.Drive?.Key == previousKey))
+                         ?? (previous >= 0 ? Devices.FirstOrDefault(d => d.Number == previous) : null)
+                         ?? Devices.FirstOrDefault(d => d.IsSystemDisk)
+                         ?? Devices.FirstOrDefault();
 
         try
         {
