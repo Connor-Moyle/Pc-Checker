@@ -20,7 +20,11 @@ public partial class ProcessesPage
 
     public ProcessesViewModel ViewModel { get; }
 
-    private void OnLoaded(object sender, RoutedEventArgs e) => ViewModel.StartLive();
+    private void OnLoaded(object sender, RoutedEventArgs e)
+    {
+        ViewModel.StartLive();
+        ViewModel.RefreshTaskManagerReplacement();
+    }
 
     private void OnUnloaded(object sender, RoutedEventArgs e) => ViewModel.StopLive();
 

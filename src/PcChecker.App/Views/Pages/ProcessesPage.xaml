@@ -152,6 +152,11 @@
           <controls:IconGlyph Symbol="Copy24" />
         </MenuItem.Icon>
       </MenuItem>
+      <Separator />
+      <MenuItem Header="Open PC Checker instead of Task Manager"
+                IsCheckable="True" IsChecked="{Binding IsTaskManagerReplaced, Mode=OneWay}"
+                Command="{Binding ToggleReplaceTaskManagerCommand}"
+                ToolTip="When on, Ctrl+Shift+Esc opens PC Checker here. Change it any time in Settings." />
     </ContextMenu>
   </Page.Resources>
 

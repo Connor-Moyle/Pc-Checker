@@ -114,6 +114,22 @@ public partial class App : Application
         StartGameProfiles();
         StartHistory();
 
+        // Launched in place of Windows Task Manager (the "Replace Task Manager" option): open on the Processes tab.
+        if (options.TaskManagerLaunch && !options.ScreenshotsRequested)
+        {
+            window.Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, () =>
+            {
+                try
+                {
+                    _services.GetRequiredService<Wpf.Ui.INavigationService>().Navigate(typeof(Views.Pages.ProcessesPage));
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Could not open the Processes tab for the Task Manager replacement.");
+                }
+            });
+        }
+
         if (options.ScreenshotsDirectory is { } directory)
         {
             _ = RunScreenshotsAsync(window, directory);

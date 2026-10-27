@@ -88,6 +88,15 @@
               </ui:CardControl.Header>
               <ui:ToggleSwitch IsChecked="{Binding AdvancedMode}" />
             </ui:CardControl>
+            <ui:CardControl Style="{StaticResource Row}" Icon="{ui:SymbolIcon TaskListLtr24}">
+              <ui:CardControl.Header>
+                <StackPanel>
+                  <ui:TextBlock Text="Open PC Checker instead of Windows Task Manager" />
+                  <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Text="{Binding TaskManagerReplacementHint}" />
+                </StackPanel>
+              </ui:CardControl.Header>
+              <ui:ToggleSwitch IsChecked="{Binding IsTaskManagerReplaced}" IsEnabled="{Binding TaskManagerReplacementEligible}" />
+            </ui:CardControl>
             <ui:CardControl Style="{StaticResource Row}" Icon="{ui:SymbolIcon Heart24}">
               <ui:CardControl.Header>
                 <StackPanel>
