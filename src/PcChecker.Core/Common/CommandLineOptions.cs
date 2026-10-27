@@ -37,6 +37,12 @@ public sealed record CommandLineOptions(
     /// <summary><c>--tray</c>: start hidden with only the tray icon (used by "Start with Windows").</summary>
     public bool StartInTray { get; init; }
 
+    /// <summary>
+    /// <c>--taskmgr</c>: launched in place of Windows Task Manager (the "Replace Task Manager" option). The app opens
+    /// straight on the Processes tab. Windows passes taskmgr's own path as the next argument, which is ignored.
+    /// </summary>
+    public bool TaskManagerLaunch { get; init; }
+
     /// <summary><c>--scheduled &lt;job&gt;</c>: run this job headless (no main window) and exit with 0 or 1.</summary>
     public ScheduledJobKind? ScheduledJob { get; init; }
 
@@ -52,6 +58,7 @@ public sealed record CommandLineOptions(
         string? updatedFrom = null;
         string? language = null;
         bool tray = false;
+        bool taskmgr = false;
         ScheduledJobKind? scheduled = null;
         var unknown = new List<string>();
         var list = (args ?? []).Where(a => a is not null).ToList();
@@ -121,6 +128,15 @@ public sealed record CommandLineOptions(
                 case "tray":
                     tray = true;
                     break;
+                case "taskmgr":
+                    taskmgr = true;
+                    // Windows passes Task Manager's own path as the next argument; swallow it so it is not "unknown".
+                    if (inlineValue is null && i + 1 < list.Count && !IsSwitch(list[i + 1]))
+                    {
+                        i++;
+                    }
+
+                    break;
                 case "scheduled":
                 {
                     var value = inlineValue ?? (i + 1 < list.Count && !IsSwitch(list[i + 1]) ? list[++i].Trim() : null);
@@ -157,6 +173,7 @@ public sealed record CommandLineOptions(
             UpdatedFrom = string.IsNullOrWhiteSpace(updatedFrom) ? null : updatedFrom,
             Language = string.IsNullOrWhiteSpace(language) ? null : language,
             StartInTray = tray,
+            TaskManagerLaunch = taskmgr,
             ScheduledJob = scheduled,
         };
     }
