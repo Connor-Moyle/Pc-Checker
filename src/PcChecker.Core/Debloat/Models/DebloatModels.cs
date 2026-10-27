@@ -60,6 +60,22 @@ public enum DebloatPrecondition
 
     /// <summary>Only apply when no physical printer is installed (print spooler and fax).</summary>
     NoPhysicalPrinters,
+
+    /// <summary>Only offered when AMD Software (Adrenalin) is installed.</summary>
+    AmdSoftwareInstalled,
+
+    /// <summary>Only offered when NVIDIA's driver software (NVIDIA app or control panel) is installed.</summary>
+    NvidiaSoftwareInstalled,
+}
+
+/// <summary>Which vendor graphics software is installed (decides whether the vendor tweaks are offered).</summary>
+[Flags]
+public enum DebloatVendorSoftware
+{
+    None = 0,
+    Amd = 1,
+    Nvidia = 2,
+    All = Amd | Nvidia,
 }
 
 /// <summary>A registry key, used to detect installed software.</summary>

@@ -14,6 +14,9 @@ public sealed record PerformanceFacts
     public long MemoryTotalBytes { get; init; }
     public string? ActivePowerPlan { get; init; }
 
+    /// <summary>Processor name; dual-CCD Ryzen 9 X3D chips need the Balanced plan and Game Bar.</summary>
+    public string? CpuName { get; init; }
+
     /// <summary>GUID of the active power plan; the rules compare this, because the plan name is translated.</summary>
     public Guid? ActivePowerPlanId { get; init; }
     public bool? FastStartupEnabled { get; init; }

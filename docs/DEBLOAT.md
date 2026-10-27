@@ -21,6 +21,7 @@ re-implemented; none of their code is used):
 | [Windows-Optimize-Harden-Debloat](https://github.com/simeononsecurity/Windows-Optimize-Harden-Debloat) | Policy-based privacy hardening |
 | [Tiny11 builder](https://github.com/ntdevlabs/tiny11builder) | App and policy list for a trimmed Windows 11 image |
 | xd-AntiSpy | Privacy, Edge and Windows 11 UI switches with status |
+| Vendor app setting | The same switch exists in AMD Software: Adrenalin Edition or NVIDIA's app / control panel |
 
 The comparison was last refreshed against current releases of these tools
 (Win11Debloat's `Config/Apps.json` and `Regfiles`, WinUtil's tweak list,
@@ -238,6 +239,11 @@ Names without an equivalent (such as `WPFTweaksServices` or
 | Block Microsoft servers in the hosts file | Breaks Windows Update, activation, the Store and Defender updates. |
 | Turn off CPU security mitigations | A small speed gain for real, exploitable security holes. |
 | Turn off SmartScreen | Removes the warning before known-malicious downloads and phishing sites. |
+| Disable AMD External Events Utility | It handles FreeSync, display hotkeys and display events for the Radeon driver; FreeSync stops working without it. |
+| Disable the AMD 3D V-Cache Performance Optimizer (amd3dvcacheSvc) | Dual-CCD Ryzen 9 X3D chips need it to keep games on the V-Cache cores; games lose frames without it. |
+| Disable the AMD graphics driver services (amdkmdag, amdwddmg) or the AMD PSP / PPM platform drivers | The display driver or the CPU's power management stops working. |
+| Remove Xbox Game Bar on a Ryzen 9 X3D | Still offered on the Apps list, but with a warning: AMD's driver uses Game Bar's game detection to park the second CCD. The Optimize action that turns Game Bar off also warns. |
+| Remove AMD Noise Suppression from startup | Its Run-key name differs between AMD Software versions, so it is left to the Startup page, where you can disable it like any other startup entry. |
 
 Also left out after the latest comparison:
 
@@ -274,7 +280,6 @@ Also left out after the latest comparison:
 | Remove PowerShell 2.0, IE mode, legacy Windows Media Player, Steps Recorder, XPS Writer, WordPad, Media Features; enable Sandbox or WSL | Already on the Windows Features page. Recall is covered by *Turn off the Recall Windows feature*. |
 | Mouse acceleration, HAGS, transparency, animations, hibernation, fast startup, Storage Sense, background apps, Ultimate Performance, temp clean-up, restore point | Already on the Optimize, Latency, Input, Cleanup and Restore pages (the Debloat page links the telemetry, Game Bar, Game Mode, background apps, indexing and SysMain actions). |
 | Unpin everything from Start and Edge, Store and Outlook from the taskbar | Needs either a replacement `start2.bin` layout file or a Start pins policy whose format could not be verified on every build, and the taskbar verb is not exposed on Windows 11. Left out until it can be done with a verified backup and revert. |
-| Opt out of the AMD User Experience Program | No reference tool ships it and its service and task names could not be checked on a current Adrenalin install. AMD driver services such as AMD External Events Utility (FreeSync, hotkeys) are never touched. |
 
 ## Report only
 
@@ -290,6 +295,14 @@ device now has a tweak, because it does have a documented policy
 
 Windows builds: 22000 = Windows 11 21H2, 22621 = 22H2, 22631 = 23H2,
 26100 = 24H2. "Offered by" lists the tools above that have an equivalent.
+
+The *AMD & NVIDIA software* group is shown only when AMD Software: Adrenalin
+Edition or NVIDIA's driver software is installed. Scheduled tasks and services
+that do not exist on a PC (they vary between driver versions) show *Not
+present* and are left alone. None of these is part of a preset, and a catalog
+test keeps FreeSync (AMD External Events Utility), the X3D service, the graphics
+and Crash Defender kernel drivers and the AMD platform drivers on a never-touch
+list.
 
 ### Privacy & telemetry
 
@@ -553,6 +566,18 @@ Windows builds: 22000 = Windows 11 21H2, 22621 = 22H2, 22631 = 23H2,
 | **Disable SysMain (Superfetch)**<br>`svc.sysmain` | Stops the service that preloads apps into memory. Same change as the Optimize page's SysMain action. (uses the Optimize action `sysmain.disable`) | WinUtil, Optimizer, AtlasOS, ReviOS | Advanced (Advanced mode) | Yes |
 | **Disable the Offline Files service**<br>`svc.offlinefiles` | Safe unless a work or school network makes your folders available offline.<br>`Set service CscService to Disabled` | WinUtil | Advanced (Advanced mode) | Yes |
 | **Disable the Diagnostics Hub collector service**<br>`svc.diaghub` | Only Visual Studio's profiler uses this service.<br>`Set service diagnosticshub.standardcollector.service to Disabled` | Optimizer, AtlasOS, ReviOS | Advanced (Advanced mode) | Yes |
+
+### AMD & NVIDIA software
+
+| Tweak | What it does | Offered by | Risk | Reversible |
+|---|---|---|---|---|
+| **Leave the AMD User Experience Program**<br>`amd.uep` | Stops the AMD User Experience Program launcher service that sends anonymous usage data to AMD. Also untick "AMD User Experience Program" under AMD Software → Settings → Preferences.<br>`Set service AUEPLauncher to Disabled` | Vendor app setting | Safe | Yes |
+| **Stop AMD Software checking for updates at sign-in**<br>`amd.updatecheck` | Disables AMD's update-check task. AMD Software still checks when you open it (Settings → System → Check for updates).<br>`Disable scheduled task \AMDInstallLauncher` | Vendor app setting | Safe | Yes |
+| **Stop AMD Link update tasks**<br>`amd.link` | Disables the AMD Link update tasks. Only matters if you never stream games to a phone or TV with AMD Link.<br>`Disable scheduled task \AMDLinkUpdate`<br>`Disable scheduled task \ModifyLinkUpdate` | Vendor app setting | Safe | Yes |
+| **Don't start AMD recording (Instant Replay) at sign-in**<br>`amd.dvr` | Disables the task that starts AMD's recording and streaming component when you sign in, so Instant Replay does not keep a background buffer.<br>`Disable scheduled task \StartDVR` | Vendor app setting | Moderate | Yes |
+| **Don't start AMD Software at sign-in**<br>`amd.autostart` | Disables the task that starts the AMD Software tray and overlay when you sign in. The driver, FreeSync and your saved game settings keep working.<br>`Disable scheduled task \StartCN` | Vendor app setting | Moderate | Yes |
+| **Set AMD Crash Defender to manual**<br>`amd.crashdefender` | Stops the AMD Crash Defender Service (amdfendrsr.exe) starting with Windows. It collects information after a graphics driver crash. The Crash Defender kernel drivers are left alone.<br>`Set service AMD Crash Defender Service to Manual` | Vendor app setting | Advanced (Advanced mode) | Yes |
+| **Turn off NVIDIA telemetry**<br>`nvidia.telemetry` | Opts out of NVIDIA's usage data collection in the driver and control panel, and disables the old NVIDIA telemetry container service where it still exists.<br>`Set HKLM\SOFTWARE\NVIDIA Corporation\NvControlPanel2\Client\OptInOrOutPreference = 0`<br>`Set HKLM\SOFTWARE\NVIDIA Corporation\Global\FTS\EnableRID44231 = 0`<br>`Set HKLM\SOFTWARE\NVIDIA Corporation\Global\FTS\EnableRID64640 = 0`<br>… and 2 more | Optimizer, Vendor app setting | Safe | Yes |
 
 ### Automatic installs
 

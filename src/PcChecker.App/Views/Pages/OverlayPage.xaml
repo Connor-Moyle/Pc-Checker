@@ -368,6 +368,8 @@
                   <ui:TextBlock Style="{StaticResource CardTitle}" Text="FPS counter" Margin="0" />
                 </StackPanel>
                 <ui:TextBlock TextWrapping="Wrap" Text="{Binding FrameRateStatus}" />
+                <ui:TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,6,0,0" Text="{Binding FrameGenerationNote}"
+                              Visibility="{Binding FrameGenerationNote, Converter={StaticResource NullToVisibility}}" />
                 <ui:InfoBar Severity="Warning" Title="Frame counting is not available" IsClosable="False" Margin="0,8,0,0"
                             Message="{Binding FrameCounterProblem}"
                             IsOpen="{Binding IsFrameCounterUnavailable, Mode=OneWay}" />

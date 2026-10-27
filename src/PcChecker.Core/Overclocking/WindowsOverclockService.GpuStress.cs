@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using PcChecker.Core.Common;
 using PcChecker.Core.Overclocking.GpuLoad;
+using PcChecker.Core.Sensors;
 
 namespace PcChecker.Core.Overclocking;
 
@@ -106,10 +107,14 @@ public sealed partial class WindowsOverclockService : IStressTestRunner
                 live?.Report(status);
                 progress?.Report(new ProgressUpdate("Stress test running", status.Percent, StressText.Detail(request, status)));
 
-                if ((cpuTemp is { } ct && ct >= request.AbortCpuTempC) || (gpuTemp is { } gt && gt >= request.AbortGpuTempC))
+                // Each sensor is held to its own limit: the CPU control temperature (Tjmax-aware on Ryzen 7000/9000),
+                // the GPU core against the GPU limit, hot spot and memory against AMD's 110/105 °C.
+                double cpuStop = TemperatureRoles.EffectiveCpuStopC((int)Math.Round(request.AbortCpuTempC), SensorPicker.CpuName(snapshot));
+                var gpuBreach = SensorPicker.GpuLimitBreach(snapshot, request.AbortGpuTempC);
+                if ((cpuTemp is { } ct && ct >= cpuStop) || gpuBreach is not null)
                 {
                     aborted = true;
-                    _logger.LogWarning("Stress test aborted by the watchdog: CPU {Cpu} °C, GPU {Gpu} °C.", cpuTemp, gpuTemp);
+                    _logger.LogWarning("Stress test aborted by the watchdog: CPU {Cpu} °C (limit {CpuStop} °C), GPU {Gpu}.", cpuTemp, cpuStop, gpuBreach ?? "below its limits");
                     break;
                 }
 
@@ -156,6 +161,10 @@ public sealed partial class WindowsOverclockService : IStressTestRunner
             var revert = await ResetAsync(CancellationToken.None).ConfigureAwait(false);
             reverted = revert.Success;
             _logger.LogInformation("Watchdog revert: {Message}", revert.Message);
+            if (!reverted && driverReset && Capabilities?.GpuMethod == GpuControlMethod.AmdAdl)
+            {
+                reverted = ReconcileAmdAfterDriverReset();
+            }
         }
 
         bool throttle = (request.LoadsCpu && ThrottleHeuristic.Suspect(cpuClocks, cpuLoads))
@@ -170,6 +179,7 @@ public sealed partial class WindowsOverclockService : IStressTestRunner
             GpuFailure = gpuResult is { Completed: false } ? gpuResult.FailureReason : null,
             GpuNotStarted = gpuResult?.NotStarted == true,
             GpuAdapterName = gpuResult?.AdapterName ?? adapterName,
+            CpuName = SensorPicker.CpuName(_sensors.Latest) ?? Capabilities?.CpuName,
             WatchdogAborted = aborted,
             ThrottleSuspected = throttle,
             NoTemperatureData = ThrottleHeuristic.LacksTemperatureData(request.Target, maxCpu, maxGpu),

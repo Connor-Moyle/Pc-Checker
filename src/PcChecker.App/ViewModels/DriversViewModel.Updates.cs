@@ -136,6 +136,104 @@ public sealed partial class DriversViewModel
     private List<DriverUpdateRow> SelectedWindowsUpdates() =>
         DeviceOffers.Where(d => d.IsSelected && d.Chosen?.UpdateRow is not null).Select(d => d.Chosen!.UpdateRow!).Distinct().ToList();
 
+    /// <summary>
+    /// Hides the ticked Windows Update drivers in Windows Update (IUpdate.IsHidden) so they are not offered or installed
+    /// again, for example a Radeon or chipset driver that would replace the one AMD Software installed.
+    /// </summary>
+    [RelayCommand]
+    private async Task HideSelectedUpdatesAsync()
+    {
+        var selected = SelectedWindowsUpdates();
+        if (selected.Count == 0)
+        {
+            _notifications.Warning(Loc.T("Nothing selected"), Loc.T("Tick the devices whose chosen Windows Update driver you want to hide first."));
+            return;
+        }
+
+        if (_drivers is not IDriverUpdateHiding hiding)
+        {
+            _notifications.Warning(Loc.T("Not available"), Loc.T("Hiding updates is not supported here."));
+            return;
+        }
+
+        var list = string.Join("\n", selected.Select(s => "• " + s.Title));
+        var message = Loc.F("Windows Update will stop offering and installing these {0} driver update(s):", selected.Count) + $"\n\n{list}\n\n"
+            + Loc.T("You can unhide them later from More → Unhide driver updates. To stop driver updates through Windows Update completely, use the Debloat tweak \"Don't install drivers through Windows Update\".");
+        if (!await _dialogs.ConfirmAsync(Loc.T("Hide driver updates?"), message, Loc.T("Hide")))
+        {
+            return;
+        }
+
+        await RunBusyAsync(async ct =>
+        {
+            var result = await hiding.SetHiddenAsync(selected.Select(s => s.Update).ToList(), true, ct);
+            if (result.Success)
+            {
+                RemoveWindowsUpdateOffers(selected);
+            }
+
+            ShowResult(result.Success, result.Message, Loc.T("Hide"));
+        }, Loc.T("Hiding driver updates…"));
+    }
+
+    /// <summary>Lists hidden driver offers and, after confirmation, unhides them all.</summary>
+    [RelayCommand]
+    private async Task UnhideUpdatesAsync()
+    {
+        if (_drivers is not IDriverUpdateHiding hiding)
+        {
+            return;
+        }
+
+        IReadOnlyList<DriverUpdateInfo> hidden = [];
+        await RunBusyAsync(async ct => hidden = await hiding.GetHiddenAsync(ct), Loc.T("Looking for hidden driver updates…"));
+        if (hidden.Count == 0)
+        {
+            await _dialogs.ShowMessageAsync(Loc.T("No hidden driver updates"), Loc.T("Windows Update has no hidden driver updates for this PC."));
+            return;
+        }
+
+        var list = string.Join("\n", hidden.Select(h => "• " + h.Title));
+        var message = Loc.T("These driver updates are hidden:") + $"\n\n{list}\n\n" + Loc.T("Unhide them so Windows Update offers them again?");
+        if (!await _dialogs.ConfirmAsync(Loc.T("Unhide driver updates?"), message, Loc.T("Unhide")))
+        {
+            return;
+        }
+
+        await RunBusyAsync(async ct =>
+        {
+            var result = await hiding.SetHiddenAsync(hidden, false, ct);
+            ShowResult(result.Success, result.Message, Loc.T("Unhide"));
+        }, Loc.T("Unhiding driver updates…"));
+    }
+
+    /// <summary>Drops the offers behind <paramref name="rows"/> (hidden in Windows Update) from every device.</summary>
+    private void RemoveWindowsUpdateOffers(IReadOnlyCollection<DriverUpdateRow> rows)
+    {
+        foreach (var device in DeviceOffers.ToList())
+        {
+            foreach (var offer in device.Offers.Where(o => o.UpdateRow is not null && rows.Contains(o.UpdateRow)).ToList())
+            {
+                device.Remove(offer);
+            }
+
+            if (device.Offers.Count == 0)
+            {
+                device.PropertyChanged -= OnDeviceRowChanged;
+                DeviceOffers.Remove(device);
+            }
+        }
+
+        foreach (var row in rows)
+        {
+            Updates.Remove(row);
+        }
+
+        UpdatesAvailable = DeviceOffers.Count(d => d.HasNewer);
+        OnPropertyChanged(nameof(HasDeviceOffers));
+        OnPropertyChanged(nameof(SelectedUpdateCount));
+    }
+
     [RelayCommand]
     private async Task DownloadSelectedAsync()
     {

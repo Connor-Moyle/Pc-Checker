@@ -83,6 +83,42 @@ All notable changes to PC Checker are recorded here. The format follows
   the light theme gets its own deeper status colours, badge text and small
   notes meet WCAG AA contrast in both themes, and Windows high-contrast mode
   switches the whole app to the system colours.
+- **Debloat** catches up with current WinUtil, Win11Debloat, ShutUp10++,
+  Sophia Script, AtlasOS, ReviOS, Tiny11 and xd-AntiSpy releases: Edge AI and
+  more Edge nag policies, Settings Home and account ads, phone suggestions,
+  desktop Spotlight, Find my device, the full location service, more
+  telemetry policies and tasks, personal-data app permissions, settings sync,
+  Remote Assistance, Windows preferences (dark mode, Sticky Keys shortcut,
+  snapping, Alt+Tab, taskbar combining, Num Lock), Start and File Explorer
+  options, Office, Outlook, Chrome, Brave, Firefox, developer-tool and NVIDIA
+  telemetry (only when installed), WPBT and device co-installer blocks,
+  Reserved Storage, Modern Standby networking, and more than 110 more removable
+  apps including PC-maker apps. AMD, NVIDIA, Intel and audio driver control
+  panels can never be removed. See `docs/DEBLOAT.md`.
+- **Cleanup** covers far more: AMD, NVIDIA and Intel driver leftovers, logs
+  and web caches; Opera, Opera GX, Vivaldi, Chromium, Waterfox, LibreWolf,
+  Floorp, Zen, Arc and Yandex caches; Discord, Teams, Spotify, Office, VS
+  Code, Slack, Zoom, OBS, Adobe, Steam, Epic, Battle.net, EA, Ubisoft and GOG
+  caches; developer caches (Advanced); Store app temp files, Windows
+  Installer leftovers, Remote Desktop cache and old CHKDSK fragments; opt-in
+  privacy items (recent items, jump lists, clipboard, browser cookies,
+  history and sessions); and Windows' own tools for Windows Update cleanup
+  (DISM), Disk Cleanup items, upgrade leftovers, Windows.old and older
+  restore points. Categories are grouped with a filter, skip themselves while
+  their app runs or a restart is pending, and keep excluded data such as
+  Spotify downloads and the AMD chipset uninstaller.
+- **AMD support**: the discrete GPU is used everywhere instead of the
+  integrated Radeon of Ryzen 7000/9000; Ryzen-aware temperature limits
+  (95 °C by design, Tdie over Tctl, separate GPU hot spot and memory limits);
+  dual-CCD X3D advice that keeps Balanced, core parking and Game Bar; Health
+  checks for AMD Chipset Software, the 3D V-Cache optimizer, WHEA hardware
+  errors and graphics driver timeouts; EXPO detection from part numbers with
+  Infinity Fabric guidance; Radeon undervolt, presets and Overdrive8 fan
+  curve on the Overclock page; ryzenadj only on laptops and APUs; Windows
+  Update driver offers that would replace AMD Software are unticked and can
+  be hidden. Debloat adds AMD & NVIDIA software tweaks (offered only when that
+  software is installed), and the AMD and NVIDIA installer-folder cleanup also
+  waits for versioned driver self-extractors started from a download folder.
 
 ### Fixed
 - **Debloat tweaks that did not seem to apply.** Batches that need a restore
@@ -137,32 +173,6 @@ All notable changes to PC Checker are recorded here. The format follows
 - The Temperatures page no longer claims the motherboard sensor chip was
   found when only the board name was read, and its *Retry* no longer leaves
   the Fans page driving fans through a closed hardware monitor.
-- **Debloat** catches up with current WinUtil, Win11Debloat, ShutUp10++,
-  Sophia Script, AtlasOS, ReviOS, Tiny11 and xd-AntiSpy releases: Edge AI and
-  more Edge nag policies, Settings Home and account ads, phone suggestions,
-  desktop Spotlight, Find my device, the full location service, more
-  telemetry policies and tasks, personal-data app permissions, settings sync,
-  Remote Assistance, Windows preferences (dark mode, Sticky Keys shortcut,
-  snapping, Alt+Tab, taskbar combining, Num Lock), Start and File Explorer
-  options, Office, Outlook, Chrome, Brave, Firefox, developer-tool and NVIDIA
-  telemetry (only when installed), WPBT and device co-installer blocks,
-  Reserved Storage, Modern Standby networking, and more than 110 more removable
-  apps including PC-maker apps. AMD, NVIDIA, Intel and audio driver control
-  panels can never be removed. See `docs/DEBLOAT.md`.
-- **Cleanup** covers far more: AMD, NVIDIA and Intel driver leftovers, logs
-  and web caches; Opera, Opera GX, Vivaldi, Chromium, Waterfox, LibreWolf,
-  Floorp, Zen, Arc and Yandex caches; Discord, Teams, Spotify, Office, VS
-  Code, Slack, Zoom, OBS, Adobe, Steam, Epic, Battle.net, EA, Ubisoft and GOG
-  caches; developer caches (Advanced); Store app temp files, Windows
-  Installer leftovers, Remote Desktop cache and old CHKDSK fragments; opt-in
-  privacy items (recent items, jump lists, clipboard, browser cookies,
-  history and sessions); and Windows' own tools for Windows Update cleanup
-  (DISM), Disk Cleanup items, upgrade leftovers, Windows.old and older
-  restore points. Categories are grouped with a filter, skip themselves while
-  their app runs or a restart is pending, and keep excluded data such as
-  Spotify downloads and the AMD chipset uninstaller.
-
-### Fixed
 - Cleanup now finds shader caches where current AMD (`Dx9Cache` and every
   other `*Cache` folder, Store and Game Pass games), NVIDIA
   (`PerDriverVersion`, `ComputeCache`) and Intel drivers write them; Windows

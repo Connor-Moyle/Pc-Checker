@@ -47,7 +47,7 @@ public static partial class DebloatCatalog
     public static IReadOnlyList<string> Categories { get; } =
     [
         PrivacyCategory, AdsCategory, AiCategory, TaskbarCategory, ExplorerCategory, PreferencesCategory, EdgeCategory, OtherAppsCategory, GamingCategory,
-        UpdateCategory, ServicesCategory, InstallsCategory, AppsCategory,
+        UpdateCategory, ServicesCategory, VendorCategory, InstallsCategory, AppsCategory,
     ];
 
     public static IReadOnlyList<DebloatTweak> All { get; } =
@@ -55,7 +55,7 @@ public static partial class DebloatCatalog
         .. PrivacyTweaks(), .. MorePrivacyTweaks(), .. AdsTweaks(), .. MoreAdsTweaks(), .. AiTweaks(), .. MoreAiTweaks(),
         .. TaskbarTweaks(), .. MoreTaskbarTweaks(), .. ExplorerTweaks(), .. MoreExplorerTweaks(), .. PreferenceTweaks(),
         .. EdgeTweaks(), .. MoreEdgeTweaks(), .. OtherAppTweaks(), .. GamingTweaks(), .. MoreGamingTweaks(), .. UpdateTweaks(), .. MoreUpdateTweaks(),
-        .. ServiceTweaks(), .. MoreServiceTweaks(), .. InstallTweaks(), .. AppTweaks(),
+        .. ServiceTweaks(), .. MoreServiceTweaks(), .. VendorTweaks(), .. InstallTweaks(), .. AppTweaks(),
     ];
 
     private static readonly Dictionary<string, DebloatTweak> ById = All.ToDictionary(t => t.Id, StringComparer.OrdinalIgnoreCase);
@@ -63,6 +63,10 @@ public static partial class DebloatCatalog
     public static DebloatTweak? Find(string? id) => id is not null && ById.TryGetValue(id, out var t) ? t : null;
 
     public static IEnumerable<DebloatTweak> ForMode(bool advancedMode) => advancedMode ? All : All.Where(t => !t.AdvancedOnly);
+
+    /// <summary>The tweaks to offer on this PC: AMD and NVIDIA software tweaks only when that software is installed.</summary>
+    public static IReadOnlyList<DebloatTweak> Visible(DebloatVendorSoftware installed) =>
+        All.Where(t => DebloatRules.VendorPresent(t, installed)).ToList();
 
     // ---- builders ----------------------------------------------------------------------------------------------
 

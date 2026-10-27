@@ -357,8 +357,22 @@ public sealed partial class LibreHardwareFanControlService : IFanControlService,
                 }
 
                 _entries.Clear();
+                var readOnlyAmd = new List<FanSensorInfo>();
                 foreach (var pair in pairs)
                 {
+                    bool amdGpu = pair.Control.Hardware == HardwareKind.Gpu
+                        && (pair.Control.HardwareName.Contains("Radeon", StringComparison.OrdinalIgnoreCase) || pair.Control.HardwareName.Contains("AMD", StringComparison.OrdinalIgnoreCase));
+                    if (AmdGpuFanRules.HostControlIgnored(pair.Control.HardwareName, amdGpu))
+                    {
+                        // RX 5000+ ignore Overdrive5 fan writes: show the fan read-only instead of a control that does nothing.
+                        if (pair.Rpm is not null)
+                        {
+                            readOnlyAmd.Add(pair.Rpm);
+                        }
+
+                        continue;
+                    }
+
                     var controlSensor = sensorsById[pair.Control.Id];
                     if (controlSensor.Control is not { } control)
                     {
@@ -385,7 +399,7 @@ public sealed partial class LibreHardwareFanControlService : IFanControlService,
                 }
 
                 _rpmOnly.Clear();
-                foreach (var rpm in unpaired)
+                foreach (var rpm in unpaired.Concat(readOnlyAmd))
                 {
                     // Seeded with the reading taken during discovery, so a read-only fan shows its speed straight away.
                     _rpmOnly.Add(new RpmOnlyEntry(rpm.Id, FanPairing.FriendlyName(rpm), rpm.Hardware, rpm.HardwareName, sensorsById[rpm.Id]) { LastRpm = rpm.Value });

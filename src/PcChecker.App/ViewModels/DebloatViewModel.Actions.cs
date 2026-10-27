@@ -117,7 +117,7 @@ public sealed partial class DebloatViewModel
         string title = rows.Count == 1
             ? $"{verb} \"{rows[0].Title}\"?"
             : $"{verb} {rows.Count} debloat tweaks?";
-        if (!await _dialogs.ConfirmAsync(title, DebloatConfirmationText.Build(tweaks, revert, RemoveAppsForAllUsers),
+        if (!await _dialogs.ConfirmAsync(title, DebloatConfirmationText.Build(tweaks, revert, RemoveAppsForAllUsers, PcChecker.Core.Hardware.LocalCpu.Name),
                 rows.Count == 1 ? (rows[0].IsAppRemoval && !revert ? "Remove" : verb) : $"{verb} {rows.Count}",
                 DebloatConfirmationText.IsDanger(tweaks, revert)))
         {

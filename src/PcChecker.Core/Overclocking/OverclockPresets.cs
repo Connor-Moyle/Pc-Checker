@@ -8,6 +8,10 @@ public static class OverclockPresets
     public const string ModerateName = "Moderate (+100 / +500)";
     public const string QuietName = "Quiet and cool (power 85 %)";
 
+    public const string AmdUndervoltName = "Undervolt (-50 mV)";
+    public const string AmdUndervoltPowerName = "Undervolt (-80 mV, power -10 %)";
+    public const string AmdQuietName = "Quiet (power -10 %)";
+
     public static IReadOnlyList<OverclockProfile> All { get; } =
     [
         new() { Name = DefaultName, Notes = "Stock clocks. Use this to undo everything." },
@@ -16,10 +20,26 @@ public static class OverclockPresets
         new() { Name = QuietName, GpuPowerLimitPercent = 85, GpuTempLimitC = 75, Notes = "Lower power and temperature targets for a quieter PC." },
     ];
 
-    public static bool IsPreset(string? name) => name is not null && All.Any(p => p.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+    /// <summary>
+    /// Radeon starting points. On RX 7000/9000 the voltage offset is the main and safest control (less power and heat
+    /// at the same clocks); NVIDIA-style memory offsets are clamped to +100..+250 MHz on most Radeons and Overdrive8
+    /// temperature limits rarely go below about 90 °C, so the generic presets do not fit.
+    /// </summary>
+    public static IReadOnlyList<OverclockProfile> Amd { get; } =
+    [
+        new() { Name = DefaultName, Notes = "Stock settings. Use this to undo everything." },
+        new() { Name = AmdUndervoltName, GpuVoltageOffsetMv = -50, Notes = "Same performance with less power and heat on most RX 7000/9000 cards." },
+        new() { Name = AmdUndervoltPowerName, GpuVoltageOffsetMv = -80, GpuPowerLimitPercent = 90, Notes = "Cooler and quieter; run the stress test, and go back to -50 mV if a game crashes." },
+        new() { Name = AmdQuietName, GpuPowerLimitPercent = 90, Notes = "Lower power for a quieter card with a small performance cost." },
+    ];
+
+    /// <summary>The presets for a GPU vendor: the Radeon set for AMD, the offset set otherwise.</summary>
+    public static IReadOnlyList<OverclockProfile> ForVendor(GpuVendor vendor) => vendor == GpuVendor.Amd ? Amd : All;
+
+    public static bool IsPreset(string? name) => name is not null && All.Concat(Amd).Any(p => p.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
 
     /// <summary>Returns a copy of the preset (presets are never edited in place).</summary>
-    public static OverclockProfile? Get(string? name) => All.FirstOrDefault(p => p.Name.Equals(name ?? string.Empty, StringComparison.OrdinalIgnoreCase))?.Clone();
+    public static OverclockProfile? Get(string? name) => All.Concat(Amd).FirstOrDefault(p => p.Name.Equals(name ?? string.Empty, StringComparison.OrdinalIgnoreCase))?.Clone();
 
     /// <summary>Lists what a profile changes, in plain English, for confirmation dialogs.</summary>
     public static IReadOnlyList<string> Describe(OverclockProfile profile)
@@ -44,6 +64,11 @@ public static class OverclockPresets
         if (profile.GpuTempLimitC is { } t)
         {
             lines.Add($"GPU temperature limit: {t} °C");
+        }
+
+        if (profile.GpuVoltageOffsetMv != 0)
+        {
+            lines.Add($"GPU voltage offset: {profile.GpuVoltageOffsetMv:+#;-#;0} mV");
         }
 
         if (profile.GpuFanPercent is { } f)

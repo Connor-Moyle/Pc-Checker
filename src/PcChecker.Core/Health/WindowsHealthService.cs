@@ -75,6 +75,8 @@ public sealed partial class WindowsHealthService : IHealthService
                 ("Event log errors", ct => Task.Run(() => CollectSystemErrors(ctx, ct), ct)),
                 ("Reliability history", ct => Task.Run(() => CollectReliability(ctx, ct), ct)),
                 ("Crash dumps", ct => Task.Run(() => CollectCrashDumps(ctx), ct)),
+                ("Hardware errors (WHEA) and graphics driver resets", ct => Task.Run(() => CollectHardwareErrors(ctx, ct), ct)),
+                ("AMD chipset driver", ct => Task.Run(() => CollectAmdPlatform(ctx, ct), ct)),
                 ("Memory diagnostic", ct => Task.Run(() => CollectMemoryDiagnostic(ctx), ct)),
                 ("Windows Update", ct => Task.Run(() => CollectWindowsUpdate(ctx), ct)),
                 ("Free space", ct => Task.Run(() => CollectFreeSpace(ctx), ct)),

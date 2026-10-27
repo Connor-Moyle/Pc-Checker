@@ -4,8 +4,11 @@ namespace PcChecker.Core.Startup;
 /// Picks a publisher name for a startup entry when the executable carries no company name: known product names,
 /// then the vendor folder under Program Files, then "Unknown".
 /// </summary>
-public static class StartupPublisherRules
+public static partial class StartupPublisherRules
 {
+    [System.Text.RegularExpressions.GeneratedRegex(@"(?:^|[\\/\s_.\-""])amd", System.Text.RegularExpressions.RegexOptions.CultureInvariant)]
+    private static partial System.Text.RegularExpressions.Regex AmdWord();
+
     /// <summary>Product keywords → publisher, used when file version info is missing.</summary>
     private static readonly (string Keyword, string Publisher)[] KnownPublishers =
     [
@@ -21,7 +24,6 @@ public static class StartupPublisherRules
         ("nvidia", "NVIDIA Corporation"),
         ("nvcontainer", "NVIDIA Corporation"),
         ("radeon", "Advanced Micro Devices, Inc."),
-        ("amd", "Advanced Micro Devices, Inc."),
         ("intel", "Intel Corporation"),
         ("lghub", "Logitech"),
         ("logitech", "Logitech"),
@@ -61,6 +63,13 @@ public static class StartupPublisherRules
             {
                 return publisher;
             }
+        }
+
+        // "amd" only as a word or at the start of a path segment / file name ("\AMD\", "AMD Software", "amdrsserv.exe"),
+        // so names that merely contain the letters (StreamDeck, "streAMDeck") are not attributed to AMD.
+        if (AmdWord().IsMatch(haystack))
+        {
+            return "Advanced Micro Devices, Inc.";
         }
 
         var vendorFolder = VendorFolder(executablePath);

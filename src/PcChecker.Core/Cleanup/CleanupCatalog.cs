@@ -450,6 +450,7 @@ public static class CleanupCatalog
             RiskLevel.Moderate, [@"%PROGRAMDATA%\NVIDIA Corporation\Downloader"], AllFiles, false, true)
         {
             Group = CleanupGroup.Graphics,
+            PruneAnywhere = true,
             Requires = CleanupRequirement.NoPendingReboot,
         },
         new("driver.leftovers.intel", "Intel driver installer files", "Intel graphics installer batch files, logs and dumps. The rest of C:\\Intel is left alone, because Intel and PC-maker tools keep data there.",

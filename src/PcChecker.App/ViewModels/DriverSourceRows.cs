@@ -47,7 +47,8 @@ public sealed partial class DeviceOffersRow : ObservableObject
             recommended.IsChosen = true;
         }
 
-        IsSelected = CanBatchInstall && group.HasNewer;
+        // A Windows Update driver that would replace one AMD Software or the NVIDIA app manages starts unticked.
+        IsSelected = CanBatchInstall && group.HasNewer && Chosen?.UpdateRow?.VendorWarning is null;
     }
 
     public DriverDeviceOffers Group { get; }

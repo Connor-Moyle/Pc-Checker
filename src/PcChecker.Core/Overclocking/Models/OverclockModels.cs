@@ -55,7 +55,18 @@ public sealed record GpuLimits(
     int PowerLimitMaxPercent,
     int TempLimitMinC,
     int TempLimitMaxC,
-    bool FanControl);
+    bool FanControl)
+{
+    /// <summary>GPU voltage offset range in mV (AMD Overdrive8 on RDNA3/4, typically -200..0); 0..0 when not offered.</summary>
+    public int VoltageOffsetMinMv { get; init; }
+
+    public int VoltageOffsetMaxMv { get; init; }
+
+    public bool VoltageOffsetSupported => VoltageOffsetMinMv < VoltageOffsetMaxMv;
+
+    /// <summary>True when the fan is driven through a vendor fan curve (AMD Overdrive8) rather than a fixed duty.</summary>
+    public bool FanCurve { get; init; }
+}
 
 public sealed record OverclockCapabilities(
     GpuVendor GpuVendor,

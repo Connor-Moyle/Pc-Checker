@@ -6,7 +6,22 @@ public static partial class CleanupRules
     private static readonly string[] OfficeApps = ["WINWORD", "EXCEL", "POWERPNT", "OUTLOOK", "ONENOTE", "MSACCESS", "MSPUB", "VISIO"];
 
     private static readonly ProcessMatch[] SteamProcesses = Names("steam", "steamwebhelper");
-    private static readonly ProcessMatch[] NvidiaInstallers = [new("setup", @"\NVIDIA"), new("*NVIDIA*Install*"), new("NVIDIA app*Update*")];
+    // Versioned self-extractors are matched by name too, for example "581.42-desktop-win10-win11-64bit-international-dch-whql"
+    // and "NVIDIA_app_v11.0.5.266", which unpack into C:\NVIDIA from wherever they were downloaded.
+    private static readonly ProcessMatch[] NvidiaInstallers =
+    [
+        new("setup", @"\NVIDIA"), new("*NVIDIA*Install*"), new("NVIDIA app*Update*"), new("NVIDIA_app_v*"),
+        new("*-dch-whql*"), new("*-international-whql*"), new("*-win10-win11-64bit*"), new("*-desktop-win1*"), new("*-notebook-win1*"),
+    ];
+
+    // AMD's installers, including versioned self-extractors such as "amd-software-adrenalin-edition-25.9.1-win10-win11-…"
+    // and "amd_chipset_software_7.06.02.123", which unpack into C:\AMD. A plain setup.exe only counts when it runs from there.
+    private static readonly ProcessMatch[] AmdInstallers =
+    [
+        new("AMDInstallManager"), new("AMDSoftwareInstaller"), new("RadeonInstaller"), new("ATISetup"), new("AMDCleanupUtility"),
+        new("AMD_Chipset*"), new("amd-chipset-software*"), new("amd-software-adrenalin-edition*"), new("amd-software-pro-edition*"),
+        new("setup", @"\AMD\"),
+    ];
 
     private static readonly Dictionary<string, AppRule> BrowserRules = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -136,7 +151,7 @@ public static partial class CleanupRules
             ["game.gog.cache"] = new("GOG Galaxy", Names("GalaxyClient"), Tray),
             ["amd.software.cache"] = new("AMD Software or AMD Ryzen Master", Names("RadeonSoftware", "AMDRSServ", "AMDRyzenMaster"), "Close Ryzen Master and exit AMD Software from the system tray"),
             ["nvidia.app.cache"] = new("The NVIDIA app", Names("NVIDIA app", "NVIDIA Overlay")),
-            ["driver.leftovers.amd"] = new("An AMD installer", [new("AMDInstallManager"), new("RadeonInstaller"), new("AMD_Chipset*"), new("setup", @"\AMD\")], "Wait for it to finish"),
+            ["driver.leftovers.amd"] = new("An AMD installer", AmdInstallers, "Wait for it to finish"),
             ["driver.leftovers.nvidia"] = new("An NVIDIA installer", NvidiaInstallers, "Wait for it to finish"),
             ["driver.downloads.nvidia"] = new("An NVIDIA installer", NvidiaInstallers, "Wait for it to finish"),
             ["driver.leftovers.intel"] = new("An Intel installer", [new("setup", @"\Intel"), new("Installer", @"\Intel"), new("*Intel*Install*")], "Wait for it to finish"),

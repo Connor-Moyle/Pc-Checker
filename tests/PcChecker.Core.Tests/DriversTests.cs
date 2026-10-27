@@ -700,7 +700,8 @@ public class DemoDriverServiceTests
     {
         var svc = new DemoDriverService();
         var check = await svc.CheckForUpdatesAsync(null, CancellationToken.None);
-        Assert.Equal(2, check.Updates.Count);
+        Assert.Equal(3, check.Updates.Count);
+        Assert.Single(check.Updates, u => u.VendorWarning is not null);
         Assert.All(check.Updates, u => Assert.Equal(DriverUpdateSource.WindowsUpdate, u.Source));
         Assert.All(check.Updates, u => Assert.False(string.IsNullOrWhiteSpace(u.Provider)));
         Assert.NotEmpty(check.VendorLinks);
@@ -722,7 +723,7 @@ public class DemoDriverServiceTests
         var install = await svc.InstallAsync(check.Updates, null, CancellationToken.None);
         Assert.True(install.Success);
         Assert.True(install.RebootRequired);
-        Assert.Equal(2, install.Results.Count);
+        Assert.Equal(3, install.Results.Count);
 
         var inbox = DemoDriverService.SampleDrivers().First(d => d.IsInbox);
         Assert.False((await svc.RollbackAsync(inbox.DeviceId, CancellationToken.None)).Success);

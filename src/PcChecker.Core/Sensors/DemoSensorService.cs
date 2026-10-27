@@ -105,6 +105,7 @@ public sealed class DemoSensorService : ISensorService, ISensorServiceExtras, ID
         double seconds = (now - _started).TotalSeconds;
         var readings = new List<SensorReading>(DemoSensorCatalog.All.Count);
         List<TemperatureAlert>? alerts = null;
+        string? cpuName = DemoSensorCatalog.All.FirstOrDefault(s => s.Hardware == HardwareKind.Cpu)?.HardwareName;
 
         lock (_gate)
         {
@@ -116,7 +117,7 @@ public sealed class DemoSensorService : ISensorService, ISensorServiceExtras, ID
                 var reading = new SensorReading(spec.Id, spec.HardwareName, spec.Hardware, spec.Kind, spec.Name, value, buffer.Min, buffer.Max, spec.Unit);
                 readings.Add(reading);
 
-                if (_monitoring.AlertsEnabled && _alerts.Evaluate(reading, _monitoring, now) is { } alert)
+                if (_monitoring.AlertsEnabled && _alerts.Evaluate(reading, _monitoring, now, cpuName) is { } alert)
                 {
                     (alerts ??= []).Add(alert);
                 }

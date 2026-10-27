@@ -47,6 +47,9 @@ public static class DriverCleanupRules
     /// </summary>
     public const string ExtensionClassGuid = "{e2f84ce7-8efa-411c-aa69-97454ca4cb57}";
 
+    /// <summary>Display adapters setup class.</summary>
+    public const string DisplayClassGuid = "{4d36e968-e325-11ce-bfc1-08002be10318}";
+
     /// <summary>Default backup root: <c>%LOCALAPPDATA%\PcChecker\driver-backups</c>.</summary>
     public static string DefaultBackupRoot =>
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "PcChecker", BackupFolderName);
@@ -103,7 +106,28 @@ public static class DriverCleanupRules
         }
 
         var cls = NormalizeGuid(package.ClassGuid) ?? Normalize(package.ClassName);
+        if (IsAmdVersionedDisplayPackage(package))
+        {
+            // AMD Adrenalin uses a release-specific INF name (u0xxxxxx.inf) for every display driver version, so the
+            // original name never repeats: group AMD display packages by provider and class instead.
+            return $"amd-display|{Normalize(package.Provider)}|{cls}";
+        }
+
         return $"{Normalize(package.OriginalName)}|{Normalize(package.Provider)}|{cls}";
+    }
+
+    /// <summary>
+    /// True for an AMD/ATI display driver package (Display class, published by Advanced Micro Devices or ATI
+    /// Technologies). Older versions of these are superseded by the newest one even though their INF names differ.
+    /// </summary>
+    public static bool IsAmdVersionedDisplayPackage(DriverPackage package)
+    {
+        ArgumentNullException.ThrowIfNull(package);
+        bool amd = Hardware.AmdPlatformRules.IsAmdProvider(package.Provider);
+        bool display = NormalizeGuid(package.ClassGuid) is { } g
+            ? g == DisplayClassGuid
+            : string.Equals(package.ClassName?.Trim(), "Display", StringComparison.OrdinalIgnoreCase);
+        return amd && display;
     }
 
     /// <summary>Groups third-party packages into versions of the same driver (see <see cref="GroupKey"/>).</summary>

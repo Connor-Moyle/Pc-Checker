@@ -40,6 +40,8 @@
                           Visibility="{Binding IsAdvancedMode, Converter={StaticResource BoolToVisibility}}"
                           ToolTip="Advanced: adds a driver package (.inf) from disk to Windows and installs it on matching devices." />
                 <MenuItem Header="Open Device Manager" Command="{Binding OpenDeviceManagerCommand}" />
+                <MenuItem Header="Unhide driver updates…" Command="{Binding UnhideUpdatesCommand}"
+                          ToolTip="Lists driver updates hidden in Windows Update and lets you offer them again." />
                 <MenuItem Header="Export driver list…" Command="{Binding ExportListCommand}"
                           ToolTip="Saves the installed driver list as a CSV file." />
               </ContextMenu>
@@ -104,7 +106,9 @@
               <ui:Button Content="Download only" Icon="{ui:SymbolIcon CloudArrowDown24}" Command="{Binding DownloadSelectedCommand}" Margin="0,0,8,4"
                          ToolTip="Fetches the ticked Windows Update drivers now so they install faster later." />
               <ui:Button Content="Select all" Command="{Binding SelectAllUpdatesCommand}" Margin="0,0,4,4" />
-              <ui:Button Content="Clear" Command="{Binding ClearUpdateSelectionCommand}" Margin="0,0,12,4" />
+              <ui:Button Content="Clear" Command="{Binding ClearUpdateSelectionCommand}" Margin="0,0,4,4" />
+              <ui:Button Content="Hide selected" Command="{Binding HideSelectedUpdatesCommand}" Margin="0,0,12,4"
+                         ToolTip="Tells Windows Update to stop offering and installing the ticked Windows Update drivers. Use it for display or chipset drivers that AMD Software or the NVIDIA app installs." />
               <ui:TextBlock Style="{StaticResource Muted}" VerticalAlignment="Center" Margin="0,0,0,4">
                 <Run Text="{Binding SelectedUpdateCount, Mode=OneWay}" /><Run Text=" selected" />
               </ui:TextBlock>

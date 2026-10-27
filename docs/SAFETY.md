@@ -45,6 +45,10 @@ follows, so you know what to expect and contributors know what to build.
   or turning off CPU mitigations.
 - Service, Windows Update, Xbox service and OneDrive removal tweaks only appear
   in Advanced mode.
+- AMD and NVIDIA software tweaks only appear when that software is installed,
+  are in no preset, and never touch FreeSync (AMD External Events Utility),
+  the X3D V-Cache service, the graphics drivers or the AMD platform drivers.
+  On a dual-CCD Ryzen 9 X3D, removing Game Bar warns first.
 
 ## Check-up rules
 
@@ -90,8 +94,11 @@ follows, so you know what to expect and contributors know what to build.
   `swapfile.sys`. Locked files and the app's own log and settings folders are
   skipped.
 - Browser, app and launcher caches are skipped while that program runs
-  (matched by process name and install folder). A scheduled cleanup skips
-  such a category instead of failing.
+  (matched by process name and install folder); the AMD and NVIDIA installer
+  folders (`C:\AMD`, `C:\NVIDIA`) and NVIDIA app downloads while an installer
+  runs, including versioned self-extractors started from a download folder;
+  AMD Software logs while AMD Software is open. A scheduled cleanup skips such
+  a category instead of failing.
 - Categories that need administrator rights, no pending restart, no install
   in progress or Windows Update idle are skipped with the reason until that
   is true.
@@ -323,11 +330,20 @@ damage hardware. PC Checker reduces the risk; it cannot remove it.
 - AMD (ADL/Overdrive8) and Intel Arc (IGCL) tuning are marked experimental.
   Every value is checked against the driver's own minimum and maximum; any
   SDK failure drops the feature to monitor-only and offers the vendor's
-  software instead.
+  software instead. On AMD only features whose capability bit is set are
+  used, every change is read back (a value the driver ignored is reported,
+  not recorded), and *Reset* never sends AC timing, auto-tuning or internal
+  settings and retries one setting at a time if the driver rejects the batch.
+- Temperature limits follow the sensor: GPU hot spot and memory have their
+  own limits, and Ryzen 7000 (except 7000X3D) and 9000 desktop chips,
+  9000X3D included (95 °C by design), use 90/98 °C and a stress stop of
+  Tjmax + 3 °C only while you keep the stock thresholds.
 - CPU tuning only goes through vendor tools (Intel XTU, AMD Ryzen Master,
   ryzenadj) when they are installed; the app does not write MSRs or BIOS
   settings. If a tool's output does not match what the app expects, it
-  refuses rather than guessing.
+  refuses rather than guessing. ryzenadj is only used on Ryzen laptops and
+  APUs and only from admin-only folders; when Windows blocks its WinRing0
+  driver the app says so and never suggests turning Memory Integrity off.
 - The Claude advisor produces a plan with small steps and a stress test after
   each. Every step is clamped before you see it, and the app never applies a
   whole plan at once.
@@ -336,7 +352,11 @@ damage hardware. PC Checker reduces the risk; it cannot remove it.
 
 - Updates come from the Windows Update driver catalog through the Windows
   Update Agent, the same source Windows itself uses, and from the chip makers
-  themselves (NVIDIA, AMD). Searching never changes anything.
+  themselves (NVIDIA, AMD). Searching never changes anything. Windows Update
+  display and chipset drivers that would replace drivers AMD Software or the
+  NVIDIA app installed start unticked with a warning, and are not the default
+  choice when another source is listed. *Hide selected* (and *Unhide*) only
+  set the update's hidden flag, after a confirmation, and are journaled.
 - A vendor package is only downloaded after you confirm, over HTTPS and only
   from the maker's own download servers (`download.nvidia.com`,
   `drivers.amd.com`, Intel's download mirror); every redirect is checked

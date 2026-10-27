@@ -206,7 +206,14 @@
               <ui:TextBlock Style="{StaticResource CardTitle}" Text="GPU tuning" Margin="0,0,0,2" />
               <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,8" Text="Start with a preset, apply, run the stress test, then raise in small steps."
                             ToolTip="Offsets are added to the card's own boost behaviour." />
-              <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+              <StackPanel Orientation="Horizontal" Margin="0,0,0,8" Visibility="{Binding IsAmdGpu, Converter={StaticResource BoolToVisibility}}">
+                <ui:TextBlock Style="{StaticResource Muted}" Text="Presets:" VerticalAlignment="Center" Margin="0,0,8,0" />
+                <ui:Button Content="Default" Command="{Binding ApplyPresetCommand}" CommandParameter="Default (0 / 0)" Margin="0,0,6,0" ToolTip="Everything back to stock values in the sliders." />
+                <ui:Button Content="Undervolt" Command="{Binding ApplyPresetCommand}" CommandParameter="Undervolt (-50 mV)" Margin="0,0,6,0" ToolTip="-50 mV: the same performance with less power and heat on most RX 7000/9000 cards." />
+                <ui:Button Content="Undervolt + power" Command="{Binding ApplyPresetCommand}" CommandParameter="Undervolt (-80 mV, power -10 %)" Margin="0,0,6,0" ToolTip="-80 mV and 90 % power: cooler and quieter. Run the stress test afterwards." />
+                <ui:Button Content="Quiet" Command="{Binding ApplyPresetCommand}" CommandParameter="Quiet (power -10 %)" ToolTip="90 % power for a quieter card." />
+              </StackPanel>
+              <StackPanel Orientation="Horizontal" Margin="0,0,0,8" Visibility="{Binding IsAmdGpu, Converter={StaticResource InverseBoolToVisibility}}">
                 <ui:TextBlock Style="{StaticResource Muted}" Text="Presets:" VerticalAlignment="Center" Margin="0,0,8,0" />
                 <ui:Button Content="Default" Command="{Binding ApplyPresetCommand}" CommandParameter="Default (0 / 0)" Margin="0,0,6,0" ToolTip="Everything back to stock values in the sliders." />
                 <ui:Button Content="Mild" Command="{Binding ApplyPresetCommand}" CommandParameter="Mild (+50 / +200)" Margin="0,0,6,0" ToolTip="+50 MHz core, +200 MHz memory." />
@@ -220,7 +227,7 @@
                   <ColumnDefinition Width="*" />
                   <ColumnDefinition Width="140" />
                 </Grid.ColumnDefinitions>
-                <ui:TextBlock Grid.Column="0" Style="{StaticResource RowLabel}" Text="Core clock offset (MHz)" ToolTip="Added to the GPU core clock in every boost state. Too high = crashes or artifacts." />
+                <ui:TextBlock Grid.Column="0" Style="{StaticResource RowLabel}" Text="{Binding CoreLabel}" ToolTip="Added to the GPU core clock in every boost state. Too high = crashes or artifacts." />
                 <Slider Grid.Column="1" Style="{StaticResource TuneSlider}" Minimum="{Binding CoreMin}" Maximum="{Binding CoreMax}" Value="{Binding CoreOffset}" TickFrequency="5" />
                 <ui:NumberBox Grid.Column="2" Value="{Binding CoreOffset, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Minimum="{Binding CoreMin}" Maximum="{Binding CoreMax}" SmallChange="5" MaxDecimalPlaces="0" ClearButtonEnabled="False" />
               </Grid>
@@ -233,6 +240,16 @@
                 <ui:TextBlock Grid.Column="0" Style="{StaticResource RowLabel}" Text="Memory clock offset (MHz)" ToolTip="Added to the video memory clock. Memory usually takes larger offsets than the core." />
                 <Slider Grid.Column="1" Style="{StaticResource TuneSlider}" Minimum="{Binding MemoryMin}" Maximum="{Binding MemoryMax}" Value="{Binding MemoryOffset}" TickFrequency="25" />
                 <ui:NumberBox Grid.Column="2" Value="{Binding MemoryOffset, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Minimum="{Binding MemoryMin}" Maximum="{Binding MemoryMax}" SmallChange="25" MaxDecimalPlaces="0" ClearButtonEnabled="False" />
+              </Grid>
+              <Grid Margin="0,4" Visibility="{Binding VoltageSupported, Converter={StaticResource BoolToVisibility}}">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="190" />
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="140" />
+                </Grid.ColumnDefinitions>
+                <ui:TextBlock Grid.Column="0" Style="{StaticResource RowLabel}" Text="Voltage offset (mV)" ToolTip="Negative values undervolt the card: the same clocks with less power and heat. Too low = driver resets in games; go back up in 10 mV steps." />
+                <Slider Grid.Column="1" Style="{StaticResource TuneSlider}" Minimum="{Binding VoltageMin}" Maximum="{Binding VoltageMax}" Value="{Binding VoltageOffset}" TickFrequency="5" />
+                <ui:NumberBox Grid.Column="2" Value="{Binding VoltageOffset, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Minimum="{Binding VoltageMin}" Maximum="{Binding VoltageMax}" SmallChange="5" MaxDecimalPlaces="0" ClearButtonEnabled="False" />
               </Grid>
               <Grid Margin="0,4" Visibility="{Binding PowerLimitSupported, Converter={StaticResource BoolToVisibility}}">
                 <Grid.ColumnDefinitions>

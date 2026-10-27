@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using PcChecker.App.Views.Pages;
 using PcChecker.Core.Common;
+using PcChecker.Core.Hardware;
 using PcChecker.Core.Optimization;
 using PcChecker.Core.Settings;
 using Wpf.Ui;
@@ -72,11 +73,20 @@ public sealed class OptimizationActionRunner
             return true;
         }
 
+        // Dual-CCD Ryzen 9 X3D: actions that undo AMD's CCD parking (High/Ultimate plan, no core parking, Game Bar
+        // off) always ask, even inside a batch, and the dialog says why.
+        var x3dWarning = revert ? null : AmdPlatformRules.ActionWarning(action.Id, LocalCpu.Name);
+        if (x3dWarning is not null && !confirm)
+        {
+            _notifications.Warning(action.Title, x3dWarning);
+            return false;
+        }
+
         if (confirm && !await _dialogs.ConfirmAsync(
                 revert ? $"Undo \"{action.Title}\"?" : $"{action.Title}?",
                 BuildConfirmation(action, revert),
                 revert ? "Undo" : "Apply",
-                isDanger: OptimizationRisk.IsDanger(action)))
+                isDanger: OptimizationRisk.IsDanger(action) || x3dWarning is not null))
         {
             return false;
         }
@@ -152,6 +162,12 @@ public sealed class OptimizationActionRunner
     public string BuildConfirmation(OptimizationAction action, bool revert)
     {
         var lines = new List<string> { action.Description, string.Empty };
+        if (!revert && AmdPlatformRules.ActionWarning(action.Id, LocalCpu.Name) is { } x3d)
+        {
+            lines.Insert(0, x3d);
+            lines.Insert(1, string.Empty);
+        }
+
         lines.Add("Risk: " + action.Risk switch
         {
             RiskLevel.Safe => "safe — a standard Windows setting.",

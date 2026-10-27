@@ -48,7 +48,7 @@ public sealed class WindowsUpdateDriverProvider : IDriverUpdateProvider
             {
                 SizeBytes = update.SizeBytes > 0 ? update.SizeBytes : null,
                 WindowsUpdate = update,
-                Note = update.RebootRequired ? "Windows will need a restart after this one." : null,
+                Note = update.VendorWarning ?? (update.RebootRequired ? "Windows will need a restart after this one." : null),
                 FallbackPageUrl = DriverRules.OptionalUpdatesUri,
             }));
         }

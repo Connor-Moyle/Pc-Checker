@@ -3,6 +3,7 @@ using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
+using PcChecker.App.Localization;
 using PcChecker.App.Services;
 using PcChecker.Core.Common;
 using PcChecker.Core.Gaming;
@@ -447,6 +448,10 @@ public sealed partial class OverlayViewModel
         _notifications.Success("Game profiles", shadowed.Count > 0
             ? $"\"{stored.Name}\" saved. Another profile also uses {stored.ExeName}; the first enabled one in the list is used."
             : $"\"{stored.Name}\" saved. It switches on by itself when {stored.ExeName} is in front.");
+        if (GameProfileRules.PowerPlanWarning(stored.PowerPlanId, PcChecker.Core.Hardware.LocalCpu.Name) is { } x3dWarning)
+        {
+            _notifications.Warning(Loc.T("Power plan and X3D"), x3dWarning);
+        }
     }
 
     [RelayCommand]

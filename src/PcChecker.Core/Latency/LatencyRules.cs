@@ -1,4 +1,5 @@
 using PcChecker.Core.Common;
+using PcChecker.Core.Hardware;
 using PcChecker.Core.Optimization;
 using PcChecker.Core.Power;
 
@@ -17,10 +18,35 @@ public static class LatencyRules
     public const double DnsSlowMs = 100;
 
     /// <summary>Findings for a report whose measurements are filled in (its own Findings/Score are ignored).</summary>
-    public static IReadOnlyList<LatencyFinding> BuildFindings(LatencyReport facts, bool hasNvidiaGpu = false, bool? nicPowerSaving = null, IReadOnlyList<NicPowerState>? adapters = null)
+    public static IReadOnlyList<LatencyFinding> BuildFindings(LatencyReport facts, bool hasNvidiaGpu = false, bool? nicPowerSaving = null, IReadOnlyList<NicPowerState>? adapters = null,
+        string? cpuName = null, AmdPlatformFacts? amd = null)
     {
         ArgumentNullException.ThrowIfNull(facts);
         var list = new List<LatencyFinding>();
+
+        // Dual-CCD Ryzen 9 X3D: AMD's driver parks the frequency CCD while a game runs, which needs the Balanced plan,
+        // core parking, Game Mode and Game Bar. The generic "High performance / no parking" advice would undo that.
+        bool dualX3d = CpuTraits.IsDualCcdX3D(cpuName);
+        bool balanced = PowerPlanParser.IsPlan(facts.PowerPlanId, facts.PowerPlan, PowerPlanParser.Balanced, "Balanced")
+            || (facts.PowerPlanId is { } amdPlan && amdPlan == PowerPlanParser.AmdRyzenBalanced);
+        if (AmdPlatformRules.X3dSchedulingSummary(cpuName, balanced, facts.CoreParkingAllowed, facts.GameMode, amd, out var x3dProblems) is { } x3d)
+        {
+            list.Add(new("latency.x3d.scheduling", x3dProblems.Count == 0 ? Severity.Info : Severity.Medium,
+                x3dProblems.Count == 0 ? "X3D: keep Balanced, Game Mode and Game Bar" : "X3D: games may not stay on the V-Cache cores",
+                x3d, x3dProblems.Contains("turn Game Mode on") ? LatencyActionIds.GameModeOn : null, RiskLevel.Safe, false));
+        }
+
+        if (facts.PowerPlanId == PowerPlanParser.AmdRyzenBalanced)
+        {
+            list.Add(new("latency.powerplan.amdryzen", Severity.Low, "Old \"AMD Ryzen Balanced\" power plan",
+                "This plan came with older AMD chipset drivers for Ryzen 1000–3000. Current AMD chipset drivers tune the Windows Balanced plan instead, so switch to Balanced (Power page) and update the chipset driver.",
+                "power.balanced", RiskLevel.Safe, false));
+        }
+
+        if (AmdBiosAdvice(cpuName) is { } bios)
+        {
+            list.Add(new("latency.amd.bios", Severity.Info, "AMD BIOS settings that affect responsiveness", bios, null, RiskLevel.Safe, false));
+        }
 
         if (facts.DpcTimePercent is > DpcHighPercent)
         {
@@ -52,7 +78,7 @@ public static class LatencyRules
                 "Turning it on can lower input latency slightly on recent NVIDIA GPUs.", LatencyActionIds.HagsOn, RiskLevel.Safe, false));
         }
 
-        if ((PowerPlanParser.IsPlan(facts.PowerPlanId, facts.PowerPlan, PowerPlanParser.Balanced, "Balanced")
+        if (!dualX3d && (PowerPlanParser.IsPlan(facts.PowerPlanId, facts.PowerPlan, PowerPlanParser.Balanced, "Balanced")
                 || PowerPlanParser.IsPlan(facts.PowerPlanId, facts.PowerPlan, PowerPlanParser.PowerSaver, "Power saver"))
             && (facts.PowerPlan ?? (facts.PowerPlanId is { } planId ? PowerPlanParser.DescribeKnown(planId) : null)) is { } plan)
         {
@@ -60,7 +86,7 @@ public static class LatencyRules
                 "This plan lets the CPU clock down between frames. High performance keeps it ready.", "power.highperformance", RiskLevel.Safe, false));
         }
 
-        if (facts.CoreParkingAllowed == true)
+        if (facts.CoreParkingAllowed == true && !dualX3d)
         {
             list.Add(new("latency.coreparking.on", Severity.Low, "CPU cores can be parked",
                 "Windows may put idle cores to sleep and wake them when work arrives, which adds a short delay to sudden bursts of work.", LatencyActionIds.CoreParkingOff, RiskLevel.Safe, false));
@@ -126,6 +152,28 @@ public static class LatencyRules
         }
 
         return list;
+    }
+
+    /// <summary>
+    /// BIOS guidance for Ryzen desktops (null for other CPUs): CPPC / Preferred Cores let Windows put single-threaded
+    /// work on the fastest cores, Global C-State Control must stay on for full boost, and AM4 boards that reboot at
+    /// idle usually need Power Supply Idle Control = Typical Current Idle.
+    /// </summary>
+    public static string? AmdBiosAdvice(string? cpuName)
+    {
+        var traits = CpuTraits.Parse(cpuName);
+        if (!traits.IsAmd || traits.FormFactor is CpuFormFactor.Laptop or CpuFormFactor.Handheld)
+        {
+            return null;
+        }
+
+        var text = "In the BIOS, leave CPPC and CPPC Preferred Cores on (Auto or Enabled) so Windows sends single-threaded work to the fastest cores, and keep Global C-State Control enabled: turning it off lowers boost clocks instead of helping latency.";
+        if (traits.Socket == "AM4")
+        {
+            text += " If the PC restarts or freezes when idle, set Power Supply Idle Control to \"Typical Current Idle\".";
+        }
+
+        return text;
     }
 
     /// <summary>100 minus a weight per finding (Critical 30, High 20, Medium 12, Low 6, Info 2), never below 0.</summary>

@@ -7,8 +7,10 @@ namespace PcChecker.Core.Drivers;
 /// Demo drivers for the sample gaming desktop: a realistic mix of inbox and third-party drivers, one device with a
 /// problem, a couple of old drivers, two optional updates from Windows Update and a populated driver store. Pure .NET.
 /// </summary>
-public sealed class DemoDriverService : IDriverService, IDriverStoreProvider, IDriverUpdateStateProvider
+public sealed class DemoDriverService : IDriverService, IDriverStoreProvider, IDriverUpdateStateProvider, IDriverUpdateHiding
 {
+    private readonly List<DriverUpdateInfo> _hidden = [];
+
     private static readonly DateTime Today = DateTime.Today;
     private readonly HashSet<string> _downloaded = new(StringComparer.OrdinalIgnoreCase);
 
@@ -37,6 +39,13 @@ public sealed class DemoDriverService : IDriverService, IDriverStoreProvider, ID
             {
                 Provider = "Intel Corporation",
             },
+            new("wu-nvidia-display", "NVIDIA - Display - 32.0.15.6094",
+                "NVIDIA GeForce RTX 4070 · NVIDIA · Display\nNVIDIA display driver offered by Windows Update.",
+                "32.0.15.6094", new DateTime(2024, 8, 14), 712_000_000, DriverUpdateSource.WindowsUpdate, @"PCI\VEN_10DE&DEV_2786", null, null, false, false, false)
+            {
+                Provider = "NVIDIA",
+                DriverClass = "Display",
+            },
             new("wu-realtek-audio", "Realtek Semiconductor Corp. - MEDIA - 6.0.9728.1",
                 "Realtek(R) Audio · Realtek Semiconductor Corp. · MEDIA\nRealtek audio driver update released in April 2025.",
                 "6.0.9728.1", new DateTime(2025, 4, 22), 48_500_000, DriverUpdateSource.WindowsUpdate, @"HDAUDIO\FUNC_01&VEN_10EC&DEV_4080", null, null, false, false, true)
@@ -46,8 +55,30 @@ public sealed class DemoDriverService : IDriverService, IDriverStoreProvider, ID
         };
         var links = DriverRules.VendorLinksFor(DemoHardwareInventoryService.Build());
         progress?.Report(new ProgressUpdate("Done", 100));
-        return new DriverUpdateCheckResult(updates, links, [], DateTimeOffset.Now);
+
+        // The sample PC has the NVIDIA app, so the Windows Update display driver is flagged and left unticked.
+        var visible = updates.Where(u => !_hidden.Any(h => h.Id == u.Id));
+        return new DriverUpdateCheckResult(DriverUpdateRules.Annotate(visible, amdSoftware: false, nvidiaSoftware: true), links, [], DateTimeOffset.Now);
     }
+
+    public async Task<OperationResult> SetHiddenAsync(IReadOnlyList<DriverUpdateInfo> updates, bool hidden, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(updates);
+        await DemoData.DelayAsync(cancellationToken, 150, 300).ConfigureAwait(false);
+        foreach (var u in updates)
+        {
+            _hidden.RemoveAll(h => h.Id == u.Id);
+            if (hidden)
+            {
+                _hidden.Add(u);
+            }
+        }
+
+        return OperationResult.Ok($"{updates.Count} driver update(s) {(hidden ? "hidden" : "unhidden")} (demo).");
+    }
+
+    public Task<IReadOnlyList<DriverUpdateInfo>> GetHiddenAsync(CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<DriverUpdateInfo>>(_hidden.ToList());
 
     public async Task<OperationResult> DownloadAsync(IReadOnlyList<DriverUpdateInfo> updates, IProgress<ProgressUpdate>? progress, CancellationToken cancellationToken)
     {

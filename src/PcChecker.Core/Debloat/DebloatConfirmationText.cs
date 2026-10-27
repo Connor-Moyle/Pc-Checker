@@ -16,10 +16,16 @@ public static class DebloatConfirmationText
     /// Lists the exact changes grouped by risk (Advanced first), then explains the restore point, one-way changes, and
     /// whether File Explorer or Windows has to restart.
     /// </summary>
-    public static string Build(IReadOnlyList<DebloatTweak> tweaks, bool revert, bool removeAppsForAllUsers = false)
+    public static string Build(IReadOnlyList<DebloatTweak> tweaks, bool revert, bool removeAppsForAllUsers = false, string? cpuName = null)
     {
         ArgumentNullException.ThrowIfNull(tweaks);
         var sb = new StringBuilder();
+        if (!revert && X3dGameBarConflict(tweaks, cpuName))
+        {
+            sb.AppendLine("Warning: " + Hardware.AmdPlatformRules.GameBarX3dWarning);
+            sb.AppendLine();
+        }
+
         int changeLines = 0;
         bool truncated = false;
         foreach (var group in tweaks.GroupBy(t => t.Risk).OrderByDescending(g => g.Key))
@@ -123,6 +129,15 @@ public static class DebloatConfirmationText
         AppxRemovalOp app => $"{app.FriendlyName}: reinstall from the Microsoft Store (not done here)",
         _ => "Undo: " + op.Describe(),
     };
+
+    /// <summary>
+    /// True when the batch removes or turns off Xbox Game Bar on a dual-CCD Ryzen 9 X3D, which AMD's CCD parking relies
+    /// on: the Game Bar app removal itself, or a tweak that runs the Optimize page's Game Bar action.
+    /// </summary>
+    public static bool X3dGameBarConflict(IEnumerable<DebloatTweak> tweaks, string? cpuName) =>
+        Hardware.CpuTraits.IsDualCcdX3D(cpuName) && tweaks.Any(t =>
+            Hardware.AmdPlatformRules.ActionWarning(t.Id, cpuName) == Hardware.AmdPlatformRules.GameBarX3dWarning ||
+            Hardware.AmdPlatformRules.ActionWarning(t.DelegatesToOptimizationId, cpuName) == Hardware.AmdPlatformRules.GameBarX3dWarning);
 
     /// <summary>True when the confirmation should use the Danger style (advanced or one-way changes).</summary>
     public static bool IsDanger(IEnumerable<DebloatTweak> tweaks, bool revert) =>

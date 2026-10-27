@@ -20,9 +20,12 @@ public static class DebloatSources
     public const string Tiny11 = "Tiny11";
     public const string XdAntiSpy = "xd-AntiSpy";
 
+    /// <summary>The vendor's own app offers the same switch (AMD Software, NVIDIA app / control panel).</summary>
+    public const string VendorApp = "Vendor app setting";
+
     /// <summary>Every known source, in the order used by docs/DEBLOAT.md.</summary>
     public static IReadOnlyList<string> All { get; } =
     [
-        WinUtil, Win11Debloat, ShutUp10, Sophia, Privatezilla, BloatyNosy, DebloatWindows10, Optimizer, AtlasOS, ReviOS, HardenDebloat, Tiny11, XdAntiSpy,
+        WinUtil, Win11Debloat, ShutUp10, Sophia, Privatezilla, BloatyNosy, DebloatWindows10, Optimizer, AtlasOS, ReviOS, HardenDebloat, Tiny11, XdAntiSpy, VendorApp,
     ];
 }

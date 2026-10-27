@@ -28,7 +28,12 @@ public sealed record CpuInfo(
     string? Socket, int? Cores, int? LogicalProcessors, int? MaxClockMhz, int? CurrentClockMhz, int? L2CacheKb, int? L3CacheKb,
     string? ProcessorId, string? Family, string? Stepping, bool? VirtualizationEnabled, int? LoadPercent, int? AddressWidth,
     IReadOnlyDictionary<string, string> Properties)
-    : HardwareItem(Name, "Processor", Manufacturer, DeviceId, Status, Properties);
+    : HardwareItem(Name, "Processor", Manufacturer, DeviceId, Status, Properties)
+{
+    /// <summary>Zen generation, socket, form factor, X3D and Tjmax derived from the name (and the WMI description).</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public CpuTraitsInfo Traits => CpuTraits.Parse(Name, Description);
+}
 
 public sealed record GpuInfo(
     string Name, string? Manufacturer, string? DeviceId, string? Status, long? AdapterRamBytes, string? DriverVersion,

@@ -81,7 +81,11 @@ public static class DriverOfferMerger
         }
 
         var all = sorted.Concat(others).ToList();
-        return new DriverDeviceOffers(device, all) { Recommended = all.FirstOrDefault() };
+
+        // A Windows Update driver that would replace one a vendor tool manages (AMD Software, the NVIDIA app) is never
+        // the default choice while another source is listed.
+        var recommended = all.FirstOrDefault(o => o.WindowsUpdate?.VendorWarning is null) ?? all.FirstOrDefault();
+        return new DriverDeviceOffers(device, all) { Recommended = recommended };
     }
 
     /// <summary>

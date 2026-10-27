@@ -21,7 +21,6 @@ public sealed record HeadlineReadings(
 /// <summary>Picks headline readings out of a <see cref="SensorSnapshot"/> using the same rules everywhere. Pure.</summary>
 public static class SnapshotSummary
 {
-    private static readonly string[] CpuPreferred = ["package", "tctl", "tdie", "core max", "core (tctl", "cpu"];
     private static readonly string[] GpuPreferred = ["gpu core", "core", "gpu"];
 
     public static HeadlineReadings Summarize(SensorSnapshot? snapshot)
@@ -31,9 +30,10 @@ public static class SnapshotSummary
             return HeadlineReadings.Empty;
         }
 
-        var readings = snapshot.Readings;
-        var cpuTemp = PickTemperature(readings, HardwareKind.Cpu, CpuPreferred);
-        var gpuTemp = PickTemperature(readings, HardwareKind.Gpu, GpuPreferred);
+        // The primary (discrete) GPU only: an integrated Radeon is listed first on Ryzen 7000/9000 otherwise.
+        var readings = GpuSelection.PrimaryGpuOnly(snapshot.Readings);
+        var cpuTemp = TemperatureRoles.PickCpuTemperature(readings);
+        var gpuTemp = PickTemperature(readings.Where(r => TemperatureRoles.Classify(r) is not (TemperatureRole.GpuMemory or TemperatureRole.GpuVr)).ToList(), HardwareKind.Gpu, GpuPreferred);
         var cpuLoad = PickLoad(readings, HardwareKind.Cpu, "total");
         var gpuLoad = PickLoad(readings, HardwareKind.Gpu, "core");
         var memoryLoad = readings.FirstOrDefault(r => r.Hardware == HardwareKind.Memory && r.Kind == SensorKind.Load && !IsVirtual(r.Name))?.Value;
@@ -95,6 +95,8 @@ public static class SnapshotSummary
 
     private static double? SumPower(IReadOnlyList<SensorReading> readings)
     {
+        // Integrated graphics power is already inside the CPU package on an APU: do not count it twice.
+        readings = Power.PowerMath.WithoutIntegratedGpuPower(readings).ToList();
         double sum = 0;
         bool any = false;
         foreach (var kind in new[] { HardwareKind.Cpu, HardwareKind.Gpu })

@@ -36,7 +36,7 @@ public static class DriverRules
                 "This driver has no valid digital signature, so Windows cannot verify who made it."));
         }
 
-        if (driver.AgeDays is { } age && age >= OldDriverDays && !driver.IsInbox)
+        if (driver.AgeDays is { } age && age >= OldDriverDays && !driver.IsInbox && !IsAmdChipsetComponent(driver))
         {
             flags.Add(new Flag(Severity.Low, "Old driver",
                 $"This driver is about {age / 365} years old. A newer version may be available from the manufacturer."));
@@ -52,8 +52,25 @@ public static class DriverRules
     public static bool IsOld(DriverInfo driver)
     {
         ArgumentNullException.ThrowIfNull(driver);
-        return !driver.IsInbox && driver.AgeDays is { } age && age >= OldDriverDays;
+        return !driver.IsInbox && driver.AgeDays is { } age && age >= OldDriverDays && !IsAmdChipsetComponent(driver);
     }
+
+    /// <summary>
+    /// AMD System-class drivers (SMBus, GPIO, I2C, PCI, UART, PSP…) ship inside AMD Chipset Software, which keeps
+    /// component drivers with old INF dates for years. They are not "old": the whole chipset package is updated
+    /// from amd.com, never a single component.
+    /// </summary>
+    public static bool IsAmdChipsetComponent(DriverInfo driver)
+    {
+        ArgumentNullException.ThrowIfNull(driver);
+        bool system = string.Equals(driver.DeviceClass?.Trim(), "System", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(driver.ClassGuid?.Trim('{', '}', ' '), "4d36e97d-e325-11ce-bfc1-08002be10318", StringComparison.OrdinalIgnoreCase);
+        return system && AmdPlatformRules.IsAmdProvider(driver.Provider);
+    }
+
+    /// <summary>The plain-English note shown for an AMD chipset component instead of "Old driver".</summary>
+    public const string AmdChipsetComponentNote =
+        "Part of AMD Chipset Software. AMD keeps some component drivers unchanged for years; update the whole chipset package from amd.com instead of this one driver.";
 
     /// <summary>Third-party drivers that were staged into the driver store (oemN.inf) can be removed with pnputil.</summary>
     public static bool CanRollBack(DriverInfo driver)
@@ -116,6 +133,13 @@ public static class DriverRules
         var names = new List<string?>();
         foreach (var gpu in inventory.Graphics)
         {
+            // An AMD GPU needs AMD Software (Radeon), not the chipset page; the CPU decides the chipset link below.
+            if (Overclocking.GpuVendorDetector.Detect(gpu) == Overclocking.GpuVendor.Amd)
+            {
+                names.Add("Radeon");
+                continue;
+            }
+
             names.Add(gpu.Vendor);
             names.Add(gpu.Manufacturer);
             names.Add(gpu.Name);
@@ -151,15 +175,30 @@ public static class DriverRules
             names.Add(input.Manufacturer);
         }
 
-        return BuildVendorLinks(names);
+        var links = BuildVendorLinks(names).ToList();
+        var cpuName = inventory.Processors.FirstOrDefault()?.Name;
+        for (int i = 0; i < links.Count; i++)
+        {
+            if (links[i].Vendor == "AMD" && links[i].Component == AmdChipsetComponent)
+            {
+                links[i] = links[i] with { Note = AmdPlatformRules.ChipsetHint(cpuName) };
+            }
+        }
+
+        return links;
     }
+
+    public const string AmdChipsetComponent = "Chipset";
+    public const string AmdGraphicsComponent = "Graphics (AMD Software: Adrenalin Edition)";
 
     /// <summary>Known vendor download pages keyed by a case-insensitive vendor keyword.</summary>
     public static IReadOnlyList<(string Keyword, string Vendor, string Component, string Url, string Note)> VendorTable { get; } =
     [
         ("nvidia", "NVIDIA", "Graphics", "https://www.nvidia.com/Download/index.aspx", "GeForce drivers are also available through the NVIDIA app."),
-        ("amd", "AMD", "Graphics / Chipset", "https://www.amd.com/en/support", "Use AMD Software: Adrenalin Edition for Radeon graphics."),
-        ("radeon", "AMD", "Graphics", "https://www.amd.com/en/support", "Use AMD Software: Adrenalin Edition for Radeon graphics."),
+        ("radeon", "AMD", AmdGraphicsComponent, AmdPlatformRules.ChipsetDownloadUrl,
+            "Install Radeon drivers with AMD Software: Adrenalin Edition. When switching between NVIDIA and AMD, remove the old driver first with the AMD Cleanup Utility or Display Driver Uninstaller."),
+        ("amd", "AMD", AmdChipsetComponent, AmdPlatformRules.ChipsetDownloadUrl, "AMD Chipset Software: use AMD's Auto-Detect and Install tool or pick your socket (AM4/AM5)."),
+        ("advanced micro devices", "AMD", AmdChipsetComponent, AmdPlatformRules.ChipsetDownloadUrl, "AMD Chipset Software: use AMD's Auto-Detect and Install tool or pick your socket (AM4/AM5)."),
         ("intel", "Intel", "Graphics / Chipset / Network", "https://www.intel.com/content/www/us/en/support/detect.html", "The Intel Driver & Support Assistant detects your hardware."),
         ("realtek", "Realtek", "Audio / Network", "https://www.realtek.com/en/downloads", "Prefer the driver from your motherboard or laptop maker."),
         ("asus", "ASUS", "Motherboard / Laptop", "https://www.asus.com/support/download-center/", "Search for your exact model."),

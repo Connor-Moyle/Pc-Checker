@@ -19,7 +19,13 @@ public abstract class DebloatServiceBase : IDebloatService
 
     protected DebloatEngine Engine { get; }
 
-    public IReadOnlyList<DebloatTweak> Tweaks => DebloatCatalog.All;
+    private IReadOnlyList<DebloatTweak>? _tweaks;
+
+    /// <summary>The catalog for this PC: AMD/NVIDIA software tweaks only when that software is installed.</summary>
+    public IReadOnlyList<DebloatTweak> Tweaks => _tweaks ??= DebloatCatalog.Visible(InstalledVendorSoftware);
+
+    /// <summary>Which vendor graphics software is installed; the base offers every tweak.</summary>
+    protected virtual DebloatVendorSoftware InstalledVendorSoftware => DebloatVendorSoftware.All;
     public IReadOnlyList<DebloatPreset> Presets => DebloatPresets.All;
     public IReadOnlyList<DebloatUnsafeItem> NotOffered => DebloatPresets.NotOffered;
     public IReadOnlyList<DebloatNote> Notes => DebloatPresets.Notes;

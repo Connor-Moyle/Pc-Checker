@@ -146,7 +146,10 @@ public sealed record DriverOffer(
 /// <summary>A device with every offer found for it, newest first.</summary>
 public sealed record DriverDeviceOffers(DriverDeviceRef Device, IReadOnlyList<DriverOffer> Offers)
 {
-    /// <summary>The offer chosen by default: the newest; on a tie Windows Update, then the device maker.</summary>
+    /// <summary>
+    /// The offer chosen by default: the newest; on a tie Windows Update, then the device maker. Never a Windows Update
+    /// driver that a vendor tool should install instead while another source is listed.
+    /// </summary>
     public DriverOffer? Recommended { get; init; }
 
     /// <summary>True when at least one source has something newer than the installed driver.</summary>

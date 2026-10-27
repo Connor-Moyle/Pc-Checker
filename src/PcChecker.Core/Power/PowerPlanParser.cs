@@ -11,6 +11,9 @@ public static partial class PowerPlanParser
     public static readonly Guid PowerSaver = new("a1841308-3541-4fab-bc81-f71556f20b4a");
     public static readonly Guid UltimatePerformance = new("e9a42b02-d5df-448d-aa00-03f14749eb61");
 
+    /// <summary>The legacy "AMD Ryzen Balanced" plan older AMD chipset drivers installed.</summary>
+    public static readonly Guid AmdRyzenBalanced = new("9897998c-92de-4669-853f-b7cd3ecb2790");
+
     [GeneratedRegex(@"([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})\s*\(([^)]*)\)\s*(\*?)", RegexOptions.CultureInvariant)]
     private static partial Regex SchemeLine();
 
@@ -83,6 +86,11 @@ public static partial class PowerPlanParser
             return "Ultimate Performance";
         }
 
+        if (id == AmdRyzenBalanced)
+        {
+            return "AMD Ryzen Balanced";
+        }
+
         return null;
     }
 
@@ -107,6 +115,11 @@ public static partial class PowerPlanParser
         if (id == UltimatePerformance)
         {
             return "Removes small power-saving pauses for the lowest latency. Meant for workstations; uses the most power.";
+        }
+
+        if (id == AmdRyzenBalanced)
+        {
+            return "AMD's older plan for Ryzen 1000–3000. Current AMD chipset drivers tune the Windows Balanced plan instead, so Balanced is the better choice now.";
         }
 
         return "A custom plan created by you, your PC maker or another tool.";

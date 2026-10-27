@@ -175,7 +175,11 @@ public sealed partial class DebloatViewModel : ViewModelBase
                 _rows[tweak.Id] = row;
             }
 
-            Groups.Add(group);
+            // The AMD & NVIDIA group only appears when that vendor's software is installed.
+            if (group.Rows.Count > 0)
+            {
+                Groups.Add(group);
+            }
         }
 
         UpdateVisibility();
@@ -251,6 +255,7 @@ public sealed partial class DebloatViewModel : ViewModelBase
         DebloatCatalog.GamingCategory => "Background recording, Game Mode, fullscreen behaviour and Xbox services.",
         DebloatCatalog.UpdateCategory => "Control when updates install. Windows Update itself is never disabled.",
         DebloatCatalog.ServicesCategory => "Background services that are safe to turn off if you don't use the feature they belong to.",
+        DebloatCatalog.VendorCategory => "Telemetry, update checks and background helpers of AMD Software and NVIDIA's driver tools. FreeSync, the driver and X3D services are never touched.",
         DebloatCatalog.AppsCategory => "Pre-installed consumer, promotional and PC-maker apps. Removal is one-way here; reinstall from the Microsoft Store any time.",
         _ => string.Empty,
     };
@@ -269,6 +274,7 @@ public sealed partial class DebloatViewModel : ViewModelBase
         DebloatCatalog.GamingCategory => SymbolRegular.Games24,
         DebloatCatalog.UpdateCategory => SymbolRegular.ArrowSync24,
         DebloatCatalog.ServicesCategory => SymbolRegular.Server24,
+        DebloatCatalog.VendorCategory => SymbolRegular.DeveloperBoard24,
         DebloatCatalog.AppsCategory => SymbolRegular.Apps24,
         _ => SymbolRegular.ShieldTask24,
     };

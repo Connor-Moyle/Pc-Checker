@@ -370,7 +370,9 @@ public sealed partial class LibreHardwareFanControlService
 
         foreach (var group in _rpmOnly.GroupBy(r => r.HardwareName))
         {
-            _capabilityNotes.Add($"Read-only: {group.Key} reports {group.Count()} fan speed(s) but exposes no control");
+            _capabilityNotes.Add(AmdGpuFanRules.IsOverdrive8Card(group.Key)
+                ? $"Read-only: {group.Key}. {AmdGpuFanRules.ReadOnlyNote}"
+                : $"Read-only: {group.Key} reports {group.Count()} fan speed(s) but exposes no control");
         }
 
         if (_entries.Count == 0 && _rpmOnly.Count == 0)
@@ -406,8 +408,20 @@ public sealed partial class LibreHardwareFanControlService
     private IReadOnlyList<FanProfile> BuildBuiltInProfiles()
     {
         var sources = GetTemperatureSources();
-        string cpu = PickSensor(sources, HardwareKind.Cpu, "package", "tctl", "tdie", "core") ?? "cpu.package";
-        string gpu = PickSensor(sources, HardwareKind.Gpu, "core", "hot") ?? "gpu.core";
+        IReadOnlyList<SensorReading> temps = [];
+        try
+        {
+            temps = _sensors.GetTemperatures();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Sensor temperatures unavailable for the built-in fan profiles.");
+        }
+
+        // Same picks as the Dashboard: Tdie before Tctl, and the discrete GPU's core (never the integrated Radeon,
+        // whose temperature follows the CPU).
+        string cpu = TemperatureRoles.PickCpuTemperature(temps)?.Id ?? PickSensor(sources, HardwareKind.Cpu, "package", "tdie", "tctl", "core") ?? "cpu.package";
+        string gpu = TemperatureRoles.PickGpuCoreTemperature(temps)?.Id ?? PickSensor(sources, HardwareKind.Gpu, "core", "hot") ?? "gpu.core";
         List<string> gpuFans;
         List<string> cpuFans;
         lock (_gate)

@@ -61,7 +61,7 @@ public sealed class WindowsMemoryService : IMemoryService, IMemoryTuning
 
         var modules = facts.Modules;
         PlatformVendor = facts.CpuVendor;
-        var xmp = MemoryRules.EvaluateXmp(modules, facts.CpuVendor);
+        var xmp = MemoryRules.EvaluateXmp(modules, facts.CpuVendor, Hardware.LocalCpu.Name);
         var channels = MemoryRules.EvaluateChannels(modules, facts.Slots);
         var memorySettings = _settings.Current.Memory ?? new MemorySettings();
         var ruleFacts = new MemoryFacts(facts.TotalBytes, facts.AvailableBytes, facts.CommitTotalBytes, facts.CommitLimitBytes,

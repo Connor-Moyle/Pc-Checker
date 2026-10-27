@@ -32,8 +32,11 @@ public sealed class AlertTracker
     /// <summary>True when the sensor is currently above a threshold (an alert was raised and not yet cleared).</summary>
     public bool IsActive(string sensorId) => _states.ContainsKey(sensorId);
 
-    /// <summary>Evaluates one reading. Returns an alert when one should be shown now, otherwise null.</summary>
-    public TemperatureAlert? Evaluate(SensorReading reading, MonitoringSettings settings, DateTimeOffset now)
+    /// <summary>
+    /// Evaluates one reading. Returns an alert when one should be shown now, otherwise null. <paramref name="cpuName"/>
+    /// is the CPU in the same snapshot, so integrated GPU sensors get the CPU's limits.
+    /// </summary>
+    public TemperatureAlert? Evaluate(SensorReading reading, MonitoringSettings settings, DateTimeOffset now, string? cpuName = null)
     {
         ArgumentNullException.ThrowIfNull(reading);
         ArgumentNullException.ThrowIfNull(settings);
@@ -43,7 +46,7 @@ public sealed class AlertTracker
             return null;
         }
 
-        if (SensorMath.ThresholdsFor(reading.Hardware, settings) is not { } thresholds)
+        if (TemperatureRoles.ThresholdsFor(reading, settings, cpuName) is not { } thresholds)
         {
             return null;
         }
