@@ -2,11 +2,15 @@ using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
+using PcChecker.App.Localization;
 using PcChecker.App.Services;
+using PcChecker.App.Views.Pages;
 using PcChecker.Core.Cleanup;
 using PcChecker.Core.Common;
+using PcChecker.Core.Debloat;
 using PcChecker.Core.Optimization;
 using PcChecker.Core.Settings;
+using Wpf.Ui;
 using Wpf.Ui.Controls;
 
 namespace PcChecker.App.ViewModels;
@@ -21,6 +25,8 @@ public sealed partial class CleanupViewModel : ViewModelBase
     private readonly ITempFileCleaner _cleaner;
     private readonly IDialogService _dialogs;
     private readonly INotificationService _notifications;
+    private readonly IDebloatService _debloat;
+    private readonly INavigationService _navigation;
     private readonly ILogger<CleanupViewModel> _logger;
     private static readonly TimeSpan SaveDebounceDelay = TimeSpan.FromMilliseconds(400);
     private bool _loadingSelection;
@@ -69,15 +75,38 @@ public sealed partial class CleanupViewModel : ViewModelBase
     [ObservableProperty]
     private string _runTitle = "Cleanup finished";
 
+    /// <summary>Set after a run in which File Explorer kept icon or thumbnail cache files open.</summary>
+    [ObservableProperty]
+    private bool _isRestartExplorerSuggested;
+
+    [ObservableProperty]
+    private CleanupGroupFilter _selectedGroupFilter;
+
     public CleanupViewModel(ISettingsService settings, ITempFileScanner scanner, ITempFileCleaner cleaner,
-        IDialogService dialogs, INotificationService notifications, ILogger<CleanupViewModel> logger)
+        IDialogService dialogs, INotificationService notifications, IDebloatService debloat, INavigationService navigation,
+        ILogger<CleanupViewModel> logger)
         : base(settings)
     {
         _scanner = scanner;
         _cleaner = cleaner;
         _dialogs = dialogs;
         _notifications = notifications;
+        _debloat = debloat;
+        _navigation = navigation;
         _logger = logger;
+
+        GroupFilters =
+        [
+            new(null, Loc.T("All categories")),
+            new(CleanupGroup.Windows, Loc.T("Windows")),
+            new(CleanupGroup.Graphics, Loc.T("Graphics drivers (AMD, NVIDIA, Intel)")),
+            new(CleanupGroup.Browsers, Loc.T("Browsers")),
+            new(CleanupGroup.Apps, Loc.T("Apps")),
+            new(CleanupGroup.Games, Loc.T("Game launchers")),
+            new(CleanupGroup.Developer, Loc.T("Developer tools")),
+            new(CleanupGroup.Privacy, Loc.T("Privacy")),
+        ];
+        _selectedGroupFilter = GroupFilters[0];
 
         var selected = new HashSet<string>(
             CleanupRules.ResolveSelection(settings.Current.Cleanup.EnabledCategoryIds, scanner.Categories, IsAdvancedMode),
@@ -144,7 +173,8 @@ public sealed partial class CleanupViewModel : ViewModelBase
         }
 
         var progress = new Progress<ProgressUpdate>(u => BusyText = FormatProgress("Scanning", u));
-        var ids = Categories.Where(c => c.IsVisible).Select(c => c.Id).ToList();
+        // Every category the mode allows, whatever the group filter shows, so switching the filter needs no new scan.
+        var ids = Categories.Where(c => c.IsAvailable).Select(c => c.Id).ToList();
         var result = await _scanner.ScanAsync(ids, progress, ct);
         ApplyScan(result);
     }, "Scanning for junk files…");
@@ -171,6 +201,17 @@ public sealed partial class CleanupViewModel : ViewModelBase
                 message += "\n\nSome of the selected categories are marked Moderate or Advanced; read their descriptions before continuing.";
             }
 
+            var tools = targets.Where(t => t.IsCommand).Select(t => t.Name).ToList();
+            if (tools.Count > 0)
+            {
+                message += "\n\n" + Loc.F("Windows' own tools clean these: {0}. DISM can take up to 30 minutes.", string.Join(", ", tools));
+            }
+
+            foreach (var warning in targets.Select(t => t.Category.ConfirmWarning).Where(w => !string.IsNullOrWhiteSpace(w)).Distinct())
+            {
+                message += "\n\n" + warning;
+            }
+
             if (!await _dialogs.ConfirmAsync("Delete these files?", message, "Delete files", isDanger: true))
             {
                 return;
@@ -186,7 +227,7 @@ public sealed partial class CleanupViewModel : ViewModelBase
             {
                 _notifications.Show("Cleanup finished", CleanupRules.Summarize(result), result.Errors.Count > 0 ? NotificationKind.Warning : NotificationKind.Success);
                 // Fresh numbers after a real clean.
-                var rescan = await _scanner.ScanAsync(Categories.Where(c => c.IsVisible).Select(c => c.Id), progress, ct);
+                var rescan = await _scanner.ScanAsync(Categories.Where(c => c.IsAvailable).Select(c => c.Id), progress, ct);
                 ApplyScan(rescan);
             }
         }, DryRun ? "Checking what would be removed…" : "Cleaning…");
@@ -333,7 +374,10 @@ public sealed partial class CleanupViewModel : ViewModelBase
 
         RunTitle = result.DryRun ? "Dry run finished" : "Cleanup finished";
         RunSeverity = result.Errors.Count > 0 ? InfoBarSeverity.Warning : result.DryRun ? InfoBarSeverity.Informational : InfoBarSeverity.Success;
-        RunSummary = CleanupRules.Summarize(result);
+        RunSummary = result.Messages.Count == 0
+            ? CleanupRules.Summarize(result)
+            : CleanupRules.Summarize(result) + " " + string.Join(" ", result.Messages);
+        IsRestartExplorerSuggested = !result.DryRun && CleanupRules.ExplorerHeldFiles(result.Skipped) > 0;
         OnPropertyChanged(nameof(HasRunDetails));
         OnPropertyChanged(nameof(HasSkippedPaths));
         OnPropertyChanged(nameof(HasErrorPaths));
@@ -382,13 +426,70 @@ public sealed partial class CleanupViewModel : ViewModelBase
 
     private void ApplyVisibility()
     {
+        var group = SelectedGroupFilter?.Group;
         foreach (var item in Categories)
         {
-            item.IsVisible = !item.IsAdvanced || IsAdvancedMode;
+            item.IsAvailable = !item.IsAdvanced || IsAdvancedMode;
+            item.IsVisible = item.IsAvailable && (group is null || item.Group == group);
         }
 
         OnPropertyChanged(nameof(SelectedText));
     }
+
+    partial void OnSelectedGroupFilterChanged(CleanupGroupFilter value)
+    {
+        ApplyVisibility();
+        RecalculateTotals();
+    }
+
+    /// <summary>The group filter above the category list.</summary>
+    public IReadOnlyList<CleanupGroupFilter> GroupFilters { get; }
+
+    [RelayCommand]
+    private async Task RestartExplorerAsync()
+    {
+        if (!await _dialogs.ConfirmAsync(Loc.T("Restart File Explorer?"),
+                Loc.T("The taskbar and open File Explorer windows close for a moment and come back. This releases most icon and thumbnail cache files; scan and clean again afterwards."),
+                Loc.T("Restart Explorer")))
+        {
+            return;
+        }
+
+        OperationResult? result = null;
+        await RunBusyAsync(async ct => result = await _debloat.RestartExplorerAsync(ct), Loc.T("Restarting File Explorer…"), cancellable: false);
+        if (result is null)
+        {
+            return;
+        }
+
+        IsRestartExplorerSuggested = false;
+        if (result.Success)
+        {
+            _notifications.Success(Loc.T("File Explorer restarted"), Loc.T("Scan and clean again to remove the icon and thumbnail caches. Anything still in use is cleared after you sign out and back in."));
+        }
+        else
+        {
+            _notifications.Warning(Loc.T("File Explorer"), result.Message);
+        }
+    }
+
+    [RelayCommand]
+    private void DismissRestartExplorer() => IsRestartExplorerSuggested = false;
+
+    [RelayCommand]
+    private void OpenSystemProtection() => Launch(System.IO.Path.Combine(Environment.SystemDirectory, "SystemPropertiesProtection.exe"));
+
+    [RelayCommand]
+    private void OpenStorageRecommendations() => Launch("ms-settings:storagerecommendations");
+
+    [RelayCommand]
+    private void OpenDiagnosticDataSettings() => Launch("ms-settings:privacy-feedback");
+
+    [RelayCommand]
+    private void GoToOldDrivers() => _navigation.Navigate(typeof(DriverCleanupPage));
+
+    [RelayCommand]
+    private void GoToOptimize() => _navigation.Navigate(typeof(OptimizePage));
 
     private void RecalculateTotals()
     {

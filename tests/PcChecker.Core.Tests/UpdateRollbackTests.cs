@@ -1,3 +1,4 @@
+using PcChecker.Core.Optimization;
 using PcChecker.Core.Cleanup;
 using PcChecker.Core.Drivers;
 using PcChecker.Core.WindowsUpdate;
@@ -606,10 +607,12 @@ public class WindowsOldCleanupWarningTests
     public void Cleanup_warns_that_removing_windows_old_ends_going_back()
     {
         var category = CleanupCatalog.Find(CleanupRules.WindowsOldId)!;
-        Assert.Contains("Storage Sense", category.Description);
         Assert.Contains("go back", category.Description);
+        Assert.Contains("Roll back", category.Description);
         Assert.Contains("Storage Sense", CleanupRules.WindowsOldNote);
         Assert.Contains("Disk Cleanup", CleanupRules.WindowsOldNote);
-        Assert.True(CleanupRules.IsReportOnly(CleanupRules.WindowsOldId));
+        Assert.Equal(RiskLevel.Advanced, category.Risk);
+        Assert.False(category.EnabledByDefault);
+        Assert.True(CleanupRules.IsOneWay(CleanupRules.WindowsOldId));
     }
 }

@@ -894,13 +894,66 @@ Win11Debloat, O&O ShutUp10++, Sophia Script and others; full list and table in
 
 ### Cleanup
 
-- **Scan** by category: your temp files, Windows temp, Windows Update
-  downloads, Delivery Optimization, prefetch, thumbnails, icon cache, Recycle
-  Bin, Chrome, Edge and Firefox caches, crash dumps, error reports, Windows
-  logs, DirectX and NVIDIA shader caches, font cache, Internet temporary
-  files and (**Advanced**) the previous Windows installation.
-- Each category is a card with a checkbox, a risk badge, size and file count
-  after the scan, and an expander with the largest files and *Open folder*.
+- **Scan** by category, in seven groups you can filter by:
+  - **Windows**: your temp files; Windows temp (including the Windows 11
+    24H2 `SystemTemp` folder and the service profiles' Temp folders when
+    elevated); Windows Update downloads; Delivery Optimization; old prefetch
+    data (entries unused for 30 days only); thumbnails; icon cache (including
+    the legacy `IconCache.db`); Recycle Bin; crash dumps (including
+    `LiveKernelReports` GPU timeout dumps and wherever Startup and Recovery
+    writes dumps); error reports; Windows logs (also Windows Update, USO,
+    Delivery Optimization, `setupapi` and debug logs); font cache (the Font
+    Cache service is paused); Internet temporary files; Store app temp
+    files; Windows Installer leftovers (`Config.Msi`, `Installer\*.tmp`) and
+    (**Advanced**) the `$PatchCache$`; the Remote Desktop bitmap cache; and
+    old CHKDSK fragments on every fixed drive.
+  - **Windows tools** (run through Windows' own tools, never file by file):
+    Windows Update cleanup with **DISM** `/StartComponentCleanup` (size from
+    DISM's own analysis) and (**Advanced**) `/ResetBase`; selected **Disk
+    Cleanup** handlers (upgrade logs, downloaded program files, offline
+    pages, retail demo content, Diagnostic Data Viewer files, Feedback Hub
+    archives, Microsoft Defender temporary files, BranchCache), run once with
+    `cleanmgr /sagerun` and unflagged afterwards; (**Advanced**) the previous
+    Windows installation, Windows upgrade leftovers (`$WINDOWS.~BT`,
+    `$WINDOWS.~WS`, ESD, `$GetCurrent`) and every System Restore point
+    except the newest (other shadow copies are never touched). What these
+    tools freed is read from the drive's free space afterwards.
+  - **Graphics drivers**: DirectX shader cache; **NVIDIA** shader caches
+    (`PerDriverVersion\DXCache`, `ComputeCache`, `NV_Cache`, Store and Game
+    Pass caches); **AMD** shader caches (every `AMD\*Cache` folder such as
+    `DxCache`, `Dx9Cache`, `DxcCache`, `GLCache`, `VkCache`, plus
+    `RadeonSoftware\vkcache` and Store and Game Pass caches); **Intel** Arc
+    and Iris shader caches; AMD Software, NVIDIA app and Intel Graphics
+    Command Center logs and web caches; and installer leftovers in
+    `C:\AMD` (folders an installed program's uninstaller needs are always
+    kept), `C:\NVIDIA`, NVIDIA driver downloads and Intel's graphics
+    installer files.
+  - **Browsers**: Chrome, Edge and Brave (every channel: Beta, Dev, Canary),
+    Firefox, Opera and Opera GX (separate cards), Vivaldi, Chromium,
+    Waterfox, LibreWolf, Floorp, Zen, Arc and Yandex. Chromium caches include
+    Service Worker CacheStorage, Dawn and the shared shader caches; Firefox
+    caches include `startupCache`, thumbnails, `shader-cache` and crash
+    reports.
+  - **Apps**: Discord (stable, PTB, Canary), Microsoft Teams (new and
+    classic), Spotify (never downloaded songs), Office caches and the
+    (**Advanced**, your account only) upload and add-in cache, VS Code, Slack, Zoom, OBS Studio,
+    Thunderbird and the (**Moderate**) Adobe media cache.
+  - **Game launchers**: Steam (web cache, logs, dumps, client packages;
+    the depot cache, per-game shader pre-caches in every library and
+    abandoned downloads as separate cards), Epic Games Launcher, Battle.net,
+    EA app, Ubisoft Connect (and **Advanced** installers) and GOG Galaxy.
+  - **Developer tools** (**Advanced**): npm and Yarn, pip, NuGet, Java,
+    .NET temporary files, Gradle, Maven, Go and Cargo caches.
+  - **Privacy** (opt-in, never scheduled, your account only): recent items, jump lists, Office
+    recent documents, the clipboard and its history, and browser cookies
+    (**Advanced**), history and saved sessions.
+- Each category is a card with a checkbox, a risk badge, its group, size and
+  file count after the scan, a tip where there is a side effect, and an
+  expander with the largest files and *Open folder*.
+- A category whose app is running (matched by process name and install
+  folder, so Chrome and Chromium or Opera and Opera GX are told apart), or
+  whose precondition is not met (administrator rights, a pending restart, an
+  install in progress), is skipped with the reason instead of failing.
 - **Dry run** shows exactly what would be removed. **Clean selected** then
   deletes file by file and reports what was freed, skipped (locked or in use)
   and failed.
@@ -908,10 +961,21 @@ Win11Debloat, O&O ShutUp10++, Sophia Script and others; full list and table in
   Windows.old. Its card warns that removing it, including through Storage
   Sense or Disk Cleanup, ends the option to go back to the previous version of
   Windows (Windows Update → Roll back shows the days left).
+  and failed. When File Explorer kept icon or thumbnail caches open,
+  *Restart Explorer* is offered.
+- Shortcuts in *More*: Storage settings, Storage Sense, Windows Disk Cleanup,
+  cleanup recommendations, old driver packages (Drivers page), the
+  hibernation file (Optimize page), System Protection settings and Windows'
+  *Delete diagnostic data*.
 
-Safety rules: never outside the category roots, never through junctions or
-symbolic links, never files modified in the last 60 minutes (configurable),
-never `desktop.ini`, and browser caches are skipped while the browser runs.
+Safety rules: never outside the category folders and their file patterns,
+never inside a category's excluded folders (for example Spotify downloads,
+Ubisoft ownership data or the `C:\AMD` chipset uninstaller), never through
+junctions or symbolic links, never files modified in the last 60 minutes
+(configurable), never `desktop.ini`, `thumbs.db`, `ntuser.dat`, the page,
+swap or hibernation file, never saved passwords, cards or bookmarks, and app
+caches are skipped while the app runs. What is deliberately not offered, and
+why, is listed in [SAFETY.md](SAFETY.md#cleanup-deliberately-not-offered).
 
 ### Disk space
 

@@ -122,7 +122,16 @@ public class CleanupCatalogTests
         Assert.Equal(CleanupCatalog.All.Count, CleanupCatalog.All.Select(c => c.Id).Distinct(StringComparer.OrdinalIgnoreCase).Count());
         Assert.All(CleanupCatalog.All, c =>
         {
-            Assert.NotEmpty(c.PathTemplates);
+            // File categories need folders; a command category may have none (DISM, restore points, the clipboard).
+            if (c.Kind == CleanupKind.Command)
+            {
+                Assert.NotEqual(CleanupCommand.None, c.Command);
+            }
+            else
+            {
+                Assert.NotEmpty(c.Paths);
+            }
+
             Assert.NotEmpty(c.IncludePatterns);
             Assert.False(string.IsNullOrWhiteSpace(c.Name));
             Assert.False(string.IsNullOrWhiteSpace(c.Description));
@@ -162,15 +171,44 @@ public class CleanupCatalogTests
         Assert.Equal(@"%NOPE%\x", CleanupCatalog.ExpandTemplate(@"%NOPE%\x", Env));
     }
 
+    private static string? FullEnv(string name) => name.ToUpperInvariant() switch
+    {
+        "APPDATA" => @"C:\Users\me\AppData\Roaming",
+        "USERPROFILE" => @"C:\Users\me",
+        "PROGRAMFILES(X86)" => @"C:\Program Files (x86)",
+        "STEAM" => @"C:\Program Files (x86)\Steam",
+        "UBISOFT" => @"C:\Program Files (x86)\Ubisoft\Ubisoft Game Launcher",
+        "DUMPFILEDIR" => @"C:\Windows",
+        "MINIDUMPDIR" => @"C:\Windows\Minidump",
+        _ => Env(name),
+    };
+
     [Fact]
     public void Every_template_in_catalog_expands_fully()
     {
         foreach (var category in CleanupCatalog.All)
         {
-            foreach (var root in CleanupCatalog.ExpandRoots(category, Env))
+            foreach (var path in category.Paths.Select(p => p.Template).Concat(category.ExcludePathTemplates))
             {
-                Assert.DoesNotContain("%", root);
-                Assert.StartsWith("C:", root);
+                foreach (var template in CleanupPathResolver.ExpandMultiValue(path, _ => [@"C:\SteamLibrary"]))
+                {
+                    var root = CleanupCatalog.ExpandTemplate(template, FullEnv);
+                    Assert.DoesNotContain("%", root);
+                    Assert.StartsWith("C:", root);
+                }
+            }
+        }
+    }
+
+    [Fact]
+    public void Templates_only_use_documented_variables()
+    {
+        var known = CleanupCatalog.EnvironmentVariables.Concat(CleanupCatalog.ComputedVariables).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var category in CleanupCatalog.All)
+        {
+            foreach (var template in category.Paths.Select(p => p.Template).Concat(category.ExcludePathTemplates))
+            {
+                Assert.All(CleanupCatalog.VariablesIn(template), v => Assert.Contains(v, known));
             }
         }
     }
@@ -252,8 +290,10 @@ public class CleanupPathResolverTests
     {
         var category = CleanupCatalog.Find("browser.firefox.cache")!;
         var resolved = CleanupPathResolver.Resolve(category, Env, [], ListDirs);
-        Assert.Equal(2, resolved.Roots.Count);
-        Assert.All(resolved.Roots, r => Assert.EndsWith(@"\cache2", r));
+        Assert.Equal(2, resolved.Roots.Count(r => r.EndsWith(@"\cache2", StringComparison.Ordinal)));
+        Assert.Contains(@"C:\Users\me\AppData\Local\Mozilla\Firefox\Profiles\x9y8.dev-edition\startupCache", resolved.Roots);
+        Assert.Contains(@"C:\Users\me\AppData\Roaming\Mozilla\Firefox\Crash Reports\pending", resolved.Roots);
+        Assert.All(resolved.Roots, r => Assert.Contains(@"\Mozilla\Firefox\", r));
         Assert.Empty(resolved.UsersScanned);
     }
 
@@ -271,9 +311,16 @@ public class CleanupPathResolverTests
     public void Machine_wide_categories_ignore_other_users()
     {
         var category = CleanupCatalog.Find("windows.temp")!;
-        var resolved = CleanupPathResolver.Resolve(category, Env, [@"C:\Users\bob"], ListDirs);
+        var resolved = CleanupPathResolver.Resolve(category, Env, [@"C:\Users\bob"], ListDirs, isElevated: false);
         Assert.Equal([@"C:\Windows\Temp"], resolved.Roots);
         Assert.Empty(resolved.UsersScanned);
+
+        // Elevated, the 24H2 SystemTemp and the service profiles' Temp folders are added (still machine-wide).
+        var elevated = CleanupPathResolver.Resolve(category, Env, [@"C:\Users\bob"], ListDirs, isElevated: true);
+        Assert.Contains(@"C:\Windows\SystemTemp", elevated.Roots);
+        Assert.Contains(@"C:\Windows\ServiceProfiles\NetworkService\AppData\Local\Temp", elevated.Roots);
+        Assert.Contains(@"C:\Windows\System32\config\systemprofile\AppData\Local\Temp", elevated.Roots);
+        Assert.Empty(elevated.UsersScanned);
     }
 
     [Fact]
@@ -391,10 +438,14 @@ public class CleanupRulesTests
     }
 
     [Fact]
-    public void Windows_old_is_report_only_and_recycle_bin_is_special()
+    public void Windows_old_goes_through_disk_cleanup_and_recycle_bin_is_special()
     {
-        Assert.True(CleanupRules.IsReportOnly("windows.old"));
+        // Windows.old is removed by Windows' own "Previous Installations" handler, never file by file.
+        Assert.False(CleanupRules.IsReportOnly("windows.old"));
+        Assert.True(CleanupRules.IsCommand("windows.old"));
+        Assert.Equal(["Previous Installations"], CleanupCatalog.Find("windows.old")!.DiskCleanupHandlers);
         Assert.False(CleanupRules.IsReportOnly("user.temp"));
+        Assert.False(CleanupRules.IsCommand("user.temp"));
         Assert.True(CleanupRules.IsRecycleBin("recycle.bin"));
     }
 
@@ -451,7 +502,13 @@ public class CleanupRulesTests
         Assert.NotNull(CleanupCatalog.Find("intel.shader.cache"));
         Assert.NotNull(CleanupCatalog.Find("browser.brave.cache"));
         Assert.All(CleanupRules.BrowserProcesses.Keys, id => Assert.NotNull(CleanupCatalog.Find(id)));
-        Assert.All(CleanupCatalog.Find("browser.chrome.cache")!.PathTemplates, t => Assert.Contains(@"\*\", t));
+        Assert.All(CleanupRules.AppProcesses.Keys, id => Assert.NotNull(CleanupCatalog.Find(id)));
+
+        // Per-profile caches use a profile wildcard; the shared shader and crash caches sit directly in "User Data".
+        var chrome = CleanupCatalog.Find("browser.chrome.cache")!.PathTemplates;
+        Assert.All(chrome, t => Assert.True(t.Contains(@"\User Data\*\", StringComparison.Ordinal)
+            || t.EndsWith(@"\User Data\GrShaderCache", StringComparison.Ordinal) || t.EndsWith(@"\User Data\GraphiteDawnCache", StringComparison.Ordinal)
+            || t.EndsWith(@"\User Data\ShaderCache", StringComparison.Ordinal) || t.EndsWith(@"\User Data\Crashpad\reports", StringComparison.Ordinal), t));
     }
 }
 
@@ -491,10 +548,12 @@ public class DemoCleanupTests
         var scan = await new DemoTempFileScanner().ScanAsync([], null, CancellationToken.None);
         var cleaner = new DemoTempFileCleaner();
 
-        var dry = await cleaner.CleanAsync(scan, ["user.temp", "windows.old"], true, null, CancellationToken.None);
+        var dry = await cleaner.CleanAsync(scan, ["user.temp", "windows.old", "browser.edge.cache"], true, null, CancellationToken.None);
         Assert.True(dry.DryRun);
         Assert.Equal(412, dry.DeletedFiles);
+        // Edge is running in the demo, so it is skipped; Windows.old is a Disk Cleanup run, reported as a message.
         Assert.Single(dry.Skipped);
+        Assert.Single(dry.Messages);
 
         var real = await cleaner.CleanAsync(scan, ["user.temp", "browser.chrome.cache"], false, null, CancellationToken.None);
         Assert.False(real.DryRun);

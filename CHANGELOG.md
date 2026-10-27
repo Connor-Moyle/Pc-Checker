@@ -149,6 +149,28 @@ All notable changes to PC Checker are recorded here. The format follows
   Reserved Storage, Modern Standby networking, and more than 110 more removable
   apps including PC-maker apps. AMD, NVIDIA, Intel and audio driver control
   panels can never be removed. See `docs/DEBLOAT.md`.
+- **Cleanup** covers far more: AMD, NVIDIA and Intel driver leftovers, logs
+  and web caches; Opera, Opera GX, Vivaldi, Chromium, Waterfox, LibreWolf,
+  Floorp, Zen, Arc and Yandex caches; Discord, Teams, Spotify, Office, VS
+  Code, Slack, Zoom, OBS, Adobe, Steam, Epic, Battle.net, EA, Ubisoft and GOG
+  caches; developer caches (Advanced); Store app temp files, Windows
+  Installer leftovers, Remote Desktop cache and old CHKDSK fragments; opt-in
+  privacy items (recent items, jump lists, clipboard, browser cookies,
+  history and sessions); and Windows' own tools for Windows Update cleanup
+  (DISM), Disk Cleanup items, upgrade leftovers, Windows.old and older
+  restore points. Categories are grouped with a filter, skip themselves while
+  their app runs or a restart is pending, and keep excluded data such as
+  Spotify downloads and the AMD chipset uninstaller.
+
+### Fixed
+- Cleanup now finds shader caches where current AMD (`Dx9Cache` and every
+  other `*Cache` folder, Store and Game Pass games), NVIDIA
+  (`PerDriverVersion`, `ComputeCache`) and Intel drivers write them; Windows
+  temp on 24H2 (`SystemTemp`); GPU timeout dumps in `LiveKernelReports`;
+  Chromium Service Worker and shader caches and beta channels; more Firefox
+  caches and Windows logs. The font cache service is paused so its files can
+  go, prefetch keeps entries used in the last 30 days, and the docs match
+  the catalog.
 
 ## [0.4.0] - 2026-10-27
 

@@ -125,7 +125,7 @@ public static partial class CheckupItemMapper
         ArgumentNullException.ThrowIfNull(categoryIds);
         var wanted = new HashSet<string>(categoryIds, StringComparer.OrdinalIgnoreCase);
         var found = scan.Categories
-            .Where(c => wanted.Contains(c.Category.Id) && c.Category.Risk == RiskLevel.Safe && !CleanupRules.IsReportOnly(c.Category.Id) && c.TotalBytes > 0)
+            .Where(c => wanted.Contains(c.Category.Id) && c.Category.Risk == RiskLevel.Safe && !CleanupRules.IsReportOnly(c.Category.Id) && !CleanupRules.IsOneWay(c.Category.Id) && c.TotalBytes > 0)
             .OrderByDescending(c => c.TotalBytes)
             .ToList();
         long total = found.Sum(c => c.TotalBytes);

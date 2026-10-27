@@ -7,7 +7,7 @@ namespace PcChecker.Core.Cleanup;
 /// Pure decisions shared by the scanner, the cleaner and the page: which categories are report-only, which browsers must
 /// be closed, which services to pause, how to order directory pruning, and how to summarise results.
 /// </summary>
-public static class CleanupRules
+public static partial class CleanupRules
 {
     /// <summary>Prefix used for informational entries in <see cref="CategoryScanResult.Errors"/> (they are not failures).</summary>
     public const string NotePrefix = "Note: ";
@@ -22,21 +22,18 @@ public static class CleanupRules
     /// Cleanup) ends the option to go back to the previous Windows version.
     /// </summary>
     public const string WindowsOldNote =
-        "Measured only. Removing it (with Storage settings, Storage Sense or Disk Cleanup) ends the option to go back to the previous version of Windows. Windows Update → Roll back shows how many days are left.";
+        "Removing it (here, or with Storage settings, Storage Sense or Disk Cleanup) ends the option to go back to the previous version of Windows. Windows Update → Roll back shows how many days are left.";
 
-    /// <summary>Process names (without .exe) per browser cache category.</summary>
-    public static readonly IReadOnlyDictionary<string, (string Browser, string[] Processes)> BrowserProcesses =
-        new Dictionary<string, (string, string[])>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["browser.chrome.cache"] = ("Google Chrome", ["chrome"]),
-            ["browser.edge.cache"] = ("Microsoft Edge", ["msedge"]),
-            ["browser.brave.cache"] = ("Brave", ["brave"]),
-            ["browser.firefox.cache"] = ("Mozilla Firefox", ["firefox"]),
-        };
+    /// <summary>
+    /// Categories that cannot be undone in a way that matters: going back to the previous Windows, uninstalling
+    /// installed updates, restore points. They are never part of the check-up's one-click clean or a scheduled clean.
+    /// </summary>
+    public static IReadOnlyList<string> OneWayCategories { get; } = [WindowsOldId, "windows.upgrade.leftovers", "windows.component.resetbase", "restore.points"];
 
-    /// <summary>Every process name any browser rule cares about (so the scanner checks the process list once).</summary>
-    public static IReadOnlyList<string> AllBrowserProcessNames { get; } =
-        BrowserProcesses.Values.SelectMany(v => v.Processes).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+    /// <summary>True for a category in <see cref="OneWayCategories"/>.</summary>
+    public static bool IsOneWay(string categoryId) => OneWayCategories.Contains(categoryId, StringComparer.OrdinalIgnoreCase);
+
+    public const string FontCacheId = "font.cache";
 
     /// <summary>Services paused while a category is cleaned, restarted afterwards.</summary>
     public static IReadOnlyList<string> ServicesToStop(IEnumerable<string> categoryIds)
@@ -54,33 +51,23 @@ public static class CleanupRules
             services.Add("DoSvc");
         }
 
+        // The Windows Font Cache service holds its .dat files open, so they could never be removed while it runs.
+        if (ids.Contains(FontCacheId))
+        {
+            services.Add("FontCache");
+        }
+
         return services;
     }
 
     /// <summary>Categories PC Checker measures but never deletes itself (Windows has a dedicated, safer tool).</summary>
-    public static bool IsReportOnly(string categoryId) => categoryId.Equals(WindowsOldId, StringComparison.OrdinalIgnoreCase);
+    public static bool IsReportOnly(string categoryId) => CleanupCatalog.Find(categoryId)?.Kind == CleanupKind.ReportOnly;
+
+    /// <summary>Categories a Windows tool cleans (DISM, Disk Cleanup, vssadmin, the clipboard API).</summary>
+    public static bool IsCommand(string categoryId) => CleanupCatalog.Find(categoryId)?.Kind == CleanupKind.Command;
 
     /// <summary>The Recycle Bin is emptied through the shell rather than by deleting files.</summary>
     public static bool IsRecycleBin(string categoryId) => categoryId.Equals(RecycleBinId, StringComparison.OrdinalIgnoreCase);
-
-    /// <summary>
-    /// Returns a skip reason when the category belongs to a browser that is currently running
-    /// (<paramref name="runningProcessNames"/> are process names without ".exe"), otherwise null.
-    /// </summary>
-    public static string? BrowserRunningReason(string categoryId, IEnumerable<string> runningProcessNames)
-    {
-        if (!BrowserProcesses.TryGetValue(categoryId, out var rule))
-        {
-            return null;
-        }
-
-        var running = new HashSet<string>(
-            (runningProcessNames ?? []).Select(n => n.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ? n[..^4] : n),
-            StringComparer.OrdinalIgnoreCase);
-        return rule.Processes.Any(running.Contains)
-            ? $"Skipped: {rule.Browser} is running. Close it and scan again to clean its cache."
-            : null;
-    }
 
     /// <summary>Marks a message as informational for <see cref="CategoryScanResult.Errors"/>.</summary>
     public static string Note(string message) => NotePrefix + message;
@@ -152,12 +139,7 @@ public static class CleanupRules
     /// other category (Windows logs, Panther, Prefetch, …) keeps its first-level folders such as Logs\CBS or
     /// Logs\DISM, which Windows components expect to find; only deeper, emptied folders are removed.
     /// </summary>
-    public static IReadOnlyList<string> PruneAnywhereCategories { get; } =
-    [
-        "user.temp", "windows.temp", "windows.update.cache", "delivery.optimization", "windows.error.reports",
-        "browser.chrome.cache", "browser.edge.cache", "browser.brave.cache", "browser.firefox.cache",
-        "dx.shader.cache", "nvidia.shader.cache", "amd.shader.cache", "intel.shader.cache", "temp.internet.files",
-    ];
+    public static IReadOnlyList<string> PruneAnywhereCategories => CleanupCatalog.All.Where(c => c.PruneAnywhere).Select(c => c.Id).ToList();
 
     /// <summary>
     /// Whether an emptied directory may be deleted after a category's files were removed: always inside the category's
@@ -197,6 +179,13 @@ public static class CleanupRules
     /// <summary>True when the pause script's output says the service was running and has now been stopped by us.</summary>
     public static bool ServiceWasPaused(string? scriptOutput) =>
         scriptOutput is not null && scriptOutput.Contains(ServicePausedMarker, StringComparison.Ordinal);
+
+    /// <summary>
+    /// What a Windows tool freed, read from the drive's free space before and after it ran. Unknown readings or a drive
+    /// that filled up meanwhile count as nothing freed rather than the scan estimate.
+    /// </summary>
+    public static long FreedByCommand(long? freeBefore, long? freeAfter) =>
+        freeBefore is long before && freeAfter is long after && after > before ? after - before : 0;
 
     /// <summary>Total count and bytes over a set of files.</summary>
     public static (int Count, long Bytes) Aggregate(IEnumerable<CleanupFile> files)

@@ -67,6 +67,9 @@ internal static class CleanupNativeMethods
         public uint FileAttributes;
     }
 
+    [DllImport("srclient.dll", ExactSpelling = true, EntryPoint = "SRRemoveRestorePoint")]
+    private static extern uint SRRemoveRestorePointNative(uint restorePointSequenceNumber);
+
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true, EntryPoint = "CreateFileW")]
     private static extern SafeFileHandle CreateFile(string fileName, uint desiredAccess, uint shareMode, IntPtr securityAttributes, uint creationDisposition, uint flagsAndAttributes, IntPtr templateFile);
 
@@ -253,6 +256,27 @@ internal static class CleanupNativeMethods
         catch
         {
             return false;
+        }
+    }
+
+    /// <summary>
+    /// Removes one System Restore point by its sequence number (SRRemoveRestorePoint). Returns the Win32 error code
+    /// (0 on success), or null when System Restore is not available on this Windows.
+    /// </summary>
+    public static uint? RemoveRestorePoint(uint sequenceNumber)
+    {
+        if (!PlatformGuard.IsWindows)
+        {
+            return null;
+        }
+
+        try
+        {
+            return SRRemoveRestorePointNative(sequenceNumber);
+        }
+        catch (Exception ex) when (ex is DllNotFoundException or EntryPointNotFoundException)
+        {
+            return null;
         }
     }
 }

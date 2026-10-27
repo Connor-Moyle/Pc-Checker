@@ -106,6 +106,7 @@ public static class ServiceRegistration
         services.AddSingleton<LeftoverScanQueue>();
         Add<IPerformanceAnalyzer, WindowsPerformanceAnalyzer, DemoPerformanceAnalyzer>(services, demo);
         Add<IOptimizationService, WindowsOptimizationService, DemoOptimizationService>(services, demo);
+        Add<ICleanupCommandService, WindowsCleanupCommandService, DemoCleanupCommandService>(services, demo);
         Add<ITempFileScanner, WindowsTempFileScanner, DemoTempFileScanner>(services, demo);
         Add<ITempFileCleaner, WindowsTempFileCleaner, DemoTempFileCleaner>(services, demo);
         Add<IDiskSpaceService, WindowsDiskSpaceService, DemoDiskSpaceService>(services, demo);

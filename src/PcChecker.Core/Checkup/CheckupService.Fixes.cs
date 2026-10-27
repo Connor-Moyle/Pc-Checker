@@ -134,7 +134,7 @@ public sealed partial class CheckupService
     /// <summary>Deletes the scanned junk, but only in categories that are still rated Safe (never Windows.old).</summary>
     private async Task<IReadOnlyList<CheckupFixResult>> CleanAsync(CheckupReport report, CheckupFixStep step, IProgress<ProgressUpdate> progress, CancellationToken ct)
     {
-        var safe = _scanner.Categories.Where(c => c.Risk == RiskLevel.Safe && !CleanupRules.IsReportOnly(c.Id)).Select(c => c.Id)
+        var safe = _scanner.Categories.Where(c => c.Risk == RiskLevel.Safe && !CleanupRules.IsReportOnly(c.Id) && !CleanupRules.IsOneWay(c.Id)).Select(c => c.Id)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
         var ids = step.Targets.Where(safe.Contains).ToList();
         if (report.Results.Cleanup is not { } scan || ids.Count == 0)
