@@ -141,5 +141,10 @@ public sealed class WindowsRegistryAccessor : IRegistryAccessor
     }
 
     private static RegistryKey Open(DebloatHive hive) =>
-        RegistryKey.OpenBaseKey(hive == DebloatHive.LocalMachine ? RegistryHive.LocalMachine : RegistryHive.CurrentUser, RegistryView.Registry64);
+        RegistryKey.OpenBaseKey(hive switch
+        {
+            DebloatHive.LocalMachine => RegistryHive.LocalMachine,
+            DebloatHive.Users => RegistryHive.Users,
+            _ => RegistryHive.CurrentUser,
+        }, RegistryView.Registry64);
 }

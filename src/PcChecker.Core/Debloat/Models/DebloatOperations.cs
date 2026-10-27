@@ -5,6 +5,9 @@ public enum DebloatHive
 {
     CurrentUser,
     LocalMachine,
+
+    /// <summary>HKEY_USERS (only used for <c>.DEFAULT</c>, the profile of the sign-in screen).</summary>
+    Users,
 }
 
 /// <summary>Registry value types the catalog uses.</summary>
@@ -77,6 +80,18 @@ public sealed record RegistryValueOp(
         var where = $"{RegistryValueCodec.HiveName(Hive)}\\{Path}\\{(Name.Length == 0 ? "(Default)" : Name)}";
         return AppliedValue is null ? $"Remove {where}" : $"Set {where} = {RegistryValueCodec.Display(Kind, AppliedValue)}";
     }
+}
+
+/// <summary>
+/// Deletes a whole registry key (for example a File Explorer namespace entry). The key must hold nothing but its
+/// default value, which <see cref="RestoredDefaultValue"/> puts back on revert, so revert recreates it exactly. When
+/// the key did not exist before the change, revert leaves it absent.
+/// </summary>
+public sealed record RegistryKeyRemovalOp(DebloatHive Hive, string Path, string RestoredDefaultValue) : DebloatOperation
+{
+    public override string Key => $"regkey:{RegistryValueCodec.HiveName(Hive)}\\{Path}";
+
+    public override string Describe() => $"Delete the key {RegistryValueCodec.HiveName(Hive)}\\{Path}";
 }
 
 /// <summary>Changes a service's start type. Revert restores the captured type, or <see cref="DefaultMode"/> when none was captured.</summary>

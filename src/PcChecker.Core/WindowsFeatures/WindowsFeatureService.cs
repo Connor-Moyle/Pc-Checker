@@ -113,18 +113,24 @@ public sealed class WindowsFeatureService : IWindowsFeatureService
         var name = PowerShellRunner.Quote(packageName);
         var app = string.IsNullOrWhiteSpace(displayName) ? packageName : displayName.Trim();
         const string done = "[pscustomobject]@{ RestartNeeded = $false; Removed = $true } | ConvertTo-Json -Compress";
+
+        // A wildcard name (promotional apps whose publisher prefix varies) matches with -like, and packages Windows
+        // marks as non-removable are left out so a pattern can never take a system package with it.
+        bool wildcard = packageName.Contains('*');
+        string compare = wildcard ? "-like" : "-eq";
+        string keep = wildcard ? " | Where-Object { -not $_.NonRemovable }" : string.Empty;
         if (allUsers)
         {
             var none = PowerShellRunner.Quote($"{app} is not installed for any account on this PC, so nothing was removed.");
-            return $"$ErrorActionPreference = 'Stop'; $p = @(Get-AppxPackage -AllUsers -Name {name}); " +
-                   $"$v = @(Get-AppxProvisionedPackage -Online | Where-Object {{ $_.DisplayName -eq {name} }}); " +
+            return $"$ErrorActionPreference = 'Stop'; $p = @(Get-AppxPackage -AllUsers -Name {name}{keep}); " +
+                   $"$v = @(Get-AppxProvisionedPackage -Online | Where-Object {{ $_.DisplayName {compare} {name} }}); " +
                    $"if ($p.Count -eq 0 -and $v.Count -eq 0) {{ throw {none} }}; " +
                    "$p | Remove-AppxPackage -AllUsers; $v | Remove-AppxProvisionedPackage -Online | Out-Null; " + done;
         }
 
         var before = PowerShellRunner.Quote($"{app} is not installed for the account PC Checker runs as (");
         var after = PowerShellRunner.Quote("), so nothing was removed. It is installed for another account; remove it for all users to take it off that account.");
-        return $"$ErrorActionPreference = 'Stop'; $p = @(Get-AppxPackage -Name {name}); " +
+        return $"$ErrorActionPreference = 'Stop'; $p = @(Get-AppxPackage -Name {name}{keep}); " +
                $"if ($p.Count -eq 0) {{ throw ({before} + $env:USERNAME + {after}) }}; " +
                "$p | Remove-AppxPackage; " + done;
     }

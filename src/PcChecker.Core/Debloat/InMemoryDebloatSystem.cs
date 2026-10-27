@@ -278,10 +278,10 @@ public sealed class InMemoryDebloatSystem : IDebloatSystem
 
         lock (_gate)
         {
-            Apps.Remove(operation.PackageName);
+            Apps.RemoveWhere(a => DebloatRules.AppNameMatches(operation.PackageName, a));
             if (allUsers)
             {
-                OtherUserApps.Remove(operation.PackageName);
+                OtherUserApps.RemoveWhere(a => DebloatRules.AppNameMatches(operation.PackageName, a));
             }
         }
 

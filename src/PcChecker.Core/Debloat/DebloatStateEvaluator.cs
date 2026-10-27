@@ -47,6 +47,16 @@ public static class DebloatStateEvaluator
             return TweakState.Unknown(tweak.Id, "Checked by the Optimize page");
         }
 
+        if (DebloatRules.RequirementFailure(tweak, registry) is string missing)
+        {
+            return new TweakState(tweak.Id, TweakStatus.NotApplicable, missing);
+        }
+
+        if (tweak.OnlyWithoutApp is { } requiredAbsent && snapshot.InstalledApps is not null && DebloatRules.IsAppInstalled(requiredAbsent, snapshot.InstalledApps))
+        {
+            return new TweakState(tweak.Id, TweakStatus.NotApplicable, DebloatRules.AppStillInstalledText(requiredAbsent));
+        }
+
         var states = tweak.Operations.Select(op => EvaluateOperation(op, registry, snapshot)).ToList();
         var status = Aggregate(states.Select(s => s.State));
         string detail = status switch
@@ -101,6 +111,7 @@ public static class DebloatStateEvaluator
         operation switch
         {
             RegistryValueOp reg => EvaluateRegistry(reg, registry),
+            RegistryKeyRemovalOp keyOp => EvaluateKeyRemoval(keyOp, registry),
             ServiceOp svc => EvaluateService(svc, registry),
             ScheduledTaskOp task => snapshot.TaskStates is null
                 ? (OperationState.Unknown, "Scheduled tasks could not be read")
@@ -109,7 +120,7 @@ public static class DebloatStateEvaluator
                     : (OperationState.NotApplicable, "Task not present"),
             AppxRemovalOp app => snapshot.InstalledApps is null
                 ? (OperationState.Unknown, "Installed apps could not be read")
-                : snapshot.InstalledApps.Contains(app.PackageName)
+                : DebloatRules.IsAppInstalled(app.PackageName, snapshot.InstalledApps)
                     ? (OperationState.NotApplied, "Installed")
                     : (OperationState.Applied, "Not installed"),
             OptionalFeatureOp feature => snapshot.Features.TryGetValue(feature.FeatureName, out var state)
@@ -141,6 +152,18 @@ public static class DebloatStateEvaluator
 
         bool applied = RegistryValueCodec.Matches(current, op.Kind, op.AppliedValue);
         return (applied ? OperationState.Applied : OperationState.NotApplied, current is null ? "Windows default" : null);
+    }
+
+    private static (OperationState, string?) EvaluateKeyRemoval(RegistryKeyRemovalOp op, IRegistryAccessor registry)
+    {
+        try
+        {
+            return registry.KeyExists(op.Hive, op.Path) ? (OperationState.NotApplied, "Windows default") : (OperationState.Applied, null);
+        }
+        catch (Exception)
+        {
+            return (OperationState.Unknown, "Registry key could not be read");
+        }
     }
 
     private static (OperationState, string?) EvaluateService(ServiceOp op, IRegistryAccessor registry)

@@ -116,6 +116,7 @@ public static class DebloatConfirmationText
     private static string DescribeRevert(DebloatOperation op) => op switch
     {
         RegistryValueOp reg => $"Restore {RegistryValueCodec.HiveName(reg.Hive)}\\{reg.Path}\\{(reg.Name.Length == 0 ? "(Default)" : reg.Name)}",
+        RegistryKeyRemovalOp keyOp => $"Recreate the key {RegistryValueCodec.HiveName(keyOp.Hive)}\\{keyOp.Path}",
         ServiceOp svc => $"Restore the start type of service {svc.Name}",
         ScheduledTaskOp task => $"Restore scheduled task {task.Path}",
         OptionalFeatureOp feature => $"Turn the Windows feature {feature.FriendlyName} back {(feature.DisableWhenApplied ? "on" : "off")}",

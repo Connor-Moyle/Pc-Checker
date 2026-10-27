@@ -8,7 +8,12 @@ namespace PcChecker.Core.Debloat;
 /// </summary>
 public static class RegistryValueCodec
 {
-    public static string HiveName(DebloatHive hive) => hive == DebloatHive.LocalMachine ? "HKLM" : "HKCU";
+    public static string HiveName(DebloatHive hive) => hive switch
+    {
+        DebloatHive.LocalMachine => "HKLM",
+        DebloatHive.Users => "HKU",
+        _ => "HKCU",
+    };
 
     /// <summary>"kind:value" for the capture file; null (value was absent) stays null.</summary>
     public static string? Encode(RegistryData? data) => data is null ? null : $"{KindName(data.Kind)}:{data.Value}";
