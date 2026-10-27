@@ -91,6 +91,29 @@ public static partial class PowerPlans
         return list;
     }
 
+    /// <summary>
+    /// Finds an existing copy of a built-in plan in <paramref name="schemes"/>: the copy this app created earlier
+    /// (<paramref name="remembered"/>), the template GUID itself, or, as a last resort, a plan whose name contains
+    /// <paramref name="englishName"/>. Plan names are translated, so the name only helps on English Windows.
+    /// </summary>
+    public static PowerScheme? FindCopy(IEnumerable<PowerScheme> schemes, Guid template, Guid? remembered, string? englishName = null)
+    {
+        ArgumentNullException.ThrowIfNull(schemes);
+        var list = schemes.ToList();
+        return (remembered is { } id ? list.FirstOrDefault(s => s.Id == id) : null)
+            ?? list.FirstOrDefault(s => s.Id == template)
+            ?? (string.IsNullOrEmpty(englishName) ? null : list.FirstOrDefault(s => s.Name.Contains(englishName, StringComparison.OrdinalIgnoreCase)));
+    }
+
+    /// <summary>True when <paramref name="active"/> is the built-in plan or a copy of it (see <see cref="FindCopy"/>).</summary>
+    public static bool IsPlanOrCopy(PowerScheme active, Guid template, Guid? remembered, string? englishName = null)
+    {
+        ArgumentNullException.ThrowIfNull(active);
+        return active.Id == template
+               || (remembered is { } id && active.Id == id)
+               || (!string.IsNullOrEmpty(englishName) && active.Name.Contains(englishName, StringComparison.OrdinalIgnoreCase));
+    }
+
     /// <summary>True when the plan name denotes a high-performance style plan.</summary>
     public static bool IsHighPerformanceName(string? name) =>
         name is not null && (name.Contains("High performance", StringComparison.OrdinalIgnoreCase)

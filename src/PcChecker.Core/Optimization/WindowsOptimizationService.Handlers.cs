@@ -21,6 +21,10 @@ public sealed partial class WindowsOptimizationService
     public const string PreviousPowerSchemeKey = @"Software\PcChecker\Optimization";
     public const string PreviousPowerSchemeValue = "PreviousPowerScheme";
     public const string PreviousPowerSchemeNameValue = "PreviousPowerSchemeName";
+
+    /// <summary>The GUIDs of the plans <c>powercfg -duplicatescheme</c> created, so later applies and state checks find them by id, not by translated name.</summary>
+    public const string UltimatePlanCopyValue = "UltimatePlanId";
+    public const string HighPerformancePlanCopyValue = "HighPerformancePlanId";
     private static readonly TimeSpan LongToolTimeout = TimeSpan.FromMinutes(45);
 
     private Dictionary<string, Handler> BuildHandlers() => new(StringComparer.OrdinalIgnoreCase)
@@ -94,8 +98,10 @@ public sealed partial class WindowsOptimizationService
         }
 
         bool applied = target == PowerPlans.Ultimate
-            ? active.Name.Contains("Ultimate", StringComparison.OrdinalIgnoreCase)
-            : active.Id == target;
+            ? PowerPlans.IsPlanOrCopy(active, PowerPlans.Ultimate, ReadRememberedPlanCopy(UltimatePlanCopyValue), "Ultimate")
+            : target == PowerPlans.HighPerformance
+                ? PowerPlans.IsPlanOrCopy(active, PowerPlans.HighPerformance, ReadRememberedPlanCopy(HighPerformancePlanCopyValue))
+                : active.Id == target;
         return new ActionState(ActionIdFor(target), applied, $"Active: {active.Name}");
     }
 
@@ -109,12 +115,23 @@ public sealed partial class WindowsOptimizationService
         var result = await ExternalCommand.RunAsync("powercfg.exe", $"/setactive {plan}", ct, TimeSpan.FromSeconds(30)).ConfigureAwait(false);
         if (!result.Success && plan == PowerPlans.HighPerformance)
         {
-            // Some OEM images hide the High performance plan; recreate it from the template.
-            var dup = await ExternalCommand.RunAsync("powercfg.exe", $"-duplicatescheme {plan}", ct, TimeSpan.FromSeconds(30)).ConfigureAwait(false);
-            var created = PowerPlans.ParseScheme(dup.Output);
-            if (created is not null)
+            // Some OEM images hide the High performance plan; use the copy made earlier, or recreate it from the template.
+            var list = await ExternalCommand.RunAsync("powercfg.exe", "/list", ct, TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+            var remembered = ReadRememberedPlanCopy(HighPerformancePlanCopyValue);
+            var copy = remembered is { } id ? PowerPlans.ParseList(list.Output).FirstOrDefault(s => s.Id == id) : null;
+            if (copy is null)
             {
-                result = await ExternalCommand.RunAsync("powercfg.exe", $"/setactive {created.Id}", ct, TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+                var dup = await ExternalCommand.RunAsync("powercfg.exe", $"-duplicatescheme {plan}", ct, TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+                copy = PowerPlans.ParseScheme(dup.Output);
+                if (copy is not null)
+                {
+                    RememberPlanCopy(HighPerformancePlanCopyValue, copy.Id);
+                }
+            }
+
+            if (copy is not null)
+            {
+                result = await ExternalCommand.RunAsync("powercfg.exe", $"/setactive {copy.Id}", ct, TimeSpan.FromSeconds(30)).ConfigureAwait(false);
             }
         }
 
@@ -126,7 +143,8 @@ public sealed partial class WindowsOptimizationService
     private async Task<OperationResult> SetUltimatePlanAsync(CancellationToken ct)
     {
         var list = await ExternalCommand.RunAsync("powercfg.exe", "/list", ct, TimeSpan.FromSeconds(30)).ConfigureAwait(false);
-        var existing = PowerPlans.ParseList(list.Output).FirstOrDefault(s => s.Name.Contains("Ultimate", StringComparison.OrdinalIgnoreCase));
+        // Look for the copy made earlier by its GUID: the plan name is translated ("Ultimative Leistung", "Performances optimales").
+        var existing = PowerPlans.FindCopy(PowerPlans.ParseList(list.Output), PowerPlans.Ultimate, ReadRememberedPlanCopy(UltimatePlanCopyValue), "Ultimate");
         Guid target;
         if (existing is not null)
         {
@@ -142,6 +160,7 @@ public sealed partial class WindowsOptimizationService
             }
 
             target = created.Id;
+            RememberPlanCopy(UltimatePlanCopyValue, target);
         }
 
         var current = await WindowsSystemProbe.ActivePowerSchemeAsync(ct).ConfigureAwait(false);
@@ -175,6 +194,12 @@ public sealed partial class WindowsOptimizationService
             _previousPowerScheme = ReadPersistedPreviousScheme();
         }
     }
+
+    private static Guid? ReadRememberedPlanCopy(string valueName) =>
+        Guid.TryParse(RegistryTweaks.GetString(RegistryHive.CurrentUser, PreviousPowerSchemeKey, valueName), out var id) ? id : null;
+
+    private static void RememberPlanCopy(string valueName, Guid id) =>
+        RegistryTweaks.SetString(RegistryHive.CurrentUser, PreviousPowerSchemeKey, valueName, id.ToString());
 
     private static Guid? ReadPersistedPreviousScheme() =>
         Guid.TryParse(RegistryTweaks.GetString(RegistryHive.CurrentUser, PreviousPowerSchemeKey, PreviousPowerSchemeValue), out var id) ? id : null;

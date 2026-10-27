@@ -209,6 +209,33 @@ public class PowerPlansTests
         Assert.False(PowerPlans.IsHighPerformanceName("Balanced"));
         Assert.Empty(PowerPlans.ParseList(""));
     }
+
+    [Fact]
+    public void Copies_of_built_in_plans_are_found_by_guid_on_translated_windows()
+    {
+        var copy = new Guid("6f1b1f5e-6a2b-4c4e-9a52-3f0b6e1f7d10");
+        const string german =
+            "Bestehende Energieschemas (* Aktiv)\r\n" +
+            "-----------------------------------\r\n" +
+            "GUID des Energieschemas: 381b4222-f694-41f0-9685-ff5bb260df2e  (Ausbalanciert)\r\n" +
+            "GUID des Energieschemas: 6f1b1f5e-6a2b-4c4e-9a52-3f0b6e1f7d10  (Ultimative Leistung) *\r\n";
+        var list = PowerPlans.ParseList(german);
+
+        // Without the remembered GUID the translated name cannot be matched, which is why it is remembered.
+        Assert.Null(PowerPlans.FindCopy(list, PowerPlans.Ultimate, remembered: null, "Ultimate"));
+        Assert.Equal(copy, PowerPlans.FindCopy(list, PowerPlans.Ultimate, copy, "Ultimate")!.Id);
+        // A remembered copy that was deleted is ignored; the template itself or an English name still count.
+        var english = PowerPlans.ParseList("Power Scheme GUID: 11111111-2222-3333-4444-555555555555  (Ultimate Performance)");
+        Assert.Equal(new Guid("11111111-2222-3333-4444-555555555555"), PowerPlans.FindCopy(english, PowerPlans.Ultimate, copy, "Ultimate")!.Id);
+        var template = PowerPlans.ParseList($"Power Scheme GUID: {PowerPlans.Ultimate}  (Höchstleistung)");
+        Assert.Equal(PowerPlans.Ultimate, PowerPlans.FindCopy(template, PowerPlans.Ultimate, null)!.Id);
+
+        var active = list.Single(s => s.IsActive);
+        Assert.True(PowerPlans.IsPlanOrCopy(active, PowerPlans.Ultimate, copy, "Ultimate"));
+        Assert.False(PowerPlans.IsPlanOrCopy(active, PowerPlans.Ultimate, null, "Ultimate"));
+        Assert.True(PowerPlans.IsPlanOrCopy(active, PowerPlans.HighPerformance, copy));
+        Assert.False(PowerPlans.IsPlanOrCopy(active, PowerPlans.HighPerformance, null));
+    }
 }
 
 public class DemoOptimizationServiceTests
