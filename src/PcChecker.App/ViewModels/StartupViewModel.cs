@@ -3,10 +3,10 @@ using System.IO;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
+using PcChecker.App.Localization;
 using PcChecker.App.Services;
 using PcChecker.Core.Common;
 using PcChecker.Core.Performance;
-using PcChecker.Core.Restore;
 using PcChecker.Core.Settings;
 using PcChecker.Core.Startup;
 using Wpf.Ui;
@@ -92,11 +92,13 @@ public sealed partial class StartupViewModel : ViewModelBase
     public string TasksSummary => $"{EnabledTaskCount} of {TaskCount} enabled";
 
     /// <summary>Restore-point policy sentence for confirmations of guarded changes (remove, service start mode, fast startup).</summary>
-    private string RestorePointNote => RestorePointPolicyText.Note(Settings.Current.RestorePoints.CreateBeforeChanges);
+    private string RestorePointNote => Settings.Current.RestorePoints.CreateBeforeChanges
+        ? Loc.T("A system restore point will be created before the change, which can take a few seconds (you can turn this off in Settings).")
+        : Loc.T("No restore point will be created before this change (turn it on in Settings if you want one).");
 
     public override Task InitializeAsync(CancellationToken cancellationToken) => RefreshAsync(cancellationToken);
 
-    public override Task RefreshAsync(CancellationToken cancellationToken) => RunBusyAsync(LoadAsync, "Reading startup apps, tasks, services and boot options…");
+    public override Task RefreshAsync(CancellationToken cancellationToken) => RunBusyAsync(LoadAsync, Loc.T("Reading startup apps, tasks, services and boot options…"));
 
     [RelayCommand]
     private Task Refresh() => RefreshAsync(CancellationToken.None);
@@ -216,6 +218,13 @@ public sealed partial class StartupViewModel : ViewModelBase
             return;
         }
 
+        if (StartupTaskRules.ToggleRefusal(row.Item) is { } refusal)
+        {
+            row.NotifyEnabledReset();
+            _notifications.Warning(Loc.T("Not changed"), Loc.T(refusal));
+            return;
+        }
+
         bool target = !row.Item.Enabled;
         row.IsBusy = true;
         try
@@ -243,19 +252,19 @@ public sealed partial class StartupViewModel : ViewModelBase
             if (result.Success)
             {
                 row.Apply(row.Item with { Enabled = target });
-                _notifications.Success(target ? "Startup entry enabled" : "Startup entry disabled", result.Message);
+                _notifications.Success(target ? Loc.T("Startup entry enabled") : Loc.T("Startup entry disabled"), result.Message);
             }
             else
             {
                 row.NotifyEnabledReset();
-                _notifications.Error("Could not change " + row.Name, result.Message);
+                _notifications.Error(Loc.F("Could not change {0}", row.Name), result.Message);
             }
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Toggling startup item {Name} failed.", row.Name);
             row.NotifyEnabledReset();
-            _notifications.Error("Could not change " + row.Name, ex.Message);
+            _notifications.Error(Loc.F("Could not change {0}", row.Name), ex.Message);
         }
         finally
         {
@@ -273,14 +282,23 @@ public sealed partial class StartupViewModel : ViewModelBase
             return;
         }
 
-        string what = row.IsTask ? "scheduled task" : row.Kind == StartupKinds.Folder ? "Startup folder shortcut" : "registry entry";
+        if (StartupTaskRules.RemoveRefusal(row.Item) is { } refusal)
+        {
+            _notifications.Warning(Loc.T("Not removed"), Loc.T(refusal));
+            return;
+        }
+
+        string what = row.IsTask
+            ? Loc.T("This deletes the scheduled task so the program no longer starts with Windows. The program itself stays installed.")
+            : row.Kind == StartupKinds.Folder
+                ? Loc.T("This deletes the Startup folder shortcut so the program no longer starts with Windows. The program itself stays installed.")
+                : Loc.T("This deletes the registry entry so the program no longer starts with Windows. The program itself stays installed.");
         bool ok = await _dialogs.ConfirmAsync(
-            $"Remove {row.Name} from startup?",
-            $"This deletes the {what} so the program no longer starts with Windows. The program itself stays installed.\n\n"
-            + "A copy of the entry is saved in your PC Checker backup folder so you can put it back. "
-            + "If you only want to stop it temporarily, use the toggle instead.\n\n"
+            Loc.F("Remove {0} from startup?", row.Name),
+            what + "\n\n"
+            + Loc.T("A copy of the entry is saved in your PC Checker backup folder so you can put it back. If you only want to stop it temporarily, use the toggle instead.") + "\n\n"
             + RestorePointNote,
-            "Remove", isDanger: true);
+            Loc.T("Remove"), isDanger: true);
         if (!ok)
         {
             return;
@@ -296,17 +314,17 @@ public sealed partial class StartupViewModel : ViewModelBase
                 ApplyFilter();
                 RecomputeStats();
                 RebuildWarnings();
-                _notifications.Success("Removed from startup", result.Message);
+                _notifications.Success(Loc.T("Removed from startup"), result.Message);
             }
             else
             {
-                _notifications.Error("Could not remove " + row.Name, result.Message);
+                _notifications.Error(Loc.F("Could not remove {0}", row.Name), result.Message);
             }
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Removing startup item {Name} failed.", row.Name);
-            _notifications.Error("Could not remove " + row.Name, ex.Message);
+            _notifications.Error(Loc.F("Could not remove {0}", row.Name), ex.Message);
         }
         finally
         {
@@ -325,7 +343,7 @@ public sealed partial class StartupViewModel : ViewModelBase
         var result = ShellLauncher.Open("explorer.exe", $"/select,\"{path}\"");
         if (!result.Success)
         {
-            _notifications.Warning("Could not open the folder", result.Message);
+            _notifications.Warning(Loc.T("Could not open the folder"), result.Message);
         }
     }
 
@@ -354,7 +372,7 @@ public sealed partial class StartupViewModel : ViewModelBase
         }
         catch (Exception ex)
         {
-            _notifications.Warning("Could not open the file picker", ex.Message);
+            _notifications.Warning(Loc.T("Could not open the file picker"), ex.Message);
         }
     }
 
@@ -365,12 +383,12 @@ public sealed partial class StartupViewModel : ViewModelBase
         string command = NewItemCommand?.Trim() ?? string.Empty;
         if (name.Length == 0 || command.Length == 0)
         {
-            _notifications.Warning("Name and program needed", "Type a name and the full path of the program (use Browse… to pick it).");
+            _notifications.Warning(Loc.T("Name and program needed"), Loc.T("Type a name and the full path of the program (use Browse… to pick it)."));
             return;
         }
 
-        bool ok = await _dialogs.ConfirmAsync("Start this program with Windows?",
-            $"{name} will be added to your user's Run key and start every time you sign in:\n\n{command}", "Add");
+        bool ok = await _dialogs.ConfirmAsync(Loc.T("Start this program with Windows?"),
+            Loc.F("{0} will be added to your user's Run key and start every time you sign in:\n\n{1}", name, command), Loc.T("Add"));
         if (!ok)
         {
             return;
@@ -381,7 +399,7 @@ public sealed partial class StartupViewModel : ViewModelBase
             var result = await _startup.AddStartupItemAsync(name, command, ct);
             if (result.Success)
             {
-                _notifications.Success("Added to startup", result.Message);
+                _notifications.Success(Loc.T("Added to startup"), result.Message);
                 NewItemName = null;
                 NewItemCommand = null;
                 ShowAddForm = false;
@@ -389,9 +407,9 @@ public sealed partial class StartupViewModel : ViewModelBase
             }
             else
             {
-                _notifications.Error("Could not add the entry", result.Message);
+                _notifications.Error(Loc.T("Could not add the entry"), result.Message);
             }
-        }, "Adding startup entry…");
+        }, Loc.T("Adding startup entry…"));
     }
 
     // ---------------------------------------------------------------- services
@@ -410,21 +428,21 @@ public sealed partial class StartupViewModel : ViewModelBase
             if (!allowed)
             {
                 row.SetStartModeSilently(oldMode);
-                await _dialogs.ShowMessageAsync("This service is protected", message ?? "PC Checker will not change it.");
+                await _dialogs.ShowMessageAsync(Loc.T("This service is protected"), message ?? Loc.T("PC Checker will not change it."));
                 return;
             }
 
             bool stopsAuto = newMode is ServiceStartModes.Manual or ServiceStartModes.Disabled;
             string explanation = stopsAuto
-                ? $"{row.DisplayName} will no longer start automatically with Windows."
-                  + (newMode == ServiceStartModes.Disabled ? " Programs that need it will not be able to start it either." : " Programs can still start it when they need it.")
-                : $"{row.DisplayName} will start automatically with Windows.";
+                ? Loc.F("{0} will no longer start automatically with Windows.", row.DisplayName) + " "
+                  + (newMode == ServiceStartModes.Disabled ? Loc.T("Programs that need it will not be able to start it either.") : Loc.T("Programs can still start it when they need it."))
+                : Loc.F("{0} will start automatically with Windows.", row.DisplayName);
             if (message is not null)
             {
                 explanation += "\n\n" + message;
             }
 
-            bool ok = await _dialogs.ConfirmAsync($"Set {row.DisplayName} to {newMode}?", explanation + "\n\nYou can change it back here at any time.\n" + RestorePointNote, "Change", isDanger: stopsAuto);
+            bool ok = await _dialogs.ConfirmAsync(Loc.F("Set {0} to {1}?", row.DisplayName, newMode), explanation + "\n\n" + Loc.T("You can change it back here at any time.") + "\n" + RestorePointNote, Loc.T("Change"), isDanger: stopsAuto);
             if (!ok)
             {
                 row.SetStartModeSilently(oldMode);
@@ -448,19 +466,19 @@ public sealed partial class StartupViewModel : ViewModelBase
             if (result.Success)
             {
                 row.Apply(row.Service with { StartMode = newMode });
-                _notifications.Success("Service start mode changed", result.Message);
+                _notifications.Success(Loc.T("Service start mode changed"), result.Message);
             }
             else
             {
                 row.SetStartModeSilently(oldMode);
-                _notifications.Error("Could not change " + row.DisplayName, result.Message);
+                _notifications.Error(Loc.F("Could not change {0}", row.DisplayName), result.Message);
             }
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Changing start mode of {Service} failed.", row.Name);
             row.SetStartModeSilently(oldMode);
-            _notifications.Error("Could not change " + row.DisplayName, ex.Message);
+            _notifications.Error(Loc.F("Could not change {0}", row.DisplayName), ex.Message);
         }
         finally
         {
@@ -490,7 +508,7 @@ public sealed partial class StartupViewModel : ViewModelBase
         }
         catch (Exception ex)
         {
-            _notifications.Warning("Could not open the backup folder", ex.Message);
+            _notifications.Warning(Loc.T("Could not open the backup folder"), ex.Message);
         }
     }
 
@@ -511,7 +529,7 @@ public sealed partial class StartupViewModel : ViewModelBase
     {
         if (!result.Success)
         {
-            _notifications.Warning("Could not open", result.Message);
+            _notifications.Warning(Loc.T("Could not open"), result.Message);
         }
     }
 
