@@ -66,6 +66,66 @@ public class XamlConventionsTests
         Assert.InRange(sections, 1, 14);
     }
 
+    [Fact]
+    public void Page_command_bindings_name_a_command_that_exists()
+    {
+        // A {Binding XCommand} that names no command fails silently: the button looks enabled and does nothing.
+        // Commands come from [RelayCommand] methods (Foo/FooAsync -> FooCommand) or hand-written XCommand properties.
+        var commandsByClass = new Dictionary<string, HashSet<string>>();
+        foreach (var file in SourceFiles().Where(f => f.Contains($"{Path.DirectorySeparatorChar}ViewModels{Path.DirectorySeparatorChar}")))
+        {
+            var text = File.ReadAllText(file);
+            var commands = new HashSet<string>();
+            foreach (Match m in Regex.Matches(text, @"\[RelayCommand[^\]]*\]\s*(?:\[[^\]]*\]\s*)*(?:(?:public|private|protected|internal|async)\s+)*[\w<>?,\s]+?\s(\w+)\s*\("))
+            {
+                var name = m.Groups[1].Value;
+                commands.Add((name.EndsWith("Async", StringComparison.Ordinal) ? name[..^5] : name) + "Command");
+            }
+
+            foreach (Match m in Regex.Matches(text, @"\b(\w+Command)\s*(?:\{|=>)"))
+            {
+                commands.Add(m.Groups[1].Value);
+            }
+
+            foreach (Match m in Regex.Matches(text, @"\bclass\s+(\w+)"))
+            {
+                if (!commandsByClass.TryGetValue(m.Groups[1].Value, out var set))
+                {
+                    commandsByClass[m.Groups[1].Value] = set = [];
+                }
+
+                set.UnionWith(commands);
+            }
+        }
+
+        var pages = Directory.EnumerateFiles(Path.Combine(AppDirectory(), "Views", "Pages"), "*Page.xaml")
+            .Select(f => (File: f, Text: File.ReadAllText(f)))
+            .Select(p => (p.File, p.Text, Vm: Regex.Match(p.Text, @"d:DesignInstance\s+(?:Type=)?vm:(\w+)").Groups[1].Value))
+            .Where(p => p.Vm.Length > 0)
+            .ToList();
+        Assert.NotEmpty(pages);
+
+        // Item templates bind to row and card classes; another page's view model never counts.
+        var pageViewModels = pages.Select(p => p.Vm).ToHashSet();
+        var itemCommands = commandsByClass.Where(c => !pageViewModels.Contains(c.Key)).SelectMany(c => c.Value).ToHashSet();
+
+        var offenders = new List<string>();
+        foreach (var (file, text, vm) in pages)
+        {
+            var own = commandsByClass.GetValueOrDefault(vm) ?? [];
+            foreach (Match b in Regex.Matches(text, @"Command=""\{Binding\s+(?:Path=)?(\w+Command)\s*\}"""))
+            {
+                var name = b.Groups[1].Value;
+                if (!own.Contains(name) && !itemCommands.Contains(name))
+                {
+                    offenders.Add($"{Path.GetFileName(file)}: {name} is not on {vm}");
+                }
+            }
+        }
+
+        Assert.Empty(offenders.Distinct());
+    }
+
     internal static string AppDirectory()
     {
         var dir = new DirectoryInfo(AppContext.BaseDirectory);

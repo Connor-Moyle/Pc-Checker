@@ -108,6 +108,13 @@ public sealed class BatteryHealthView
     {
         Battery = battery;
         Status = HealthScoring.BatteryStatus(battery.WearPercent);
+        StatusText = Status switch
+        {
+            HealthStatus.Critical => "Critical",
+            HealthStatus.Warning => "Warning",
+            HealthStatus.Good => "Good",
+            _ => "Unknown",
+        };
         WearText = battery.WearPercent is { } w ? $"{w:0}%" : "—";
         HealthPercent = battery.WearPercent is { } wear ? Math.Clamp(100 - wear, 0, 100) : 0;
         CyclesText = battery.CycleCount?.ToString("N0") ?? "—";
@@ -120,6 +127,7 @@ public sealed class BatteryHealthView
     public BatteryHealth Battery { get; }
     public string Name => Battery.Name;
     public HealthStatus Status { get; }
+    public string StatusText { get; }
     public string Subtitle { get; }
     public string WearText { get; }
     public double HealthPercent { get; }
