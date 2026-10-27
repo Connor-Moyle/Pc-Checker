@@ -6,6 +6,10 @@ All notable changes to PC Checker are recorded here. The format follows
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-27
+
+Easier to use (What needs attention, help on every page, shortcuts, Undo), new Scheduled tasks, Connections, Right-click menu and Hosts file tools, and driver checks with your board or PC maker, chipset and BIOS.
+
 ### Added
 - **Easier to use**: *What needs attention* at the top of the Dashboard (up to
   five recommendations such as "Drive C: is 92 % full" or "3 apps start with
@@ -605,7 +609,8 @@ Initial release.
   itself from GitHub Releases with Stable and Beta channels and verifies every
   download against its published SHA-256.
 
-[Unreleased]: https://github.com/Connor-Moyle/Pc-Checker/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/Connor-Moyle/Pc-Checker/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/Connor-Moyle/Pc-Checker/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/Connor-Moyle/Pc-Checker/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/Connor-Moyle/Pc-Checker/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/Connor-Moyle/Pc-Checker/compare/v0.2.0...v0.3.0
