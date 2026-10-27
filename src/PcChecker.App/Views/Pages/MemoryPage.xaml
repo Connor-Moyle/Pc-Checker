@@ -10,33 +10,33 @@
       mc:Ignorable="d"
       Title="Memory"
       ScrollViewer.CanContentScroll="False">
+  <Page.Resources>
+    <Style x:Key="Tile" TargetType="controls:StatCard">
+      <Setter Property="Margin" Value="0" />
+    </Style>
+  </Page.Resources>
+
   <Grid Style="{StaticResource PageRoot}">
     <Grid.RowDefinitions>
-      <RowDefinition Height="Auto" />
       <RowDefinition Height="Auto" />
       <RowDefinition Height="Auto" />
       <RowDefinition Height="*" />
     </Grid.RowDefinitions>
 
-    <controls:SectionHeader Grid.Row="0" Title="Memory" Subtitle="Check your RAM, run memory tests and pick an optimised memory profile.">
+    <controls:SectionHeader Grid.Row="0" Title="Memory"
+                            Subtitle="{Binding CapturedText, TargetNullValue='Check your RAM, run memory tests and pick a memory profile.'}">
       <controls:SectionHeader.Actions>
-        <StackPanel Orientation="Horizontal">
-          <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding CapturedText}" VerticalAlignment="Center" Margin="0,0,12,0"
-                        Visibility="{Binding CapturedText, Converter={StaticResource NullToVisibility}}" />
-          <ui:Button Content="Refresh" Icon="{ui:SymbolIcon ArrowSync24}" Command="{Binding ReloadCommand}" />
-        </StackPanel>
+        <ui:Button Content="Refresh" Icon="{ui:SymbolIcon ArrowSync24}" Command="{Binding ReloadCommand}" />
       </controls:SectionHeader.Actions>
     </controls:SectionHeader>
 
-    <ui:InfoBar Grid.Row="1"
-                Severity="Error"
-                Title="Something went wrong"
-                Message="{Binding ErrorMessage}"
-                IsOpen="{Binding HasError, Mode=OneWay}"
-                IsClosable="True"
-                Margin="0,0,0,12" />
-
-    <StackPanel Grid.Row="2">
+    <StackPanel Grid.Row="1">
+      <ui:InfoBar Severity="Error"
+                  Title="Something went wrong"
+                  Message="{Binding ErrorMessage}"
+                  IsOpen="{Binding HasError, Mode=OneWay}"
+                  IsClosable="True"
+                  Margin="0,0,0,12" />
       <controls:RestartPromptBar IsOpen="{Binding DiagnosticRestartNeeded}"
                                  Message="Windows Memory Diagnostic runs at the next restart. Save your work and restart when convenient."
                                  Reason="to run the Windows Memory Diagnostic"
@@ -45,16 +45,20 @@
                   Title="Things worth fixing"
                   Message="{Binding WarningsText}"
                   IsOpen="{Binding HasWarnings, Mode=OneWay}"
-                  IsClosable="False"
+                  IsClosable="True"
                   Margin="0,0,0,12" />
     </StackPanel>
 
-    <ScrollViewer Grid.Row="3" Style="{StaticResource PageScroll}">
+    <ScrollViewer Grid.Row="2" Style="{StaticResource PageScroll}">
       <StackPanel>
 
         <!-- At a glance -->
-        <WrapPanel Orientation="Horizontal" Margin="0,0,0,4">
-          <ui:Card Margin="0,0,12,12" Padding="16" MinWidth="200">
+        <Grid Margin="0,0,0,12">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="*" />
+          </Grid.ColumnDefinitions>
+          <ui:Card Grid.Column="0" Margin="0,0,12,0" Padding="16" MinWidth="200" VerticalAlignment="Stretch" VerticalContentAlignment="Center">
             <StackPanel>
               <ui:TextBlock Style="{StaticResource Muted}" Text="Memory in use" />
               <controls:GaugeControl Value="{Binding UsedPercent}" Minimum="0" Maximum="100" Unit="%" WarnAt="80" CritAt="92" HorizontalAlignment="Center" Margin="0,4,0,0" />
@@ -63,24 +67,27 @@
               </ui:TextBlock>
             </StackPanel>
           </ui:Card>
-          <controls:StatCard Title="Installed" Value="{Binding TotalText}" Icon="Memory16" Subtitle="{Binding SlotsText}" Margin="0,0,12,12" />
-          <controls:StatCard Title="Available right now" Value="{Binding AvailableText}" Icon="Checkmark24" Accent="{StaticResource AccentGreenBrush}" Subtitle="Free for new programs" Margin="0,0,12,12" />
-          <controls:StatCard Title="Committed" Value="{Binding CommitText}" Icon="Database24" Accent="{StaticResource AccentPurpleBrush}" Subtitle="{Binding CommitSubtitle}" Margin="0,0,12,12"
-                             ToolTip="Memory promised to programs. It can exceed physical RAM because the page file on disk backs the rest." />
-          <controls:StatCard Title="Cached / standby" Value="{Binding CachedText}" Icon="History24" Accent="{StaticResource AccentGreyBrush}" Subtitle="{Binding StandbyText, StringFormat='{}{0} on the standby list'}" Margin="0,0,12,12"
-                             ToolTip="Recently used file data kept in RAM so it opens faster next time. Windows gives it up instantly when a program needs the space." />
-          <controls:StatCard Title="Memory compression" Value="{Binding CompressionText}" Icon="BoxMultiple24" Accent="{StaticResource AccentCyanBrush}" Subtitle="Fits more in RAM by squeezing idle pages. Changes take effect after a restart" Margin="0,0,12,12" />
-          <controls:StatCard Title="SysMain (Superfetch)" Value="{Binding SysMainText}" Icon="Rocket24" Accent="{StaticResource AccentOrangeBrush}" Subtitle="Preloads the programs you use most" Margin="0,0,12,12" />
-        </WrapPanel>
+          <controls:AdaptiveGrid Grid.Column="1" MinItemWidth="200" MaxColumns="3">
+            <controls:StatCard Style="{StaticResource Tile}" Title="Installed" Value="{Binding TotalText}" Icon="Memory16" Subtitle="{Binding SlotsText}" />
+            <controls:StatCard Style="{StaticResource Tile}" Title="Available right now" Value="{Binding AvailableText}" Icon="Checkmark24" Accent="{StaticResource AccentGreenBrush}" Subtitle="Free for new programs" />
+            <controls:StatCard Style="{StaticResource Tile}" Title="Committed" Value="{Binding CommitText}" Icon="Database24" Accent="{StaticResource AccentPurpleBrush}" Subtitle="{Binding CommitSubtitle}"
+                               ToolTip="Memory promised to programs. It can exceed physical RAM because the page file on disk backs the rest." />
+            <controls:StatCard Style="{StaticResource Tile}" Title="Cached / standby" Value="{Binding CachedText}" Icon="History24" Accent="{StaticResource AccentGreyBrush}" Subtitle="{Binding StandbyText, StringFormat='{}{0} on the standby list'}"
+                               ToolTip="Recently used file data kept in RAM so it opens faster next time. Windows gives it up instantly when a program needs the space." />
+            <controls:StatCard Style="{StaticResource Tile}" Title="Memory compression" Value="{Binding CompressionText}" Icon="BoxMultiple24" Accent="{StaticResource AccentCyanBrush}" Subtitle="Fits more in RAM by squeezing idle pages"
+                               ToolTip="Changes take effect after a restart." />
+            <controls:StatCard Style="{StaticResource Tile}" Title="SysMain (Superfetch)" Value="{Binding SysMainText}" Icon="Rocket24" Accent="{StaticResource AccentOrangeBrush}" Subtitle="Preloads the programs you use most" />
+          </controls:AdaptiveGrid>
+        </Grid>
 
         <!-- Kit and XMP -->
-        <Grid Margin="0,0,0,0">
+        <Grid>
           <Grid.ColumnDefinitions>
             <ColumnDefinition Width="3*" />
             <ColumnDefinition Width="2*" />
           </Grid.ColumnDefinitions>
 
-          <ui:Card Grid.Column="0" Style="{StaticResource CardSpacing}" Margin="0,0,12,12">
+          <ui:Card Grid.Column="0" Style="{StaticResource CardSpacing}" Margin="0,0,12,12" VerticalAlignment="Stretch" VerticalContentAlignment="Top">
             <StackPanel>
               <ui:TextBlock Style="{StaticResource CardTitle}" Text="Your memory kit" />
               <ui:TextBlock FontTypography="BodyStrong" Text="{Binding KitSummary}" TextWrapping="Wrap" />
@@ -108,11 +115,12 @@
                 </ui:DataGrid.Columns>
               </ui:DataGrid>
               <ui:TextBlock Style="{StaticResource Caption}" Margin="0,8,0,0" TextWrapping="Wrap"
-                            Text="Rated = the speed printed on the box. Running at = what the BIOS actually set. Speeds are in MT/s (megatransfers per second), which is what RAM makers call &quot;MHz&quot;." />
+                            Text="Rated is the speed on the box; Running at is what the BIOS set."
+                            ToolTip="Speeds are in MT/s (megatransfers per second), which is what RAM makers call &quot;MHz&quot;." />
             </StackPanel>
           </ui:Card>
 
-          <ui:Card Grid.Column="1" Style="{StaticResource CardSpacing}">
+          <ui:Card Grid.Column="1" Style="{StaticResource CardSpacing}" VerticalAlignment="Stretch" VerticalContentAlignment="Top">
             <StackPanel>
               <Grid>
                 <Grid.ColumnDefinitions>
@@ -128,7 +136,8 @@
               <ui:TextBlock FontTypography="BodyStrong" Text="{Binding XmpTitle}" TextWrapping="Wrap" />
               <ui:TextBlock Text="{Binding XmpGuidance}" TextWrapping="Wrap" Margin="0,6,0,0" />
               <ui:TextBlock Style="{StaticResource Caption}" Margin="0,10,0,0" TextWrapping="Wrap"
-                            Text="XMP (Intel) and EXPO (AMD) are one-click BIOS profiles that run the memory at its advertised speed instead of the slow, safe default. PC Checker cannot change BIOS settings for you." />
+                            Text="Set in the BIOS; PC Checker cannot change it for you."
+                            ToolTip="XMP (Intel) and EXPO (AMD) are one-click BIOS profiles that run the memory at its advertised speed instead of the slow, safe default." />
             </StackPanel>
           </ui:Card>
         </Grid>
@@ -138,7 +147,7 @@
           <StackPanel>
             <ui:TextBlock Style="{StaticResource CardTitle}" Text="Page file" />
             <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,8"
-                          Text="The page file is space on disk that Windows uses as overflow when RAM is full, and where it writes crash reports. The summary below is what is set right now." />
+                          Text="Disk space Windows uses when RAM is full, and for crash reports." />
             <ui:TextBlock Text="{Binding PageFileSummary}" TextWrapping="Wrap" Margin="0,0,0,8" />
             <ui:DataGrid ItemsSource="{Binding PageFiles}"
                          AutoGenerateColumns="False"
@@ -197,7 +206,8 @@
           <StackPanel>
             <ui:TextBlock Style="{StaticResource CardTitle}" Text="Quick memory test" />
             <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,10"
-                          Text="Writes and reads back four test patterns across the memory that is free right now, using every CPU core. It catches faulty modules and unstable XMP/EXPO or overclock settings in a few minutes. It cannot test memory that Windows and other programs are using, so a clean result here is not a guarantee: for a complete check schedule the Windows Memory Diagnostic below." />
+                          Text="Finds faulty modules and unstable XMP settings in minutes. Tests free memory only."
+                          ToolTip="Writes and reads back four test patterns across the memory that is free right now, using every CPU core. It cannot test memory that Windows and other programs are using, so a clean result is not a guarantee: for a complete check schedule the Windows Memory Diagnostic below." />
             <WrapPanel>
               <StackPanel Margin="0,0,16,8">
                 <ui:TextBlock Style="{StaticResource Muted}" Text="How much to test" />
@@ -254,7 +264,7 @@
             <StackPanel Grid.Column="0" Margin="0,0,16,0">
               <ui:TextBlock Style="{StaticResource CardTitle}" Text="Windows Memory Diagnostic" />
               <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap"
-                            Text="Windows' own boot-time test checks every byte of RAM before Windows loads, so nothing is in the way. It runs on the next restart and takes 5–20 minutes." />
+                            Text="Checks every byte of RAM before Windows loads. Runs at the next restart, 5–20 minutes." />
               <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
                 <ui:SymbolIcon Symbol="ErrorCircle24" Foreground="{StaticResource AccentRedBrush}" Margin="0,0,6,0" VerticalAlignment="Top"
                                Visibility="{Binding DiagnosticHasProblems, Converter={StaticResource BoolToVisibility}}" />
@@ -271,18 +281,25 @@
         </ui:Card>
 
         <!-- Profiles -->
-        <ui:TextBlock FontTypography="Subtitle" Text="Memory profiles" Margin="0,8,0,4" />
+        <ui:TextBlock FontTypography="Subtitle" Text="Memory profiles" Margin="0,0,0,4" />
         <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,12"
-                      Text="A profile sets memory compression, SysMain and the page file together. Every profile asks before it changes anything, and the Balanced profile puts everything back to the Windows defaults." />
-        <ItemsControl ItemsSource="{Binding Profiles}">
+                      Text="Sets compression, SysMain and the page file together. Balanced restores the defaults."
+                      ToolTip="Every profile asks before it changes anything." />
+        <ItemsControl ItemsSource="{Binding Profiles}" Margin="0,0,0,12">
           <ItemsControl.ItemsPanel>
             <ItemsPanelTemplate>
-              <UniformGrid Columns="2" />
+              <controls:AdaptiveGrid MinItemWidth="360" MaxColumns="3" />
             </ItemsPanelTemplate>
           </ItemsControl.ItemsPanel>
+          <!-- Hide the container, not just the card, so hidden profiles leave no gap in the grid. -->
+          <ItemsControl.ItemContainerStyle>
+            <Style TargetType="ContentPresenter">
+              <Setter Property="Visibility" Value="{Binding IsVisible, Converter={StaticResource BoolToVisibility}}" />
+            </Style>
+          </ItemsControl.ItemContainerStyle>
           <ItemsControl.ItemTemplate>
             <DataTemplate>
-              <ui:Card Margin="0,0,12,12" Padding="16" Visibility="{Binding IsVisible, Converter={StaticResource BoolToVisibility}}">
+              <ui:Card Padding="16" VerticalAlignment="Stretch" VerticalContentAlignment="Stretch">
                 <Grid>
                   <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
@@ -326,13 +343,14 @@
                          ToolTip="SysMain (Superfetch) preloads the programs you use most. On is the Windows default." />
             </WrapPanel>
             <ui:TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap"
-                          Text="Each action explains itself and asks for confirmation. Changes are written to the action journal. Setting changes get a restore point first when that option is on in Settings; clearing the standby list does not, because Windows refills it on its own." />
+                          Text="Each action asks first and is written to the action journal."
+                          ToolTip="Setting changes get a restore point first when that option is on in Settings; clearing the standby list does not, because Windows refills it on its own." />
           </StackPanel>
         </ui:Card>
       </StackPanel>
     </ScrollViewer>
 
-    <controls:BusyOverlay Grid.Row="0" Grid.RowSpan="4"
+    <controls:BusyOverlay Grid.Row="0" Grid.RowSpan="3"
                           IsBusy="{Binding IsBusy}"
                           Text="{Binding BusyText}"
                           CancelCommand="{Binding CancelCommand}" CanCancel="{Binding CanCancelBusy}" />
