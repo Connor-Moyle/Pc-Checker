@@ -258,9 +258,6 @@ public sealed partial class HealthViewModel : ViewModelBase
     [RelayCommand]
     private void OpenDriversPage() => _navigation.Navigate(typeof(DriversPage));
 
-    [RelayCommand]
-    private void ClearErrorFilter() => ErrorFilter = null;
-
     partial void OnErrorFilterChanged(string? value) => ApplyErrorFilter();
 
     partial void OnScoreChanged(int value)

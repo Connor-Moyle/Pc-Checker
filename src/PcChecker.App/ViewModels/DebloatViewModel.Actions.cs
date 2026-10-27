@@ -367,9 +367,6 @@ public sealed partial class DebloatViewModel
     private void DismissRestartExplorer() => IsRestartExplorerSuggested = false;
 
     [RelayCommand]
-    private void DismissSignOut() => IsSignOutSuggested = false;
-
-    [RelayCommand]
     private void OpenNote(DebloatNote? note)
     {
         if (note is null)

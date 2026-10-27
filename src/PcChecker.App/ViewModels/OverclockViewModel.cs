@@ -217,12 +217,6 @@ public sealed partial class OverclockViewModel : ViewModelBase
     }
 
     [RelayCommand]
-    private void DismissRecovery() => RecoveryMessage = null;
-
-    [RelayCommand]
-    private void DismissStatus() => StatusMessage = null;
-
-    [RelayCommand]
     private void GoToMemoryPage() => _navigation.Navigate(typeof(MemoryPage));
 
     [RelayCommand]

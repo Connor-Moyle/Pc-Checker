@@ -243,9 +243,6 @@ public sealed partial class FanItemViewModel : ObservableObject
     private Task ApplyCurveAsync() => _owner.ApplyCurveAsync(this);
 
     [RelayCommand]
-    private Task SetAutoAsync() => _owner.SetAutoAsync(this);
-
-    [RelayCommand]
     private void UsePreset(string? preset)
     {
         var curve = FanCurveMath.Default(TemperatureSourceId ?? string.Empty, preset ?? FanCurveMath.PresetBalanced);

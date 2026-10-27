@@ -220,9 +220,6 @@ public abstract partial class ViewModelBase : ObservableObject
         }
     }
 
-    [RelayCommand]
-    private void ClearError() => ErrorMessage = null;
-
     private void OnSettingsChanged(object? sender, AppSettings settings) =>
         Services.DispatcherHelper.PostToUi(() => IsAdvancedMode = settings.General.AdvancedMode);
 

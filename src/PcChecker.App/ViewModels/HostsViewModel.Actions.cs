@@ -312,9 +312,6 @@ public sealed partial class HostsViewModel
         Open(Path.GetDirectoryName(path) ?? path);
     }
 
-    [RelayCommand]
-    private void DismissSaveError() => SaveError = null;
-
     private void Open(string target)
     {
         var result = ShellLauncher.Open(target);

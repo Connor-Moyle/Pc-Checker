@@ -135,10 +135,7 @@ public sealed partial class DashboardViewModel
     [RelayCommand] private void GoToHealth() => _navigation.Navigate(typeof(HealthPage));
     [RelayCommand] private void GoToSettings() => _navigation.Navigate(typeof(SettingsPage));
     [RelayCommand] private void GoToOverclock() => _navigation.Navigate(typeof(OverclockPage));
-    [RelayCommand] private void GoToFans() => _navigation.Navigate(typeof(FansPage));
     [RelayCommand] private void GoToLighting() => _navigation.Navigate(typeof(LightingPage));
-    [RelayCommand] private void GoToDisplays() => _navigation.Navigate(typeof(DisplaysPage));
-    [RelayCommand] private void GoToAudio() => _navigation.Navigate(typeof(AudioPage));
     [RelayCommand] private void GoToLogs() => _navigation.Navigate(typeof(LogsPage));
     [RelayCommand] private void GoToHardware() => _navigation.Navigate(typeof(HardwarePage));
 

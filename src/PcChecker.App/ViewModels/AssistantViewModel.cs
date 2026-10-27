@@ -367,16 +367,6 @@ public sealed partial class AssistantViewModel : ViewModelBase
     [RelayCommand]
     private void ToggleSettings() => ShowSettings = !ShowSettings;
 
-    [RelayCommand]
-    private void OpenConsole()
-    {
-        var result = ShellLauncher.Open(ConsoleUrl);
-        if (!result.Success)
-        {
-            ErrorMessage = result.Message;
-        }
-    }
-
     private bool CanSaveKey => !string.IsNullOrWhiteSpace(ApiKeyInput);
 
     [RelayCommand(CanExecute = nameof(CanSaveKey))]

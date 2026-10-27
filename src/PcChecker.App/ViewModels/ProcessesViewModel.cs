@@ -221,12 +221,6 @@ public sealed partial class ProcessesViewModel : ViewModelBase
     private void SetUpdateSpeed(ProcessUpdateSpeed speed) => UpdateSpeed = speed;
 
     [RelayCommand]
-    private void ShowProcessesView() => IsDetailsView = false;
-
-    [RelayCommand]
-    private void ShowDetailsView() => IsDetailsView = true;
-
-    [RelayCommand]
     private void ToggleGroup(RunningProcessRow? row)
     {
         if (row?.Group is not { } group)
