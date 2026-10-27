@@ -1,6 +1,8 @@
 using System.IO;
 using System.Text.Json;
+using System.Runtime.InteropServices;
 using System.Windows;
+using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
@@ -43,6 +45,7 @@ public sealed class ScreenshotRunner
             _logger.LogInformation("Screenshot run started → {Directory}", dir);
 
             window.WindowState = WindowState.Normal;
+            AllowLargerThanScreen(window);
             window.Width = WindowWidth;
             window.Height = WindowHeight;
 
@@ -127,10 +130,7 @@ public sealed class ScreenshotRunner
         overlay.Hide();
     }
 
-    /// <summary>
-    /// Lays the window content out at the full screenshot size (CI runners often have screens smaller than the
-    /// window) and renders it over the theme's background so the PNG never has transparent areas.
-    /// </summary>
+    /// <summary>Renders the window content over the theme's background so the PNG never has transparent areas.</summary>
     private static void RenderPage(Window window, string path)
     {
         if (window.Content is not FrameworkElement content)
@@ -138,11 +138,8 @@ public sealed class ScreenshotRunner
             throw new InvalidOperationException("The main window has no content to render.");
         }
 
-        var size = new Size(WindowWidth, WindowHeight);
-        content.Measure(size);
-        content.Arrange(new Rect(size));
         content.UpdateLayout();
-
+        var size = new Size(Math.Max(1, content.ActualWidth), Math.Max(1, content.ActualHeight));
         var background = Application.Current.TryFindResource("ApplicationBackgroundBrush") as Brush
             ?? window.Background
             ?? new SolidColorBrush(Color.FromRgb(0x20, 0x20, 0x20));
@@ -154,7 +151,47 @@ public sealed class ScreenshotRunner
                 null, new Rect(size));
         }
 
-        RenderToPng(visual, WindowWidth, WindowHeight, path);
+        RenderToPng(visual, size.Width, size.Height, path);
+    }
+
+    /// <summary>
+    /// CI runners have screens smaller than the screenshot size and Windows caps a window at the screen size.
+    /// For screenshot runs only, answer WM_GETMINMAXINFO with a larger maximum so the window really is 1440 x 900.
+    /// </summary>
+    private static void AllowLargerThanScreen(Window window)
+    {
+        var handle = new WindowInteropHelper(window).EnsureHandle();
+        HwndSource.FromHwnd(handle)?.AddHook((IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled) =>
+        {
+            const int WmGetMinMaxInfo = 0x0024;
+            if (msg == WmGetMinMaxInfo)
+            {
+                var info = Marshal.PtrToStructure<MinMaxInfo>(lParam);
+                info.MaxTrackSize = new NativePoint { X = Math.Max(info.MaxTrackSize.X, WindowWidth + 64), Y = Math.Max(info.MaxTrackSize.Y, WindowHeight + 64) };
+                info.MaxSize = new NativePoint { X = Math.Max(info.MaxSize.X, WindowWidth + 64), Y = Math.Max(info.MaxSize.Y, WindowHeight + 64) };
+                Marshal.StructureToPtr(info, lParam, false);
+                handled = true;
+            }
+
+            return IntPtr.Zero;
+        });
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct NativePoint
+    {
+        public int X;
+        public int Y;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct MinMaxInfo
+    {
+        public NativePoint Reserved;
+        public NativePoint MaxSize;
+        public NativePoint MaxPosition;
+        public NativePoint MinTrackSize;
+        public NativePoint MaxTrackSize;
     }
 
     private static void RenderToPng(Visual visual, double width, double height, string path)

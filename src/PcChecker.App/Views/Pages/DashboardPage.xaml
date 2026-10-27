@@ -72,7 +72,7 @@
             <ColumnDefinition Width="*" />
           </Grid.ColumnDefinitions>
 
-          <ui:Card Grid.Column="0" Margin="0,0,12,12" Padding="16" VerticalAlignment="Stretch">
+          <ui:Card Grid.Column="0" Margin="0,0,12,12" Padding="16" VerticalAlignment="Stretch" VerticalContentAlignment="Top">
             <StackPanel>
               <Grid>
                 <Grid.ColumnDefinitions>
