@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Text;
 using PcChecker.Core.Common;
+using PcChecker.Core.Storage;
 
 namespace PcChecker.Core.Power;
 
@@ -10,7 +11,7 @@ public sealed record PowerCfgResult(int ExitCode, string StdOut, string StdErr)
     public bool Success => ExitCode == 0;
 }
 
-/// <summary>Runs <c>powercfg.exe</c> without a window and captures its output. Never throws for a failed call.</summary>
+/// <summary>Runs <c>powercfg.exe</c> without a window and captures its output (decoded from the OEM code page). Never throws for a failed call.</summary>
 public static class PowerCfg
 {
     public static readonly TimeSpan Timeout = TimeSpan.FromSeconds(20);
@@ -31,6 +32,11 @@ public static class PowerCfg
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             CreateNoWindow = true,
+
+            // powercfg writes in the console (OEM) code page, not UTF-8: decoding it as UTF-8 garbles every
+            // non-ASCII plan name ("Höchstleistung", Cyrillic names) on non-English Windows.
+            StandardOutputEncoding = StorageCommandRunner.OemEncoding(),
+            StandardErrorEncoding = StorageCommandRunner.OemEncoding(),
         };
 
         try
