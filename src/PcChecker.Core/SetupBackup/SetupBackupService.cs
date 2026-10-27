@@ -120,6 +120,27 @@ public sealed class SetupBackupService : ISetupBackupService
             (current, now) => SetupApplier.Reset(current, sections, now), benchmarkSection: null);
     }
 
+    public async Task<IReadOnlyList<ScheduleSyncStep>> PlanUndoScheduledTasksAsync(CancellationToken cancellationToken)
+    {
+        var undo = _lastChange;
+        if (undo is null || !undo.Sections.Contains(SetupSectionIds.Schedules, StringComparer.OrdinalIgnoreCase))
+        {
+            return [];
+        }
+
+        try
+        {
+            var read = SetupFileReader.Parse(await _store.ReadAsync(undo.BackupPath, cancellationToken).ConfigureAwait(false));
+            return read.Success && read.Value is not null
+                ? SetupScheduleSync.PlanImport(_settings.Current, read.Value, DateTimeOffset.Now)
+                : [];
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return [];
+        }
+    }
+
     public async Task<OperationResult<SetupChangeResult>> UndoAsync(CancellationToken cancellationToken)
     {
         var undo = _lastChange;
@@ -128,6 +149,7 @@ public sealed class SetupBackupService : ISetupBackupService
             return OperationResult<SetupChangeResult>.Fail("There is nothing to undo.");
         }
 
+        var context = SynchronizationContext.Current;
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
@@ -151,10 +173,22 @@ public sealed class SetupBackupService : ISetupBackupService
             var settingsSections = undo.Sections.Where(id => id != SetupSectionIds.Benchmarks).ToList();
             var outcome = SetupApplier.Apply(_settings.Current, backup, settingsSections, DateTimeOffset.Now);
             notes.AddRange(outcome.Notes);
-            await SaveAsync(outcome, notes, cancellationToken).ConfigureAwait(false);
+            await SaveAsync(outcome, notes, context, cancellationToken).ConfigureAwait(false);
             if (undo.AddedBenchmarkRuns.Count > 0)
             {
                 await _benchmarks.RemoveAsync(undo.AddedBenchmarkRuns, cancellationToken).ConfigureAwait(false);
+            }
+
+            if (undo.PushedOutBenchmarkRuns.Count > 0)
+            {
+                // The runs the import pushed out of the history are in the automatic backup.
+                var pushedOut = undo.PushedOutBenchmarkRuns.ToHashSet();
+                var (backupRuns, _) = SetupApplier.ReadRuns(backup.Sections.GetValueOrDefault(SetupSectionIds.Benchmarks));
+                var restored = await _benchmarks.MergeAsync(backupRuns.Where(r => pushedOut.Contains(r.Id)), cancellationToken).ConfigureAwait(false);
+                if (restored.Count < pushedOut.Count)
+                {
+                    notes.Add($"{pushedOut.Count - restored.Count} benchmark run(s) removed by the import could not be put back.");
+                }
             }
 
             var what = undo.Source == SetupChangeSource.Import ? "import" : "reset";
@@ -188,14 +222,16 @@ public sealed class SetupBackupService : ISetupBackupService
             return OperationResult<SetupChangeResult>.Fail("Choose at least one part.");
         }
 
+        var context = SynchronizationContext.Current;
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             var now = DateTimeOffset.Now;
             string backupPath;
+            IReadOnlyList<BenchmarkRun> runsBefore;
             try
             {
-                var runs = await _benchmarks.LoadAsync(cancellationToken).ConfigureAwait(false);
+                var runs = runsBefore = await _benchmarks.LoadAsync(cancellationToken).ConfigureAwait(false);
                 backupPath = await _store.SaveAutomaticAsync(Compose(SetupExportOptions.Everything, runs), now.LocalDateTime, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -206,10 +242,11 @@ public sealed class SetupBackupService : ISetupBackupService
 
             var outcome = apply(_settings.Current, now);
             var notes = new List<string>(outcome.Notes);
-            await SaveAsync(outcome, notes, cancellationToken).ConfigureAwait(false);
+            await SaveAsync(outcome, notes, context, cancellationToken).ConfigureAwait(false);
             var changed = outcome.AppliedSections.ToList();
 
             IReadOnlyList<Guid> addedRuns = [];
+            IReadOnlyList<Guid> pushedOut = [];
             if (benchmarkSection is not null && sections.Contains(SetupSectionIds.Benchmarks, StringComparer.OrdinalIgnoreCase))
             {
                 var (runs, unreadable) = SetupApplier.ReadRuns(benchmarkSection);
@@ -219,6 +256,17 @@ public sealed class SetupBackupService : ISetupBackupService
                     addedRuns = await _benchmarks.MergeAsync(runs, cancellationToken).ConfigureAwait(false);
                     changed.Add(SetupSectionIds.Benchmarks);
                     notes.Add(addedRuns.Count == 1 ? "1 benchmark run was added." : $"{addedRuns.Count} benchmark runs were added.");
+                    if (addedRuns.Count > 0)
+                    {
+                        // The history keeps the newest runs only, so new runs can push this PC's oldest ones out.
+                        var kept = (await _benchmarks.LoadAsync(cancellationToken).ConfigureAwait(false)).Select(r => r.Id).ToHashSet();
+                        pushedOut = runsBefore.Where(r => !kept.Contains(r.Id)).Select(r => r.Id).ToList();
+                        if (pushedOut.Count > 0)
+                        {
+                            notes.Add($"{pushedOut.Count} of the oldest benchmark run(s) on this PC were removed to stay within "
+                                + $"{BenchmarkHistoryRules.MaxRuns} runs. Undo puts them back.");
+                        }
+                    }
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                 {
@@ -239,7 +287,7 @@ public sealed class SetupBackupService : ISetupBackupService
 
             await RecordAsync(action, backupPath, changed, "Success", reversible: true,
                 undoHint: $"Settings → Your setup → Undo, or import the automatic backup {backupPath}.").ConfigureAwait(false);
-            SetLastChange(new SetupUndoPoint(source, backupPath, changed, now) { AddedBenchmarkRuns = addedRuns });
+            SetLastChange(new SetupUndoPoint(source, backupPath, changed, now) { AddedBenchmarkRuns = addedRuns, PushedOutBenchmarkRuns = pushedOut });
             _logger.LogInformation("{Action}: {Sections} (backup {Backup}).", action, string.Join(", ", changed), backupPath);
             return OperationResult<SetupChangeResult>.Ok(new SetupChangeResult(changed, backupPath, notes), "Done.");
         }
@@ -261,9 +309,11 @@ public sealed class SetupBackupService : ISetupBackupService
 
     /// <summary>
     /// Brings Task Scheduler in line with the new schedules, copies the changed sections into the live settings and
-    /// saves them. If saving fails the live settings are put back as they were.
+    /// saves them. If saving fails the live settings are put back as they were, and so are the scheduled tasks. The
+    /// live settings are changed on <paramref name="context"/> (the caller's, normally the UI thread), where the
+    /// pages bound to them change them too.
     /// </summary>
-    private async Task SaveAsync(SetupApplyOutcome outcome, List<string> notes, CancellationToken cancellationToken)
+    private async Task SaveAsync(SetupApplyOutcome outcome, List<string> notes, SynchronizationContext? context, CancellationToken cancellationToken)
     {
         if (outcome.AppliedSections.Count == 0)
         {
@@ -272,21 +322,60 @@ public sealed class SetupBackupService : ISetupBackupService
 
         var current = _settings.Current;
         var previous = SetupJson.Clone(current);
-        if (outcome.AppliedSections.Contains(SetupSectionIds.Schedules))
+        bool syncTasks = outcome.AppliedSections.Contains(SetupSectionIds.Schedules);
+        if (syncTasks)
         {
             await SyncScheduledTasksAsync(current, outcome.Settings, notes, cancellationToken).ConfigureAwait(false);
         }
 
-        SetupApplier.CopySections(outcome.Settings, current, outcome.AppliedSections);
+        await OnContextAsync(context, () => SetupApplier.CopySections(outcome.Settings, current, outcome.AppliedSections)).ConfigureAwait(false);
         try
         {
             await _settings.SaveAsync().ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            SetupApplier.CopySections(previous, current, outcome.AppliedSections);
+            await OnContextAsync(context, () => SetupApplier.CopySections(previous, current, outcome.AppliedSections)).ConfigureAwait(false);
+            if (syncTasks)
+            {
+                // Best effort: put Task Scheduler back to the schedules that are still saved.
+                try
+                {
+                    await SyncScheduledTasksAsync(outcome.Settings, SetupJson.Clone(previous), [], CancellationToken.None).ConfigureAwait(false);
+                }
+                catch (Exception revert)
+                {
+                    _logger.LogWarning(revert, "Scheduled tasks could not be put back after the settings failed to save.");
+                }
+            }
+
             throw new IOException("The settings could not be saved: " + ex.Message, ex);
         }
+    }
+
+    /// <summary>Runs <paramref name="action"/> on <paramref name="context"/>, or right here when there is none.</summary>
+    private static Task OnContextAsync(SynchronizationContext? context, Action action)
+    {
+        if (context is null || SynchronizationContext.Current == context)
+        {
+            action();
+            return Task.CompletedTask;
+        }
+
+        var done = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        context.Post(_ =>
+        {
+            try
+            {
+                action();
+                done.SetResult();
+            }
+            catch (Exception ex)
+            {
+                done.SetException(ex);
+            }
+        }, null);
+        return done.Task;
     }
 
     /// <summary>

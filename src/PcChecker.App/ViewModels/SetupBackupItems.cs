@@ -43,6 +43,66 @@ public static class SetupSectionText
 
     /// <summary>"Fans, Lighting and Overlay" style list of section titles.</summary>
     public static string List(IEnumerable<string> ids) => string.Join(", ", ids.Select(Title));
+
+    /// <summary>The translated summary of a preview row ("3 changes", "Same as this PC", "5 runs in the file, 3 new").</summary>
+    public static string Summary(SetupSectionPreview preview)
+    {
+        ArgumentNullException.ThrowIfNull(preview);
+        if (preview.State == SetupSectionState.Skipped)
+        {
+            return Loc.F("Skipped: {0}", preview.SkipReason ?? preview.Summary);
+        }
+
+        if (preview.Benchmarks is { } runs)
+        {
+            return BenchmarkSummary(runs);
+        }
+
+        int count = preview.Changes.Count;
+        return preview.State == SetupSectionState.Unchanged ? Loc.T("Same as this PC")
+            : count == 1 ? Loc.T("1 change")
+            : Loc.F("{0} changes", count);
+    }
+
+    /// <summary>One translated line for a change in the preview.</summary>
+    public static string Describe(SetupChange change)
+    {
+        ArgumentNullException.ThrowIfNull(change);
+        return change.Kind switch
+        {
+            SetupChangeKind.Added => Loc.F("{0}: added", change.Path),
+            SetupChangeKind.Removed => Loc.F("{0}: removed", change.Path),
+            _ when change.Before is null && change.After is null => Loc.F("{0}: changed", change.Path),
+            _ => $"{change.Path}: {change.Before ?? Loc.T("(none)")} → {change.After ?? Loc.T("(none)")}",
+        };
+    }
+
+    private static string BenchmarkSummary(SetupBenchmarkPreview runs)
+    {
+        var parts = new List<string>
+        {
+            runs.InFile == 1 ? Loc.T("1 run in the file") : Loc.F("{0} runs in the file", runs.InFile),
+            runs.Added == 0 ? Loc.T("none new") : Loc.F("{0} new", runs.Added),
+        };
+        if (runs.TooOld > 0)
+        {
+            parts.Add(Loc.F("{0} too old to keep", runs.TooOld));
+        }
+
+        if (runs.PushedOut > 0)
+        {
+            parts.Add(runs.PushedOut == 1
+                ? Loc.F("1 oldest run on this PC removed (limit {0})", Core.Benchmark.BenchmarkHistoryRules.MaxRuns)
+                : Loc.F("{0} oldest runs on this PC removed (limit {1})", runs.PushedOut, Core.Benchmark.BenchmarkHistoryRules.MaxRuns));
+        }
+
+        if (runs.Unreadable > 0)
+        {
+            parts.Add(Loc.F("{0} unreadable run(s) skipped", runs.Unreadable));
+        }
+
+        return string.Join(", ", parts);
+    }
 }
 
 /// <summary>One tickable section in the import or reset dialog.</summary>
@@ -82,7 +142,8 @@ public sealed partial class SetupSectionChoice : ObservableObject
 
     /// <summary>A row for the import dialog.</summary>
     public static SetupSectionChoice FromPreview(SetupSectionPreview preview) =>
-        new(preview.Id, preview.Summary, preview.Changes.Select(c => c.Describe()).ToList(), preview.CanImport, preview.SelectedByDefault);
+        new(preview.Id, SetupSectionText.Summary(preview), preview.Changes.Select(SetupSectionText.Describe).ToList(), preview.CanImport,
+            preview.SelectedByDefault);
 }
 
 /// <summary>Data for the "Back up your setup" dialog.</summary>

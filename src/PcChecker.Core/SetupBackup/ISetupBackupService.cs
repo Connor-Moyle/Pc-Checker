@@ -39,6 +39,12 @@ public interface ISetupBackupService
     /// <summary>Backs up the current setup, then puts the chosen sections back to their defaults.</summary>
     Task<OperationResult<SetupChangeResult>> ResetAsync(IReadOnlyCollection<string> sections, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// The Task Scheduler changes that undoing <see cref="LastChange"/> would make, so they can be confirmed first.
+    /// Empty when it did not touch the schedules or the backup cannot be read.
+    /// </summary>
+    Task<IReadOnlyList<ScheduleSyncStep>> PlanUndoScheduledTasksAsync(CancellationToken cancellationToken);
+
     /// <summary>Restores the sections changed by <see cref="LastChange"/> from the automatic backup taken before it.</summary>
     Task<OperationResult<SetupChangeResult>> UndoAsync(CancellationToken cancellationToken);
 }

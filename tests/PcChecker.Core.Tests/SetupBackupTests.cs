@@ -517,6 +517,120 @@ public class SetupBackupTests : IDisposable
         Assert.Null(service.LastChange);
     }
 
+    // ----- Damaged files and the run limit -----
+
+    [Fact]
+    public void Import_drops_null_items_and_unnamed_profiles_and_fills_null_text()
+    {
+        var root = JsonNode.Parse(SetupExporter.Export(CustomSettings(), null, new SetupExportOptions(false), null, Now, null))!;
+        var overlay = root["Sections"]!["overlay"]!["Data"]!["Overlay"]!.AsObject();
+        overlay["Presets"] = new JsonArray(null, new JsonObject { ["Name"] = "Kept", ["Metrics"] = new JsonArray((JsonNode?)null) });
+        overlay["Hotkey"] = null;
+        overlay["Metrics"] = new JsonArray((JsonNode?)null);
+        var fans = root["Sections"]!["fans"]!["Data"]!["Fans"]!.AsObject();
+        fans["Profiles"] = new JsonArray(null, new JsonObject { ["Name"] = null },
+            new JsonObject { ["Name"] = "Ok", ["Fans"] = new JsonObject { ["fan0"] = null } });
+        var doc = SetupFileReader.Parse(root.ToJsonString()).Value!;
+
+        var outcome = SetupApplier.Apply(AppSettings.CreateDefault(), doc, [SetupSectionIds.Overlay, SetupSectionIds.Fans], Now);
+
+        Assert.Contains(SetupSectionIds.Overlay, outcome.AppliedSections);
+        var o = outcome.Settings.Overlay;
+        Assert.Equal("Ctrl+Shift+O", o.Hotkey);
+        Assert.Empty(o.Metrics);
+        Assert.Equal("Kept", Assert.Single(o.Presets).Name);
+        Assert.Empty(o.Presets[0].Metrics);
+        var profile = Assert.Single(outcome.Settings.Fans.Profiles);
+        Assert.Equal("Ok", profile.Name);
+        Assert.Empty(profile.Fans);
+        Assert.Contains(outcome.Notes, n => n.StartsWith("Fans: 3 empty or unnamed entries", StringComparison.Ordinal));
+
+        // Nothing null is left for the pages to trip over, and the preview agrees with the import.
+        Assert.All(o.Presets.Select(p => p.Name), Assert.NotNull);
+        var row = SetupPreviewBuilder.Build(AppSettings.CreateDefault(), [], doc, Now).Sections.Single(s => s.Id == SetupSectionIds.Fans);
+        Assert.Contains(row.Changes, c => c.Path == "Profiles \"Ok\"" && c.Kind == SetupChangeKind.Added);
+    }
+
+    [Fact]
+    public void Null_repair_keeps_values_that_may_be_empty()
+    {
+        var s = AppSettings.CreateDefault();
+        s.Fans.ActiveProfileName = null;
+        s.Fans.Profiles.Add(new FanProfile { Name = "Auto", Fans = { ["fan0"] = new FanAssignment { Mode = FanMode.Auto, Curve = null } } });
+        s.General.CurrencySymbol = null!;
+
+        int removed = SetupNullRepair.Repair(s);
+
+        Assert.Equal(0, removed);
+        Assert.Null(s.Fans.ActiveProfileName);
+        Assert.Null(s.Fans.Profiles[0].Fans["fan0"].Curve);
+        Assert.Equal(new GeneralSettings().CurrencySymbol, s.General.CurrencySymbol);
+    }
+
+    [Fact]
+    public void Preview_says_when_new_runs_push_the_oldest_out()
+    {
+        var mine = RunsFrom(BenchmarkHistoryRules.MaxRuns, Now.AddDays(-10));
+        var newer = RunsFrom(3, Now);
+        var older = RunsFrom(2, Now.AddYears(-5));
+        var doc = SetupFileReader.Parse(SetupExporter.Export(AppSettings.CreateDefault(), [.. newer, .. older], SetupExportOptions.Everything, null, Now, null)).Value!;
+
+        var row = SetupPreviewBuilder.Build(AppSettings.CreateDefault(), mine, doc, Now).Sections.Single(s => s.Id == SetupSectionIds.Benchmarks);
+
+        Assert.Equal(new SetupBenchmarkPreview(5, 0, 3, 3, 2), row.Benchmarks);
+        Assert.Equal($"5 runs in the file, 3 new, 2 too old to keep, 3 oldest runs on this PC removed (limit {BenchmarkHistoryRules.MaxRuns})", row.Summary);
+        Assert.Equal(3, row.Changes.Count(c => c.Kind == SetupChangeKind.Added));
+        Assert.Equal(3, row.Changes.Count(c => c.Kind == SetupChangeKind.Removed));
+    }
+
+    [Fact]
+    public async Task Undo_puts_back_benchmark_runs_the_import_pushed_out()
+    {
+        var settings = new JsonSettingsService(Path.Combine(_dir, "app3"));
+        await settings.LoadAsync();
+        var history = new JsonBenchmarkHistoryStore(Path.Combine(_dir, "app3", "benchmarks.json"));
+        var mine = RunsFrom(BenchmarkHistoryRules.MaxRuns, Now.AddDays(-10));
+        foreach (var run in mine)
+        {
+            await history.AddAsync(run, CancellationToken.None);
+        }
+
+        var service = new SetupBackupService(settings, history, new RecordingTaskService(), new RecordingJournal(),
+            new FileSetupBackupStore(Path.Combine(_dir, "app3", "backups")), new DemoAppUpdateService(), NullLogger<SetupBackupService>.Instance);
+        var doc = SetupFileReader.Parse(SetupExporter.Export(AppSettings.CreateDefault(), RunsFrom(2, Now), SetupExportOptions.Everything, null, Now, null)).Value!;
+
+        var imported = await service.ImportAsync(doc, [SetupSectionIds.Benchmarks], "x", CancellationToken.None);
+
+        Assert.True(imported.Success, imported.Message);
+        Assert.Contains(imported.Value!.Notes, n => n.Contains("Undo puts them back", StringComparison.Ordinal));
+        var afterImport = await history.LoadAsync(CancellationToken.None);
+        Assert.Equal(BenchmarkHistoryRules.MaxRuns, afterImport.Count);
+        Assert.Equal(2, service.LastChange!.PushedOutBenchmarkRuns.Count);
+
+        var undone = await service.UndoAsync(CancellationToken.None);
+
+        Assert.True(undone.Success, undone.Message);
+        Assert.Equal(mine.Select(r => r.Id).ToHashSet(), (await history.LoadAsync(CancellationToken.None)).Select(r => r.Id).ToHashSet());
+    }
+
+    [Fact]
+    public async Task Undo_plan_lists_the_task_changes_it_would_make()
+    {
+        var settings = new JsonSettingsService(Path.Combine(_dir, "app4"));
+        await settings.LoadAsync();
+        var service = new SetupBackupService(settings, new DemoBenchmarkHistoryStore(), new RecordingTaskService(), new RecordingJournal(),
+            new FileSetupBackupStore(Path.Combine(_dir, "app4", "backups")), new DemoAppUpdateService(), NullLogger<SetupBackupService>.Instance);
+        var doc = SetupFileReader.Parse(SetupExporter.Export(CustomSettings(), null, new SetupExportOptions(false), null, Now, null)).Value!;
+        Assert.Empty(await service.PlanUndoScheduledTasksAsync(CancellationToken.None));
+
+        var imported = await service.ImportAsync(doc, [SetupSectionIds.Schedules], "x", CancellationToken.None);
+        Assert.True(imported.Success, imported.Message);
+
+        var steps = await service.PlanUndoScheduledTasksAsync(CancellationToken.None);
+
+        Assert.Contains(steps, s => s.Action == ScheduleSyncAction.Delete && s.Job == ScheduledJobKind.Report);
+    }
+
     // ----- Sample data -----
 
     private static AppSettings CustomSettings()
@@ -553,6 +667,9 @@ public class SetupBackupTests : IDisposable
             Guid.NewGuid(), Now.AddDays(-i), 30, i == 0 ? "Before overclock" : null, new BenchmarkSystemInfo("PC", "CPU", 16, 32L << 30, "GPU", "C:"),
             [new BenchmarkTestResult(BenchmarkTestKind.CpuSingleCore, BenchmarkTestStatus.Completed, 1000 + i, [new BenchmarkMetric("cpu.hash", "Hashing", 900, "MB/s")], null, 10)],
             [])).ToList();
+
+    private static List<BenchmarkRun> RunsFrom(int count, DateTimeOffset newest) =>
+        Runs(count).Select((r, i) => r with { Started = newest.AddHours(-i) }).ToList();
 
     private sealed class RecordingTaskService : IScheduledTaskService
     {

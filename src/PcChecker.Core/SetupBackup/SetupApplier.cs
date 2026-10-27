@@ -12,7 +12,8 @@ namespace PcChecker.Core.SetupBackup;
 /// Works out the settings after an import or a reset, without saving anything. For each chosen section the file's
 /// values replace this PC's, field by field: a field the file does not have keeps its current value, and machine-only
 /// fields (<see cref="SetupMachineFields"/>, including the API key) always keep this PC's value. Values are clamped to
-/// the same ranges the Settings page allows, and a section whose data cannot be read is skipped with a note.
+/// the same ranges the Settings page allows, null entries and unnamed profiles are dropped and null text gets its default
+/// (<see cref="SetupNullRepair"/>), and a section whose data cannot be read is skipped with a note.
 /// </summary>
 public static class SetupApplier
 {
@@ -45,11 +46,22 @@ public static class SetupApplier
                 continue;
             }
 
-            tree = trial;
+            // Null items, unnamed profiles and null text from a hand-edited file would break the pages that list them.
+            var parsed = SetupJson.FromNode(trial);
+            int removed = SetupNullRepair.Repair(parsed, section.SettingsProperties);
+            if (removed > 0)
+            {
+                notes.Add(removed == 1
+                    ? $"{section.Title}: 1 empty or unnamed entry in the file was left out."
+                    : $"{section.Title}: {removed} empty or unnamed entries in the file were left out.");
+            }
+
+            tree = SetupJson.ToNode(parsed);
             applied.Add(section.Id);
         }
 
         var result = JsonSettingsService.Repair(SetupJson.FromNode(tree));
+        SetupNullRepair.Repair(result);
         Sanitize(result, current, now);
         return new SetupApplyOutcome(result, applied, notes);
     }
@@ -137,6 +149,24 @@ public static class SetupApplier
     {
         var known = current.Select(r => r.Id).ToHashSet();
         return incoming.Select(r => r.Id).Distinct().Count(id => !known.Contains(id));
+    }
+
+    /// <summary>
+    /// What merging <paramref name="incoming"/> into <paramref name="current"/> does once the history is held to
+    /// <see cref="BenchmarkHistoryRules.MaxRuns"/>: the new runs that are kept, the runs of this PC that are pushed
+    /// out (the oldest), and how many new runs are too old to be kept at all.
+    /// </summary>
+    public static BenchmarkMergePlan PlanMerge(IReadOnlyList<BenchmarkRun> current, IReadOnlyList<BenchmarkRun> incoming)
+    {
+        ArgumentNullException.ThrowIfNull(current);
+        ArgumentNullException.ThrowIfNull(incoming);
+        var known = current.Select(r => r.Id).ToHashSet();
+        var merged = MergeRuns(current, incoming).Select(r => r.Id).ToHashSet();
+        var fresh = incoming.Where(r => !known.Contains(r.Id)).GroupBy(r => r.Id).Select(g => g.First()).ToList();
+        return new BenchmarkMergePlan(
+            fresh.Where(r => merged.Contains(r.Id)).ToList(),
+            current.Where(r => !merged.Contains(r.Id)).ToList(),
+            fresh.Count(r => !merged.Contains(r.Id)));
     }
 
     private static bool IsUsable(BenchmarkRun? run) =>

@@ -6,7 +6,8 @@ namespace PcChecker.Core.SetupBackup;
 /// <summary>
 /// Keeps automatic backups in a <c>backups</c> folder next to settings.json (so demo mode never mixes with the real
 /// ones). Files are written to a temporary name first and then moved into place, so a crash never leaves half a file.
-/// Old backups are never deleted by the app; the folder can be opened from Settings.
+/// Old backups are never deleted by the app, so the folder grows by one full backup per import or reset; the folder can
+/// be opened from Settings and old files deleted by hand (docs/FEATURES.md says so).
 /// </summary>
 public sealed class FileSetupBackupStore : ISetupBackupStore
 {

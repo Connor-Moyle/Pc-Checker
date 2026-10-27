@@ -1152,23 +1152,31 @@ quick actions (Ctrl+K).
   profiles are never ticked by default.
 - **How values are applied**: for each ticked part the file's values replace
   this PC's field by field; a field the file does not have keeps its current
-  value. Values are clamped to the ranges the Settings page allows. A shorter
+  value. Values are clamped to the ranges the Settings page allows. Empty
+  entries and unnamed profiles in a hand-edited file are left out, and empty
+  text gets its default, so a damaged file cannot break a page. A shorter
   history retention gets the usual 24-hour grace period, so importing never
   deletes recorded history straight away. Benchmark runs are added (runs you
-  already have are kept). Imported overclock profiles are still checked
+  already have are kept). The history holds the newest 100 runs, so if new
+  runs would go over that the preview says how many of your oldest runs would
+  be removed, and *Undo* puts them back. Imported overclock profiles are still checked
   against your limits and the card's own range when you apply one; nothing is
   applied to hardware by an import.
 - **Schedules**: importing *Schedules and tray* creates, updates or removes
   PC Checker's Windows scheduled tasks and the *Start with Windows* task to
   match, through the same guarded path as the Schedules switches. A task that
-  cannot be created is left as it was and the import says so.
+  cannot be created is left as it was and the import says so. Import, reset
+  and undo all list the task changes and ask before touching Task Scheduler.
+  If the settings then cannot be saved, the tasks are put back as they were.
 - **Backup first, undo after**: before every import (and every reset) the
   current setup, benchmark history included, is saved to
   `%LOCALAPPDATA%\PcChecker\backups\setup-<time>.pcchecker`. If that fails,
   nothing is changed. *Undo* puts the changed parts back from that backup and
-  removes the benchmark runs the import added. Older backups stay in the
-  folder (*Open backups folder*) and can be restored like any other file;
-  the app never deletes them.
+  removes the benchmark runs the import added (and restores any it pushed
+  out). Older backups stay in the folder (*Open backups folder*) and can be
+  restored like any other file. The app never deletes them, so the folder
+  grows by one full backup (benchmark history included) per import or reset;
+  delete old ones by hand when you no longer need them.
 - **Reset one part**: tick parts, such as only fans or only the overlay, to
   put them back to their defaults, with the same automatic backup and undo.
   The API key is kept.

@@ -33,7 +33,10 @@ public static class SetupPreviewBuilder
         foreach (var skipped in document.Skipped)
         {
             var title = SetupSectionCatalog.Find(skipped.Id)?.Title ?? $"Unknown part \"{skipped.Id}\"";
-            rows.Add(new SetupSectionPreview(skipped.Id, title, SetupSectionState.Skipped, "Skipped: " + skipped.Reason, [], false));
+            rows.Add(new SetupSectionPreview(skipped.Id, title, SetupSectionState.Skipped, "Skipped: " + skipped.Reason, [], false)
+            {
+                SkipReason = skipped.Reason,
+            });
         }
 
         return new SetupImportPreview(document, rows);
@@ -53,7 +56,10 @@ public static class SetupPreviewBuilder
         if (!outcome.AppliedSections.Contains(section.Id))
         {
             var reason = outcome.Notes.FirstOrDefault() ?? $"{section.Title} could not be read.";
-            return new SetupSectionPreview(section.Id, section.Title, SetupSectionState.Skipped, "Skipped: " + reason, [], false);
+            return new SetupSectionPreview(section.Id, section.Title, SetupSectionState.Skipped, "Skipped: " + reason, [], false)
+            {
+                SkipReason = reason,
+            };
         }
 
         var oldData = SetupJson.SectionData(before, section);
@@ -74,23 +80,20 @@ public static class SetupPreviewBuilder
     private static SetupSectionPreview BenchmarkRow(SetupSectionInfo section, IReadOnlyList<BenchmarkRun> currentRuns, SetupSectionData data)
     {
         var (runs, unreadable) = SetupApplier.ReadRuns(data);
-        int added = SetupApplier.CountNewRuns(currentRuns, runs);
-        var summary = CountText(runs.Count, "run", "runs") + " in the file, " + (added == 0 ? "none new" : added.ToString(CultureInfo.InvariantCulture) + " new");
-        if (unreadable > 0)
-        {
-            summary += ", " + CountText(unreadable, "unreadable run skipped", "unreadable runs skipped");
-        }
-
-        var changes = runs.Where(r => currentRuns.All(c => c.Id != r.Id))
+        var plan = SetupApplier.PlanMerge(currentRuns, runs);
+        var counts = new SetupBenchmarkPreview(runs.Count, unreadable, plan.Added.Count, plan.PushedOut.Count, plan.TooOld);
+        var changes = plan.Added
             .OrderByDescending(r => r.Started)
-            .Select(r => new SetupChange(
-                r.Started.ToString("d MMM yyyy HH:mm", CultureInfo.InvariantCulture) + (string.IsNullOrWhiteSpace(r.Note) ? string.Empty : $" \"{r.Note}\""),
-                SetupChangeKind.Added, null, null))
+            .Select(r => new SetupChange(RunLabel(r), SetupChangeKind.Added, null, null))
+            .Concat(plan.PushedOut.OrderBy(r => r.Started).Select(r => new SetupChange(RunLabel(r), SetupChangeKind.Removed, null, null)))
             .ToList();
-        return added == 0
-            ? new SetupSectionPreview(section.Id, section.Title, SetupSectionState.Unchanged, summary, [], false)
-            : new SetupSectionPreview(section.Id, section.Title, SetupSectionState.Changes, summary, changes, section.SelectedByDefault);
+        return plan.Added.Count == 0
+            ? new SetupSectionPreview(section.Id, section.Title, SetupSectionState.Unchanged, counts.Describe(), [], false) { Benchmarks = counts }
+            : new SetupSectionPreview(section.Id, section.Title, SetupSectionState.Changes, counts.Describe(), changes, section.SelectedByDefault) { Benchmarks = counts };
     }
+
+    private static string RunLabel(BenchmarkRun r) =>
+        r.Started.ToString("d MMM yyyy HH:mm", CultureInfo.InvariantCulture) + (string.IsNullOrWhiteSpace(r.Note) ? string.Empty : $" \"{r.Note}\"");
 
     private static void Compare(JsonNode? before, JsonNode? after, string path, List<SetupChange> changes)
     {
@@ -215,6 +218,6 @@ public static class SetupPreviewBuilder
         }
     }
 
-    private static string CountText(int count, string one, string many) =>
+    internal static string CountText(int count, string one, string many) =>
         count.ToString(CultureInfo.InvariantCulture) + " " + (count == 1 ? one : many);
 }

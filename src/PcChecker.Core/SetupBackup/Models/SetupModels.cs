@@ -116,6 +116,43 @@ public sealed record SetupSectionPreview(
     bool SelectedByDefault)
 {
     public bool CanImport => State != SetupSectionState.Skipped;
+
+    /// <summary>The counts behind <see cref="Summary"/> for the benchmark history row; null for other rows.</summary>
+    public SetupBenchmarkPreview? Benchmarks { get; init; }
+
+    /// <summary>Why the row is skipped (without the "Skipped: " prefix); null when it is not.</summary>
+    public string? SkipReason { get; init; }
+}
+
+/// <summary>
+/// The benchmark history row of an import preview: runs in the file, unreadable ones, new runs that are added, runs of
+/// this PC that are pushed out by the run limit, and new runs too old to be kept.
+/// </summary>
+public sealed record SetupBenchmarkPreview(int InFile, int Unreadable, int Added, int PushedOut, int TooOld)
+{
+    /// <summary>English summary: "5 runs in the file, 3 new, 2 oldest runs on this PC removed (limit 100)".</summary>
+    public string Describe()
+    {
+        var text = SetupPreviewBuilder.CountText(InFile, "run", "runs") + " in the file, "
+            + (Added == 0 ? "none new" : Added.ToString(System.Globalization.CultureInfo.InvariantCulture) + " new");
+        if (TooOld > 0)
+        {
+            text += ", " + SetupPreviewBuilder.CountText(TooOld, "too old to keep", "too old to keep");
+        }
+
+        if (PushedOut > 0)
+        {
+            text += ", " + SetupPreviewBuilder.CountText(PushedOut, "oldest run on this PC removed", "oldest runs on this PC removed")
+                + $" (limit {Benchmark.BenchmarkHistoryRules.MaxRuns})";
+        }
+
+        if (Unreadable > 0)
+        {
+            text += ", " + SetupPreviewBuilder.CountText(Unreadable, "unreadable run skipped", "unreadable runs skipped");
+        }
+
+        return text;
+    }
 }
 
 /// <summary>Everything the import dialog shows: one row per section, plus notes about the file.</summary>
@@ -144,13 +181,29 @@ public enum SetupChangeSource
 
 /// <summary>
 /// The last import or reset, with the automatic backup taken just before it, so it can be undone. The backup holds
-/// the whole setup; undo restores only <see cref="Sections"/> and removes the benchmark runs the import added.
+/// the whole setup; undo restores only <see cref="Sections"/>, removes the benchmark runs the import added and puts back
+/// the runs it pushed out.
 /// </summary>
 public sealed record SetupUndoPoint(SetupChangeSource Source, string BackupPath, IReadOnlyList<string> Sections, DateTimeOffset At)
 {
     /// <summary>Benchmark runs the import added (undo removes exactly these).</summary>
     public IReadOnlyList<Guid> AddedBenchmarkRuns { get; init; } = [];
+
+    /// <summary>
+    /// Runs of this PC the import pushed out of the history to stay within the run limit (undo puts them back from
+    /// the automatic backup).
+    /// </summary>
+    public IReadOnlyList<Guid> PushedOutBenchmarkRuns { get; init; } = [];
 }
+
+/// <summary>
+/// The effect of adding a file's benchmark runs to this PC's history, which keeps the newest
+/// <see cref="Benchmark.BenchmarkHistoryRules.MaxRuns"/> runs only.
+/// </summary>
+/// <param name="Added">New runs that are kept.</param>
+/// <param name="PushedOut">Runs of this PC removed to make room (the oldest).</param>
+/// <param name="TooOld">New runs older than everything kept, so they are not added.</param>
+public sealed record BenchmarkMergePlan(IReadOnlyList<Benchmark.BenchmarkRun> Added, IReadOnlyList<Benchmark.BenchmarkRun> PushedOut, int TooOld);
 
 /// <summary>Result of an import, a reset or an undo.</summary>
 public sealed record SetupChangeResult(IReadOnlyList<string> Sections, string? BackupPath, IReadOnlyList<string> Notes);

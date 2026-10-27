@@ -123,7 +123,7 @@ public sealed partial class SettingsViewModel
         {
             await _dialogs.ShowMessageAsync(Loc.T("Nothing to import"),
                 Loc.T("None of the parts in this file can be used by this version of PC Checker.") + "\n\n"
-                + string.Join("\n", preview.Sections.Select(s => $"{s.Title}: {s.Summary}")));
+                + string.Join("\n", preview.Sections.Select(s => $"{SetupSectionText.Title(s.Id)}: {SetupSectionText.Summary(s)}")));
             return;
         }
 
@@ -140,18 +140,11 @@ public sealed partial class SettingsViewModel
             return;
         }
 
-        if (chosen.Contains(SetupSectionIds.Schedules) && CanScheduleTasks
-            && SetupScheduleSync.PlanImport(Settings.Current, preview.Document, DateTimeOffset.Now) is { Count: > 0 } steps)
+        if (chosen.Contains(SetupSectionIds.Schedules) && !await ConfirmScheduledTaskChangesAsync(
+                SetupScheduleSync.PlanImport(Settings.Current, preview.Document, DateTimeOffset.Now),
+                Loc.T("Importing \"Schedules and tray\" changes PC Checker's tasks in Windows Task Scheduler:")))
         {
-            bool ok = await _dialogs.ConfirmAsync(Loc.T("Change scheduled tasks?"),
-                Loc.T("Importing \"Schedules and tray\" changes PC Checker's tasks in Windows Task Scheduler:") + "\n\n"
-                + string.Join("\n", SetupScheduleSync.Describe(steps)) + "\n\n"
-                + Loc.T("Scheduled jobs start PC Checker with administrator rights (no UAC prompt), even while the app is closed. Turn a schedule off in Settings at any time to remove its task."),
-                Loc.T("Continue"));
-            if (!ok)
-            {
-                return;
-            }
+            return;
         }
 
         await RunSetupChangeAsync(ct => _setupBackup.ImportAsync(preview.Document, chosen, name, ct), Loc.T("Importing your setup…"),
@@ -172,6 +165,13 @@ public sealed partial class SettingsViewModel
         if (chosen.Count == 0)
         {
             _notifications.Info(Loc.T("Nothing reset"), Loc.T("No part was ticked, so nothing changed."));
+            return;
+        }
+
+        if (chosen.Contains(SetupSectionIds.Schedules) && !await ConfirmScheduledTaskChangesAsync(
+                SetupScheduleSync.PlanImport(Settings.Current, SetupApplier.DefaultsDocument(), DateTimeOffset.Now),
+                Loc.T("Resetting \"Schedules and tray\" changes PC Checker's tasks in Windows Task Scheduler:")))
+        {
             return;
         }
 
@@ -196,7 +196,40 @@ public sealed partial class SettingsViewModel
             return;
         }
 
+        IReadOnlyList<ScheduleSyncStep> steps = [];
+        try
+        {
+            steps = await _setupBackup.PlanUndoScheduledTasksAsync(CancellationToken.None);
+        }
+        catch (Exception ex) when (ex is System.IO.IOException or UnauthorizedAccessException)
+        {
+            // Undo reads the backup again and reports the problem itself.
+        }
+
+        if (!await ConfirmScheduledTaskChangesAsync(steps, Loc.T("Undoing this changes PC Checker's tasks in Windows Task Scheduler:")))
+        {
+            return;
+        }
+
         await RunSetupChangeAsync(ct => _setupBackup.UndoAsync(ct), Loc.T("Undoing…"), Loc.T("Change undone"));
+    }
+
+    /// <summary>
+    /// Lists the Task Scheduler changes an import, reset or undo would make and asks first, because scheduled jobs run
+    /// with administrator rights. True when there is nothing to change or the user agrees.
+    /// </summary>
+    private async Task<bool> ConfirmScheduledTaskChangesAsync(IReadOnlyList<ScheduleSyncStep> steps, string intro)
+    {
+        if (!CanScheduleTasks || steps.Count == 0)
+        {
+            return true;
+        }
+
+        return await _dialogs.ConfirmAsync(Loc.T("Change scheduled tasks?"),
+            intro + "\n\n"
+            + string.Join("\n", SetupScheduleSync.Describe(steps)) + "\n\n"
+            + Loc.T("Scheduled jobs start PC Checker with administrator rights (no UAC prompt), even while the app is closed. Turn a schedule off in Settings at any time to remove its task."),
+            Loc.T("Continue"));
     }
 
     [RelayCommand]

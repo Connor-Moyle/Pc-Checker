@@ -94,9 +94,6 @@ public static class SetupFileFormat
     /// <summary>Largest file read; a setup with a full benchmark history is far smaller.</summary>
     public const long MaxFileBytes = 32L * 1024 * 1024;
 
-    /// <summary>Automatic backups kept in the backups folder; the oldest are removed beyond this.</summary>
-    public const int MaxAutomaticBackups = 20;
-
     /// <summary>Name of an automatic backup made at <paramref name="time"/>: setup-20261027-143005.pcchecker.</summary>
     public static string AutomaticBackupName(DateTime time) => "setup-" + time.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture) + FileExtension;
 
