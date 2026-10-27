@@ -6,6 +6,7 @@ using PcChecker.Core.Health;
 using PcChecker.Core.Optimization;
 using PcChecker.Core.Performance;
 using PcChecker.Core.Restore;
+using PcChecker.Core.Sensors.PawnIo;
 using PcChecker.Core.Startup;
 using PcChecker.Core.WindowsUpdate;
 
@@ -22,6 +23,9 @@ public enum CheckupSource
     Performance,
     Debloat,
     OldDrivers,
+
+    /// <summary>The PawnIO driver the Temperatures and Fans pages need for CPU and motherboard sensors.</summary>
+    Sensors,
 }
 
 /// <summary>The automatic fix behind a finding, done by the service that owns it. <see cref="None"/> means "Open the page".</summary>
@@ -49,6 +53,9 @@ public enum CheckupFixKind
 
     /// <summary>Remove old driver packages that a newer version replaced (<see cref="IDriverCleanupService"/>).</summary>
     RemoveOldDrivers,
+
+    /// <summary>Install the official signed PawnIO driver (<see cref="IPawnIoService"/>; removable from Settings → Apps).</summary>
+    InstallPawnIo,
 }
 
 /// <summary>
@@ -114,6 +121,9 @@ public sealed record CheckupScanResults(
 {
     public static CheckupScanResults Empty(DateTimeOffset captured) =>
         new(null, null, [], null, null, null, null, null, null, [], null, null, null, [], captured);
+
+    /// <summary>Where the PawnIO sensor driver stands, or null when it was not checked.</summary>
+    public PawnIoStatus? PawnIo { get; init; }
 }
 
 /// <summary>A startup entry with its estimated impact (see <see cref="StartupImpactRules"/>).</summary>

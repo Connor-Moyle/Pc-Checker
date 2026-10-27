@@ -189,6 +189,39 @@ public static partial class CheckupItemMapper
         ];
     }
 
+    /// <summary>
+    /// One item when the PawnIO driver is missing (fixable: install it) or installed but not running (restart the PC).
+    /// Without it only graphics card fans and no CPU temperature can be read.
+    /// </summary>
+    public static IReadOnlyList<CheckupItem> FromPawnIo(PcChecker.Core.Sensors.PawnIo.PawnIoStatus status)
+    {
+        ArgumentNullException.ThrowIfNull(status);
+        return status.State switch
+        {
+            PcChecker.Core.Sensors.PawnIo.PawnIoState.NotInstalled =>
+            [
+                new CheckupItem("sensors.pawnio", CheckupSource.Sensors, Severity.Low,
+                    "Install the PawnIO driver for CPU temperatures and motherboard fans",
+                    "PC Checker reads the CPU and the motherboard sensor chip through the free, signed PawnIO driver. Without it only graphics card fans and no CPU temperature appear.",
+                    "CPU temperatures and the CPU and case fans on the motherboard show up on the Temperatures and Fans pages.",
+                    RiskLevel.Moderate, CheckupFixKind.InstallPawnIo, ["pawnio"])
+                {
+                    SuggestByDefault = false,
+                    FixAction = "Install PawnIO (winget, or the official signed setup from GitHub). Remove it any time from Settings → Apps.",
+                },
+            ],
+            PcChecker.Core.Sensors.PawnIo.PawnIoState.InstalledNotRunning =>
+            [
+                new CheckupItem("sensors.pawnio.restart", CheckupSource.Sensors, Severity.Low,
+                    "Restart to start the PawnIO driver",
+                    "PawnIO is installed but its driver is not running, so CPU temperatures and motherboard fans cannot be read.",
+                    "CPU temperatures and motherboard fans appear after the restart.",
+                    RiskLevel.Safe, CheckupFixKind.None, []),
+            ],
+            _ => [],
+        };
+    }
+
     private static string? PerformanceTopic(string findingId) => findingId switch
     {
         "updates.reboot" => RestartTopic,

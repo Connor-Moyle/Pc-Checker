@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using PcChecker.Core.Cleanup;
 using PcChecker.Core.Common;
 using PcChecker.Core.Drivers;
+using PcChecker.Core.Fans;
 using PcChecker.Core.Optimization;
 using PcChecker.Core.Restore;
 using PcChecker.Core.WindowsUpdate;
@@ -109,6 +110,7 @@ public sealed partial class CheckupService
         CheckupFixKind.ApplyRecommendedSettings => "Applying recommended settings",
         CheckupFixKind.InstallDriverUpdates => "Installing driver updates",
         CheckupFixKind.InstallWindowsUpdates => "Installing Windows updates",
+        CheckupFixKind.InstallPawnIo => "Installing the PawnIO driver",
         _ => "Working",
     };
 
@@ -122,6 +124,7 @@ public sealed partial class CheckupService
             CheckupFixKind.ApplyRecommendedSettings => ApplyRecommendedSettingsAsync(step, progress, ct),
             CheckupFixKind.InstallDriverUpdates => InstallDriverUpdatesAsync(report, step, progress, ct),
             CheckupFixKind.InstallWindowsUpdates => InstallWindowsUpdatesAsync(report, step, progress, ct),
+            CheckupFixKind.InstallPawnIo => InstallPawnIoAsync(step, progress, ct),
             _ => Task.FromResult<IReadOnlyList<CheckupFixResult>>(step.Items.Select(i => new CheckupFixResult(i, false, "Nothing to do here.")).ToList()),
         };
 
@@ -301,6 +304,37 @@ public sealed partial class CheckupService
         }
 
         return overallSuccess ? updates.Select(u => u.Id).ToHashSet(StringComparer.OrdinalIgnoreCase) : new HashSet<string>();
+    }
+
+    /// <summary>
+    /// Installs PawnIO, then reloads the sensors (fans back to automatic first) so the motherboard fans appear without
+    /// restarting the app, and says how many showed up.
+    /// </summary>
+    private async Task<IReadOnlyList<CheckupFixResult>> InstallPawnIoAsync(CheckupFixStep step, IProgress<ProgressUpdate> progress, CancellationToken ct)
+    {
+        if (_pawnIo is null)
+        {
+            return AllItems(step, false, "Installing PawnIO is not available here. Open the Fans page.");
+        }
+
+        var result = await _pawnIo.InstallAsync(progress, ct).ConfigureAwait(false);
+        string message = result.Message;
+        if (result.Success && result.After.IsRunning && _fans is IFanDiagnostics diagnostics)
+        {
+            try
+            {
+                progress.Report(new ProgressUpdate("Reloading sensors"));
+                var reload = await diagnostics.ReloadSensorsAsync(ct).ConfigureAwait(false);
+                message += " " + reload.Message;
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _logger.LogWarning(ex, "Reloading sensors after the PawnIO install failed.");
+                message += " Open the Fans page and click \"Reload sensors\" to read the motherboard fans.";
+            }
+        }
+
+        return AllItems(step, result.Success, message, result.RebootRequired);
     }
 
     /// <summary>Installs the recommended updates (never optional ones or ones that need Settings), one at a time.</summary>

@@ -74,6 +74,11 @@ public static partial class CheckupItemMapper
             items.AddRange(FromOldDrivers(oldDrivers));
         }
 
+        if (results.PawnIo is { } pawnIo)
+        {
+            items.AddRange(FromPawnIo(pawnIo));
+        }
+
         return CheckupPrioritizer.Rank(items);
     }
 

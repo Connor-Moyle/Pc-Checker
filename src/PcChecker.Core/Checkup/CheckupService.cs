@@ -6,8 +6,10 @@ using PcChecker.Core.Drivers;
 using PcChecker.Core.Health;
 using PcChecker.Core.Optimization;
 using PcChecker.Core.Performance;
+using PcChecker.Core.Fans;
 using PcChecker.Core.Restore;
 using PcChecker.Core.Scheduling;
+using PcChecker.Core.Sensors.PawnIo;
 using PcChecker.Core.Settings;
 using PcChecker.Core.Startup;
 using PcChecker.Core.WindowsUpdate;
@@ -39,13 +41,17 @@ public sealed partial class CheckupService : ICheckupService
     private readonly IChangeBatchRunner _batch;
     private readonly ISettingsService _settings;
     private readonly ILogger<CheckupService> _logger;
+    private readonly IPawnIoService? _pawnIo;
+    private readonly IFanControlService? _fans;
     private readonly SemaphoreSlim _gate = new(1, 1);
 
     public CheckupService(IHealthService health, ITempFileScanner scanner, ITempFileCleaner cleaner, IDriverService drivers,
         IWindowsUpdateService updates, IStartupService startup, IPerformanceAnalyzer performance, IOptimizationService optimization,
         IDebloatService debloat, IDriverCleanupService driverCleanup, IChangeBatchRunner batch, ISettingsService settings,
-        ILogger<CheckupService> logger)
+        ILogger<CheckupService> logger, IPawnIoService? pawnIo = null, IFanControlService? fans = null)
     {
+        _pawnIo = pawnIo;
+        _fans = fans;
         _health = health;
         _scanner = scanner;
         _cleaner = cleaner;
@@ -81,6 +87,7 @@ public sealed partial class CheckupService : ICheckupService
         (CheckupSource.Performance, "Speed check"),
         (CheckupSource.Debloat, "Recommended settings"),
         (CheckupSource.OldDrivers, "Old drivers"),
+        (CheckupSource.Sensors, "Sensor driver"),
     ];
 
     public async Task<CheckupReport> RunAsync(IProgress<ProgressUpdate>? progress, CancellationToken cancellationToken)
@@ -125,6 +132,7 @@ public sealed partial class CheckupService : ICheckupService
         CheckupSource.Performance => ScanPerformanceAsync(scan, progress, ct),
         CheckupSource.Debloat => ScanDebloatAsync(scan, ct),
         CheckupSource.OldDrivers => ScanOldDriversAsync(scan, progress, ct),
+        CheckupSource.Sensors => ScanSensorDriverAsync(scan, ct),
         _ => Task.CompletedTask,
     };
 
@@ -200,6 +208,15 @@ public sealed partial class CheckupService : ICheckupService
     private async Task ScanOldDriversAsync(ScanState scan, IProgress<ProgressUpdate> progress, CancellationToken ct) =>
         scan.OldDrivers = await _driverCleanup.ScanAsync(progress, ct).ConfigureAwait(false);
 
+    /// <summary>Checks the PawnIO driver (registry and device; quick, but kept off the caller's thread).</summary>
+    private async Task ScanSensorDriverAsync(ScanState scan, CancellationToken ct)
+    {
+        if (_pawnIo is { } pawnIo)
+        {
+            scan.PawnIo = await Task.Run(pawnIo.GetStatus, ct).ConfigureAwait(false);
+        }
+    }
+
     /// <summary>Runs one part with its own time limit; a failure becomes a gap instead of stopping the check-up.</summary>
     private async Task RunPartAsync(CheckupSource source, string name, Func<CancellationToken, Task> part, ScanState scan, CancellationToken cancellationToken)
     {
@@ -241,10 +258,14 @@ public sealed partial class CheckupService : ICheckupService
         public IReadOnlyList<DebloatTweak>? RecommendedTweaks { get; set; }
         public IReadOnlyDictionary<string, TweakState>? TweakStates { get; set; }
         public DriverCleanupScanResult? OldDrivers { get; set; }
+        public PawnIoStatus? PawnIo { get; set; }
         public List<CheckupGap> Gaps { get; } = [];
 
         public CheckupScanResults ToResults(DateTimeOffset captured) => new(Health, Cleanup, CleanupCategoryIds, Drivers, DriverUpdates,
-            UpdateStatus, PendingUpdates, Startup, Performance, Optimizations, RecommendedTweaks, TweakStates, OldDrivers, Gaps.ToList(), captured);
+            UpdateStatus, PendingUpdates, Startup, Performance, Optimizations, RecommendedTweaks, TweakStates, OldDrivers, Gaps.ToList(), captured)
+        {
+            PawnIo = PawnIo,
+        };
     }
 
     /// <summary>

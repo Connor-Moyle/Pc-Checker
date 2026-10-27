@@ -15,6 +15,7 @@ public static class CheckupBatchPlanner
         CheckupFixKind.DisableStartupItem,
         CheckupFixKind.ApplyOptimization,
         CheckupFixKind.ApplyRecommendedSettings,
+        CheckupFixKind.InstallPawnIo,
         CheckupFixKind.InstallDriverUpdates,
         CheckupFixKind.InstallWindowsUpdates,
     ];
@@ -25,7 +26,8 @@ public static class CheckupBatchPlanner
     /// </summary>
     public static CheckupRestorePointNeed RestorePointNeed(CheckupFixKind kind) => kind switch
     {
-        CheckupFixKind.CleanSafeJunk or CheckupFixKind.DisableStartupItem or CheckupFixKind.None => CheckupRestorePointNeed.None,
+        // PawnIO: a driver install that Settings → Apps removes again, so no restore point (as on the Fans page).
+        CheckupFixKind.CleanSafeJunk or CheckupFixKind.DisableStartupItem or CheckupFixKind.InstallPawnIo or CheckupFixKind.None => CheckupRestorePointNeed.None,
         CheckupFixKind.ApplyRecommendedSettings => CheckupRestorePointNeed.Always,
         _ => CheckupRestorePointNeed.Policy,
     };
@@ -34,7 +36,8 @@ public static class CheckupBatchPlanner
     /// False for steps that cannot stop part-way once started (driver installs and removals, as on their pages); the
     /// run stops before such a step instead.
     /// </summary>
-    public static bool CanStopPartWay(CheckupFixKind kind) => kind is not (CheckupFixKind.InstallDriverUpdates or CheckupFixKind.RemoveOldDrivers);
+    public static bool CanStopPartWay(CheckupFixKind kind) =>
+        kind is not (CheckupFixKind.InstallDriverUpdates or CheckupFixKind.RemoveOldDrivers or CheckupFixKind.InstallPawnIo);
 
     /// <summary>
     /// Builds the plan for <paramref name="ticked"/>. Items that cannot be selected (no fix, or Advanced outside Advanced
