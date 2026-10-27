@@ -23,9 +23,7 @@
       <Setter Property="Background" Value="{DynamicResource ControlFillColorSecondaryBrush}" />
     </Style>
     <Style x:Key="PresetCard" TargetType="Border">
-      <Setter Property="Width" Value="262" />
-      <Setter Property="Margin" Value="0,0,12,12" />
-      <Setter Property="Padding" Value="14" />
+      <Setter Property="Padding" Value="16" />
       <Setter Property="CornerRadius" Value="8" />
       <Setter Property="BorderThickness" Value="1" />
       <Setter Property="Background" Value="{DynamicResource CardBackgroundFillColorDefaultBrush}" />
@@ -48,15 +46,21 @@
     </Grid.RowDefinitions>
 
     <controls:SectionHeader Grid.Row="0" Title="Debloat"
-                            Subtitle="Turn off ads, telemetry, AI features and clutter, and remove apps you don't use. Collected from the popular debloat tools, made safe and reversible.">
+                            Subtitle="Turn off ads, telemetry and AI features, and remove apps you don't use.">
       <controls:SectionHeader.Actions>
         <StackPanel Orientation="Horizontal">
-          <ui:Button Content="Refresh" Icon="{ui:SymbolIcon ArrowSync24}" Command="{Binding LoadStatesCommand}" Margin="0,0,8,0"
+          <ui:DropDownButton Content="More" Icon="{ui:SymbolIcon MoreHorizontal24}" Margin="0,0,8,0">
+            <ui:DropDownButton.Flyout>
+              <ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+                <MenuItem Header="Import selection…" Command="{Binding ImportSelectionCommand}"
+                          ToolTip="Tick the tweaks listed in a PC Checker selection file or a WinUtil export (.json). Nothing is changed until you apply." />
+                <MenuItem Header="Export selection…" Command="{Binding ExportSelectionCommand}"
+                          ToolTip="Save the ticked tweaks to a .json file to reuse on another PC." />
+              </ContextMenu>
+            </ui:DropDownButton.Flyout>
+          </ui:DropDownButton>
+          <ui:Button Content="Refresh" Icon="{ui:SymbolIcon ArrowSync24}" Command="{Binding LoadStatesCommand}"
                      ToolTip="Check again which tweaks are applied on this PC." />
-          <ui:Button Content="Import" Icon="{ui:SymbolIcon ArrowDownload24}" Command="{Binding ImportSelectionCommand}" Margin="0,0,8,0"
-                     ToolTip="Tick the tweaks listed in a PC Checker selection file or a WinUtil export (.json). Nothing is changed until you apply." />
-          <ui:Button Content="Export" Icon="{ui:SymbolIcon ArrowUpload24}" Command="{Binding ExportSelectionCommand}"
-                     ToolTip="Save the ticked tweaks to a .json file to reuse on another PC." />
         </StackPanel>
       </controls:SectionHeader.Actions>
     </controls:SectionHeader>
@@ -64,7 +68,7 @@
     <StackPanel Grid.Row="1">
       <ui:InfoBar Severity="Error" Title="Something went wrong" Message="{Binding ErrorMessage}" IsOpen="{Binding HasError, Mode=OneWay}" IsClosable="True" Margin="0,0,0,12" />
       <ui:InfoBar Severity="Informational" Title="What debloating does" IsOpen="{Binding IsIntroOpen, Mode=TwoWay}" IsClosable="True" Margin="0,0,0,12"
-                  Message="Debloating switches off advertising, tips, data collection and AI features, tidies the taskbar and File Explorer, and removes pre-installed apps you don't use. Every batch, app removals included, starts with one restore point and saves the current values, so you can revert any reversible tweak here later. Per-user settings apply to the account PC Checker runs as: if you started it with a different administrator's password, they go to that account. Some things other tools do are deliberately not offered (turning off Defender or Windows Update, removing Edge or the Store): see the list at the bottom of the page." />
+                  Message="Every batch, app removals included, starts with a restore point and saves the current values, so reversible tweaks can be reverted here. Per-user settings go to the account PC Checker runs as. Risky steps such as turning off Defender or Windows Update are not offered (see the end of the page)." />
       <ui:InfoBar Severity="{Binding ResultsSeverity}" Title="{Binding ResultsTitle}" Message="{Binding ResultsMessage}" IsOpen="{Binding HasResults, Mode=OneWay}" IsClosable="False" Margin="0,0,0,12" />
       <ui:Card Style="{StaticResource CardSpacing}" Visibility="{Binding IsRestartExplorerSuggested, Converter={StaticResource BoolToVisibility}}">
         <Grid>
@@ -77,7 +81,8 @@
           <StackPanel Grid.Column="1" VerticalAlignment="Center">
             <ui:TextBlock FontTypography="BodyStrong" Text="Restart File Explorer to see the changes" />
             <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap"
-                          Text="Taskbar, Start and right-click menu changes appear after File Explorer restarts. The taskbar disappears for a second; nothing else closes." />
+                          Text="Taskbar, Start and right-click menu changes need it. Nothing else closes."
+                          ToolTip="The taskbar disappears for a second while File Explorer restarts." />
           </StackPanel>
           <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
             <ui:Button Content="Later" Command="{Binding DismissRestartExplorerCommand}" Margin="0,0,8,0" />
@@ -104,7 +109,7 @@
             <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,12,0">
               <ui:TextBlock FontTypography="BodyStrong" Text="{Binding StateSummary}" TextWrapping="Wrap" />
               <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,2,0,0"
-                            Text="Pick a preset or tick tweaks below, then use Apply selected at the bottom. Hover a tweak to see exactly which settings it changes." />
+                            Text="Pick a preset or tick tweaks, then Apply selected. Hover a tweak to see what it changes." />
             </StackPanel>
             <ui:TextBox Grid.Column="2" PlaceholderText="Search tweaks (e.g. Copilot, OneDrive)" Icon="{ui:SymbolIcon Search24}" VerticalAlignment="Center"
                         Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" />
@@ -112,19 +117,15 @@
         </ui:Card>
 
         <!-- Per-tweak results of the last run -->
-        <ui:Card Style="{StaticResource CardSpacing}" Visibility="{Binding HasResults, Converter={StaticResource BoolToVisibility}}">
+        <ui:CardExpander Margin="0,0,0,12" ContentPadding="16" Icon="{ui:SymbolIcon ClipboardTextLtr24}"
+                         Visibility="{Binding HasResults, Converter={StaticResource BoolToVisibility}}">
+          <ui:CardExpander.Header>
+            <StackPanel>
+              <ui:TextBlock FontTypography="BodyStrong" Text="Results of the last run" />
+              <ui:TextBlock Style="{StaticResource Muted}" Text="What happened to each tweak. Problems are listed first." />
+            </StackPanel>
+          </ui:CardExpander.Header>
           <StackPanel>
-            <Grid Margin="0,0,0,8">
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-              </Grid.ColumnDefinitions>
-              <StackPanel>
-                <ui:TextBlock FontTypography="BodyStrong" Text="Results" />
-                <ui:TextBlock Style="{StaticResource Muted}" Text="What happened to each tweak. Problems are listed first." />
-              </StackPanel>
-              <ui:Button Grid.Column="1" Content="Dismiss" Icon="{ui:SymbolIcon Dismiss24}" Command="{Binding DismissResultsCommand}" />
-            </Grid>
             <ItemsControl ItemsSource="{Binding Results}">
               <ItemsControl.ItemTemplate>
                 <DataTemplate>
@@ -143,17 +144,20 @@
                 </DataTemplate>
               </ItemsControl.ItemTemplate>
             </ItemsControl>
+            <ui:Button Content="Dismiss" Icon="{ui:SymbolIcon Dismiss24}" Command="{Binding DismissResultsCommand}" Margin="0,8,0,0"
+                       ToolTip="Hide these results and the summary above." />
           </StackPanel>
-        </ui:Card>
+        </ui:CardExpander>
 
         <!-- Presets -->
-        <ui:TextBlock FontTypography="BodyStrong" Text="Presets" Margin="0,4,0,2" />
-        <ui:TextBlock Style="{StaticResource Muted}" Margin="0,0,0,10" TextWrapping="Wrap"
-                      Text="A preset only ticks boxes; nothing changes until you choose Apply selected. Tweaks that don't fit this Windows are skipped." />
-        <ItemsControl ItemsSource="{Binding Presets}">
+        <ui:TextBlock FontTypography="BodyStrong" Text="Presets" />
+        <ui:TextBlock Style="{StaticResource Muted}" Margin="0,0,0,8" TextWrapping="Wrap"
+                      Text="A preset only ticks boxes; nothing changes until you apply."
+                      ToolTip="Tweaks that don't fit this version of Windows are skipped." />
+        <ItemsControl ItemsSource="{Binding Presets}" Margin="0,0,0,12">
           <ItemsControl.ItemsPanel>
             <ItemsPanelTemplate>
-              <WrapPanel Orientation="Horizontal" />
+              <controls:AdaptiveGrid MinItemWidth="300" MaxColumns="3" />
             </ItemsPanelTemplate>
           </ItemsControl.ItemsPanel>
           <ItemsControl.ItemTemplate>
@@ -186,7 +190,7 @@
         </ItemsControl>
 
         <!-- Categories -->
-        <ItemsControl ItemsSource="{Binding Groups}" Margin="0,4,0,0">
+        <ItemsControl ItemsSource="{Binding Groups}">
           <ItemsControl.ItemTemplate>
             <DataTemplate>
               <ui:CardExpander Icon="{Binding Icon, Converter={StaticResource SymbolToIcon}}" IsExpanded="{Binding IsExpanded, Mode=TwoWay}" Margin="0,0,0,12" ContentPadding="0"
@@ -288,14 +292,15 @@
         </ItemsControl>
 
         <!-- Report-only notes -->
-        <ui:Card Style="{StaticResource CardSpacing}">
-          <StackPanel>
-            <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
-              <ui:SymbolIcon Symbol="Lightbulb24" FontSize="20" Margin="0,0,8,0" Foreground="{StaticResource AccentYellowBrush}" />
-              <ui:TextBlock FontTypography="BodyStrong" Text="Check these yourself" VerticalAlignment="Center" />
+        <ui:CardExpander Icon="{ui:SymbolIcon Lightbulb24}" Margin="0,0,0,12" ContentPadding="16" IsExpanded="False">
+          <ui:CardExpander.Header>
+            <StackPanel>
+              <ui:TextBlock FontTypography="BodyStrong" Text="Check these yourself" />
+              <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap"
+                            Text="Personal choices with no safe policy to set. PC Checker opens the right page." />
             </StackPanel>
-            <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,8"
-                          Text="Settings with no safe policy to change, or that are a personal choice. PC Checker opens the right page for you." />
+          </ui:CardExpander.Header>
+          <StackPanel>
             <ItemsControl ItemsSource="{Binding Notes}">
               <ItemsControl.ItemTemplate>
                 <DataTemplate>
@@ -315,15 +320,15 @@
               </ItemsControl.ItemTemplate>
             </ItemsControl>
           </StackPanel>
-        </ui:Card>
+        </ui:CardExpander>
 
         <!-- Deliberately not offered -->
-        <ui:CardExpander Icon="{ui:SymbolIcon ShieldProhibited24}" Margin="0,0,0,12">
+        <ui:CardExpander Icon="{ui:SymbolIcon ShieldProhibited24}" Margin="0,0,0,12" ContentPadding="16" IsExpanded="False">
           <ui:CardExpander.Header>
             <StackPanel>
               <ui:TextBlock FontTypography="BodyStrong" Text="Deliberately not offered" />
               <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap"
-                            Text="Popular steps from other debloat tools that PC Checker leaves out because they weaken security or break Windows." />
+                            Text="Steps other debloat tools take that weaken security or break Windows." />
             </StackPanel>
           </ui:CardExpander.Header>
           <ItemsControl ItemsSource="{Binding NotOffered}">
