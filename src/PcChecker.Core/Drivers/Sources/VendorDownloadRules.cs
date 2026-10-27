@@ -105,14 +105,21 @@ public static class VendorDownloadRules
     /// for <paramref name="source"/>, ignoring case, commas, full stops and repeated spaces. A name that merely
     /// contains the vendor ("NVIDIA Corporation Tools Ltd") does not match.
     /// </summary>
-    public static bool SignerMatches(DriverSourceKind source, string? subject)
+    public static bool SignerMatches(DriverSourceKind source, string? subject) => SignerMatches(ExpectedSigners(source), subject);
+
+    /// <summary>
+    /// True when the certificate subject's common name (CN) or organisation (O) is exactly one of
+    /// <paramref name="expectedSigners"/>, with the same normalisation as for the driver vendors.
+    /// </summary>
+    public static bool SignerMatches(IReadOnlyList<string> expectedSigners, string? subject)
     {
+        ArgumentNullException.ThrowIfNull(expectedSigners);
         if (string.IsNullOrWhiteSpace(subject))
         {
             return false;
         }
 
-        var expected = ExpectedSigners(source).Select(NormalizeName).ToHashSet(StringComparer.Ordinal);
+        var expected = expectedSigners.Select(NormalizeName).Where(n => n.Length > 0).ToHashSet(StringComparer.Ordinal);
         if (expected.Count == 0)
         {
             return false;
@@ -133,8 +140,14 @@ public static class VendorDownloadRules
     /// The decision before a downloaded installer may run: WinVerifyTrust must succeed (valid signature, trusted chain,
     /// not revoked) and the signer must be the vendor. <paramref name="trustResult"/> is the HRESULT.
     /// </summary>
-    public static SignatureVerdict Evaluate(DriverSourceKind source, int trustResult, string? signerSubject)
+    public static SignatureVerdict Evaluate(DriverSourceKind source, int trustResult, string? signerSubject) =>
+        Evaluate(ExpectedSigners(source), trustResult, signerSubject);
+
+    /// <summary>The same decision for any list of accepted signer names; the first name is the one shown in messages.</summary>
+    public static SignatureVerdict Evaluate(IReadOnlyList<string> expectedSigners, int trustResult, string? signerSubject)
     {
+        ArgumentNullException.ThrowIfNull(expectedSigners);
+        string expectedText = expectedSigners.FirstOrDefault() ?? "the vendor";
         if (trustResult == Processes.SignatureRules.TrustENoSignature)
         {
             return new SignatureVerdict(false, "The file is not signed.");
@@ -145,13 +158,13 @@ public static class VendorDownloadRules
             return new SignatureVerdict(false, $"Windows did not accept the file's signature (0x{trustResult:X8}): {DescribeTrustResult(trustResult)}");
         }
 
-        if (!SignerMatches(source, signerSubject))
+        if (!SignerMatches(expectedSigners, signerSubject))
         {
             var who = Processes.SignatureRules.CommonName(signerSubject) ?? "an unknown signer";
-            return new SignatureVerdict(false, $"The file is signed by {who}, not by {ExpectedSignerText(source)}.");
+            return new SignatureVerdict(false, $"The file is signed by {who}, not by {expectedText}.");
         }
 
-        return new SignatureVerdict(true, $"Signed by {ExpectedSignerText(source)}; the signature and certificate chain are valid.");
+        return new SignatureVerdict(true, $"Signed by {expectedText}; the signature and certificate chain are valid.");
     }
 
     /// <summary>Plain words for the common WinVerifyTrust failures.</summary>

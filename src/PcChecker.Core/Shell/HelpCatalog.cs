@@ -199,6 +199,10 @@ public static class HelpCatalog
             T("Latency measures delays that cause stutter and input lag: driver delays, timer resolution, mouse polling and network ping."),
             T("Press Run latency check and read the score. Fixes are offered one at a time and can be undone."),
             Features, "Latency"),
+        new("missing-dlls",
+            T("Missing DLLs shows which runtime DLLs old games need, which are missing, and installs the official package that contains them."),
+            T("Press Scan a game and pick the game's folder. Install what it lists; every install asks first and comes from the vendor, never from a DLL website."),
+            Features, "Missing DLLs"),
 
         // Network
         new("network",

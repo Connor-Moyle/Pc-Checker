@@ -6,6 +6,15 @@ All notable changes to PC Checker are recorded here. The format follows
 
 ## [Unreleased]
 
+### Added
+- **Missing DLLs** (Gaming): about 240 DLLs old games need, each with its
+  32-bit and 64-bit state and the official package it comes from; *Scan a
+  game…* reads a game's programs (import and delay-import tables, never run)
+  and lists what is missing; *Install* and *Install what's needed* install the
+  DirectX June 2010 runtime, Visual C++ 2005–2022 (32 and 64-bit), .NET 3.5,
+  DirectPlay, XNA 4.0, OpenAL or NVIDIA PhysX from the maker over HTTPS, only
+  after a valid signature check, and never single DLL files.
+
 ## [0.6.0] - 2026-10-27
 
 Easier to use (What needs attention, help on every page, shortcuts, Undo), new Scheduled tasks, Connections, Right-click menu and Hosts file tools, and driver checks with your board or PC maker, chipset and BIOS.

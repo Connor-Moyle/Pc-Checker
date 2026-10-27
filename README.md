@@ -203,6 +203,7 @@ limitations, is in [docs/FEATURES.md](docs/FEATURES.md).
 |---|---|
 | **Overlay** | A click-through, always-on-top in-game panel. Pick metrics (including an FPS counter with frame time and 1% low), corner or custom position, opacity, scale, fonts, colours and presets; toggle it with a global hotkey. Game profiles switch the overlay preset, fan profile and power plan automatically while a game runs and put them back when it closes. Works over borderless and windowed games; exclusive full-screen games hide every desktop window, including this one. |
 | **Latency** | Samples DPC and interrupt time, reads timer resolution, HPET and dynamic tick, HAGS, power plan, core parking, USB and PCIe power saving, Game Mode, pointer precision and mouse polling rate, pings your gateway and public DNS, times a DNS lookup, then scores it and offers the known fixes. Real-time DPC tracing still needs LatencyMon or Windows Performance Analyzer; the page says so and links them. |
+| **Missing DLLs** | Lists about 240 DLLs old games ask for (d3dx9, xinput, msvcp140, msvcr100, OpenAL32, PhysXLoader…) with their 32 and 64-bit state, and scans a game's folder for the DLLs its programs load. *Install* puts the official package on the PC (DirectX June 2010, Visual C++ 2005 to 2022, .NET 3.5, DirectPlay, XNA, OpenAL, PhysX) from Microsoft, NVIDIA or Creative after checking its signature. Never single DLL files from DLL websites. |
 
 ### Network
 

@@ -1605,6 +1605,74 @@ Limitations: the performance counters can be corrupt on some systems; the
 page shows the `lodctr /R` hint. Ping results depend on your network at that
 moment.
 
+### Missing DLLs
+
+Old games often stop with "d3dx9_43.dll was not found" or "MSVCP140.dll is
+missing". The fix is never a single DLL file from a "DLL download" website:
+those files are unsigned, often the wrong version or architecture, and
+sometimes malware. Every DLL on this page is mapped to the official package
+that contains it, and *Install* installs that package from its maker.
+
+- **The list**: about 240 DLLs games ask for, each with its 32-bit (SysWOW64)
+  and 64-bit (System32) state and the package it comes with. Search it,
+  filter it by package, or show *Missing only*. Detection reads the real
+  folders (PC Checker is 64-bit, so nothing depends on file-system
+  redirection), the side-by-side store for Visual C++ 2005 and 2008, the
+  .NET 2.0 and XNA folders, the uninstall entries and Microsoft's Visual C++
+  runtime key.
+- **Packages** with their state (installed, partly missing, missing) and the
+  installed versions:
+
+  | Package | DLLs (examples) | Installed with | Source and signer |
+  |---|---|---|---|
+  | DirectX End-User Runtime (June 2010) | d3dx9_24–43, d3dx10, d3dx10_33–43, d3dx11_42/43, d3dcompiler_33–43, d3dcsx_42/43, xinput1_1–1_3, x3daudio1_0–1_7, xapofx1_0–1_5, xactengine2_0–2_10 and 3_0–3_7, xaudio2_0–2_7 | `directx_Jun2010_redist.exe /Q /T:<folder>`, then the signed `DXSETUP.exe /silent` | download.microsoft.com, Microsoft Corporation |
+  | Visual C++ 2015–2022 (v14), 32 and 64-bit | vcruntime140, vcruntime140_1 (64-bit only), msvcp140 and its _1, _2, _atomic_wait, _codecvt_ids parts, concrt140, vccorlib140, vcomp140, mfc140 | winget `Microsoft.VCRedist.2015+.x64/.x86`, else `vc_redist.<arch>.exe /install /quiet /norestart` | aka.ms → download.visualstudio.microsoft.com, Microsoft Corporation |
+  | Visual C++ 2013, 2012 | msvcr120/msvcp120, msvcr110/msvcp110 and their MFC, OpenMP and C++/CX parts | winget, else `/install /quiet /norestart` | aka.ms / download.microsoft.com, Microsoft Corporation |
+  | Visual C++ 2010 | msvcr100, msvcp100, mfc100 | winget, else `/q /norestart` | download.microsoft.com, Microsoft Corporation |
+  | Visual C++ 2008, 2005 | msvcr90/msvcp90, msvcr80/msvcp80 (side-by-side) | winget, else `/q` | download.microsoft.com, Microsoft Corporation |
+  | .NET Framework 3.5 | mscorwks (the 2.0 runtime) | Turns on the Windows feature NetFx3 | Windows Update |
+  | DirectPlay | dplayx, dpnet, dpwsockx… | Turns on the Windows feature DirectPlay | Windows |
+  | XNA Framework 4.0 | Microsoft.Xna.Framework*.dll | `msiexec /i xnafx40_redist.msi /qn` | download.microsoft.com, Microsoft Corporation |
+  | OpenAL | OpenAL32, wrap_oal | `oalinst.exe /s` from Creative's `oalinst.zip` | www.openal.org, Creative Labs Inc |
+  | NVIDIA PhysX System Software and Legacy | PhysXLoader, PhysXCore, PhysXDevice, cudart32_30_9; NxCooking, NxCharacter | winget `Nvidia.PhysX` or `/s`; the legacy MSI with `/qn` | us.download.nvidia.com, NVIDIA Corporation |
+
+  Not installable, and the page says why: Games for Windows Live (`xlive.dll`;
+  the service closed, use the game's own patch or store version), the Visual
+  C++ 2003 runtime (`msvcr71.dll`; Microsoft no longer offers it, reinstall
+  the game), the Media Feature Pack on Windows N editions (opens Settings →
+  Optional features), Vulkan (`vulkan-1.dll`, comes with the graphics driver;
+  opens the Drivers page), and DLLs that are part of Windows such as
+  `d3d9.dll`, `ddraw.dll`, `d3d8.dll`, `xinput1_4.dll` and `msvbvm60.dll`.
+- **Scan a game…**: pick a game's folder or its .exe. PC Checker reads the
+  programs at the top level and one folder down (at most 300 files), works
+  out from each file's header whether it is 32 or 64-bit and reads its
+  import and delay-import tables. Nothing in the folder is run. Each DLL is
+  then: included with the game, part of Windows (including the
+  `api-ms-win-*` API sets), installed, missing with the package that fixes
+  it, or *not found* (usually part of the game itself: verify the game files
+  in its launcher). *Install what's needed* installs each package once, for
+  the right architecture.
+- **Install everything missing** lists every missing package first.
+
+Every install asks first and shows the package, the server it comes from and
+who must have signed it. Downloads use HTTPS from the allow-listed vendor
+servers only (every redirect is checked too), go to a fresh folder only
+administrators can change, and are deleted unrun unless Windows accepts the
+Authenticode signature and the signer is the expected company. Installs are
+written to the Action Journal. Runtime installers make no restore point (they
+add files next to Windows' own and are removed in Installed apps); turning on
+.NET 3.5 or DirectPlay follows the Windows Features page's rules. Exit codes are explained: 3010
+asks for a restart, 1638 means a newer version is already there, and 5100
+usually means a newer Visual C++ runtime is installed. The list is checked
+again afterwards. PC Checker never copies a DLL into System32 or SysWOW64.
+
+Limitations: a .NET game (such as an XNA game) shows only `mscoree.dll` in a
+scan, so its XNA or .NET needs are not detected from the files; the packages
+section still shows them. Creative does not document OpenAL's `/s` switch
+(it is the one Steam uses). OpenAL's installer is signed with an older
+certificate; if Windows no longer accepts it, PC Checker refuses to run it and
+the vendor page button opens openal.org instead.
+
 ### Network
 
 - **Connection summary**: active adapter, IP address, router and DNS servers,
