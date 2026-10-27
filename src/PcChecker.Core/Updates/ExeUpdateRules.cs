@@ -44,7 +44,9 @@ public static partial class ExeUpdateRules
 
     /// <summary>
     /// The expected SHA-256 (lower-case hex): GitHub's asset digest when present, otherwise a "SHA-256" line in the
-    /// release notes. Null when neither is available, in which case the update is refused.
+    /// release notes. When the notes name files ("SHA-256 (PcChecker-arm64.exe): …"), only the line naming this asset
+    /// counts, so the Arm64 download is never checked against the x64 hash. Null when no checksum is available, in which
+    /// case the update is refused.
     /// </summary>
     public static string? ExpectedSha256(GitHubReleaseAsset asset, string? releaseBody)
     {
@@ -66,6 +68,13 @@ public static partial class ExeUpdateRules
         if (string.IsNullOrWhiteSpace(releaseBody))
         {
             return null;
+        }
+
+        var named = NamedBodySha256().Matches(releaseBody);
+        if (named.Count > 0)
+        {
+            var own = named.FirstOrDefault(m => string.Equals(m.Groups["name"].Value.Trim(), asset.Name, StringComparison.OrdinalIgnoreCase));
+            return own?.Groups["hash"].Value.ToLowerInvariant();
         }
 
         var match = BodySha256().Match(releaseBody);
@@ -121,4 +130,8 @@ public static partial class ExeUpdateRules
 
     [GeneratedRegex(@"SHA-?256.{0,80}?\b(?<hash>[0-9a-fA-F]{64})\b", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
     private static partial Regex BodySha256();
+
+    /// <summary>A checksum line that names its file: "SHA-256 (PcChecker-arm64.exe): `hash`".</summary>
+    [GeneratedRegex(@"SHA-?256\s*\((?<name>[^()\r\n]+)\)[^\r\n]{0,80}?\b(?<hash>[0-9a-fA-F]{64})\b", RegexOptions.IgnoreCase)]
+    private static partial Regex NamedBodySha256();
 }
