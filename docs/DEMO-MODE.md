@@ -52,30 +52,20 @@ PcChecker.exe --screenshots screenshots --demo
 1. Sizes the main window to 1440 × 900.
 2. Visits every page in navigation order, waits for the page to finish
    loading plus 400 ms, and renders the window to
-   `<dir>\<nn>-<page>.png`.
+   `<dir>\<page>.png`.
 3. Shows the overlay window in demo mode and captures it over a dark gradient
-   as `<dir>\<nn>-overlay.png`.
+   as `<dir>\overlay.png`.
 4. Opens the tray popup off-screen and captures it above a desktop backdrop
-   with a taskbar strip as `<dir>\<nn>-tray.png`.
+   with a taskbar strip as `<dir>\tray.png`.
 5. Writes `<dir>\index.json` mapping page titles to file names, with the
    capture time and window size.
 6. Exits with code 0, or 1 if anything failed (the reason is on stderr and in
    the log).
 
-The file names are:
-
-```
-01-dashboard.png        02-temperatures.png     03-power.png
-04-overlay-settings.png 05-hardware.png         06-health.png
-07-storage.png          08-memory.png           09-displays.png
-10-audio.png            11-input.png            12-fans.png
-13-lighting.png         14-drivers.png          15-software.png
-16-startup.png          17-windows-features.png 18-cleanup.png
-19-performance.png      20-optimize.png         21-latency.png
-22-overclock.png        23-assistant.png        24-logs.png
-25-settings.png         26-overlay.png          27-tray.png
-index.json
-```
+Each file is named after its page (`dashboard.png`, `fans.png`, `network.png`
+and so on), plus `overlay.png` and `tray.png`. Names do not change when pages
+move between sections. The page list comes from
+`src/PcChecker.App/Services/NavigationCatalog.cs`.
 
 A screenshot run skips the single-instance check and creates no tray icon, so
 it can run next to a normal instance, and never shows an error dialog that would block an

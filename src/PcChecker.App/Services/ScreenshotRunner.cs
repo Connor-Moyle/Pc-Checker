@@ -90,7 +90,7 @@ public sealed class ScreenshotRunner
 
             // A tray failure must not cost the page screenshots, so they and index.json are still written, but the
             // run fails at the end: the README shows the tray image, so a missing one has to be noticed.
-            var trayFile = $"{number + 1:00}-tray.png";
+            var trayFile = "tray.png";
             string? trayError = null;
             try
             {
