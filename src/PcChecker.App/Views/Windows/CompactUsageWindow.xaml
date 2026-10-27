@@ -1,0 +1,71 @@
+<Window x:Class="PcChecker.App.Views.Windows.CompactUsageWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+        xmlns:controls="clr-namespace:PcChecker.App.Controls"
+        xmlns:vm="clr-namespace:PcChecker.App.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        d:DataContext="{d:DesignInstance vm:LiveUsageViewModel}"
+        mc:Ignorable="d"
+        Title="Live usage"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        Topmost="True"
+        SizeToContent="Height"
+        Width="296"
+        MouseLeftButtonDown="OnDragStart"
+        MouseDoubleClick="OnDoubleClick">
+  <Window.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="pack://application:,,,/Views/LiveUsageTemplates.xaml" />
+      </ResourceDictionary.MergedDictionaries>
+    </ResourceDictionary>
+  </Window.Resources>
+
+  <!-- The margin leaves room for the shadow inside the transparent window. -->
+  <Border Margin="8" CornerRadius="8" Padding="12,8,12,10"
+          Background="{DynamicResource ApplicationBackgroundBrush}"
+          BorderBrush="{DynamicResource SurfaceStrokeColorFlyoutBrush}" BorderThickness="1"
+          ToolTip="Drag to move. Double-click to open PC Checker on this page.">
+    <Border.Effect>
+      <DropShadowEffect BlurRadius="12" ShadowDepth="2" Opacity="0.3" />
+    </Border.Effect>
+    <Border.ContextMenu>
+      <ContextMenu>
+        <MenuItem Header="Open full view" Click="OnOpenFullView">
+          <MenuItem.Icon>
+            <controls:IconGlyph Symbol="Open24" />
+          </MenuItem.Icon>
+        </MenuItem>
+        <MenuItem Header="{Binding PauseText}" Command="{Binding TogglePauseCommand}" />
+        <Separator />
+        <MenuItem Header="Close" Click="OnClose" InputGestureText="Esc">
+          <MenuItem.Icon>
+            <controls:IconGlyph Symbol="Dismiss24" />
+          </MenuItem.Icon>
+        </MenuItem>
+      </ContextMenu>
+    </Border.ContextMenu>
+    <DockPanel>
+      <Grid DockPanel.Dock="Top" Margin="0,0,0,2">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="Auto" />
+          <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+        <ui:TextBlock Grid.Column="0" Text="Live usage" Style="{DynamicResource Caption}" VerticalAlignment="Center" />
+        <ui:Button Grid.Column="1" Appearance="Transparent" Padding="4" BorderThickness="0" Icon="{ui:SymbolIcon Open24}"
+                   AutomationProperties.Name="Open full view" ToolTip="Open PC Checker on the Live usage page" Click="OnOpenFullView" />
+        <ui:Button Grid.Column="2" Appearance="Transparent" Padding="4" BorderThickness="0" Icon="{ui:SymbolIcon Dismiss24}"
+                   AutomationProperties.Name="Close compact view" ToolTip="Close this window (Esc)" Click="OnClose" />
+      </Grid>
+      <ItemsControl ItemsSource="{Binding Resources}" ItemTemplate="{StaticResource LiveResourceTemplate}"
+                    AutomationProperties.Name="Resources" Focusable="False" />
+    </DockPanel>
+  </Border>
+</Window>

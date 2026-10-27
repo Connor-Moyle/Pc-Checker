@@ -26,6 +26,7 @@ using PcChecker.Core.History;
 using PcChecker.Core.Input;
 using PcChecker.Core.Latency;
 using PcChecker.Core.Leftovers;
+using PcChecker.Core.LiveUsage;
 using PcChecker.Core.Lighting;
 using PcChecker.Core.Logging;
 using PcChecker.Core.Memory;
@@ -131,6 +132,7 @@ public static class ServiceRegistration
         Add<INetworkService, WindowsNetworkService, DemoNetworkService>(services, demo);
         Add<IStartupService, WindowsStartupService, DemoStartupService>(services, demo);
         Add<IProcessService, WindowsProcessService, DemoProcessService>(services, demo);
+        Add<ILiveUsageService, WindowsLiveUsageService, DemoLiveUsageService>(services, demo);
         Add<IRestartScheduler, WindowsRestartScheduler, DemoRestartScheduler>(services, demo);
         Add<IMousePollingMeter, RawInputPollingMeter, DemoMousePollingMeter>(services, demo);
         Add<IRegistryHealthService, WindowsRegistryHealthService, DemoRegistryHealthService>(services, demo);
@@ -188,6 +190,8 @@ public static class ServiceRegistration
         services.AddSingleton<SensorsViewModel>().AddSingleton<SensorsPage>();
         services.AddSingleton<PowerViewModel>().AddSingleton<PowerPage>();
         services.AddSingleton<ProcessesViewModel>().AddSingleton<ProcessesPage>();
+        services.AddSingleton<LiveUsageViewModel>().AddSingleton<LiveUsagePage>();
+        services.AddSingleton<CompactUsageWindowService>();
         services.AddSingleton<HistoryViewModel>().AddSingleton<HistoryPage>();
         services.AddSingleton<OverlayViewModel>().AddSingleton<OverlayPage>();
         services.AddSingleton<HardwareViewModel>().AddSingleton<HardwarePage>();

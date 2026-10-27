@@ -24,6 +24,8 @@ public sealed partial class TrayIconService
         open.Click += (_, _) => ShowMainWindow();
         var overlay = new MenuItem { Header = "Show overlay", IsCheckable = true, Icon = new SymbolIcon(SymbolRegular.Layer24) };
         overlay.Click += (_, _) => ToggleOverlay();
+        var liveUsage = new MenuItem { Header = "Compact live usage", IsCheckable = true, Icon = new SymbolIcon(SymbolRegular.WindowNew24) };
+        liveUsage.Click += (_, _) => Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetService<CompactUsageWindowService>(App.Services)?.Toggle();
         var fans = new MenuItem { Header = "Fan profile", Icon = new SymbolIcon(SymbolRegular.ArrowSyncCircle24) };
         var health = new MenuItem { Header = "Check health now", Icon = new SymbolIcon(SymbolRegular.Heart24) };
         health.Click += (_, _) => _ = RunFromTrayAsync(ScheduledJobKind.Health);
@@ -32,6 +34,7 @@ public sealed partial class TrayIconService
 
         menu.Items.Add(open);
         menu.Items.Add(overlay);
+        menu.Items.Add(liveUsage);
         menu.Items.Add(fans);
         menu.Items.Add(health);
         menu.Items.Add(new Separator());
@@ -39,6 +42,7 @@ public sealed partial class TrayIconService
         menu.Opened += (_, _) =>
         {
             overlay.IsChecked = _overlay.IsVisible;
+            liveUsage.IsChecked = Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetService<CompactUsageWindowService>(App.Services)?.IsOpen == true;
             health.IsEnabled = !_runner.Executor.IsRunning(ScheduledJobKind.Health);
             health.Header = health.IsEnabled ? "Check health now" : "Checking health…";
             FillFanMenu(fans);

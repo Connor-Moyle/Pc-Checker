@@ -13,6 +13,18 @@ All notable changes to PC Checker are recorded here. The format follows
   a *Sensor driver (PawnIO)* row with its status, Install or Repair, and
   Remove. Nobody has to find and install the driver by hand to see the CPU
   and motherboard fans.
+- **Live usage** (Task manager → Live usage): Task Manager's Performance tab
+  in PC Checker. CPU, memory, every disk with its type (SSD, HDD, NVMe) and
+  drive letters, every active network adapter and every graphics card, each
+  with a sparkline and a 60-second graph and the details Task Manager shows:
+  speed, cores, caches, up time, memory composition, committed and pools,
+  disk active and response time, Wi-Fi name and signal, IP addresses, GPU
+  engines (3D, Copy, Video Encode, Video Decode), GPU memory, driver,
+  DirectX feature level and temperature. One graph per logical processor,
+  kernel-time shading, Ctrl+C copies the details, and *Compact view* opens a
+  small always-on-top window (also from the tray) that remembers its place.
+  Counters are read by their English names, so it works on every Windows
+  language.
 - **Windows Update → Roll back**: lists installed updates (KB, title, date,
   type) and removes the one you pick behind a restore point, with wusa or,
   for the combined servicing stack and cumulative update, DISM and its

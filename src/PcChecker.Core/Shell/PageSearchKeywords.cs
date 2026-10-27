@@ -34,6 +34,7 @@ public static class PageSearchKeywords
         ["debloat"] = T("bloatware privacy telemetry ads copilot tweaks"),
         ["registry"] = T("leftover entries regedit"),
         ["performance"] = T("slow slowdown speed scan processes"),
+        ["live-usage"] = T("task manager performance graphs cpu usage ram disk activity network gpu utilization"),
         ["optimize"] = T("tweaks faster game mode visual effects"),
         ["overclock"] = T("oc gpu cpu clocks stress test"),
         ["overlay-settings"] = T("fps counter in game osd"),
