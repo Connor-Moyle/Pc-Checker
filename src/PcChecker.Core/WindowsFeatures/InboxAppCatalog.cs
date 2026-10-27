@@ -78,6 +78,7 @@ public static class InboxAppCatalog
         new("Microsoft.VCLibs", "Visual C++ runtime (Store)", RiskLevel.Advanced, "Do not remove. Shared library used by many apps.", true),
         new("Microsoft.NET.Native", ".NET Native runtime", RiskLevel.Advanced, "Do not remove. Shared library used by many apps.", true),
         new("AdvancedMicroDevicesInc-2.AMDRadeonSoftware", "AMD Radeon Software", RiskLevel.Advanced, "Do not remove. The AMD graphics driver's control panel (FreeSync, display and game settings).", true),
+        new("AdvancedMicroDevicesInc", "AMD software", RiskLevel.Advanced, "Do not remove. AMD driver software (graphics, chipset or laptop control panel).", true),
         new("NVIDIACorp.NVIDIAControlPanel", "NVIDIA Control Panel", RiskLevel.Advanced, "Do not remove. The NVIDIA graphics driver's control panel.", true),
         new("AppUp.IntelGraphicsExperience", "Intel Graphics Command Center", RiskLevel.Advanced, "Do not remove. The Intel graphics driver's control panel.", true),
         new("AppUp.IntelArcSoftware", "Intel Arc Control", RiskLevel.Advanced, "Do not remove. The Intel Arc graphics driver's control panel.", true),
@@ -102,10 +103,14 @@ public static class InboxAppCatalog
         "Microsoft.NET.Native",
 
         // Driver control panels: removing them loses display, audio or Thunderbolt settings the driver needs.
+        // Every AMD package: Radeon Software ships under different AdvancedMicroDevicesInc* names on OEM laptops
+        // (for example AdvancedMicroDevicesInc-RSXCM), so the whole publisher prefix is protected.
+        "AdvancedMicroDevicesInc",
         "AdvancedMicroDevicesInc-2.AMDRadeonSoftware",
+        "AdvancedMicroDevicesInc-RSXCM",
         "NVIDIACorp.NVIDIAControlPanel",
         "AppUp.IntelGraphicsExperience",
-        "AppUp.IntelArcSoftware",
+        "AppUp.IntelArcSoftware", // Defensive: the Arc control panel is usually a desktop app, but block it if a Store build appears.
         "AppUp.ThunderboltControlCenter",
         "RealtekSemiconductorCorp.RealtekAudioControl",
         "DolbyLaboratories.DolbyAudio",

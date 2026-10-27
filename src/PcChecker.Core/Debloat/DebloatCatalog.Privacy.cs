@@ -66,15 +66,17 @@ public static partial class DebloatCatalog
                 User(@"Software\Microsoft\InputPersonalization\TrainedDataStore", "HarvestContacts", 0, null),
                 User(@"Software\Microsoft\Input\TIPC", "Enabled", 0, null),
                 User(@"Software\Microsoft\Input\Settings", "InsightsEnabled", 0, null),
-                User(@"Software\Microsoft\Personalization\Settings", "AcceptedPrivacyPolicy", 0, null),
-                Machine(@"SOFTWARE\Policies\Microsoft\InputPersonalization", "AllowInputPersonalization", 0, null),
                 Machine(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\TextInput", "AllowLinguisticDataCollection", 0, null),
             ]),
 
         Tweak("privacy.speech", PrivacyCategory, "Turn off online speech recognition",
-            "Voice typing and dictation stop sending your voice to Microsoft's cloud. Offline speech features keep working.",
+            "Voice typing and dictation stop sending your voice to Microsoft's cloud. The Windows policy locks online speech off for every account, so cloud voice typing (Win+H) stops working. Offline speech features keep working.",
             RiskLevel.Safe, From(ShutUp10, Sophia, Privatezilla, HardenDebloat),
-            [User(@"Software\Microsoft\Speech_OneCore\Settings\OnlineSpeechPrivacy", "HasAccepted", 0, null)]),
+            [
+                User(@"Software\Microsoft\Speech_OneCore\Settings\OnlineSpeechPrivacy", "HasAccepted", 0, null),
+                User(@"Software\Microsoft\Personalization\Settings", "AcceptedPrivacyPolicy", 0, null),
+                Machine(@"SOFTWARE\Policies\Microsoft\InputPersonalization", "AllowInputPersonalization", 0, null),
+            ]),
 
         Tweak("privacy.appdiagnostics", PrivacyCategory, "Block apps from reading diagnostic info about other apps",
             "Store apps can no longer read information about the other apps running on your PC.",

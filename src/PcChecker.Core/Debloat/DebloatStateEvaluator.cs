@@ -47,18 +47,23 @@ public static class DebloatStateEvaluator
             return TweakState.Unknown(tweak.Id, "Checked by the Optimize page");
         }
 
-        if (DebloatRules.RequirementFailure(tweak, registry) is string missing)
-        {
-            return new TweakState(tweak.Id, TweakStatus.NotApplicable, missing);
-        }
-
-        if (tweak.OnlyWithoutApp is { } requiredAbsent && snapshot.InstalledApps is not null && DebloatRules.IsAppInstalled(requiredAbsent, snapshot.InstalledApps))
-        {
-            return new TweakState(tweak.Id, TweakStatus.NotApplicable, DebloatRules.AppStillInstalledText(requiredAbsent));
-        }
-
         var states = tweak.Operations.Select(op => EvaluateOperation(op, registry, snapshot)).ToList();
         var status = Aggregate(states.Select(s => s.State));
+
+        // A tweak whose software is missing (Requires) or whose app is installed again (OnlyWithoutApp) is not offered,
+        // but only while none of its changes are in place: an applied or partly applied tweak stays revertible.
+        if (status is not (TweakStatus.Applied or TweakStatus.Partial))
+        {
+            if (DebloatRules.RequirementFailure(tweak, registry) is string missing)
+            {
+                return new TweakState(tweak.Id, TweakStatus.NotApplicable, missing);
+            }
+
+            if (tweak.OnlyWithoutApp is { } requiredAbsent && snapshot.InstalledApps is not null && DebloatRules.IsAppInstalled(requiredAbsent, snapshot.InstalledApps))
+            {
+                return new TweakState(tweak.Id, TweakStatus.NotApplicable, DebloatRules.AppStillInstalledText(requiredAbsent));
+            }
+        }
         string detail = status switch
         {
             TweakStatus.Applied when tweak.Operations.All(o => o is AppxRemovalOp) => "Not installed",

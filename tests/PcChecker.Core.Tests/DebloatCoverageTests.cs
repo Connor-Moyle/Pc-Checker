@@ -84,8 +84,15 @@ public class DebloatCoverageTests
     public void Wildcard_removal_script_uses_like_and_skips_non_removable_packages()
     {
         var wildcard = WindowsFeatureService.BuildRemoveAppScript("*.Flipboard", "Flipboard", allUsers: true);
-        Assert.Contains("Get-AppxPackage -AllUsers -Name '*.Flipboard' | Where-Object { -not $_.NonRemovable }", wildcard);
-        Assert.Contains("$_.DisplayName -like '*.Flipboard'", wildcard);
+        Assert.Contains("Get-AppxPackage -AllUsers -Name '*.Flipboard' | Where-Object { -not $_.NonRemovable -and (", wildcard);
+        Assert.Contains("$_.DisplayName -like '*.Flipboard' -and (", wildcard);
+
+        // Every never-remove name is filtered per package, for installed and provisioned packages alike.
+        foreach (var never in InboxAppCatalog.NeverRemove)
+        {
+            Assert.Contains($"$_.Name -notlike '{never}*'", wildcard);
+            Assert.Contains($"$_.DisplayName -notlike '{never}*'", wildcard);
+        }
 
         var exact = WindowsFeatureService.BuildRemoveAppScript("Microsoft.BingNews", "News", allUsers: false);
         Assert.DoesNotContain("-like", exact);
@@ -204,6 +211,47 @@ public class DebloatCoverageTests
     }
 
     [Fact]
+    public async Task Game_bar_link_handler_stays_revertible_after_game_bar_is_reinstalled()
+    {
+        var (engine, system) = Create();
+        var tweak = Tweak("gaming.gamebarprotocol");
+        Assert.Equal(TweakOutcome.Applied, (await engine.ApplyAsync(tweak, default)).Outcome);
+
+        // Game Bar comes back from the Store: the redirect is still in place and must stay revertible.
+        system.Apps.Add("Microsoft.XboxGamingOverlay");
+        Assert.Equal(TweakStatus.Applied, (await engine.GetStatesAsync([tweak], default))[tweak.Id].Status);
+        Assert.Equal(TweakOutcome.Reverted, (await engine.RevertAsync(tweak, default)).Outcome);
+        Assert.False(system.Memory.KeyExists(DebloatHive.LocalMachine, @"SOFTWARE\Classes\ms-gamebar"));
+        Assert.Equal(TweakStatus.NotApplicable, (await engine.GetStatesAsync([tweak], default))[tweak.Id].Status);
+    }
+
+    [Fact]
+    public async Task Policies_for_uninstalled_software_stay_revertible()
+    {
+        var (engine, system) = Create();
+        var appPath = @"Software\Microsoft\Windows\CurrentVersion\App Paths\brave.exe";
+        system.Memory.CreateKey(DebloatHive.CurrentUser, appPath);
+        var brave = Tweak("other.brave");
+        Assert.Equal(TweakOutcome.Applied, (await engine.ApplyAsync(brave, default)).Outcome);
+
+        system.Memory.DeleteKeyTree(DebloatHive.CurrentUser, appPath);
+        Assert.Equal(TweakStatus.Applied, (await engine.GetStatesAsync([brave], default))[brave.Id].Status);
+        Assert.Equal(TweakOutcome.Reverted, (await engine.RevertAsync(brave, default)).Outcome);
+        Assert.Equal(TweakStatus.NotApplicable, (await engine.GetStatesAsync([brave], default))[brave.Id].Status);
+    }
+
+    [Theory]
+    [InlineData("AdvancedMicroDevicesInc-2.AMDRadeonSoftware_10.23.0.0_x64__0a9344xs7nr4m")]
+    [InlineData("AdvancedMicroDevicesInc-RSXCM_22.10.0.0_x64__fhmx3h6dzfmvj")]
+    [InlineData("AdvancedMicroDevicesInc-2.AMDLink")]
+    public void Every_amd_package_is_protected(string package)
+    {
+        Assert.False(InboxAppCatalog.IsRemovable(package, nonRemovable: false));
+        Assert.False(InboxAppCatalog.IsRemovable("AdvancedMicroDevices*", nonRemovable: false));
+        Assert.Equal(RiskLevel.Advanced, InboxAppCatalog.Find(package)?.Risk);
+    }
+
+    [Fact]
     public async Task Num_lock_writes_the_sign_in_screen_profile_under_hkey_users()
     {
         var (engine, system) = Create();
@@ -260,7 +308,9 @@ public class DebloatCoverageTests
         Assert.DoesNotContain(DebloatCatalog.All.SelectMany(t => t.Operations).OfType<ScheduledTaskOp>(), t => t.Path.EndsWith("StartupAppTask", StringComparison.Ordinal) || t.Path.EndsWith("PcaPatchDbTask", StringComparison.Ordinal));
         Assert.Contains(Tweak("privacy.wer").Operations.OfType<ScheduledTaskOp>(), t => t.Path.EndsWith("QueueReporting", StringComparison.Ordinal));
         Assert.DoesNotContain(Tweak("privacy.wer").Operations.OfType<RegistryValueOp>(), o => o.Name == "LoggingDisabled");
-        Assert.Contains(Tweak("privacy.inking").Operations.OfType<RegistryValueOp>(), o => o.Name == "AcceptedPrivacyPolicy");
+        Assert.Contains(Tweak("privacy.speech").Operations.OfType<RegistryValueOp>(), o => o.Name == "AcceptedPrivacyPolicy");
+        Assert.Contains(Tweak("privacy.speech").Operations.OfType<RegistryValueOp>(), o => o.Name == "AllowInputPersonalization");
+        Assert.DoesNotContain(Tweak("privacy.inking").Operations.OfType<RegistryValueOp>(), o => o.Name is "AcceptedPrivacyPolicy" or "AllowInputPersonalization");
         Assert.Contains(Tweak("ai.paint").Operations.OfType<RegistryValueOp>(), o => o.Name == "DisableGenerativeErase");
         Assert.Contains(Tweak("ai.recall").Operations.OfType<RegistryValueOp>(), o => o.Name == "TurnOffSavingSnapshots");
         Assert.Contains(Tweak("ai.copilotapp").Operations.OfType<AppxRemovalOp>(), a => a.PackageName == "Microsoft.Windows.Ai.Copilot.Provider");

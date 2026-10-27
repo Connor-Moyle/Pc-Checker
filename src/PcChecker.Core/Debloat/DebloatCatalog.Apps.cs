@@ -156,8 +156,8 @@ public static partial class DebloatCatalog
         ("hp.systeminfo", "AD2F1837.HPSystemInformation", "HP System Information", null),
         ("hp.powermanager", "AD2F1837.HPPowerManager", "HP Power Manager", "Controls battery charging limits and power modes on HP laptops. Keep it unless you are sure you don't use them."),
         ("hp.omen", "AD2F1837.OMENCommandCenter", "OMEN Gaming Hub", "Controls fans, performance modes and lighting on OMEN and Victus PCs. Keep it unless you are sure you don't need them."),
-        ("lenovo.companion", "E046963F.LenovoCompanion", "Lenovo Companion", null),
-        ("lenovo.vantage", "LenovoCompanyLimited.LenovoVantageService", "Lenovo Vantage Service", "Lenovo Vantage sets battery conservation mode, function keys and firmware updates. Keep it unless you are sure you don't use them."),
+        // Lenovo Vantage replaced Lenovo Companion under the same Store package ID.
+        ("lenovo.vantage", "E046963F.LenovoCompanion", "Lenovo Vantage", "Lenovo Vantage sets battery conservation mode, function keys and firmware updates. Keep it unless you are sure you don't use them."),
         ("lenovo.smartappearance", "E0469640.SmartAppearance", "Lenovo Smart Appearance", null),
         ("dell.supportassist", "DellInc.DellSupportAssistforPCs", "Dell SupportAssist", "Also delivers Dell BIOS and driver updates; use Dell's website instead if you remove it."),
         ("dell.digitaldelivery", "DellInc.DellDigitalDelivery", "Dell Digital Delivery", null),
@@ -208,8 +208,9 @@ public static partial class DebloatCatalog
 
         yield return Tweak("apps.crossdevice", AppsCategory, "Remove Cross Device Experience Host",
             "Remove only if you don't use Phone Link features such as mobile hotspot sharing or your phone as a webcam. Reinstall it from the Microsoft Store any time.",
-            RiskLevel.Safe, From(Win11Debloat, AtlasOS),
-            [new AppxRemovalOp("MicrosoftWindows.CrossDevice", "Cross Device Experience Host"), new AppxRemovalOp("Microsoft.Windows.CrossDevice", "Cross Device Experience Host (older)")]);
+            RiskLevel.Moderate, From(Win11Debloat, AtlasOS),
+            [new AppxRemovalOp("MicrosoftWindows.CrossDevice", "Cross Device Experience Host"), new AppxRemovalOp("Microsoft.Windows.CrossDevice", "Cross Device Experience Host (older)")],
+            warning: "Phone Link loses mobile hotspot sharing, using your phone as a webcam and other cross-device features until you reinstall it.");
 
         yield return Tweak("apps.widgets", AppsCategory, "Remove Widgets completely",
             "Removes the Widgets board (Windows Web Experience Pack) and the Widgets Platform Runtime, instead of only hiding the button. Reinstall them from the Microsoft Store.",

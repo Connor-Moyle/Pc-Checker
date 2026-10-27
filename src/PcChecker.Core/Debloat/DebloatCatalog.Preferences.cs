@@ -59,7 +59,7 @@ public static partial class DebloatCatalog
             minBuild: Windows11, explorer: true);
 
         yield return Tweak("prefs.snapoff", PreferencesCategory, "Turn off window snapping",
-            "Dragging a window to a screen edge no longer resizes it.",
+            "Dragging a window to a screen edge no longer resizes it. Takes effect after you sign out and back in.",
             RiskLevel.Safe, From(Win11Debloat, WinUtil),
             [UserText(@"Control Panel\Desktop", "WindowArrangementActive", "0", "1")]);
 
@@ -191,12 +191,14 @@ public static partial class DebloatCatalog
     private static IEnumerable<DebloatTweak> OtherAppTweaks() =>
     [
         Tweak("other.office", OtherAppsCategory, "Turn off Microsoft Office telemetry and feedback",
-            "Sets Office's policies so it sends only required diagnostic data, no customer experience data and no feedback, and disables Office's telemetry agent tasks.",
+            "Sets Office's policies so it sends no diagnostic data, joins no customer experience programme and shows no feedback or survey prompts, and disables Office's telemetry agent tasks.",
             RiskLevel.Safe, From(AtlasOS, Optimizer, ShutUp10),
             [
                 User(@"Software\Policies\Microsoft\office\16.0\common", "sendcustomerdata", 0, null),
                 User(@"Software\Policies\Microsoft\office\16.0\common", "qmenable", 0, null),
                 User(@"Software\Policies\Microsoft\office\common\clienttelemetry", "sendtelemetry", 3, null),
+                User(@"Software\Policies\Microsoft\office\16.0\common\feedback", "enabled", 0, null),
+                User(@"Software\Policies\Microsoft\office\16.0\common\feedback", "surveyenabled", 0, null),
                 DisableTask(@"\Microsoft\Office\OfficeTelemetryAgentLogOn2016"),
                 DisableTask(@"\Microsoft\Office\OfficeTelemetryAgentFallBack2016"),
             ])

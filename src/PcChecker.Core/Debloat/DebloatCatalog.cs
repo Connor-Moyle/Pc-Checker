@@ -5,8 +5,9 @@ namespace PcChecker.Core.Debloat;
 
 /// <summary>
 /// The data-driven list of debloat tweaks, grouped by category. Each registry path and value was checked against at
-/// least two of the reference tools or Microsoft's policy documentation; Windows defaults are the values a clean
-/// install has (null = the value does not exist), used when no "before" value was captured.
+/// least two of the reference tools or Microsoft's policy documentation, or is the plain value a Settings switch or
+/// Folder Options writes; Windows defaults are the values a clean install has (null = the value does not exist), used
+/// when no "before" value was captured.
 /// </summary>
 public static partial class DebloatCatalog
 {

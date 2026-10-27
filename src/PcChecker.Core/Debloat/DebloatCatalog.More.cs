@@ -6,7 +6,9 @@ namespace PcChecker.Core.Debloat;
 /// <summary>
 /// Privacy, ads, AI, taskbar/Start and File Explorer tweaks added after comparing the catalog with current releases of
 /// the reference tools (Win11Debloat, WinUtil, O&amp;O ShutUp10++, Sophia Script, Optimizer, AtlasOS, ReviOS, Tiny11
-/// and xd-AntiSpy). Each value is documented by Microsoft or set by at least two of those tools.
+/// and xd-AntiSpy). Most values are documented by Microsoft or set by at least two of those tools; a few long-standing
+/// Settings switches and Explorer options come from a single tool and are the same value the Settings app or Folder
+/// Options writes (see the Sources column in docs/DEBLOAT.md).
 /// </summary>
 public static partial class DebloatCatalog
 {
