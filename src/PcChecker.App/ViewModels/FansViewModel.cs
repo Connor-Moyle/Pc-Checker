@@ -350,7 +350,7 @@ public sealed partial class FansViewModel : ViewModelBase
             Loc.T("PC Checker will set fan speeds through the motherboard sensor chip or graphics driver instead of the firmware.") + "\n\n"
             + "• " + Loc.T("Fans never go below the minimum speed you set, and are forced to 100 % if a part reaches its critical temperature.") + "\n"
             + "• " + Loc.T("Everything returns to automatic when you click \"Revert all to automatic\" or close the app (if that option is on).") + "\n"
-            + "• " + Loc.T("If the app crashes, the next start puts the fans back to automatic."),
+            + "• " + Loc.T("If the app crashes, graphics card fans go back to automatic at the next start. Motherboard fans keep the speed they were left at until the PC restarts, so PC Checker keeps driving them, with its overheating protection on, until then."),
             Loc.T("Take control"));
         _controlConsentGiven = ok;
         return ok;
