@@ -57,7 +57,8 @@ public static partial class CheckupItemMapper
 
     /// <summary>
     /// One item per speed check finding (Info-level hints are left to the page). A finding gets a fix when one of its
-    /// actions is a reversible optimization; its risk is the action's (Advanced when either is Advanced-only).
+    /// actions is a reversible optimization; its risk is the action's (Advanced when either is Advanced-only). Such a
+    /// fix names the setting it changes (<see cref="CheckupItem.FixAction"/>) and is never ticked for the user.
     /// "Programs start with Windows" findings are dropped when <paramref name="skipStartupCount"/> is true, because the
     /// startup apps are listed one by one.
     /// </summary>
@@ -90,6 +91,11 @@ public static partial class CheckupItemMapper
             {
                 Topic = PerformanceTopic(finding.Id),
                 MayNeedRestart = action?.RequiresRestart ?? false,
+                FixAction = action?.Title,
+
+                // The fix is one setting that helps with the finding (Storage Sense for a full drive, lighter visuals
+                // for low memory), not the finding's own cure, so the user picks it knowingly; it is never pre-ticked.
+                SuggestByDefault = action is null,
             });
         }
 

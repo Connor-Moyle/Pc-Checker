@@ -76,14 +76,19 @@ public sealed partial class CheckupItemRow : ObservableObject
         _ => Loc.T("Advanced: only for people who know what it does. Needs Advanced mode."),
     };
 
-    /// <summary>"From Cleanup", shown as a link to the page.</summary>
+    /// <summary>"From Cleanup": where the item comes from (the Open button goes there).</summary>
     public string SourceText => Loc.F("From {0}", PageTitle);
 
     public string OpenText => Loc.F("Open {0}", PageTitle);
 
+    /// <summary>The check box tooltip; the reasons match <see cref="CheckupSelection.WhyNotSelectable"/>, written here so they can be translated.</summary>
     public string CheckTooltip => CanSelect
         ? Loc.T("Include this in Fix selected")
-        : CheckupSelection.WhyNotSelectable(Item, advancedMode: false) is { } why ? Loc.T(why) : Loc.T("Cannot be fixed from here.");
+        : !Item.HasFix
+            ? Loc.T("This one needs you: open its page to deal with it.")
+            : Item.Risk == RiskLevel.Advanced
+                ? Loc.T("An advanced change. Turn on Advanced mode to fix it from here, or open its page.")
+                : Loc.T("Cannot be fixed from here.");
 
     public bool HasResult => !string.IsNullOrWhiteSpace(ResultText);
 

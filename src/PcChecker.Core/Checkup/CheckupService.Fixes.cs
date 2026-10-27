@@ -54,8 +54,9 @@ public sealed partial class CheckupService
                         // Driver installs and removals always run to the end once started, as on their own pages.
                         results.AddRange(await RunStepAsync(report, step, stepProgress, step.CanStopPartWay ? ct : CancellationToken.None).ConfigureAwait(false));
                     }
-                    catch (OperationCanceledException)
+                    catch (OperationCanceledException) when (ct.IsCancellationRequested)
                     {
+                        // Only the user's cancel counts; a service's own time-out falls through to the failure below.
                         cancelled = true;
                         results.AddRange(step.Items.Concat(plan.Steps.Skip(i + 1).SelectMany(s => s.Items))
                             .Where(item => results.All(r => r.Item.Id != item.Id))
@@ -73,7 +74,7 @@ public sealed partial class CheckupService
                 cancelled |= ct.IsCancellationRequested;
             }, progress, cancellationToken).ConfigureAwait(false);
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             // Cancelled while the shared restore point was being made: nothing was changed.
             cancelled = true;
@@ -86,6 +87,13 @@ public sealed partial class CheckupService
         }
 
         var fixReport = new CheckupFixReport(results, batch, cancelled);
+        if (fixReport.Succeeded > 0 && Last is { } last && last.Captured == report.Captured)
+        {
+            // The Dashboard reads Last: drop what was fixed so it does not keep showing installed updates as waiting.
+            Last = CheckupAfterFix.Apply(last, fixReport);
+            LastChanged?.Invoke(this, Last);
+        }
+
         _logger.LogInformation("Check-up fixes finished: {Ok} done, {Failed} not done{Cancelled}.", fixReport.Succeeded, fixReport.Failed,
             cancelled ? " (cancelled)" : string.Empty);
         return fixReport;
@@ -221,7 +229,7 @@ public sealed partial class CheckupService
             }
 
             var outcome = await _optimization.ApplyAsync(action.Id, ct).ConfigureAwait(false);
-            return new CheckupFixResult(item, outcome.Success, outcome.Message, outcome.Success && (outcome.RebootRequired || action.RequiresRestart));
+            return new CheckupFixResult(item, outcome.Success, $"{action.Title}: {outcome.Message}", outcome.Success && (outcome.RebootRequired || action.RequiresRestart));
         }, ct);
     }
 

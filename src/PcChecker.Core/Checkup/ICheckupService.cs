@@ -15,6 +15,12 @@ public interface ICheckupService
     /// <summary>Raised (on any thread) after a check-up finishes.</summary>
     event EventHandler<CheckupReport>? Completed;
 
+    /// <summary>
+    /// Raised (on any thread) whenever <see cref="Last"/> changes: after a check-up, and after fixes, which drop the
+    /// fixed items and the installed updates from it.
+    /// </summary>
+    event EventHandler<CheckupReport>? LastChanged;
+
     /// <summary>Runs every part one after another. A part that fails is listed in the results' gaps; the rest still run.</summary>
     Task<CheckupReport> RunAsync(IProgress<ProgressUpdate>? progress, CancellationToken cancellationToken);
 

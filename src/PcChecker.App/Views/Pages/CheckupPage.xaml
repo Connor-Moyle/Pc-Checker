@@ -154,8 +154,7 @@
                       </StackPanel>
                       <StackPanel Grid.Column="3" Margin="16,0,0,0" MinWidth="130" VerticalAlignment="Top">
                         <ui:TextBlock Style="{StaticResource RiskLabel}" Text="{Binding RiskText}" ToolTip="{Binding RiskTooltip}" HorizontalAlignment="Right" />
-                        <ui:HyperlinkButton Content="{Binding SourceText}" Padding="0,2" HorizontalAlignment="Right"
-                                            Command="{Binding DataContext.OpenCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}" />
+                        <ui:TextBlock Style="{StaticResource Caption}" Text="{Binding SourceText}" Margin="0,2" HorizontalAlignment="Right" />
                         <ui:Button Content="Fix" Appearance="Secondary" Icon="{ui:SymbolIcon Wrench24}" Padding="10,4" Margin="0,4,0,0" HorizontalAlignment="Right"
                                    ToolTip="Fixes just this item, after you confirm."
                                    Command="{Binding DataContext.FixItemCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}"

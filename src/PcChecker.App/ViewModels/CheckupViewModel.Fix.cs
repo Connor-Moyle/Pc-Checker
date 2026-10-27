@@ -88,7 +88,8 @@ public sealed partial class CheckupViewModel
         var text = new StringBuilder(Loc.T("PC Checker will, one after another:")).Append('\n');
         foreach (var item in plan.Steps.SelectMany(s => s.Items).Take(10))
         {
-            text.Append("• ").Append(item.Title);
+            // Name the change itself where it is not what the title says (a speed check finding fixed by one setting).
+            text.Append("• ").Append(item.FixAction is { } action ? Loc.F("{0} (for: {1})", action, item.Title) : item.Title);
             if (item.Risk != RiskLevel.Safe)
             {
                 text.Append(" (").Append(item.Risk == RiskLevel.Moderate ? Loc.T("Moderate") : Loc.T("Advanced")).Append(')');
@@ -109,7 +110,9 @@ public sealed partial class CheckupViewModel
 
         text.Append('\n').Append(plan.SharedRestorePoint
             ? Loc.T("One restore point is created first and covers every change, so you can go back.")
-            : Loc.T("These changes do not need a restore point: deleted temporary files are recreated as needed and startup apps can be turned back on."));
+            : plan.OnlyLightChanges
+                ? Loc.T("These changes do not need a restore point: deleted temporary files are recreated as needed and startup apps can be turned back on.")
+                : Loc.T("Restore points are turned off in Settings, so none is created before these changes."));
         text.Append(' ').Append(Loc.T("Each change is recorded in the Action Journal (Logs page)."));
         if (plan.Steps.Any(s => s.Kind is CheckupFixKind.InstallDriverUpdates or CheckupFixKind.InstallWindowsUpdates))
         {

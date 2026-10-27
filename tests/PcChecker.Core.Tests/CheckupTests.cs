@@ -207,6 +207,11 @@ public class CheckupMappingTests
         var disk = items.Single(i => i.Id == "performance.disk.low.C:");
         Assert.Equal(CheckupFixKind.ApplyOptimization, disk.Fix);
         Assert.Equal(["storagesense.enable"], disk.Targets);
+
+        // The fix is one setting, not the cure for a full drive: it is named, and never ticked for the user.
+        Assert.Equal("Turn on Storage Sense", disk.FixAction);
+        Assert.False(CheckupSelection.IsSelectedByDefault(disk));
+        Assert.Null(items.Single(i => i.Id == "performance.repair").FixAction);
         Assert.Equal(CheckupFixKind.None, items.Single(i => i.Id == "performance.repair").Fix);
         Assert.Equal(RiskLevel.Advanced, items.Single(i => i.Id == "performance.power").Risk);
         Assert.Contains(CheckupItemMapper.FromPerformance(report, actions, skipStartupCount: false), i => i.Id == "performance.startup.many");
@@ -329,6 +334,50 @@ public class CheckupSelectionAndPlanTests
         var debloat = CheckupBatchPlanner.Plan([settings, updates], false, restorePointsOn: false);
         Assert.True(debloat.SharedRestorePoint);
         Assert.Equal(1, debloat.SeparateRestorePoints);
+    }
+
+    [Fact]
+    public void Plan_tells_light_changes_apart_from_ones_that_run_without_a_restore_point()
+    {
+        var junk = CheckupRankingTests.Item("junk", Severity.Medium, fix: CheckupFixKind.CleanSafeJunk);
+        var startup = CheckupRankingTests.Item("startup", Severity.Low, fix: CheckupFixKind.DisableStartupItem);
+        var optimization = CheckupRankingTests.Item("opt", Severity.Medium, fix: CheckupFixKind.ApplyOptimization);
+        var updates = CheckupRankingTests.Item("wu", Severity.High, fix: CheckupFixKind.InstallWindowsUpdates);
+
+        var light = CheckupBatchPlanner.Plan([junk, startup], advancedMode: false, restorePointsOn: false);
+        Assert.False(light.SharedRestorePoint);
+        Assert.True(light.OnlyLightChanges);
+
+        var settingOff = CheckupBatchPlanner.Plan([junk, optimization, updates], advancedMode: false, restorePointsOn: false);
+        Assert.False(settingOff.SharedRestorePoint);
+        Assert.False(settingOff.OnlyLightChanges);
+
+        Assert.True(CheckupBatchPlanner.Plan([junk, optimization, updates], advancedMode: false, restorePointsOn: true).SharedRestorePoint);
+    }
+
+    [Fact]
+    public void After_fixes_the_report_drops_fixed_items_and_installed_updates()
+    {
+        static PendingUpdate Update(string id) =>
+            new(id, "Update " + id, null, 1, UpdateClassification.Security, UpdateSeverity.Important, UpdateRestartNeed.Yes, false, null);
+        var installs = CheckupRankingTests.Item("wu", Severity.High, fix: CheckupFixKind.InstallWindowsUpdates) with { Targets = ["a"] };
+        var junk = CheckupRankingTests.Item("junk", Severity.Medium, fix: CheckupFixKind.CleanSafeJunk);
+        var health = CheckupRankingTests.Item("health", Severity.Critical);
+        var results = CheckupScanResults.Empty(DateTimeOffset.Now) with
+        {
+            PendingUpdates = new PendingUpdateScan([Update("a"), Update("b")], [], DateTimeOffset.Now),
+        };
+        var report = new CheckupReport(results, [health, installs, junk]);
+
+        var fixes = new CheckupFixReport([new(installs, true, "Installed"), new(junk, false, "Failed")], ChangeBatchOutcome.None, false);
+        var after = CheckupAfterFix.Apply(report, fixes);
+
+        Assert.Equal(["health", "junk"], after.Items.Select(i => i.Id));
+        Assert.Equal(["b"], after.Results.PendingUpdates!.Updates.Select(u => u.Id));
+        Assert.Equal(report.Captured, after.Captured);
+
+        var nothing = new CheckupFixReport([new(junk, false, "Failed")], ChangeBatchOutcome.None, false);
+        Assert.Same(report, CheckupAfterFix.Apply(report, nothing));
     }
 
     [Fact]
@@ -544,6 +593,52 @@ public sealed class CheckupServiceTests : IDisposable
         Assert.Equal(plan.ItemCount, fixes.Results.Count);
         Assert.False(fixes.Cancelled);
         Assert.True(restore.Created.Count <= 1);
+        var fixedIds = fixes.Results.Where(r => r.Success).Select(r => r.Item.Id).ToList();
+        Assert.NotEmpty(fixedIds);
+        Assert.DoesNotContain(service.Last!.Items, i => fixedIds.Contains(i.Id));
+    }
+
+    [Fact]
+    public async Task A_service_time_out_fails_its_item_without_counting_as_a_cancel()
+    {
+        var settings = new JsonSettingsService(_dir);
+        settings.Current.RestorePoints.CreateBeforeChanges = false;
+        var guard = new ChangeGuard(new ChangeBatchTests.CountingRestore(), new JsonActionJournal(Path.Combine(_dir, "actions.jsonl")), settings,
+            NullLogger<ChangeGuard>.Instance);
+        var startup = new DemoStartupService();
+        var demoOptimization = new DemoOptimizationService([], startup);
+        var timingOut = new TimingOutOptimization(new OptimizationAction("slow", "Slow setting", "", "Test", RiskLevel.Safe, true, false, false));
+        var service = new CheckupService(new DemoHealthService(), new DemoTempFileScanner(), new DemoTempFileCleaner(), new DemoDriverService(),
+            new DemoWindowsUpdateService(), startup, new DemoPerformanceAnalyzer(startup), timingOut, new DemoDebloatService(demoOptimization),
+            new DemoDriverCleanupService(), guard, settings, NullLogger<CheckupService>.Instance);
+        var item = new CheckupItem("performance.slow", CheckupSource.Performance, Severity.Medium, "Slow", "Why", "Benefit", RiskLevel.Safe,
+            CheckupFixKind.ApplyOptimization, ["slow"]);
+        var report = new CheckupReport(CheckupScanResults.Empty(DateTimeOffset.Now), [item]);
+
+        var fixes = await service.FixAsync(report, CheckupBatchPlanner.Plan([item], false, false), null, CancellationToken.None);
+
+        Assert.False(fixes.Cancelled);
+        var result = Assert.Single(fixes.Results);
+        Assert.False(result.Success);
+        Assert.DoesNotContain("cancelled", result.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private sealed class TimingOutOptimization(OptimizationAction action) : IOptimizationService
+    {
+        public IReadOnlyList<OptimizationAction> Actions { get; } = [action];
+
+        public Task<ActionState> GetStateAsync(string actionId, CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task<OperationResult> ApplyAsync(string actionId, CancellationToken cancellationToken) =>
+            throw new TaskCanceledException("The request timed out.");
+
+        public Task<OperationResult> RevertAsync(string actionId, CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task<OperationResult> SetStartupItemEnabledAsync(StartupItem item, bool enabled, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<OperationResult> SetServiceStartModeAsync(string serviceName, string startMode, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
     }
 
     private sealed class SyncProgress(Action<ProgressUpdate> report) : IProgress<ProgressUpdate>

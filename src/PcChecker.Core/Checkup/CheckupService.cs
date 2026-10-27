@@ -68,6 +68,8 @@ public sealed partial class CheckupService : ICheckupService
 
     public event EventHandler<CheckupReport>? Completed;
 
+    public event EventHandler<CheckupReport>? LastChanged;
+
     /// <summary>The parts of a check-up in the order they run.</summary>
     public static IReadOnlyList<(CheckupSource Source, string Name)> Parts { get; } =
     [
@@ -104,6 +106,7 @@ public sealed partial class CheckupService : ICheckupService
             _logger.LogInformation("Check-up finished: {Items} item(s), {Fixable} with a fix, {Gaps} part(s) missing.",
                 report.Items.Count, report.FixableCount, results.Gaps.Count);
             Completed?.Invoke(this, report);
+            LastChanged?.Invoke(this, report);
             return report;
         }
         finally

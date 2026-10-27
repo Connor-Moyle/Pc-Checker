@@ -4,6 +4,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using PcChecker.App.Converters;
+using PcChecker.App.Localization;
 using PcChecker.App.Services;
 using PcChecker.App.Views.Pages;
 using PcChecker.Core.Audio;
@@ -145,7 +146,7 @@ public sealed partial class DashboardViewModel : ViewModelBase
         _sensors.AlertRaised += OnAlertRaised;
         _power.Updated += OnPowerUpdated;
         _history.Recorded += OnHistoryRecorded;
-        _checkup.Completed += OnCheckupCompleted;
+        _checkup.LastChanged += OnCheckupChanged;
         StartupNotices.Changed += (_, _) => DispatcherHelper.PostToUi(RebuildAlerts);
         UpdatePrompter.ResultChanged += (_, _) => DispatcherHelper.PostToUi(() => ShowUpdate(UpdatePrompter.LastResult));
     }
@@ -198,7 +199,7 @@ public sealed partial class DashboardViewModel : ViewModelBase
 
         BusyText = "Reading fans, lighting, displays and audio…";
         await RefreshControlsAsync(ct);
-        BusyText = "Reading updates, temperature history and drives…";
+        BusyText = Loc.T("Reading updates, temperature history and drives…");
         await RefreshGlanceAsync(ct);
         await RefreshRecentActionsAsync();
         if (Settings.Current.Updates.AutoCheck)
@@ -393,7 +394,7 @@ public sealed partial class DashboardViewModel : ViewModelBase
             }
         }
 
-        if (_pendingRebootReason is { } reboot)
+        if (_pendingRebootReason is { } reboot && !UpdateTileShowsRestart)
         {
             Alerts.Add(new DashboardAlert("Restart pending", reboot, Severity.Medium, typeof(StartupPage), "Startup"));
         }

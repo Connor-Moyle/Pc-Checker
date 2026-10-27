@@ -93,10 +93,14 @@ Nothing changes until you choose a fix.
   old driver packages marked *Safe to remove*. Everything else has
   **Open**, which takes you to the page.
 - **Selection**: Safe fixes that suit everyone are ticked after a check-up.
-  Startup apps and the privacy settings are personal choices and are never
-  ticked for you, Moderate fixes (driver updates) are never ticked
-  automatically, and Advanced ones can only be ticked in Advanced mode.
-- **Fix selected** confirms what will happen, then applies the ticked fixes
+  Startup apps, the privacy settings and the speed check optimizations
+  (such as turning on Storage Sense for a full drive, which also empties the
+  Recycle Bin over time) are choices for you and are never ticked for you,
+  Moderate fixes (driver updates) are never ticked automatically, and
+  Advanced ones can only be ticked in Advanced mode.
+- **Fix selected** confirms what will happen, naming the setting an
+  optimization changes rather than only the finding it helps with, then
+  applies the ticked fixes
   one service at a time: junk, old drivers, startup apps, optimizations,
   recommended settings, driver updates, Windows updates. Each service runs
   its change through the change guard as on its own page, but the run

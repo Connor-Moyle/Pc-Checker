@@ -129,11 +129,28 @@ public sealed partial class DashboardViewModel
         });
     }
 
-    private void OnCheckupCompleted(object? sender, CheckupReport report) => DispatcherHelper.PostToUi(() =>
+    /// <summary>
+    /// A check-up finished or its fixes were applied: show the new to-do count, and read the update status again,
+    /// since installed updates may now wait for a restart.
+    /// </summary>
+    private void OnCheckupChanged(object? sender, CheckupReport report) => DispatcherHelper.PostToUi(async () =>
     {
-        ApplyCheckup(report);
-        ApplyUpdates();
+        try
+        {
+            ApplyCheckup(report);
+            await Guard(async () => _updateStatus = await _windowsUpdate.GetStatusAsync(CancellationToken.None).WaitAsync(GlanceTimeout), "Windows Update status");
+            ApplyUpdates();
+            RebuildAlerts();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Check-up glance refresh failed.");
+        }
     });
+
+    /// <summary>True when the Windows Update tile already says a restart is pending, so the alerts strip need not repeat it.</summary>
+    private bool UpdateTileShowsRestart =>
+        DashboardGlance.Updates(_updateStatus, _checkup.Last?.Results.PendingUpdates).State == UpdateGlanceState.RestartPending;
 
     private void ApplyUpdates()
     {

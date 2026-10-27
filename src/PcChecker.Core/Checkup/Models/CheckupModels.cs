@@ -79,6 +79,12 @@ public sealed record CheckupItem(
     /// <summary>True when the fix asks for a restart to finish.</summary>
     public bool MayNeedRestart { get; init; }
 
+    /// <summary>
+    /// What "Fix" actually changes, when that is not what the title says (a speed check finding fixed by one setting):
+    /// shown in the confirmation and the results so the user approves the change, not the problem. Null otherwise.
+    /// </summary>
+    public string? FixAction { get; init; }
+
     public bool HasFix => Fix != CheckupFixKind.None;
 }
 
@@ -157,6 +163,13 @@ public sealed record CheckupFixPlan(IReadOnlyList<CheckupFixStep> Steps, IReadOn
     public int SeparateRestorePoints { get; init; }
 
     public bool MayNeedRestart => Steps.Any(s => s.Items.Any(i => i.MayNeedRestart));
+
+    /// <summary>
+    /// True when every step is one that never needs a restore point (Safe junk cleanup, startup toggles). When this is
+    /// false and <see cref="SharedRestorePoint"/> is false too, the changes run without any restore point because the
+    /// user turned restore points off.
+    /// </summary>
+    public bool OnlyLightChanges => Steps.All(s => s.RestorePoint == CheckupRestorePointNeed.None);
 }
 
 /// <summary>What happened to one item in a fix run.</summary>

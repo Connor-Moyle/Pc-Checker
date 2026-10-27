@@ -21,8 +21,6 @@ namespace PcChecker.App.ViewModels;
 /// </summary>
 public sealed partial class CheckupViewModel : ViewModelBase
 {
-    private const string DefaultSubtitle = "One check of everything, as a to-do list. Nothing changes until you choose to fix it.";
-
     private static readonly IReadOnlyDictionary<CheckupSource, Type> Pages = new Dictionary<CheckupSource, Type>
     {
         [CheckupSource.Health] = typeof(HealthPage),
@@ -48,7 +46,7 @@ public sealed partial class CheckupViewModel : ViewModelBase
     private bool _hasReport;
 
     [ObservableProperty]
-    private string _subtitle = DefaultSubtitle;
+    private string _subtitle;
 
     [ObservableProperty]
     private double? _overallProgress;
@@ -94,6 +92,7 @@ public sealed partial class CheckupViewModel : ViewModelBase
         _navigation = navigation;
         _logger = logger;
         _selectedText = Loc.T("Nothing selected");
+        _subtitle = Loc.T("One check of everything, as a to-do list. Nothing changes until you choose to fix it.");
         ResultLines.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasResultLines));
         PropertyChanged += (_, e) =>
         {
@@ -206,7 +205,7 @@ public sealed partial class CheckupViewModel : ViewModelBase
         UrgentText = urgent.ToString(CultureInfo.CurrentCulture);
         UrgentSubtitle = urgent == 0 ? Loc.T("Nothing serious") : Loc.T("High or critical, listed first");
         Warnings = report.Results.Gaps.Count == 0 ? null : string.Join("\n", report.Results.Gaps.Select(g => g.Reason));
-        Subtitle = Loc.F("Checked {0}.", report.Captured.ToString("t", CultureInfo.CurrentCulture)) + " " + Loc.T(DefaultSubtitle);
+        Subtitle = Loc.F("Checked {0}. Nothing changes until you choose to fix it.", report.Captured.ToString("t", CultureInfo.CurrentCulture));
         HasReport = true;
         UpdateSelection();
     }
