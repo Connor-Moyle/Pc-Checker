@@ -25,6 +25,9 @@ public sealed partial class WindowsOptimizationService
     /// <summary>The GUIDs of the plans <c>powercfg -duplicatescheme</c> created, so later applies and state checks find them by id, not by translated name.</summary>
     public const string UltimatePlanCopyValue = "UltimatePlanId";
     public const string HighPerformancePlanCopyValue = "HighPerformancePlanId";
+
+    /// <summary>Each adapter's DNS servers from before the Cloudflare DNS action (see <see cref="DnsBackup"/>).</summary>
+    public const string DnsBackupValue = "DnsBackup";
     private static readonly TimeSpan LongToolTimeout = TimeSpan.FromMinutes(45);
 
     private Dictionary<string, Handler> BuildHandlers() => new(StringComparer.OrdinalIgnoreCase)
@@ -375,18 +378,74 @@ public sealed partial class WindowsOptimizationService
             return new ActionState("dns.cloudflare", null, "Unknown");
         }
 
-        return new ActionState("dns.cloudflare", count > 0, count > 0 ? "Cloudflare DNS in use" : "Automatic (DHCP) DNS");
+        return new ActionState("dns.cloudflare", count > 0, count > 0 ? "Cloudflare DNS in use" : "Cloudflare DNS not in use");
     }
 
-    private static async Task<OperationResult> SetDnsAsync(bool cloudflare, CancellationToken ct)
+    private static async Task<OperationResult> SetDnsAsync(bool cloudflare, CancellationToken ct) =>
+        cloudflare ? await ApplyCloudflareDnsAsync(ct).ConfigureAwait(false) : await RestoreDnsAsync(ct).ConfigureAwait(false);
+
+    /// <summary>
+    /// Saves each connected adapter's own DNS servers (or that it used DHCP) before switching it to Cloudflare, so
+    /// Revert can put back exactly what was there. Nothing is changed when the current servers cannot be read.
+    /// </summary>
+    private static async Task<OperationResult> ApplyCloudflareDnsAsync(CancellationToken ct)
     {
-        string command = cloudflare
-            ? "Get-NetAdapter -Physical | Where-Object Status -eq 'Up' | ForEach-Object { Set-DnsClientServerAddress -InterfaceIndex $_.ifIndex -ServerAddresses 1.1.1.1,1.0.0.1 }; Clear-DnsClientCache"
-            : "Get-NetAdapter -Physical | ForEach-Object { Set-DnsClientServerAddress -InterfaceIndex $_.ifIndex -ResetServerAddresses }; Clear-DnsClientCache";
-        var result = await PowerShellRunner.RunAsync(command, TimeSpan.FromSeconds(60), ct).ConfigureAwait(false);
-        return result.Success
-            ? OperationResult.Ok(cloudflare ? "Active network adapters now use Cloudflare DNS (1.1.1.1 / 1.0.0.1)." : "DNS is back to automatic (DHCP).")
-            : OperationResult.Fail($"DNS change failed: {Last(result.StdErr, result.StdOut)}");
+        var capture = await PowerShellRunner.RunAsync(DnsBackup.CaptureScript, TimeSpan.FromSeconds(30), ct).ConfigureAwait(false);
+        var adapters = capture.Success ? PowerShellRunner.ParseJson<List<DnsAdapterDto>>(capture.StdOut) : null;
+        if (adapters is null)
+        {
+            return OperationResult.Fail($"The current DNS servers could not be read, so nothing was changed: {Last(capture.StdErr, capture.StdOut)}");
+        }
+
+        adapters = adapters.Where(a => Guid.TryParse(a.Guid, out _) && a.Index > 0).ToList();
+        if (adapters.Count == 0)
+        {
+            return OperationResult.Fail("No connected network adapter was found, so nothing was changed.");
+        }
+
+        var captured = adapters.Select(a => new DnsBackupEntry(a.Guid!, DnsBackup.ParseServers(a.NameServer))).ToList();
+        var existing = DnsBackup.Parse(RegistryTweaks.GetString(RegistryHive.CurrentUser, PreviousPowerSchemeKey, DnsBackupValue));
+        var saved = RegistryTweaks.SetString(RegistryHive.CurrentUser, PreviousPowerSchemeKey, DnsBackupValue, DnsBackup.Format(DnsBackup.Merge(existing, captured)));
+        if (!saved.Success)
+        {
+            return OperationResult.Fail($"The current DNS servers could not be saved for Revert, so nothing was changed: {saved.Message}");
+        }
+
+        var commands = adapters.Select(a => $"Set-DnsClientServerAddress -InterfaceIndex {a.Index} -ServerAddresses {DnsBackup.CloudflarePrimary},{DnsBackup.CloudflareSecondary} -ErrorAction Stop");
+        var result = await PowerShellRunner.RunAsync(string.Join("; ", commands) + "; Clear-DnsClientCache", TimeSpan.FromSeconds(60), ct).ConfigureAwait(false);
+        if (!result.Success)
+        {
+            return OperationResult.Fail($"DNS change failed: {Last(result.StdErr, result.StdOut)}");
+        }
+
+        var own = captured.Where(c => !c.WasAutomatic && !DnsBackup.IsCloudflare(c.Servers)).SelectMany(c => c.Servers).Distinct().ToList();
+        return OperationResult.Ok(own.Count == 0
+            ? "Active network adapters now use Cloudflare DNS (1.1.1.1 / 1.0.0.1)."
+            : $"Active network adapters now use Cloudflare DNS (1.1.1.1 / 1.0.0.1). Their own DNS servers ({string.Join(", ", own)}) were saved and come back with Revert; on a company or school network, internal names may not resolve until then.");
+    }
+
+    /// <summary>Puts back the saved servers: static ones where there were static ones, DHCP only where DHCP was used.</summary>
+    private static async Task<OperationResult> RestoreDnsAsync(CancellationToken ct)
+    {
+        var backup = DnsBackup.Parse(RegistryTweaks.GetString(RegistryHive.CurrentUser, PreviousPowerSchemeKey, DnsBackupValue));
+        string script = backup.Count == 0 ? DnsBackup.LegacyRevertScript : DnsBackup.BuildRestoreScript(backup);
+        var result = await PowerShellRunner.RunAsync(script, TimeSpan.FromSeconds(60), ct).ConfigureAwait(false);
+        if (!result.Success)
+        {
+            return OperationResult.Fail($"DNS change failed: {Last(result.StdErr, result.StdOut)}");
+        }
+
+        RegistryTweaks.DeleteValue(RegistryHive.CurrentUser, PreviousPowerSchemeKey, DnsBackupValue);
+        return OperationResult.Ok(backup.Count == 0
+            ? "DNS is back to automatic (DHCP) on adapters that get their address automatically."
+            : "The DNS servers the network adapters had before are back.");
+    }
+
+    private sealed class DnsAdapterDto
+    {
+        public string? Guid { get; set; }
+        public int Index { get; set; }
+        public string? NameServer { get; set; }
     }
 
     private async Task<OperationResult> ResetNetworkAsync(CancellationToken ct)

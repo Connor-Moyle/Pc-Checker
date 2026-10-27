@@ -426,3 +426,56 @@ public class SfcResultParserTests
         Assert.Equal(SfcOutcome.NoViolations, SfcResultParser.Interpret("did not find any integrity violations", partial));
     }
 }
+
+public class DnsBackupTests
+{
+    private const string Ethernet = "{4D36E972-E325-11CE-BFC1-08002BE10318}";
+    private const string WiFi = "{0A1B2C3D-4E5F-6071-8293-A4B5C6D7E8F9}";
+
+    [Fact]
+    public void Static_servers_and_dhcp_round_trip_through_the_registry_text()
+    {
+        var entries = new[]
+        {
+            new DnsBackupEntry(Ethernet, DnsBackup.ParseServers("192.168.1.10,10.0.0.53")),
+            new DnsBackupEntry(WiFi, DnsBackup.ParseServers("")),
+        };
+        var parsed = DnsBackup.Parse(DnsBackup.Format(entries));
+        Assert.Equal(2, parsed.Count);
+        Assert.Equal(["192.168.1.10", "10.0.0.53"], parsed[0].Servers);
+        Assert.False(parsed[0].WasAutomatic);
+        Assert.True(parsed[1].WasAutomatic);
+        Assert.Equal(["8.8.8.8", "fd00::1"], DnsBackup.ParseServers("8.8.8.8 fd00::1;not-an-ip"));
+        Assert.Empty(DnsBackup.Parse("garbage;{not-a-guid}=1.2.3.4"));
+    }
+
+    [Fact]
+    public void Applying_twice_keeps_the_original_servers()
+    {
+        var first = new[] { new DnsBackupEntry(Ethernet, ["192.168.1.10"]) };
+        var second = new[] { new DnsBackupEntry(Ethernet, ["1.1.1.1", "1.0.0.1"]), new DnsBackupEntry(WiFi, []) };
+        var merged = DnsBackup.Merge(first, second);
+        Assert.Equal(2, merged.Count);
+        Assert.Equal(["192.168.1.10"], merged.Single(e => e.InterfaceGuid == Ethernet).Servers);
+        Assert.True(merged.Single(e => e.InterfaceGuid == WiFi).WasAutomatic);
+        Assert.True(DnsBackup.IsCloudflare(second[0].Servers));
+        Assert.False(DnsBackup.IsCloudflare(first[0].Servers));
+    }
+
+    [Fact]
+    public void Restore_script_resets_only_adapters_that_used_dhcp()
+    {
+        var script = DnsBackup.BuildRestoreScript([new DnsBackupEntry(Ethernet, ["192.168.1.10", "10.0.0.53"]), new DnsBackupEntry(WiFi, [])]);
+        Assert.Contains($"$_.InterfaceGuid -eq '{Ethernet}'", script);
+        Assert.Contains("-ServerAddresses @('192.168.1.10','10.0.0.53')", script);
+        Assert.Contains($"$_.InterfaceGuid -eq '{WiFi}'", script);
+        Assert.Equal(1, CountOf(script, "-ResetServerAddresses"));
+        Assert.EndsWith("Clear-DnsClientCache", script);
+        Assert.DoesNotContain("-ResetServerAddresses", DnsBackup.BuildRestoreScript([new DnsBackupEntry(Ethernet, ["192.168.1.10"])]));
+
+        // Without a backup only DHCP adapters that use Cloudflare are reset.
+        Assert.Contains("$ip.Dhcp -eq 'Enabled'", DnsBackup.LegacyRevertScript);
+    }
+
+    private static int CountOf(string text, string value) => (text.Length - text.Replace(value, string.Empty, StringComparison.Ordinal).Length) / value.Length;
+}

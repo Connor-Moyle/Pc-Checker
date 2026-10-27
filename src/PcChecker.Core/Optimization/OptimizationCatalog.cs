@@ -70,7 +70,7 @@ public static class OptimizationCatalog
             "Opens the Cleanup section to remove junk files by category.",
             StorageCategory, RiskLevel.Safe, false, false, false),
         new("dns.cloudflare", "Use Cloudflare DNS (1.1.1.1)",
-            "Switches name lookups to a fast public resolver. Reversible to automatic (DHCP) DNS.",
+            "Switches name lookups to a fast public resolver. Each adapter's own DNS servers are saved first and come back with Revert.",
             NetworkCategory, RiskLevel.Advanced, true, false, true),
         new("telemetry.minimal", "Reduce diagnostic data sent to Microsoft",
             "Sets diagnostic data to the required minimum and disables tailored experiences.",
