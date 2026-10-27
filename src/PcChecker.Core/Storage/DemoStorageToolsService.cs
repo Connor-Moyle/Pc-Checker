@@ -4,17 +4,14 @@ using PcChecker.Core.Drivers;
 namespace PcChecker.Core.Storage;
 
 /// <summary>
-/// Demo storage tools for the sample gaming desktop: a healthy Samsung 990 PRO NVMe (C:) and a WD 4 TB hard disk (D:)
-/// with two unreadable blocks, a simulated surface scan with a live block map, a benchmark with plausible figures,
+/// Demo storage tools for the sample gaming desktop, with the drives of <see cref="DemoDriveInventoryService"/>: a healthy
+/// Samsung 990 PRO NVMe (C:), a WD 4 TB hard disk (D:) with two unreadable blocks, a SATA SSD, a sleeping USB disk and a
+/// mirrored storage space; a simulated surface scan with a live block map, a benchmark with plausible figures,
 /// chkdsk / Repair-Volume / Optimize runs with streamed output lines, and a few disk events. Pure .NET.
 /// </summary>
 public sealed class DemoStorageToolsService : IStorageToolsService, ISurfaceScanner
 {
-    private static readonly StorageDevice[] Devices =
-    [
-        new(0, DemoData.NvmeModel, "S6Z2NJ0DEMO0001", "4B2QJXD7", DemoData.NvmeBytes, "SSD", "NVMe", HealthStatus.Good, ["C:"], true),
-        new(1, DemoData.HddModel, "WD-WX12DEMO0002", "80.00A80", DemoData.HddBytes, "HDD", "SATA", HealthStatus.Warning, ["D:"], false),
-    ];
+    private static readonly IReadOnlyList<StorageDevice> Devices = StorageDeviceMapper.ToStorageDevices(DemoDriveInventoryService.Build(DateTimeOffset.Now));
 
     public async Task<IReadOnlyList<StorageDevice>> GetDevicesAsync(CancellationToken cancellationToken)
     {

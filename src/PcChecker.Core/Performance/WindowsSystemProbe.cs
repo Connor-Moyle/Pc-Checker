@@ -148,9 +148,13 @@ public static class WindowsSystemProbe
         var mediaByLetter = new Dictionary<char, string>();
         if (PlatformGuard.IsWindows)
         {
-            var disks = Query(@"root\Microsoft\Windows\Storage", "SELECT DeviceId, MediaType FROM MSFT_PhysicalDisk",
-                row => (Id: Str(row, "DeviceId") ?? string.Empty, Media: PerformanceTextParsers.MediaTypeName((int?)Long(row, "MediaType"))), warnings, "Disk media types")
-                .ToDictionary(d => d.Id, d => d.Media);
+            // MediaType 0 (Unspecified) falls back to the bus (NVMe), the spindle speed and the model name, as on the
+            // Storage page.
+            var disks = Query(@"root\Microsoft\Windows\Storage", "SELECT DeviceId, FriendlyName, MediaType, BusType, SpindleSpeed FROM MSFT_PhysicalDisk",
+                row => (Id: Str(row, "DeviceId") ?? string.Empty, Media: Storage.DriveMediaRules.Label(Storage.DriveMediaRules.Decide(
+                    (int?)Long(row, "MediaType"), (int?)Long(row, "BusType"), null, Long(row, "SpindleSpeed"), Str(row, "FriendlyName")).Media)), warnings, "Disk media types")
+                .GroupBy(d => d.Id)
+                .ToDictionary(g => g.Key, g => g.First().Media);
             var partitions = Query(@"root\Microsoft\Windows\Storage", "SELECT DiskNumber, DriveLetter FROM MSFT_Partition",
                 row => (Disk: Long(row, "DiskNumber")?.ToString() ?? string.Empty, Letter: Str(row, "DriveLetter")), null);
             foreach (var (disk, letter) in partitions)

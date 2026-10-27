@@ -42,14 +42,17 @@ public sealed partial class WindowsHealthService : IHealthService
     private readonly ISensorService _sensors;
     private readonly ISettingsService _settings;
     private readonly ILogger<WindowsHealthService> _logger;
+    private readonly Storage.IDriveInventoryService? _drives;
     private readonly SemaphoreSlim _gate = new(1, 1);
 
-    public WindowsHealthService(IHardwareMonitorHost monitor, ISensorService sensors, ISettingsService settings, ILogger<WindowsHealthService> logger)
+    public WindowsHealthService(IHardwareMonitorHost monitor, ISensorService sensors, ISettingsService settings, ILogger<WindowsHealthService> logger,
+        Storage.IDriveInventoryService? drives = null)
     {
         _monitor = monitor;
         _sensors = sensors;
         _settings = settings;
         _logger = logger;
+        _drives = drives;
     }
 
     public HealthReport? Last { get; private set; }
@@ -68,7 +71,7 @@ public sealed partial class WindowsHealthService : IHealthService
             var ctx = new AnalysisContext(DateTimeOffset.Now);
             var steps = new (string Stage, Func<CancellationToken, Task> Work)[]
             {
-                ("Drive health (SMART)", ct => Task.Run(() => CollectDisks(ctx, ct), ct)),
+                ("Drive health (SMART)", ct => CollectDisksAsync(ctx, ct)),
                 ("Drive health (reliability counters)", ct => CollectReliabilityCountersAsync(ctx, ct)),
                 ("Battery", ct => Task.Run(() => CollectBatteries(ctx, ct), ct)),
                 ("Device problems", ct => Task.Run(() => CollectDeviceProblems(ctx, ct), ct)),

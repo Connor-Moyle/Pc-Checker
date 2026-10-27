@@ -16,12 +16,14 @@ public sealed partial class WindowsStorageToolsService : IStorageToolsService, I
     private const string StorageScope = @"root\Microsoft\Windows\Storage";
     private readonly IChangeGuard _changeGuard;
     private readonly ILogger<WindowsStorageToolsService> _logger;
+    private readonly IDriveInventoryService? _drives;
     private IReadOnlyList<StorageDevice> _lastDevices = [];
 
-    public WindowsStorageToolsService(IChangeGuard changeGuard, ILogger<WindowsStorageToolsService> logger)
+    public WindowsStorageToolsService(IChangeGuard changeGuard, ILogger<WindowsStorageToolsService> logger, IDriveInventoryService? drives = null)
     {
         _changeGuard = changeGuard;
         _logger = logger;
+        _drives = drives;
     }
 
     public async Task<IReadOnlyList<StorageDevice>> GetDevicesAsync(CancellationToken cancellationToken)
@@ -29,6 +31,30 @@ public sealed partial class WindowsStorageToolsService : IStorageToolsService, I
         if (!PlatformGuard.IsWindows)
         {
             return [];
+        }
+
+        // The drive inventory lists every drive once (pool members, RAID, USB, offline and empty disks included) and
+        // never wakes a sleeping drive; the older readers below remain the fallback.
+        if (_drives is not null)
+        {
+            try
+            {
+                var drives = await _drives.GetDrivesAsync(DriveReadMode.Routine, cancellationToken).ConfigureAwait(false);
+                if (drives.Count > 0)
+                {
+                    _lastDevices = StorageDeviceMapper.ToStorageDevices(drives);
+                    _logger.LogInformation("Found {Count} drives.", _lastDevices.Count);
+                    return _lastDevices;
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Drive inventory failed; falling back to the storage namespace.");
+            }
         }
 
         var devices = await Task.Run(() =>
@@ -165,7 +191,7 @@ public sealed partial class WindowsStorageToolsService : IStorageToolsService, I
 
         var devices = new List<StorageDevice>();
         using var searcher = new ManagementObjectSearcher(new ManagementScope(StorageScope),
-            new ObjectQuery("SELECT DeviceId, FriendlyName, SerialNumber, FirmwareVersion, Size, MediaType, BusType, HealthStatus FROM MSFT_PhysicalDisk"));
+            new ObjectQuery("SELECT DeviceId, FriendlyName, SerialNumber, FirmwareVersion, Size, MediaType, BusType, HealthStatus, SpindleSpeed FROM MSFT_PhysicalDisk"));
         foreach (ManagementBaseObject d in searcher.Get())
         {
             int number = ToInt(d["DeviceId"]) ?? -1;
@@ -175,17 +201,15 @@ public sealed partial class WindowsStorageToolsService : IStorageToolsService, I
             }
 
             string bus = StorageCodes.BusType(ToInt(d["BusType"]));
-            string media = StorageCodes.MediaType(ToInt(d["MediaType"]));
-            if (media == "Unknown" && bus == "NVMe")
-            {
-                media = "SSD";
-            }
+            // MediaType 0 (Unspecified) falls back to the bus (NVMe) and the spindle speed (0 = SSD).
+            var decision = DriveMediaRules.Decide(ToInt(d["MediaType"]), ToInt(d["BusType"]), null, ToLong(d["SpindleSpeed"]), Clean(d["FriendlyName"]));
+            string media = DriveMediaRules.Label(decision.Media);
 
             var volumes = volumesByDisk.TryGetValue(number, out var v) ? v.OrderBy(x => x).ToList() : [];
             devices.Add(new StorageDevice(
                 number,
                 Clean(d["FriendlyName"]) ?? $"Disk {number}",
-                Clean(d["SerialNumber"]),
+                DriveSerial.Clean(Clean(d["SerialNumber"])),
                 Clean(d["FirmwareVersion"]),
                 ToLong(d["Size"]) ?? 0,
                 media,
@@ -237,7 +261,7 @@ public sealed partial class WindowsStorageToolsService : IStorageToolsService, I
             devices.Add(new StorageDevice(
                 number,
                 Clean(d["Model"]) ?? $"Disk {number}",
-                Clean(d["SerialNumber"]),
+                DriveSerial.Clean(Clean(d["SerialNumber"])),
                 Clean(d["FirmwareRevision"]),
                 ToLong(d["Size"]) ?? 0,
                 StorageCodes.MediaTypeFromText(Clean(d["MediaType"]), bus),

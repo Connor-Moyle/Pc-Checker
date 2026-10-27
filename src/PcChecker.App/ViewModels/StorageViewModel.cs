@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
+using PcChecker.App.Localization;
 using PcChecker.App.Services;
 using PcChecker.Core.Common;
 using PcChecker.Core.Drivers;
@@ -19,6 +20,7 @@ public sealed partial class StorageViewModel : ViewModelBase
     private const int EventDays = 30;
 
     private readonly IStorageToolsService _storage;
+    private readonly IDriveInventoryService _drives;
     private readonly IDialogService _dialogs;
     private readonly INotificationService _notifications;
 
@@ -55,11 +57,12 @@ public sealed partial class StorageViewModel : ViewModelBase
     [ObservableProperty]
     private Severity _eventsWorstSeverity = Severity.Info;
 
-    public StorageViewModel(IStorageToolsService storage, IDialogService dialogs, INotificationService notifications,
+    public StorageViewModel(IStorageToolsService storage, IDriveInventoryService drives, IDialogService dialogs, INotificationService notifications,
         ISettingsService settings, ILogger<StorageViewModel> logger)
         : base(settings)
     {
         _storage = storage;
+        _drives = drives;
         _dialogs = dialogs;
         _notifications = notifications;
         _logger = logger;
@@ -118,7 +121,7 @@ public sealed partial class StorageViewModel : ViewModelBase
         int previous = SelectedDevice?.Number ?? -1;
 
         Devices.Clear();
-        foreach (var device in devices.OrderBy(d => d.Number))
+        foreach (var device in devices.OrderBy(d => d.Number < 0 ? 1 : 0).ThenBy(d => d.Number))
         {
             Devices.Add(new StorageDeviceItem(device, StorageVendorRules.ToolFor(device.Model)));
         }
@@ -171,6 +174,7 @@ public sealed partial class StorageViewModel : ViewModelBase
         }
 
         SelectedVolume = DeviceVolumes.FirstOrDefault();
+        UpdateDriveDetails(value);
         UpdateScanEstimate();
         ClearScanResult();
         ClearBenchmarkResult();
@@ -214,6 +218,7 @@ public sealed partial class StorageViewModel : ViewModelBase
         ScheduleFullRepairCommand.NotifyCanExecuteChanged();
         RepairVolumeCommand.NotifyCanExecuteChanged();
         OptimizeCommand.NotifyCanExecuteChanged();
+        ReadSmartNowCommand.NotifyCanExecuteChanged();
     }
 
     /// <summary>Shows a notification unless the demo showcase is running.</summary>
@@ -265,13 +270,19 @@ public sealed partial class StorageViewModel : ViewModelBase
             return "No physical drives were found. PC Checker needs administrator rights to list drives.";
         }
 
-        int warn = devices.Count(d => d.Health == HealthStatus.Warning);
-        int crit = devices.Count(d => d.Health == HealthStatus.Critical);
-        long total = devices.Sum(d => d.SizeBytes);
-        string health = crit > 0 ? $"{crit} drive{(crit == 1 ? string.Empty : "s")} reporting failure"
-            : warn > 0 ? $"{warn} drive{(warn == 1 ? string.Empty : "s")} with a warning"
-            : "all drives report healthy";
-        return $"{devices.Count} drive{(devices.Count == 1 ? string.Empty : "s")}, {ByteSize.Format(total)} in total; {health}.";
+        // Storage spaces are made from pool members, so only physical drives count toward the total.
+        var physical = devices.Where(d => d.Drive?.Role != DriveRole.StorageSpace).ToList();
+        int warn = physical.Count(d => d.Health == HealthStatus.Warning);
+        int crit = physical.Count(d => d.Health == HealthStatus.Critical);
+        int asleep = physical.Count(d => d.Drive?.Power == DrivePowerState.Asleep);
+        long total = physical.Sum(d => d.SizeBytes);
+        string health = crit > 0 ? Loc.F("{0} with a Bad verdict", crit)
+            : warn == 1 ? Loc.T("1 needs caution")
+            : warn > 0 ? Loc.F("{0} need caution", warn)
+            : Loc.T("no problems reported");
+        string sleeping = asleep > 0 ? " " + Loc.F("{0} asleep (not woken).", asleep) : string.Empty;
+        string count = physical.Count == 1 ? Loc.T("1 physical drive") : Loc.F("{0} physical drives", physical.Count);
+        return Loc.F("{0}, {1} in total; {2}.", count, DriveText.Decimal(total), health) + sleeping;
     }
 
     private static string BuildEventsSummary(IReadOnlyList<DiskErrorEvent> events)

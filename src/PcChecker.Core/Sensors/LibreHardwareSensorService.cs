@@ -547,6 +547,12 @@ public sealed class LibreHardwareSensorService : ISensorService, IHardwareMonito
 
         public void VisitHardware(IHardware hardware)
         {
+            // A sleeping hard disk would be spun up by the SMART read behind its sensors; skip it until it wakes.
+            if (hardware.HardwareType == HardwareType.Storage && DrivePowerProbe.ShouldSkipMonitorUpdate(hardware.Identifier.ToString()))
+            {
+                return;
+            }
+
             hardware.Update();
             foreach (var sub in hardware.SubHardware)
             {

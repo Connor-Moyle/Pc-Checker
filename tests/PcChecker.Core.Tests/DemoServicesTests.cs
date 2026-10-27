@@ -30,7 +30,8 @@ public class DemoServicesTests
         Assert.Contains("13700K", Assert.Single(inv.Processors).Name);
         Assert.Contains("RTX 4070", Assert.Single(inv.Graphics).Name);
         Assert.Equal(2, inv.MemoryModules.Count);
-        Assert.Equal(2, inv.PhysicalDisks.Count);
+        // The same drives as the Storage page demo: NVMe, HDD, SATA SSD, USB HDD, storage space and its two pool members.
+        Assert.Equal(7, inv.PhysicalDisks.Count);
         Assert.Equal(32L * 1024 * 1024 * 1024, inv.TotalMemoryBytes);
         Assert.True(inv.AllItems().Count() > 15);
     }
@@ -100,8 +101,8 @@ public class DemoServicesTests
 
         var storage = new DemoStorageToolsService();
         var devices = await storage.GetDevicesAsync(CancellationToken.None);
-        Assert.Equal(2, devices.Count);
-        Assert.Equal(2, storage.GetVendorTools(devices).Count);
+        Assert.Equal(7, devices.Count); // five disks plus the two hidden members of the mirrored storage space
+        Assert.Equal(4, storage.GetVendorTools(devices).Count);
         var scan = await storage.SurfaceScanAsync(1, 8, null, CancellationToken.None);
         Assert.True(scan.Completed);
         Assert.Equal(2, scan.BadBlocks);
