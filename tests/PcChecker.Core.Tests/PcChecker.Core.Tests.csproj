@@ -15,4 +15,11 @@
     <PackageReference Include="xunit.runner.visualstudio" />
   </ItemGroup>
 
+  <!-- LibreHardwareMonitorLib ships its implementation only under runtimes/win-*, which the .NET host does not load
+       when the tests run on Linux. Reference the x64 build directly so the tests that touch its types run on any OS. -->
+  <ItemGroup>
+    <PackageReference Include="LibreHardwareMonitorLib" GeneratePathProperty="true" ExcludeAssets="compile;runtime" />
+    <Reference Include="LibreHardwareMonitorLib" HintPath="$(PkgLibreHardwareMonitorLib)/runtimes/win-x64/lib/net8.0/LibreHardwareMonitorLib.dll" />
+  </ItemGroup>
+
 </Project>

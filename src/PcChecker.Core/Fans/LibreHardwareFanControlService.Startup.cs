@@ -263,6 +263,11 @@ public sealed partial class LibreHardwareFanControlService
 
     private string DescribeUnavailable()
     {
+        if (_host.DriverProblem is { } driverProblem)
+        {
+            return "No motherboard fan controls were found. " + driverProblem;
+        }
+
         if (_rpmOnly.Count > 0)
         {
             return $"This PC reports {_rpmOnly.Count} fan speed(s) but no fan controls the app can drive. Laptops and many pre-built desktops only let the firmware (BIOS/EC) control the fans; use the manufacturer's utility or the BIOS fan settings instead.";

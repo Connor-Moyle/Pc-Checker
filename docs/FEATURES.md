@@ -76,8 +76,9 @@ Live readings from every sensor LibreHardwareMonitor can see.
 - **Advanced**: an *All sensors* table with every sensor kind: loads, clocks,
   fan speeds, voltages, power, data counters.
 
-Limitations: the sensor driver needs administrator rights and can be blocked
-by core isolation (memory integrity) or held by another monitoring tool; the
+Limitations: the sensor driver needs administrator rights, CPU and motherboard
+sensors need the PawnIO driver installed, and another monitoring tool can hold
+the hardware; the
 page shows the exact reason and a *Retry* button. Laptops and OEM desktops
 often expose very few sensors, and virtual machines almost none.
 

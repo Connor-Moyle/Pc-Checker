@@ -13,6 +13,12 @@ public interface IHardwareMonitorHost
     /// <summary>Why the monitor could not be opened, or null when it is open.</summary>
     string? OpenError { get; }
 
+    /// <summary>
+    /// Why the CPU and motherboard sensors cannot be read even though the monitor opened (the PawnIO driver they need is
+    /// not installed), or null when nothing is known to be missing.
+    /// </summary>
+    string? DriverProblem => null;
+
     Task EnsureOpenAsync(CancellationToken cancellationToken);
 
     /// <summary>Runs <paramref name="func"/> against the computer under the host's lock; returns default when closed.</summary>

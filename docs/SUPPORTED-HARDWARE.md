@@ -63,8 +63,8 @@ LibreHardwareMonitor provides every reading. It supports:
 - **PSUs and coolers**: Corsair HX/RM i-series PSUs and a few AIO pumps and
   controllers.
 
-Common reasons readings are missing: core isolation (memory integrity)
-blocking the kernel driver, another monitoring tool holding the hardware, an
+Common reasons readings are missing: the PawnIO driver (needed for CPU and
+motherboard sensors) not installed, another monitoring tool holding the hardware, an
 OEM laptop that hides its sensors, or a virtual machine. The Temperatures page
 shows the reason.
 

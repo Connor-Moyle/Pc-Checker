@@ -13,8 +13,14 @@ namespace PcChecker.Core.Sensors;
 /// </summary>
 public sealed class LibreHardwareSensorService : ISensorService, IHardwareMonitorHost, ISensorServiceExtras, IDisposable
 {
-    private const string AdminHint = "Make sure PC Checker runs as administrator and that no other monitoring tool holds the driver. "
-        + "If Windows Security has \"Memory integrity\" (core isolation) turned on, the driver can be blocked.";
+    private const string AdminHint = "Make sure PC Checker runs as administrator, that the PawnIO driver is installed and that no other monitoring tool holds the hardware.";
+
+    /// <summary>
+    /// Shown when PawnIO is missing. LibreHardwareMonitor reads the CPU and the motherboard sensor chip only through the
+    /// signed PawnIO driver (it no longer bundles WinRing0, which Microsoft Defender quarantines), and it does not install it.
+    /// </summary>
+    internal const string PawnIoMissing = "The PawnIO driver is not installed, so CPU temperatures and the motherboard sensor chip (case and CPU fan headers, VRM and chipset readings) cannot be read. "
+        + "Install PawnIO from https://pawnio.eu (or run \"winget install namazso.PawnIO\"), then restart PC Checker.";
 
     private readonly ISettingsService _settings;
     private readonly ILogger<LibreHardwareSensorService> _logger;
@@ -58,6 +64,8 @@ public sealed class LibreHardwareSensorService : ISensorService, IHardwareMonito
     }
 
     public bool IsOpen => _isOpen;
+
+    public string? DriverProblem => PlatformGuard.IsWindows && !IsPawnIoInstalled() ? PawnIoMissing : null;
 
     public string? OpenError => _isOpen ? null : _openError;
 
@@ -278,7 +286,7 @@ public sealed class LibreHardwareSensorService : ISensorService, IHardwareMonito
                 if (computer.Hardware.Count == 0)
                 {
                     TryClose(computer);
-                    _openError = "The hardware monitor opened but found no hardware. " + AdminHint;
+                    _openError = "The hardware monitor opened but found no hardware. " + (DriverProblem ?? AdminHint);
                     _logger.LogWarning("LibreHardwareMonitor found no hardware.");
                     return;
                 }
@@ -342,9 +350,15 @@ public sealed class LibreHardwareSensorService : ISensorService, IHardwareMonito
             }
         }
 
+        string? driverProblem = DriverProblem;
+        if (driverProblem is not null)
+        {
+            notes.Add(driverProblem);
+        }
+
         if (!hasCpuTemp)
         {
-            notes.Add("No CPU temperature sensor was found. " + AdminHint);
+            notes.Add("No CPU temperature sensor was found. " + (driverProblem is null ? AdminHint : "Install PawnIO (see above)."));
         }
 
         if (!hasMotherboard)
@@ -361,6 +375,20 @@ public sealed class LibreHardwareSensorService : ISensorService, IHardwareMonito
         {
             _warnings.Clear();
             _warnings.AddRange(notes);
+        }
+    }
+
+    private bool IsPawnIoInstalled()
+    {
+        try
+        {
+            return LibreHardwareMonitor.PawnIo.PawnIo.IsInstalled;
+        }
+        catch (Exception ex)
+        {
+            // Could not read the uninstall entry: do not claim the driver is missing.
+            _logger.LogDebug(ex, "Could not check whether PawnIO is installed.");
+            return true;
         }
     }
 

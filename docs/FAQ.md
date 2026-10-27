@@ -53,10 +53,11 @@ wrong, the restore point the app made is the way back.
 ### No temperatures are showing
 
 - The sensor driver needs administrator rights.
-- **Core isolation (memory integrity)** in Windows Security can block the
-  kernel driver that reads sensors. The Temperatures page shows the exact
-  error; turning memory integrity off restores the readings, but that is a
-  security trade-off only you can make.
+- CPU temperatures and the motherboard sensor chip (case and CPU fan headers)
+  are read through the signed **PawnIO** driver, which is installed
+  separately. If it is missing, the Temperatures page says so; install it from
+  [pawnio.eu](https://pawnio.eu) or with `winget install namazso.PawnIO`, then
+  restart PC Checker. It works with core isolation (memory integrity) on.
 - Another monitoring tool (one that ships with a motherboard, HWiNFO, an RGB
   suite) can hold the sensor interface. Close it and click *Retry*.
 - Some laptops and OEM desktops expose very few sensors. Virtual machines
@@ -69,7 +70,8 @@ motherboard headers on supported Super I/O chips (most enthusiast desktop
 boards), NVIDIA and AMD GPU fans and a few coolers. Laptops and most OEM
 desktops keep the fans behind an embedded controller that software cannot
 reach. AIOs and fan hubs that only speak a vendor USB protocol (iCUE, NZXT
-CAM, Lian Li) need the vendor's software. See
+CAM, Lian Li) need the vendor's software. Motherboard headers also need the
+PawnIO driver (see *No temperatures are showing*). See
 [SUPPORTED-HARDWARE.md](SUPPORTED-HARDWARE.md).
 
 ### Lighting says "OpenRGB not running" or "not installed"

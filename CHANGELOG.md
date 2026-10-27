@@ -15,6 +15,10 @@ All notable changes to PC Checker are recorded here. The format follows
 
 ### Fixed
 - The FAQ no longer says Windows on Arm is unsupported; it has its own build.
+- Sensors and fan control use LibreHardwareMonitor 0.9.6, which reads the CPU
+  and motherboard through the signed PawnIO driver instead of WinRing0, which
+  Microsoft Defender quarantines. When PawnIO is not installed, the
+  Temperatures and Fans pages say so and how to install it.
 
 ## [0.2.0] - 2026-10-27
 
