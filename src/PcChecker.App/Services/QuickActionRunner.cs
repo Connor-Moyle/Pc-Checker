@@ -61,6 +61,9 @@ public sealed class QuickActionRunner
         var busyWait = waitWhileBusy ? QueuedWaitLimit : BusyWaitLimit;
         switch (actionId)
         {
+            // In demo mode the first visit already runs the check-up.
+            case QuickActionIds.Checkup:
+                return RunOnPageAsync<CheckupViewModel>(typeof(CheckupPage), vm => vm.RunCommand, busyWait, firstVisitDoesIt: AppOptions.Current.IsDemo);
             case QuickActionIds.FullScan:
                 return RunOnPageAsync<DashboardViewModel>(typeof(DashboardPage), vm => vm.FullScanCommand, busyWait);
             case QuickActionIds.ExportReport:

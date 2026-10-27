@@ -7,12 +7,15 @@ using PcChecker.App.Converters;
 using PcChecker.App.Services;
 using PcChecker.App.Views.Pages;
 using PcChecker.Core.Audio;
+using PcChecker.Core.Checkup;
 using PcChecker.Core.Common;
+using PcChecker.Core.DiskSpace;
 using PcChecker.Core.Displays;
 using PcChecker.Core.Drivers;
 using PcChecker.Core.Fans;
 using PcChecker.Core.Hardware;
 using PcChecker.Core.Health;
+using PcChecker.Core.History;
 using PcChecker.Core.Lighting;
 using PcChecker.Core.Logging;
 using PcChecker.Core.Overclocking;
@@ -23,6 +26,7 @@ using PcChecker.Core.Sensors;
 using PcChecker.Core.Settings;
 using PcChecker.Core.Software;
 using PcChecker.Core.Updates;
+using PcChecker.Core.WindowsUpdate;
 using Wpf.Ui;
 
 namespace PcChecker.App.ViewModels;
@@ -49,6 +53,11 @@ public sealed partial class DashboardViewModel : ViewModelBase
     private readonly IDisplayService _displays;
     private readonly IAudioService _audio;
     private readonly IOverclockService _overclock;
+    private readonly IWindowsUpdateService _windowsUpdate;
+    private readonly IHistoryService _history;
+    private readonly IDiskSpaceService _diskSpace;
+    private readonly ICheckupService _checkup;
+    private readonly QuickActionRunner _quickActions;
     private readonly INavigationService _navigation;
     private readonly IDialogService _dialogs;
     private readonly INotificationService _notifications;
@@ -77,8 +86,6 @@ public sealed partial class DashboardViewModel : ViewModelBase
     [ObservableProperty] private string _ramText = "—";
     [ObservableProperty] private string? _ramSubtitle;
     [ObservableProperty] private Brush _ramBrush = TemperatureToBrushConverter.Unknown;
-    [ObservableProperty] private string _diskFreeText = "—";
-    [ObservableProperty] private string? _diskFreeSubtitle;
     [ObservableProperty] private Brush _diskBrush = TemperatureToBrushConverter.Unknown;
     [ObservableProperty] private string _powerText = "—";
     [ObservableProperty] private string? _powerSubtitle;
@@ -94,7 +101,8 @@ public sealed partial class DashboardViewModel : ViewModelBase
     public DashboardViewModel(ISettingsService settings, IHealthService health, ISensorService sensors, IPowerService power,
         IHardwareInventoryService hardware, IPerformanceAnalyzer performance, ISoftwareInventoryService software, IDriverService drivers,
         IReportService reports, IActionJournal journal, IAppUpdateService updates, IFanControlService fans, ILightingService lighting,
-        IDisplayService displays, IAudioService audio, IOverclockService overclock, INavigationService navigation, IDialogService dialogs,
+        IDisplayService displays, IAudioService audio, IOverclockService overclock, IWindowsUpdateService windowsUpdate, IHistoryService history,
+        IDiskSpaceService diskSpace, ICheckupService checkup, QuickActionRunner quickActions, INavigationService navigation, IDialogService dialogs,
         INotificationService notifications, ILogger<DashboardViewModel> logger)
         : base(settings)
     {
@@ -113,6 +121,11 @@ public sealed partial class DashboardViewModel : ViewModelBase
         _displays = displays;
         _audio = audio;
         _overclock = overclock;
+        _windowsUpdate = windowsUpdate;
+        _history = history;
+        _diskSpace = diskSpace;
+        _checkup = checkup;
+        _quickActions = quickActions;
         _navigation = navigation;
         _dialogs = dialogs;
         _notifications = notifications;
@@ -131,6 +144,8 @@ public sealed partial class DashboardViewModel : ViewModelBase
         _sensors.SnapshotUpdated += OnSnapshotUpdated;
         _sensors.AlertRaised += OnAlertRaised;
         _power.Updated += OnPowerUpdated;
+        _history.Recorded += OnHistoryRecorded;
+        _checkup.Completed += OnCheckupCompleted;
         StartupNotices.Changed += (_, _) => DispatcherHelper.PostToUi(RebuildAlerts);
         UpdatePrompter.ResultChanged += (_, _) => DispatcherHelper.PostToUi(() => ShowUpdate(UpdatePrompter.LastResult));
     }
@@ -183,6 +198,8 @@ public sealed partial class DashboardViewModel : ViewModelBase
 
         BusyText = "Reading fans, lighting, displays and audio…";
         await RefreshControlsAsync(ct);
+        BusyText = "Reading updates, temperature history and drives…";
+        await RefreshGlanceAsync(ct);
         await RefreshRecentActionsAsync();
         if (Settings.Current.Updates.AutoCheck)
         {

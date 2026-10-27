@@ -15,6 +15,19 @@ All notable changes to PC Checker are recorded here. The format follows
   is available* chooses between asking, downloading first and then asking to
   restart, or just telling you. The Dashboard banner has an *Update now*
   button.
+- **Check-up** (Home → Check-up): one button runs the health check, a cleanup
+  scan of the Safe categories, the driver and Windows update checks, startup
+  analysis, the speed check, the Recommended debloat settings and the
+  old-driver scan with one progress view, and turns the results into a single
+  ranked to-do list. Each item says why it matters, what fixing it brings,
+  its risk and its page, and offers *Fix* where the owning page has a safe
+  automatic fix or *Open* otherwise. *Fix selected* applies the ticked fixes
+  one service at a time behind one shared restore point and reports a result
+  per item; Moderate and Advanced fixes are never ticked automatically.
+- **Dashboard**: a Windows Update tile (restart pending, updates waiting,
+  paused or up to date), CPU and GPU temperature sparklines for the last 24
+  hours from History, the fullest drive from Disk space and a check-up strip
+  with *Run check-up*.
 
 ## [0.4.0] - 2026-10-27
 

@@ -17,6 +17,7 @@ public static class QuickActionIds
     public const string SpeedCheck = "performance.scan";
     public const string CheckAppUpdates = "app.updates";
     public const string ShowWelcome = "welcome.show";
+    public const string Checkup = "checkup.run";
 }
 
 /// <summary>
@@ -27,6 +28,7 @@ public static class QuickActionCatalog
 {
     public static IReadOnlyList<QuickActionDefinition> All { get; } =
     [
+        new(QuickActionIds.Checkup, T("Run a check-up"), "checkup", T("check up to do list fix everything updates junk startup")),
         new(QuickActionIds.FullScan, T("Run a full scan"), "dashboard", T("check everything hardware health performance drivers apps")),
         new(QuickActionIds.CleanTempFiles, T("Find temporary files to clean"), "cleanup", T("clean junk temp cache free space disk cleanup")),
         new(QuickActionIds.CheckDrivers, T("Check for driver updates"), "drivers", T("drivers windows update outdated")),

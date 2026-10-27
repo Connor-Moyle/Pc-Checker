@@ -9,10 +9,14 @@ namespace PcChecker.Core.Restore;
 /// <summary>
 /// Default <see cref="IChangeGuard"/>: restore point (per settings) → change → journal + log. Never throws for a failed
 /// change. When the "before" restore point fails the change still runs (with a note in the result) unless the options
-/// ask for <see cref="RestorePointFailedBehavior.Abort"/>.
+/// ask for <see cref="RestorePointFailedBehavior.Abort"/>. Inside a batch (<see cref="IChangeBatchRunner"/>) a change
+/// makes no restore point of its own and is journaled with the batch's.
 /// </summary>
-public sealed class ChangeGuard : IChangeGuard
+public sealed class ChangeGuard : IChangeGuard, IChangeBatchRunner
 {
+    /// <summary>Journal module of the entry that marks a batch and its shared restore point.</summary>
+    public const string BatchModule = "Restore points";
+
     public const string RestorePointHint =
         "Turn on System Protection (Settings → Restore points) or switch off \"Create a restore point before making changes\" to continue.";
 
@@ -46,13 +50,16 @@ public sealed class ChangeGuard : IChangeGuard
         ArgumentNullException.ThrowIfNull(change);
 
         var policy = _settings.Current.RestorePoints;
-        bool before = options.CreateBefore ?? policy.CreateBeforeChanges;
-        bool after = options.CreateAfter ?? policy.CreateAfterChanges;
-        long? sequence = null;
+        var batch = ChangeBatch.Current;
+        var (before, after, sequence) = ChangeBatch.Resolve(options, policy.CreateBeforeChanges, policy.CreateAfterChanges, batch);
         string? restorePointWarning = null;
         var stopwatch = Stopwatch.StartNew();
 
         _logger.LogInformation("Starting change: {Description} ({Module} → {Target})", description, options.Module, options.Target);
+        if (batch is not null)
+        {
+            _logger.LogInformation("Part of \"{Batch}\": using its restore point {Sequence}.", batch.Description, batch.RestorePointSequence);
+        }
 
         if (before)
         {
@@ -109,6 +116,58 @@ public sealed class ChangeGuard : IChangeGuard
         var outcome = (result.Success ? "Succeeded: " : "Failed: ") + result.Message;
         await RecordAsync(options, description, outcome, sequence).ConfigureAwait(false);
         return result;
+    }
+
+    public async Task<ChangeBatchOutcome> RunBatchAsync(string description, bool createRestorePoint, Func<CancellationToken, Task> work,
+        IProgress<ProgressUpdate>? progress, CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(description);
+        ArgumentNullException.ThrowIfNull(work);
+
+        if (ChangeBatch.Current is { } outer)
+        {
+            await work(cancellationToken).ConfigureAwait(false);
+            return new ChangeBatchOutcome(outer.RestorePointSequence, null, Joined: true);
+        }
+
+        if (!createRestorePoint)
+        {
+            await work(cancellationToken).ConfigureAwait(false);
+            return ChangeBatchOutcome.None;
+        }
+
+        var (sequence, warning) = await TryCreateRestorePointAsync($"PC Checker: before {description}", progress, cancellationToken).ConfigureAwait(false);
+        if (sequence is not { } shared)
+        {
+            // Without a shared point every change decides for itself, so one that needs a restore point still refuses.
+            _logger.LogWarning("Batch \"{Description}\" runs without a shared restore point: {Warning}", description, warning);
+            await work(cancellationToken).ConfigureAwait(false);
+            return new ChangeBatchOutcome(null, warning);
+        }
+
+        bool finished = false;
+        using (ChangeBatch.Enter(new ChangeBatchState(description, shared)))
+        {
+            try
+            {
+                await work(cancellationToken).ConfigureAwait(false);
+                finished = true;
+            }
+            finally
+            {
+                await RecordAsync(ChangeOptions.For(BatchModule, description), description,
+                    finished ? "Batch finished; each change is listed separately" : "Batch stopped early; finished changes are listed separately",
+                    shared).ConfigureAwait(false);
+            }
+        }
+
+        if (_settings.Current.RestorePoints.CreateAfterChanges)
+        {
+            var (_, afterWarning) = await TryCreateRestorePointAsync($"PC Checker: after {description}", progress, CancellationToken.None).ConfigureAwait(false);
+            warning ??= afterWarning;
+        }
+
+        return new ChangeBatchOutcome(shared, warning);
     }
 
     /// <summary>Returns the new sequence number, or null plus a short reason when no point was created.</summary>

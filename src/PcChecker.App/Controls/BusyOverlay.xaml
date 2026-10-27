@@ -9,7 +9,11 @@
     <ui:Card HorizontalAlignment="Center" VerticalAlignment="Center" Padding="28,24" MinWidth="280">
       <StackPanel>
         <ui:ProgressRing IsIndeterminate="True" Width="40" Height="40" HorizontalAlignment="Center" />
-        <ui:TextBlock Text="{Binding Text, ElementName=Root}" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" Margin="0,14,0,0" />
+        <ui:TextBlock Text="{Binding Text, ElementName=Root}" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" Margin="0,14,0,0" MaxWidth="420" />
+        <!-- Shown only by pages that report an overall percentage (a run made of several parts). -->
+        <ProgressBar Minimum="0" Maximum="100" Height="4" Width="260" Margin="0,12,0,0" HorizontalAlignment="Center"
+                     Value="{Binding Progress, ElementName=Root, TargetNullValue=0}"
+                     Visibility="{Binding ProgressVisibility, ElementName=Root}" />
         <!-- Hidden for operations that cannot be stopped part-way (installs, uninstalls, feature changes). -->
         <Grid Visibility="{Binding CanCancel, ElementName=Root, Converter={StaticResource BoolToVisibility}}">
           <ui:Button Content="Cancel"

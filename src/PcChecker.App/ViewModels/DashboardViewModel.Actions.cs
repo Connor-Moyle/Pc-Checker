@@ -5,6 +5,7 @@ using PcChecker.App.Services;
 using PcChecker.App.Views.Pages;
 using PcChecker.Core.Audio;
 using PcChecker.Core.Common;
+using PcChecker.Core.DiskSpace;
 using PcChecker.Core.Drivers;
 using PcChecker.Core.Overclocking;
 using PcChecker.Core.Reports;
@@ -297,26 +298,30 @@ public sealed partial class DashboardViewModel
         }
     }
 
+    /// <summary>
+    /// Fallback for the fullest drive tile when the Disk space service has not answered: the drives from the hardware
+    /// scan, or from the last speed check.
+    /// </summary>
     private void ApplyDiskFree()
     {
-        var drives = _hardware.Last?.LogicalDrives;
-        var system = drives?.FirstOrDefault(d => d.Name.StartsWith("C", StringComparison.OrdinalIgnoreCase) && d.SizeBytes > 0) ?? drives?.FirstOrDefault(d => d.SizeBytes > 0);
-        if (system is { SizeBytes: > 0, FreeSpaceBytes: { } free })
+        if (HasFullestDrive)
         {
-            DiskFreeText = ByteSize.Format(free);
-            DiskFreeSubtitle = $"free on {system.Name.TrimEnd('\\')} of {ByteSize.Format(system.SizeBytes)}";
-            double usedPercent = system.UsedPercent ?? 0;
-            DiskBrush = usedPercent >= 90 ? Converters.TemperatureToBrushConverter.Hot : usedPercent >= 80 ? Converters.TemperatureToBrushConverter.Warm : Converters.TemperatureToBrushConverter.Normal;
             return;
         }
 
-        var perfDrive = _performance.Last?.Drives.FirstOrDefault(d => d.Total > 0);
-        if (perfDrive is { } pd)
+        var drives = (_hardware.Last?.LogicalDrives ?? [])
+            .Where(d => d is { SizeBytes: > 0, FreeSpaceBytes: not null })
+            .Select(d => new DriveSpaceInfo(d.Name.TrimEnd('\\') + "\\", d.VolumeName ?? string.Empty, d.FileSystem ?? string.Empty, d.SizeBytes!.Value,
+                d.FreeSpaceBytes!.Value, d.Name.StartsWith("C", StringComparison.OrdinalIgnoreCase)))
+            .ToList();
+        if (drives.Count == 0 && _performance.Last is { } perf)
         {
-            DiskFreeText = ByteSize.Format(pd.Free);
-            DiskFreeSubtitle = $"free on {pd.Drive} of {ByteSize.Format(pd.Total)}";
-            DiskBrush = pd.Free < pd.Total / 10 ? Converters.TemperatureToBrushConverter.Hot : Converters.TemperatureToBrushConverter.Normal;
+            drives = perf.Drives.Where(d => d.Total > 0)
+                .Select(d => new DriveSpaceInfo(d.Drive.TrimEnd('\\') + "\\", string.Empty, string.Empty, d.Total, d.Free, d.Drive.StartsWith("C", StringComparison.OrdinalIgnoreCase)))
+                .ToList();
         }
+
+        ApplyFullestDrive(drives);
     }
 
     private void ApplySupport(OverclockCapabilities? caps)

@@ -46,6 +46,27 @@ follows, so you know what to expect and contributors know what to build.
 - Service, Windows Update, Xbox service and OneDrive removal tweaks only appear
   in Advanced mode.
 
+## Check-up rules
+
+- A check-up only reads. It runs the same scans as the Health, Cleanup
+  (Safe categories only), Drivers, Windows Update, Startup, Speed check,
+  Debloat and Old drivers pages.
+- *Fix* only exists where the owning page already has a safe automatic fix,
+  and it runs through that page's service with all of its checks: Safe
+  cleanup categories only (never Windows.old), startup apps are turned off
+  (not removed), only reversible optimizations, only the Safe settings of the
+  Recommended debloat preset, only old driver packages marked *Safe to
+  remove* (backed up first), and only the Windows updates *Install all*
+  would pick.
+- Only Safe fixes are ticked for you, and not even those when they are a
+  personal choice (startup apps, privacy settings). Moderate fixes (driver
+  updates) must be ticked by hand; Advanced ones need Advanced mode.
+- *Fix selected* asks first and lists every change. One restore point is
+  created before the run when any of its changes would make one, and every
+  change shares it. When it cannot be created, each change follows its own
+  rules again, so driver installs and removals, which require a restore
+  point, do not run.
+
 ## Cleanup rules
 
 - Files are only ever deleted inside the roots of the categories you chose.

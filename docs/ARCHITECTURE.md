@@ -40,7 +40,7 @@ Every project targets `net8.0-windows10.0.19041.0`. `EnableWindowsTargeting` is 
 | `Cleanup` | `ITempFileScanner`, `ITempFileCleaner`, `CleanupCatalog`, `CleanupSafety` |
 | `DiskSpace` | `IDiskSpaceService`, `DiskTreeScanner` (parallel folder sizes), `DuplicateHasher`, `DiskSpaceAggregation`, `FileTypeClassifier`, `DiskSpaceProtection`, `DuplicateFinder` |
 | `WindowsFeatures` | `IWindowsFeatureService`, `InboxAppCatalog` |
-| `Restore` | `IRestorePointService`, `IChangeGuard`, `ChangeGuard` |
+| `Restore` | `IRestorePointService`, `IChangeGuard`, `ChangeGuard`, `IChangeBatchRunner` and `ChangeBatch` (several guarded changes behind one restore point) |
 | `Overclocking` | `IOverclockService`, profiles and plans, `OverclockSafetyValidator`, `OverclockPlanParser` |
 | `Power` | `IPowerService`, power snapshots and plans |
 | `History` | `IHistoryService` (background recorder), `HistoryFileStore` (one JSON Lines file per day), `HistoryLineCodec`, `HistoryRollup`, `HistoryRetention`, `HistoryEventDetector`, `HistoryCsvExporter`, `DemoHistoryGenerator` |
@@ -59,6 +59,7 @@ Every project targets `net8.0-windows10.0.19041.0`. `EnableWindowsTargeting` is 
 | `Processes` | `IProcessService`, `ProcessCatalog`, `ProcessRateTracker`, `ProcessMath`, `ProcessSorting`, `CriticalProcessRules`, `ProcessSuspicionRules`, `SignatureCache` |
 | `Startup` | `IStartupService`, `BootConfig`, `StartupEnumerator` (shared with Performance) |
 | `Shell` | Quick search (`FuzzyMatcher`, `QuickSearchIndex`, `QuickSearchRanker`, `RecentItems`, the settings, quick action and page keyword catalogs) and `WelcomeRules` for the first-start welcome |
+| `Checkup` | `ICheckupService` and `CheckupService` (runs the other modules' scans and fixes through their interfaces, so one class serves both modes), `CheckupItemMapper`, `CheckupPrioritizer`, `CheckupSelection`, `CheckupBatchPlanner`, `CheckupProgress`, `DashboardGlance` |
 | `Scheduling` | `IScheduledTaskService` (schtasks), `ScheduledJobExecutor`, `IScheduledJobStore`, the `PcChecker.Jobs` pipe, `SchtasksCommandBuilder`, `SchtasksCsvParser`, `ScheduleRules`, `JobResultSummarizer`, tray text and popup placement helpers |
 
 Inside each folder you will find the same shapes:
@@ -95,7 +96,7 @@ The split matters: anything that reads or changes the system goes behind an inte
 The side menu has one item per section; a section with several pages shows them as tabs above the content. Every page is always visible; Advanced mode (the toggle in the navigation footer, also in Settings) only reveals advanced sections *inside* pages. Pages that need a consent gate (Overclock) handle it themselves.
 
 ```
-Home            Dashboard
+Home            Dashboard · Check-up
 Monitor         Temperatures · Power · Processes
 Monitor         Temperatures · Power · History
 Hardware        Overview · Health · Storage · Memory
@@ -159,6 +160,11 @@ Any code that changes the system — uninstalling, deleting files, changing serv
 3. optionally creates a second restore point afterwards,
 4. writes an `ActionRecord` to the action journal with undo information,
 5. logs the outcome.
+
+`ChangeGuard` also implements `IChangeBatchRunner`. `RunBatchAsync` creates one restore point and runs a piece of work;
+every guarded change made from that work (through any service, found through an `AsyncLocal` scope) skips its own
+restore points and is journaled with the batch's. If the batch's restore point cannot be created, the work runs
+without the batch and each change follows its own options again. The Check-up page uses it for *Fix selected*.
 
 The UI must also ask for confirmation before invoking a guarded change and explain what will happen.
 

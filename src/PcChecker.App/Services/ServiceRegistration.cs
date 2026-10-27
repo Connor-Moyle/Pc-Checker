@@ -9,6 +9,7 @@ using PcChecker.Claude;
 using PcChecker.Core.Assistant;
 using PcChecker.Core.Audio;
 using PcChecker.Core.Benchmark;
+using PcChecker.Core.Checkup;
 using PcChecker.Core.Cleanup;
 using PcChecker.Core.Common;
 using PcChecker.Core.Debloat;
@@ -66,7 +67,10 @@ public static class ServiceRegistration
         services.TryAddSingleton(typeof(ILogger<>), typeof(ServiceLogger<>));
         services.AddSingleton<ISecretStore, DpapiSecretStore>();
         services.AddSingleton<IActionJournal, JsonActionJournal>();
-        services.AddSingleton<IChangeGuard, ChangeGuard>();
+        // One guard instance: services guard single changes through it, the check-up batches several behind one restore point.
+        services.AddSingleton<ChangeGuard>();
+        services.AddSingleton<IChangeGuard>(sp => sp.GetRequiredService<ChangeGuard>());
+        services.AddSingleton<IChangeBatchRunner>(sp => sp.GetRequiredService<ChangeGuard>());
         services.AddSingleton<IReportService, HtmlReportService>();
 
         // Shared hardware monitor host: one LibreHardwareMonitor instance for sensors, fans, SMART and overclock readouts.
@@ -128,6 +132,9 @@ public static class ServiceRegistration
         Add<IBenchmarkHistoryStore, JsonBenchmarkHistoryStore, DemoBenchmarkHistoryStore>(services, demo);
         services.AddSingleton<ScheduledJobExecutor>();
 
+        // The check-up only calls the module services above, so the same class serves both modes.
+        services.AddSingleton<ICheckupService, CheckupService>();
+
         // Optimization action providers (IOptimizationService aggregates every registration below).
         // providers: Latency (Windows: LatencyActionsProvider, Demo: DemoLatencyActionsProvider)
         Add<IOptimizationActionProvider, LatencyActionsProvider, DemoLatencyActionsProvider>(services, demo);
@@ -162,6 +169,7 @@ public static class ServiceRegistration
 
         // Pages and view models (navigation order)
         services.AddSingleton<DashboardViewModel>().AddSingleton<DashboardPage>();
+        services.AddSingleton<CheckupViewModel>().AddSingleton<CheckupPage>();
         services.AddSingleton<SensorsViewModel>().AddSingleton<SensorsPage>();
         services.AddSingleton<PowerViewModel>().AddSingleton<PowerPage>();
         services.AddSingleton<ProcessesViewModel>().AddSingleton<ProcessesPage>();

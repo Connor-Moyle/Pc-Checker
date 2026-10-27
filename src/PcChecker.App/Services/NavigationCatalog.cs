@@ -27,7 +27,8 @@ public static class NavigationCatalog
     public static IReadOnlyList<NavigationSection> Sections { get; } =
     [
         Section("Home", SymbolRegular.Home24,
-            Page("Dashboard", "dashboard", typeof(DashboardPage))),
+            Page("Dashboard", "dashboard", typeof(DashboardPage)),
+            Page("Check-up", "checkup", typeof(CheckupPage))),
         Section("Monitor", SymbolRegular.Temperature24,
             Page("Temperatures", "temperatures", typeof(SensorsPage)),
             Page("Power", "power", typeof(PowerPage)),

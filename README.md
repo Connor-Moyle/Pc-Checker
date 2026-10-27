@@ -124,7 +124,8 @@ limitations, is in [docs/FEATURES.md](docs/FEATURES.md).
 
 | Page | What it does |
 |---|---|
-| **Dashboard** | Health score, live CPU/GPU temperature, memory and power tiles, active alerts, quick actions (full scan, clean up, check drivers, optimize), a summary of this PC, the last few journal entries and a collapsible hardware-support table. Export report sits under *More*. |
+| **Dashboard** | Health score, live CPU/GPU temperature, memory and power tiles, Windows Update status, 24-hour CPU and GPU temperature sparklines, the fullest drive, active alerts, quick actions (full scan, clean up, check drivers, optimize), a summary of this PC, the last few journal entries and a collapsible hardware-support table. Export report sits under *More*. |
+| **Check-up** | One button runs the health check, a Safe cleanup scan, driver and Windows update checks, startup analysis, the speed check, the recommended privacy settings and the old-driver scan, then shows one ranked to-do list with why each item matters, what fixing it brings, its risk and its page. Safe fixes are ticked; *Fix selected* applies them through their own pages' tools behind a single restore point and shows a result per item. |
 
 ### Monitor
 

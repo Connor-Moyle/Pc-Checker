@@ -1,0 +1,220 @@
+<Page x:Class="PcChecker.App.Views.Pages.CheckupPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+      xmlns:controls="clr-namespace:PcChecker.App.Controls"
+      xmlns:vm="clr-namespace:PcChecker.App.ViewModels"
+      xmlns:opt="clr-namespace:PcChecker.Core.Optimization;assembly=PcChecker.Core"
+      xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+      d:DataContext="{d:DesignInstance vm:CheckupViewModel}"
+      mc:Ignorable="d"
+      Title="Check-up"
+      ScrollViewer.CanContentScroll="False">
+  <Page.Resources>
+    <Style x:Key="Tile" TargetType="controls:StatCard">
+      <Setter Property="Margin" Value="0" />
+    </Style>
+    <!-- Risk label: green for Safe, yellow for Moderate, orange for Advanced. -->
+    <Style x:Key="RiskLabel" TargetType="ui:TextBlock">
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Foreground" Value="{StaticResource AccentGreenBrush}" />
+      <Style.Triggers>
+        <DataTrigger Binding="{Binding Risk}" Value="{x:Static opt:RiskLevel.Moderate}">
+          <Setter Property="Foreground" Value="{StaticResource AccentYellowBrush}" />
+        </DataTrigger>
+        <DataTrigger Binding="{Binding Risk}" Value="{x:Static opt:RiskLevel.Advanced}">
+          <Setter Property="Foreground" Value="{StaticResource AccentOrangeBrush}" />
+        </DataTrigger>
+      </Style.Triggers>
+    </Style>
+    <Style x:Key="ResultLine" TargetType="ui:TextBlock" BasedOn="{StaticResource Caption}">
+      <Setter Property="Foreground" Value="{StaticResource AccentGreenBrush}" />
+      <Style.Triggers>
+        <DataTrigger Binding="{Binding ResultFailed}" Value="True">
+          <Setter Property="Foreground" Value="{StaticResource AccentOrangeBrush}" />
+        </DataTrigger>
+      </Style.Triggers>
+    </Style>
+  </Page.Resources>
+
+  <Grid Style="{StaticResource PageRoot}">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="*" />
+    </Grid.RowDefinitions>
+
+    <controls:SectionHeader Grid.Row="0" Title="Check-up" Subtitle="{Binding Subtitle}">
+      <controls:SectionHeader.Actions>
+        <StackPanel Orientation="Horizontal">
+          <ui:DropDownButton Content="More" Icon="{ui:SymbolIcon MoreHorizontal24}" Margin="0,0,8,0">
+            <ui:DropDownButton.Flyout>
+              <ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+                <MenuItem Header="Select recommended" Command="{Binding SelectRecommendedCommand}"
+                          ToolTip="Ticks the fixes rated Safe that suit everyone." />
+                <MenuItem Header="Clear selection" Command="{Binding ClearSelectionCommand}" />
+              </ContextMenu>
+            </ui:DropDownButton.Flyout>
+          </ui:DropDownButton>
+          <ui:Button Content="Run check-up" Appearance="Primary" Icon="{ui:SymbolIcon ClipboardTaskListLtr24}" Command="{Binding RunCommand}"
+                     ToolTip="Checks health, temporary files, drivers, Windows Update, startup apps, speed, recommended settings and old drivers. Nothing is changed by a check-up." />
+        </StackPanel>
+      </controls:SectionHeader.Actions>
+    </controls:SectionHeader>
+
+    <StackPanel Grid.Row="1">
+      <ui:InfoBar Severity="Error" Title="Something went wrong" Message="{Binding ErrorMessage}"
+                  IsOpen="{Binding HasError, Mode=OneWay}" IsClosable="True" Margin="0,0,0,12" />
+      <ui:InfoBar Severity="Warning" Title="Some parts could not be checked" Message="{Binding Warnings}"
+                  IsOpen="{Binding HasWarnings, Mode=OneWay}" IsClosable="True" Margin="0,0,0,12" />
+      <controls:RestartPromptBar IsOpen="{Binding RebootRequired}"
+                                 Message="Windows needs a restart to finish some of the fixes. Save your work first."
+                                 Reason="to finish the check-up fixes"
+                                 DismissCommand="{Binding DismissRebootCommand}" />
+      <ui:InfoBar Severity="Success" Title="Done" Message="{Binding ResultMessage}"
+                  IsOpen="{Binding ShowSuccessResult, Mode=OneWay}" IsClosable="True" Margin="0,0,0,12" />
+      <ui:InfoBar Severity="Warning" Title="Not everything was fixed" Message="{Binding ResultMessage}"
+                  IsOpen="{Binding ShowFailureResult, Mode=OneWay}" IsClosable="True" Margin="0,0,0,12" />
+    </StackPanel>
+
+    <!-- Before the first check-up: one clear call to action. -->
+    <controls:EmptyState Grid.Row="2" Icon="ClipboardTaskListLtr24" Title="Check everything at once"
+                         Message="The check-up runs the health check, looks for temporary files, driver and Windows updates, heavy startup apps, slowdowns, recommended settings and old drivers, then lists what is worth doing, most important first. It takes a few minutes and changes nothing."
+                         Visibility="{Binding HasReport, Converter={StaticResource InverseBoolToVisibility}}">
+      <controls:EmptyState.Action>
+        <ui:Button Content="Run check-up" Appearance="Primary" Icon="{ui:SymbolIcon ClipboardTaskListLtr24}" Command="{Binding RunCommand}" />
+      </controls:EmptyState.Action>
+    </controls:EmptyState>
+
+    <ScrollViewer Grid.Row="2" Style="{StaticResource PageScroll}"
+                  Visibility="{Binding HasReport, Converter={StaticResource BoolToVisibility}}">
+      <StackPanel>
+
+        <!-- Summary -->
+        <controls:AdaptiveGrid MinItemWidth="200" MaxColumns="3" Margin="0,0,0,12">
+          <controls:StatCard Style="{StaticResource Tile}" Title="Things to do" Value="{Binding ItemCount}" Icon="ClipboardTaskListLtr24"
+                             Accent="{StaticResource AccentCyanBrush}" Subtitle="{Binding ItemsSubtitle}" />
+          <controls:StatCard Style="{StaticResource Tile}" Title="Can be fixed here" Value="{Binding FixableCount}" Icon="Wrench24"
+                             Accent="{StaticResource AccentGreenBrush}" Subtitle="{Binding FixableSubtitle}" />
+          <controls:StatCard Style="{StaticResource Tile}" Title="Serious" Value="{Binding UrgentText}" Icon="Warning24"
+                             Accent="{StaticResource AccentOrangeBrush}" Subtitle="{Binding UrgentSubtitle}" />
+        </controls:AdaptiveGrid>
+
+        <!-- Nothing found -->
+        <ui:Card Padding="16" Margin="0,0,0,12" Visibility="{Binding HasNoItems, Converter={StaticResource BoolToVisibility}}">
+          <controls:EmptyState Icon="CheckmarkCircle24" Title="Nothing to do"
+                               Message="Every part of the check-up came back fine. Run it again now and then, or after installing something new." />
+        </ui:Card>
+
+        <StackPanel Visibility="{Binding HasItems, Converter={StaticResource BoolToVisibility}}">
+          <!-- Selection bar -->
+          <Grid Margin="0,0,0,8">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+              <ui:TextBlock FontTypography="BodyStrong" Text="{Binding SelectedText}" />
+              <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap"
+                            Text="Safe fixes are ticked for you. Moderate ones are never ticked automatically." />
+            </StackPanel>
+            <ui:Button Grid.Column="1" Content="Fix selected" Appearance="Primary" Icon="{ui:SymbolIcon Wrench24}" VerticalAlignment="Center"
+                       Command="{Binding FixSelectedCommand}"
+                       ToolTip="Applies the ticked fixes one after another through their own pages' tools, after you confirm. One restore point covers them all when one is needed." />
+          </Grid>
+
+          <!-- The to-do list, most important first -->
+          <ui:Card Padding="16,4,16,4" Margin="0,0,0,12">
+            <ItemsControl ItemsSource="{Binding Items}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate DataType="{x:Type vm:CheckupItemRow}">
+                  <Border BorderThickness="0,0,0,1" BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}" Padding="0,10">
+                    <Grid>
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                      </Grid.ColumnDefinitions>
+                      <CheckBox Grid.Column="0" VerticalAlignment="Top" Margin="0,2,8,0"
+                                IsChecked="{Binding IsSelected, Mode=TwoWay}" IsEnabled="{Binding CanSelect}"
+                                ToolTip="{Binding CheckTooltip}" ToolTipService.ShowOnDisabled="True" />
+                      <Ellipse Grid.Column="1" Width="10" Height="10" Margin="0,7,12,0" VerticalAlignment="Top"
+                               Fill="{Binding Severity, Converter={StaticResource SeverityToBrush}}" />
+                      <StackPanel Grid.Column="2">
+                        <ui:TextBlock FontWeight="SemiBold" Text="{Binding Title}" TextWrapping="Wrap" />
+                        <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding Why}" TextWrapping="Wrap" Margin="0,2,0,0" />
+                        <ui:TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,4,0,0">
+                          <Run Text="Benefit:" FontWeight="SemiBold" /> <Run Text="{Binding Benefit, Mode=OneWay}" />
+                        </ui:TextBlock>
+                        <ui:TextBlock Style="{StaticResource ResultLine}" Text="{Binding ResultText}" TextWrapping="Wrap" Margin="0,4,0,0"
+                                      Visibility="{Binding HasResult, Converter={StaticResource BoolToVisibility}}" />
+                      </StackPanel>
+                      <StackPanel Grid.Column="3" Margin="16,0,0,0" MinWidth="130" VerticalAlignment="Top">
+                        <ui:TextBlock Style="{StaticResource RiskLabel}" Text="{Binding RiskText}" ToolTip="{Binding RiskTooltip}" HorizontalAlignment="Right" />
+                        <ui:HyperlinkButton Content="{Binding SourceText}" Padding="0,2" HorizontalAlignment="Right"
+                                            Command="{Binding DataContext.OpenCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}" />
+                        <ui:Button Content="Fix" Appearance="Secondary" Icon="{ui:SymbolIcon Wrench24}" Padding="10,4" Margin="0,4,0,0" HorizontalAlignment="Right"
+                                   ToolTip="Fixes just this item, after you confirm."
+                                   Command="{Binding DataContext.FixItemCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}"
+                                   Visibility="{Binding ShowFixButton, Converter={StaticResource BoolToVisibility}}" />
+                        <ui:Button Content="Open" Appearance="Secondary" Icon="{ui:SymbolIcon Open24}" Padding="10,4" Margin="0,4,0,0" HorizontalAlignment="Right"
+                                   ToolTip="{Binding OpenText}"
+                                   Command="{Binding DataContext.OpenCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}"
+                                   Visibility="{Binding ShowOpenButton, Converter={StaticResource BoolToVisibility}}" />
+                      </StackPanel>
+                    </Grid>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </ui:Card>
+        </StackPanel>
+
+        <!-- Per-item results of the last fix run -->
+        <ui:CardExpander Margin="0,0,0,12" ContentPadding="16" Icon="{ui:SymbolIcon ClipboardTextLtr24}"
+                         Visibility="{Binding HasResultLines, Converter={StaticResource BoolToVisibility}}">
+          <ui:CardExpander.Header>
+            <StackPanel>
+              <ui:TextBlock FontTypography="BodyStrong" Text="Results of the last fix" />
+              <ui:TextBlock Style="{StaticResource Muted}" Text="What happened to each item. Every change is also in the Action Journal." />
+            </StackPanel>
+          </ui:CardExpander.Header>
+          <ItemsControl ItemsSource="{Binding ResultLines}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <ui:TextBlock Text="{Binding}" TextWrapping="Wrap" Margin="0,0,0,6" />
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </ui:CardExpander>
+
+        <!-- About -->
+        <ui:CardExpander Margin="0,0,0,12" ContentPadding="16" Icon="{ui:SymbolIcon Info24}" IsExpanded="False">
+          <ui:CardExpander.Header>
+            <StackPanel>
+              <ui:TextBlock FontTypography="BodyStrong" Text="About the check-up" />
+              <ui:TextBlock Style="{StaticResource Muted}" Text="What runs, how the list is ordered and what Fix does." />
+            </StackPanel>
+          </ui:CardExpander.Header>
+          <StackPanel>
+            <ui:TextBlock TextWrapping="Wrap" Margin="0,0,0,8"
+                          Text="The check-up runs the same scans as the Health, Cleanup, Drivers, Windows Update, Startup, Speed check, Debloat and Old drivers pages. Only Safe cleanup categories are scanned." />
+            <ui:TextBlock TextWrapping="Wrap" Margin="0,0,0,8"
+                          Text="The list puts serious problems first. Within the same level, things the app can fix by itself, safer fixes and bigger gains come first." />
+            <ui:TextBlock TextWrapping="Wrap"
+                          Text="Fix uses the tools of the page the item comes from, with the same checks. Startup apps and personal settings are never ticked for you, Moderate fixes are never ticked automatically, and Advanced ones need Advanced mode." />
+          </StackPanel>
+        </ui:CardExpander>
+      </StackPanel>
+    </ScrollViewer>
+
+    <controls:BusyOverlay Grid.Row="0" Grid.RowSpan="3"
+                          IsBusy="{Binding IsBusy}"
+                          Text="{Binding BusyText}"
+                          Progress="{Binding OverallProgress}"
+                          CancelCommand="{Binding CancelCommand}" CanCancel="{Binding CanCancelBusy}" />
+  </Grid>
+</Page>

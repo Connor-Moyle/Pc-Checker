@@ -11,6 +11,7 @@ public static class PageSearchKeywords
     private static readonly Dictionary<string, string> Map = new(StringComparer.Ordinal)
     {
         ["dashboard"] = T("home overview score summary"),
+        ["checkup"] = T("check up checkup to do fix everything maintenance tune up"),
         ["temperatures"] = T("sensors heat cpu gpu temp hot thermal"),
         ["power"] = T("watts energy battery power plan"),
         ["hardware"] = T("devices specs system information cpu gpu motherboard"),

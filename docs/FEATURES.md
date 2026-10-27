@@ -39,8 +39,17 @@ The first thing you see.
 
 - **Health score** gauge from the last health check, or a *Run a health check*
   button if there is none yet.
-- **Live tiles**: CPU temperature, GPU temperature, memory used, free disk
-  space and current power draw, straight from the sensor service.
+- **Live tiles**: CPU temperature, GPU temperature, memory used and current
+  power draw, straight from the sensor service.
+- **Check-up strip**: what the last check-up found (or what a check-up does)
+  with *Run check-up*, which opens the Check-up page and starts it.
+- **At a glance**: *Windows Update* (service turned off, restart pending,
+  updates waiting from the last check-up, paused, or up to date, with when it
+  was last checked), *Temperatures, last 24 hours* (CPU and GPU sparklines
+  from History, half-hour peaks, with the day's peak; a note instead when
+  History is off or has nothing yet) and *Fullest drive* (the drive with the
+  largest used share from Disk space, with a bar and the free space; the
+  hardware scan is the fallback). Each links to its page.
 - **Alerts strip**: temperature alerts, critical health items, a pending
   reboot, an update that is ready, a fan or overclock watchdog notice from the
   last start.
@@ -55,6 +64,55 @@ The first thing you see.
   on them, from the Overclock page's detection.
 - **Recent activity**: the last five Action Journal entries.
 - **System summary**: CPU, GPU, RAM, storage, OS build and uptime.
+
+
+### Check-up
+
+One button checks everything and turns the results into one to-do list.
+Nothing changes until you choose a fix.
+
+- **Run check-up** runs, one after another with one combined progress bar
+  and a Cancel button: the health check, a cleanup scan of the Safe
+  categories (the ones you picked on the Cleanup page, or the defaults), the
+  installed-driver scan and the driver update check, the Windows Update
+  status and update check, the startup apps with their estimated impact, the
+  speed check, the state of the Debloat page's *Recommended* settings and the
+  old-driver scan. It uses the same services as those pages; a part that
+  fails or takes more than five minutes is skipped and named in a warning.
+- **The to-do list** has one line per thing worth doing: the title, why it
+  matters, the benefit of fixing it, its risk (*Safe*, *Moderate* or *Advanced*)
+  and the page it comes from (a link). Serious problems come first; within
+  the same level, things the app can fix by itself, safer fixes and bigger
+  gains come first. Repeats are merged (a restart pending reported by both
+  Health and Windows Update is listed once).
+- **Fix** is offered where the owning service has a safe automatic fix:
+  clean the Safe junk, stop a heavy startup app starting with Windows,
+  install the recommended Windows updates or the offered driver updates,
+  apply a reversible optimization behind a speed check finding, apply the
+  Safe *Recommended* privacy settings that are not applied yet, and remove
+  old driver packages marked *Safe to remove*. Everything else has
+  **Open**, which takes you to the page.
+- **Selection**: Safe fixes that suit everyone are ticked after a check-up.
+  Startup apps and the privacy settings are personal choices and are never
+  ticked for you, Moderate fixes (driver updates) are never ticked
+  automatically, and Advanced ones can only be ticked in Advanced mode.
+- **Fix selected** confirms what will happen, then applies the ticked fixes
+  one service at a time: junk, old drivers, startup apps, optimizations,
+  recommended settings, driver updates, Windows updates. Each service runs
+  its change through the change guard as on its own page, but the run
+  shares **one restore point** created first, so a batch does not make one
+  restore point per page (and Windows does not refuse the second one). If
+  that restore point cannot be created, every change follows its own rules
+  and the ones that need a restore point do not run. Each item shows its
+  result; the Action Journal lists every change. Cancel stops before the
+  next step; driver installs and removals cannot be stopped once started, so
+  Cancel is hidden for a run that includes them.
+- In demo mode the page runs a check-up on its first visit; in normal mode it
+  waits for the button and keeps the last result for the session.
+
+Limitations: the check-up always scans afresh, so it takes a few minutes
+(the Windows and driver update checks can take a minute each). The Health and
+Speed check pages show its new results; the other pages keep their own scans.
 
 ---
 
