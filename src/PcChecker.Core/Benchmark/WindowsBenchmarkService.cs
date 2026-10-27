@@ -22,6 +22,12 @@ public sealed class WindowsBenchmarkService : IBenchmarkService
     /// <summary>The graphics load runs this long before its dispatch rate counts (shader set-up and calibration).</summary>
     public static readonly TimeSpan GpuWarmUp = TimeSpan.FromSeconds(3);
 
+    /// <summary>The load generator's dispatch rate averages over this window (see <see cref="RateMeter"/>).</summary>
+    public static readonly TimeSpan GpuRateWindow = TimeSpan.FromSeconds(2);
+
+    /// <summary>Longest wait for a fresh sensor reading before the run.</summary>
+    private static readonly TimeSpan SensorWait = TimeSpan.FromSeconds(3);
+
     private readonly IStorageToolsService _storage;
     private readonly ISensorService _sensors;
     private readonly ILogger<WindowsBenchmarkService> _logger;
@@ -82,12 +88,46 @@ public sealed class WindowsBenchmarkService : IBenchmarkService
             }
         }
 
-        var snapshot = _sensors.Latest;
+        // After the busy measurement, so starting the sensor monitor does not count as other programs' load.
+        var snapshot = await WaitForFreshSensorsAsync(cancellationToken).ConfigureAwait(false);
         var facts = new BenchmarkConditionFacts(onBattery, percent, busy, SensorPicker.MaxCpuTemp(snapshot), SensorPicker.MaxGpuTemp(snapshot));
         var conditions = BenchmarkConditionRules.Evaluate(facts);
         _logger.LogInformation("Benchmark conditions: battery {Battery}, CPU {Busy:0} % busy, CPU {Cpu} °C, GPU {Gpu} °C, {Warnings} warnings.",
             onBattery, busy, facts.CpuTempC, facts.GpuTempC, conditions.Warnings.Count);
         return conditions;
+    }
+
+    /// <summary>
+    /// A sensor snapshot no older than <see cref="BenchmarkConditionRules.MaxSensorAge"/>. When the latest one is
+    /// missing or stale (the monitor is not running), starts the monitor, as the Dashboard does, and waits up to
+    /// <see cref="SensorWait"/> for a reading. Null when none arrives, so no temperature warning is guessed from old data.
+    /// </summary>
+    private async Task<SensorSnapshot?> WaitForFreshSensorsAsync(CancellationToken cancellationToken)
+    {
+        if (BenchmarkConditionRules.FreshSnapshot(_sensors.Latest, DateTimeOffset.Now) is { } fresh)
+        {
+            return fresh;
+        }
+
+        var arrived = new TaskCompletionSource<SensorSnapshot>(TaskCreationOptions.RunContinuationsAsynchronously);
+        void OnUpdated(object? sender, SensorSnapshot snapshot) => arrived.TrySetResult(snapshot);
+        _sensors.SnapshotUpdated += OnUpdated;
+        try
+        {
+            _sensors.Start();
+            await Task.WhenAny(arrived.Task, Task.Delay(SensorWait, cancellationToken)).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogDebug(ex, "The sensor monitor could not be started for the benchmark conditions.");
+        }
+        finally
+        {
+            _sensors.SnapshotUpdated -= OnUpdated;
+        }
+
+        return BenchmarkConditionRules.FreshSnapshot(arrived.Task.IsCompletedSuccessfully ? arrived.Task.Result : _sensors.Latest, DateTimeOffset.Now);
     }
 
     public async Task<BenchmarkTestResult> RunTestAsync(BenchmarkTestKind test, BenchmarkOptions options, IProgress<ProgressUpdate>? progress, CancellationToken cancellationToken)
@@ -159,14 +199,14 @@ public sealed class WindowsBenchmarkService : IBenchmarkService
         }
 
         var duration = budget + GpuWarmUp;
-        var samples = new List<double>();
+        var samples = new List<GpuRateSample>();
         var live = new InlineProgress<GpuLoadProgress>(p =>
         {
-            if (p.Elapsed >= GpuWarmUp && p.DispatchesPerSecond > 0)
+            if (p.DispatchesPerSecond > 0)
             {
                 lock (samples)
                 {
-                    samples.Add(p.DispatchesPerSecond);
+                    samples.Add(new GpuRateSample(p.Elapsed, p.DispatchesPerSecond, p.Iterations));
                 }
             }
 
@@ -194,15 +234,11 @@ public sealed class WindowsBenchmarkService : IBenchmarkService
             return BenchmarkTestResult.Fail(BenchmarkTestKind.GpuCompute, result.FailureReason ?? "The graphics test stopped early.", watch.Elapsed.TotalSeconds);
         }
 
-        List<double> rates;
+        // Only rates measured with the final calibration count: throughput multiplies them by result.Iterations.
+        IReadOnlyList<double> rates;
         lock (samples)
         {
-            rates = samples.Count > 0 ? [.. samples] : [];
-        }
-
-        if (rates.Count == 0 && result.Elapsed.TotalSeconds > 0 && result.Dispatches > 0)
-        {
-            rates.Add(result.Dispatches / result.Elapsed.TotalSeconds);
+            rates = BenchmarkResultBuilder.SteadyGpuRates(samples, result.Iterations, GpuWarmUp, GpuRateWindow);
         }
 
         return BenchmarkResultBuilder.FromGpu(rates, result.BufferBytes / GpuLoadPlanner.ElementBytes, result.Iterations, result.AdapterName, watch.Elapsed.TotalSeconds);

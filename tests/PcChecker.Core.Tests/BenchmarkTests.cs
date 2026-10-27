@@ -520,6 +520,80 @@ public class BenchmarkTests
 
     private static IReadOnlyList<BenchmarkTestResult> AllTests(int score) => BenchmarkCatalog.All.Select(t => Completed(t, score)).ToList();
 
+    [Fact]
+    public async Task History_store_does_not_overwrite_the_file_when_it_cannot_be_opened()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "pcchecker-bench-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var path = Path.Combine(dir, JsonBenchmarkHistoryStore.FileName);
+            var store = new JsonBenchmarkHistoryStore(path);
+            var runs = DemoBenchmarkData.SampleRuns(DateTimeOffset.Parse("2026-10-27T12:00:00+01:00", Invariant));
+            await store.AddAsync(runs[0], CancellationToken.None);
+            await store.AddAsync(runs[1], CancellationToken.None);
+            var before = await File.ReadAllTextAsync(path);
+
+            // Another program (a virus scanner, say) holds the file open without sharing it.
+            using (new FileStream(path, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+            {
+                Assert.Empty(await store.LoadAsync(CancellationToken.None));
+                await Assert.ThrowsAsync<IOException>(() => store.AddAsync(runs[2], CancellationToken.None));
+                await Assert.ThrowsAsync<IOException>(() => store.DeleteAsync(runs[0].Id, CancellationToken.None));
+            }
+
+            Assert.Equal(before, await File.ReadAllTextAsync(path));
+            Assert.Equal(2, (await store.LoadAsync(CancellationToken.None)).Count);
+        }
+        finally
+        {
+            if (Directory.Exists(dir))
+            {
+                Directory.Delete(dir, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public void Sensor_snapshots_older_than_a_few_seconds_are_not_used_for_warnings()
+    {
+        var now = DateTimeOffset.Parse("2026-10-27T12:00:00+01:00", Invariant);
+        var fresh = new PcChecker.Core.Sensors.SensorSnapshot(now.AddSeconds(-2), []);
+        var stale = new PcChecker.Core.Sensors.SensorSnapshot(now.AddMinutes(-3), []);
+        Assert.Same(fresh, BenchmarkConditionRules.FreshSnapshot(fresh, now));
+        Assert.Same(fresh, BenchmarkConditionRules.FreshSnapshot(fresh, now.ToUniversalTime()));
+        Assert.Null(BenchmarkConditionRules.FreshSnapshot(stale, now));
+        Assert.Null(BenchmarkConditionRules.FreshSnapshot(null, now));
+        Assert.Null(BenchmarkConditionRules.FreshSnapshot(PcChecker.Core.Sensors.SensorSnapshot.Empty, now));
+    }
+
+    [Fact]
+    public void Gpu_rates_count_only_once_the_final_calibration_has_settled()
+    {
+        static GpuRateSample At(double seconds, double rate, int iterations) => new(TimeSpan.FromSeconds(seconds), rate, iterations);
+        var warmUp = TimeSpan.FromSeconds(3);
+        var settle = TimeSpan.FromSeconds(2);
+
+        // A slow card: calibration moves from 64 to 16 iterations at about 4 s, so samples before 6 s mix both sizes.
+        var samples = new[]
+        {
+            At(1, 5, 64), At(2, 5, 64), At(3.5, 6, 64), At(4.5, 12, 16), At(5.5, 18, 16),
+            At(6.5, 20, 16), At(7.5, 20, 16), At(8.5, 21, 16),
+        };
+        Assert.Equal([20, 20, 21], BenchmarkResultBuilder.SteadyGpuRates(samples, 16, warmUp, settle));
+
+        // A fast card calibrated before the first report: only the warm-up applies.
+        var quick = new[] { At(0.5, 90, 32), At(1.5, 100, 32), At(3, 100, 32), At(4, 101, 32) };
+        Assert.Equal([100, 101], BenchmarkResultBuilder.SteadyGpuRates(quick, 32, warmUp, settle));
+
+        // Never settled in time: the final-calibration samples still give a result.
+        var late = new[] { At(1, 5, 64), At(9, 12, 16), At(10, 18, 16) };
+        Assert.Equal([12, 18], BenchmarkResultBuilder.SteadyGpuRates(late, 16, warmUp, settle));
+
+        // A generator that does not report iterations: the warm-up rule alone.
+        var unknown = new[] { At(1, 5, 0), At(4, 10, 0) };
+        Assert.Equal([10], BenchmarkResultBuilder.SteadyGpuRates(unknown, 16, warmUp, settle));
+    }
+
     private static BenchmarkRun Run(DateTimeOffset started, IReadOnlyList<BenchmarkTestResult> tests) =>
         new(Guid.NewGuid(), started, 80, null, new BenchmarkSystemInfo("PC", "Test CPU", 12, 32L * 1024 * 1024 * 1024, "Test GPU", "C:"), tests, []);
 

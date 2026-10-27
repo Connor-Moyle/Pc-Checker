@@ -128,7 +128,7 @@ public sealed partial class BenchmarkViewModel : ViewModelBase
         }
 
         bool hasWarnings = !conditions.IsIdeal;
-        if (!await _dialogs.ConfirmAsync(tests.Count == 1 ? Loc.F("Run the {0} test?", BenchmarkCatalog.Name(tests[0]).ToLowerInvariant()) : Loc.T("Run the benchmark?"),
+        if (!await _dialogs.ConfirmAsync(tests.Count == 1 ? Loc.F("Run the test \u201C{0}\u201D?", BenchmarkText.Name(tests[0])) : Loc.T("Run the benchmark?"),
                 ConfirmationText(tests, conditions), hasWarnings ? Loc.T("Run anyway") : Loc.T("Run benchmark")))
         {
             return;
@@ -178,11 +178,11 @@ public sealed partial class BenchmarkViewModel : ViewModelBase
         int timed = tests.Count(BenchmarkCatalog.IsTimed);
         var text = new StringBuilder();
         text.Append(Loc.F("PC Checker will run {0} and use the PC fully for about {1}. Fans may get loud; that is normal.",
-            tests.Count == 1 ? BenchmarkCatalog.Name(tests[0]).ToLowerInvariant() : Loc.F("{0} tests", tests.Count),
+            tests.Count == 1 ? Loc.F("the test \u201C{0}\u201D", BenchmarkText.Name(tests[0])) : Loc.F("{0} tests", tests.Count),
             BenchmarkFormatter.Duration(timed * (seconds + 2) + (tests.Contains(BenchmarkTestKind.Disk) ? 15 : 0))));
         if (tests.Contains(BenchmarkTestKind.Disk))
         {
-            text.Append("\n\n").Append(Loc.F("The drive test writes a temporary {0} MB file to {1} and deletes it afterwards.", _benchmark.DiskTestFileMb, _benchmark.SystemDrive ?? "the Windows drive"));
+            text.Append("\n\n").Append(Loc.F("The drive test writes a temporary {0} MB file to {1} and deletes it afterwards.", _benchmark.DiskTestFileMb, _benchmark.SystemDrive ?? Loc.T("the Windows drive")));
         }
 
         text.Append("\n\n").Append(Loc.T("Close games, browsers and downloads first, and leave the PC alone until it finishes."));

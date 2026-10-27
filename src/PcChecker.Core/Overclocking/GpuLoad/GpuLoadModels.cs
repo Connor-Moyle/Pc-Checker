@@ -19,7 +19,11 @@ public enum GpuLoadIntensity
 public sealed record GpuLoadOptions(int AdapterIndex, GpuLoadIntensity Intensity, TimeSpan Duration, bool VerifyResults);
 
 /// <summary>Live numbers from a running generator.</summary>
-public sealed record GpuLoadProgress(TimeSpan Elapsed, double DispatchesPerSecond, long ErrorsSoFar);
+public sealed record GpuLoadProgress(TimeSpan Elapsed, double DispatchesPerSecond, long ErrorsSoFar)
+{
+    /// <summary>Iterations per element in use when this was reported (0 when the generator does not say).</summary>
+    public int Iterations { get; init; }
+}
 
 /// <summary>
 /// Outcome of a GPU load run. <see cref="Completed"/> is true when the run ended without a fault (it reached its

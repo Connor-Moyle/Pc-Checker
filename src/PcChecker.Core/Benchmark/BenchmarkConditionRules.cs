@@ -1,3 +1,5 @@
+using PcChecker.Core.Sensors;
+
 namespace PcChecker.Core.Benchmark;
 
 /// <summary>
@@ -41,6 +43,24 @@ public static class BenchmarkConditionRules
         }
 
         return new BenchmarkConditions(facts, warnings);
+    }
+
+    /// <summary>Sensor readings older than this are not used for the "hot" warnings (they may be from before a game ended).</summary>
+    public static readonly TimeSpan MaxSensorAge = TimeSpan.FromSeconds(5);
+
+    /// <summary>
+    /// <paramref name="snapshot"/> when it was taken at most <see cref="MaxSensorAge"/> before <paramref name="now"/>
+    /// (or slightly after, for clock jitter); null when it is missing or stale.
+    /// </summary>
+    public static SensorSnapshot? FreshSnapshot(SensorSnapshot? snapshot, DateTimeOffset now)
+    {
+        if (snapshot is null || snapshot.Timestamp == DateTimeOffset.MinValue)
+        {
+            return null;
+        }
+
+        var age = now.ToUniversalTime() - snapshot.Timestamp.ToUniversalTime();
+        return age <= MaxSensorAge && age >= -MaxSensorAge ? snapshot : null;
     }
 
     /// <summary>

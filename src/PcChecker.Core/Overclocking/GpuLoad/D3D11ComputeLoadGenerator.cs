@@ -189,13 +189,13 @@ public sealed class D3D11ComputeLoadGenerator : IGpuLoadGenerator
                 if (watch.Elapsed - lastReport >= ProgressInterval)
                 {
                     lastReport = watch.Elapsed;
-                    progress?.Report(new GpuLoadProgress(watch.Elapsed, rate.Rate, errors));
+                    progress?.Report(new GpuLoadProgress(watch.Elapsed, rate.Rate, errors) { Iterations = iterations });
                 }
             }
 
             dispatches += session.Drain(cancellationToken);
             session.ThrowIfDeviceLost();
-            progress?.Report(new GpuLoadProgress(watch.Elapsed, rate.Rate, errors));
+            progress?.Report(new GpuLoadProgress(watch.Elapsed, rate.Rate, errors) { Iterations = iterations });
             _logger.LogInformation("GPU load finished: {Dispatches} dispatches, {Errors} errors, {Iterations} iterations per element.", dispatches, errors, iterations);
             return new GpuLoadResult(true, dispatches, errors, choice.Name, null, watch.Elapsed) { Iterations = iterations, BufferBytes = plan.BufferBytes };
         }

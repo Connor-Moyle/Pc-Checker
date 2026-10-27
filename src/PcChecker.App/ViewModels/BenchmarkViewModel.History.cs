@@ -152,7 +152,7 @@ public sealed partial class BenchmarkViewModel
         var when = run.Started.LocalDateTime;
         Subtitle = Loc.F("Showing the run from {0}. Reference PC = 1,000 per test.", when.ToString("g", culture));
         OverallText = BenchmarkFormatter.Score(run.OverallScore, culture);
-        OverallSubtitle = BenchmarkScoring.Rating(run.OverallScore);
+        OverallSubtitle = BenchmarkText.Rating(run.OverallScore);
         int scored = run.ScoredTests.Count;
         TestsText = Loc.F("{0} of {1}", scored, BenchmarkCatalog.All.Count);
         TestsSubtitle = Loc.F("Took {0}", BenchmarkFormatter.Duration(run.Seconds));
@@ -172,7 +172,7 @@ public sealed partial class BenchmarkViewModel
         {
             var change = BenchmarkComparer.ChangePercent(previous.OverallScore, run.OverallScore);
             ChangeText = BenchmarkFormatter.Change(change, culture);
-            ChangeSubtitle = Loc.F("Since {0} ({1})", previous.Started.LocalDateTime.ToString("d MMM", culture), BenchmarkFormatter.ChangeWord(BenchmarkComparer.Classify(change)));
+            ChangeSubtitle = Loc.F("Since {0} ({1})", previous.Started.LocalDateTime.ToString("d MMM", culture), BenchmarkText.ChangeWord(BenchmarkComparer.Classify(change)));
         }
     }
 
@@ -212,7 +212,7 @@ public sealed partial class BenchmarkViewModel
         ComparisonSummary = overall.Change == BenchmarkChange.NotComparable
             ? Loc.T("Compare the tests both runs completed below.")
             : Loc.F("Overall {0} ({1}). Changes under {2} % are normal run-to-run variation.",
-                BenchmarkFormatter.Change(overall.ChangePercent, CultureInfo.CurrentCulture), BenchmarkFormatter.ChangeWord(overall.Change), BenchmarkComparer.NoiseThresholdPercent);
+                BenchmarkFormatter.Change(overall.ChangePercent, CultureInfo.CurrentCulture), BenchmarkText.ChangeWord(overall.Change), BenchmarkComparer.NoiseThresholdPercent);
         CopyComparisonCommand.NotifyCanExecuteChanged();
         SaveComparisonCommand.NotifyCanExecuteChanged();
     }

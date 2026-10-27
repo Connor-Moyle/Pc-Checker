@@ -59,7 +59,7 @@ public sealed class JsonBenchmarkHistoryStore : IBenchmarkHistoryStore
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            return await ReadAsync(cancellationToken).ConfigureAwait(false);
+            return await ReadAsync(throwOnIoError: false, cancellationToken).ConfigureAwait(false);
         }
         finally
         {
@@ -73,7 +73,7 @@ public sealed class JsonBenchmarkHistoryStore : IBenchmarkHistoryStore
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            var runs = BenchmarkHistoryRules.Normalize((await ReadAsync(cancellationToken).ConfigureAwait(false)).Append(run));
+            var runs = BenchmarkHistoryRules.Normalize((await ReadAsync(throwOnIoError: true, cancellationToken).ConfigureAwait(false)).Append(run));
             await WriteAsync(runs).ConfigureAwait(false);
             return runs;
         }
@@ -88,7 +88,7 @@ public sealed class JsonBenchmarkHistoryStore : IBenchmarkHistoryStore
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            var runs = (await ReadAsync(cancellationToken).ConfigureAwait(false)).Where(r => r.Id != id).ToList();
+            var runs = (await ReadAsync(throwOnIoError: true, cancellationToken).ConfigureAwait(false)).Where(r => r.Id != id).ToList();
             await WriteAsync(runs).ConfigureAwait(false);
             return runs;
         }
@@ -98,7 +98,12 @@ public sealed class JsonBenchmarkHistoryStore : IBenchmarkHistoryStore
         }
     }
 
-    private async Task<IReadOnlyList<BenchmarkRun>> ReadAsync(CancellationToken cancellationToken)
+    /// <summary>
+    /// Reads the history. When the file exists but cannot be opened (for example a scanner holds it for a moment),
+    /// <paramref name="throwOnIoError"/> decides between an empty list (fine for display) and an
+    /// <see cref="IOException"/> (needed before a write, so the saved history is never overwritten with less).
+    /// </summary>
+    private async Task<IReadOnlyList<BenchmarkRun>> ReadAsync(bool throwOnIoError, CancellationToken cancellationToken)
     {
         if (!File.Exists(Location))
         {
@@ -120,6 +125,11 @@ public sealed class JsonBenchmarkHistoryStore : IBenchmarkHistoryStore
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             _logger.LogWarning(ex, "The benchmark history {Path} could not be opened.", Location);
+            if (throwOnIoError)
+            {
+                throw new IOException("The benchmark history could not be opened: " + ex.Message, ex);
+            }
+
             return [];
         }
     }

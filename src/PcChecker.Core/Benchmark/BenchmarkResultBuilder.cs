@@ -131,6 +131,43 @@ public static class BenchmarkResultBuilder
         return Build(BenchmarkTestKind.GpuCompute, metrics, note, seconds, kept.Count, spread);
     }
 
+    /// <summary>
+    /// The dispatch rates that belong to the final calibration: samples taken with <paramref name="finalIterations"/>
+    /// once that setting had run for at least <paramref name="settle"/> (the rate meter's window, so no sample mixes in
+    /// dispatches of another size) and not before <paramref name="warmUp"/>. Samples that do not report their
+    /// iterations (0) count after the warm-up only. Falls back to every sample with the final iterations when none had
+    /// settled, so a slow card still gets a result.
+    /// </summary>
+    public static IReadOnlyList<double> SteadyGpuRates(IReadOnlyList<GpuRateSample> samples, int finalIterations, TimeSpan warmUp, TimeSpan settle)
+    {
+        ArgumentNullException.ThrowIfNull(samples);
+        var ordered = samples.Where(s => s.DispatchesPerSecond > 0).OrderBy(s => s.Elapsed).ToList();
+        if (ordered.Count > 0 && ordered.All(s => s.Iterations == 0))
+        {
+            return ordered.Where(s => s.Elapsed >= warmUp).Select(s => s.DispatchesPerSecond).ToList();
+        }
+
+        // The final setting was in use by the first sample that reports it after the last sample that used another one.
+        TimeSpan lastOther = TimeSpan.MinValue;
+        foreach (var s in ordered)
+        {
+            if (s.Iterations != 0 && s.Iterations != finalIterations)
+            {
+                lastOther = s.Elapsed;
+            }
+        }
+
+        var final = ordered.Where(s => s.Iterations == finalIterations && s.Elapsed > lastOther).ToList();
+        if (final.Count == 0)
+        {
+            return [];
+        }
+
+        var since = final[0].Elapsed;
+        var steady = final.Where(s => s.Elapsed >= warmUp && s.Elapsed - since >= settle).Select(s => s.DispatchesPerSecond).ToList();
+        return steady.Count > 0 ? steady : final.Select(s => s.DispatchesPerSecond).ToList();
+    }
+
     /// <summary>Shader loop steps per second for a dispatch rate.</summary>
     public static double GpuStepsPerSecond(double dispatchesPerSecond, long elements, int iterations) =>
         dispatchesPerSecond <= 0 || elements <= 0 || iterations <= 0 ? 0 : dispatchesPerSecond * elements * iterations;
@@ -156,3 +193,7 @@ public static class BenchmarkResultBuilder
         };
     }
 }
+
+/// <summary>One dispatch-rate reading of the graphics test, with the iterations per element in use at the time.</summary>
+public readonly record struct GpuRateSample(TimeSpan Elapsed, double DispatchesPerSecond, int Iterations);
+

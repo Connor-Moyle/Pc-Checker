@@ -19,8 +19,8 @@ public sealed partial class BenchmarkTestCard : ObservableObject
     public BenchmarkTestCard(BenchmarkTestKind kind)
     {
         Kind = kind;
-        Name = BenchmarkCatalog.Name(kind);
-        Description = BenchmarkCatalog.Description(kind);
+        Name = BenchmarkText.Name(kind);
+        Description = BenchmarkText.Description(kind);
         Icon = kind switch
         {
             BenchmarkTestKind.CpuSingleCore => SymbolRegular.DeveloperBoard24,
@@ -64,7 +64,7 @@ public sealed partial class BenchmarkTestCard : ObservableObject
         HasScore = result.HasScore;
         ScoreText = BenchmarkFormatter.Score(result.Score, CultureInfo.CurrentCulture);
         BarValue = BenchmarkScoring.BarFraction(result.Score);
-        StatusText = BenchmarkFormatter.StatusText(result);
+        StatusText = BenchmarkText.Status(result);
         Note = result.HasScore ? result.Note : null;
         foreach (var metric in result.Metrics)
         {
@@ -84,8 +84,8 @@ public sealed partial class BenchmarkTestChoice : ObservableObject
     public BenchmarkTestChoice(BenchmarkTestKind kind, Action changed)
     {
         Kind = kind;
-        Name = BenchmarkCatalog.Name(kind);
-        Description = BenchmarkCatalog.Description(kind);
+        Name = BenchmarkText.Name(kind);
+        Description = BenchmarkText.Description(kind);
         _changed = changed;
     }
 
