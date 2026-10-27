@@ -276,7 +276,24 @@ public sealed partial class PerformanceViewModel : ViewModelBase
         row.IsBusy = true;
         try
         {
-            var result = await _optimization.SetStartupItemEnabledAsync(row.Item, enabled, CancellationToken.None);
+            var item = row.Item;
+            var result = await UndoOffers.RunAsync(
+                () => _optimization.SetStartupItemEnabledAsync(item, enabled, CancellationToken.None),
+                async undoCt =>
+                {
+                    var back = await _optimization.SetStartupItemEnabledAsync(item with { Enabled = enabled }, !enabled, undoCt);
+                    if (back.Success)
+                    {
+                        DispatcherHelper.PostToUi(() =>
+                        {
+                            row.SetEnabledSilently(!enabled);
+                            StartupText = $"{StartupItems.Count(s => s.IsEnabled)} enabled";
+                        });
+                    }
+
+                    return back;
+                },
+                row.Name);
             if (result.Success)
             {
                 _notifications.Success("Startup updated", result.Message);
@@ -332,7 +349,26 @@ public sealed partial class PerformanceViewModel : ViewModelBase
         row.IsBusy = true;
         try
         {
-            var result = await _optimization.SetServiceStartModeAsync(row.Name, row.StartMode, CancellationToken.None);
+            string oldMode = row.OriginalStartMode;
+            string newMode = row.StartMode;
+            var result = await UndoOffers.RunAsync(
+                () => _optimization.SetServiceStartModeAsync(row.Name, newMode, CancellationToken.None),
+                async undoCt =>
+                {
+                    // Undo from the success notification: the old start mode back, and the row showing it.
+                    var back = await _optimization.SetServiceStartModeAsync(row.Name, oldMode, undoCt);
+                    if (back.Success)
+                    {
+                        DispatcherHelper.PostToUi(() =>
+                        {
+                            row.StartMode = oldMode;
+                            row.Commit();
+                        });
+                    }
+
+                    return back;
+                },
+                row.DisplayName);
             if (result.Success)
             {
                 row.Commit();

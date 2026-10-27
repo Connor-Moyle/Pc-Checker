@@ -55,8 +55,15 @@
     <controls:SectionHeader Grid.Row="0" Title="Settings"
                             Subtitle="{Binding SaveStatus, TargetNullValue='Everything saves by itself a moment after you change it.'}">
       <controls:SectionHeader.Actions>
-        <ui:Button Content="Reset to defaults" Appearance="Danger" Icon="{ui:SymbolIcon ArrowReset24}" Command="{Binding ResetSettingsCommand}"
-                   ToolTip="Puts every setting back to its default." />
+        <!-- Resetting everything is rare and hard to take back, so it sits in More rather than as the header's only button. -->
+        <ui:DropDownButton Content="More" Icon="{ui:SymbolIcon MoreHorizontal24}">
+          <ui:DropDownButton.Flyout>
+            <ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+              <MenuItem Header="Reset to defaults" Command="{Binding ResetSettingsCommand}"
+                        ToolTip="Puts every setting back to its default. Asks first." />
+            </ContextMenu>
+          </ui:DropDownButton.Flyout>
+        </ui:DropDownButton>
       </controls:SectionHeader.Actions>
     </controls:SectionHeader>
 
@@ -66,6 +73,11 @@
       <ui:InfoBar Severity="Informational" Title="Demo mode" IsClosable="False" Margin="0,0,0,12"
                   IsOpen="{Binding IsDemoMode, Mode=OneWay}"
                   Message="You are looking at sample data. These settings are stored in a separate demo file and never touch your real settings." />
+      <ui:InfoBar Severity="Informational" Title="You're in Simple mode" IsClosable="True" Margin="0,0,0,12"
+                  IsOpen="{Binding SimpleModeHint.IsOpen, Mode=TwoWay}"
+                  Message="Some advanced options are hidden to keep things safe. Switch on Advanced mode when you need more; every action still asks first.">
+        <ui:Button Content="Turn on Advanced mode" Command="{Binding SimpleModeHint.TurnOnAdvancedModeCommand}" Margin="0,8,0,4" />
+      </ui:InfoBar>
     </StackPanel>
 
     <ScrollViewer Grid.Row="2" Style="{StaticResource PageScroll}">

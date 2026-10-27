@@ -173,6 +173,13 @@ without the batch and each change follows its own options again. The Check-up pa
 
 The UI must also ask for confirmation before invoking a guarded change and explain what will happen.
 
+A reversible change can also say how to take it back straight away (`ChangeOptions.Undo`, or a `ChangeUndo.Offer`
+scope opened by the caller, usually through the app's `UndoOffers.RunAsync`). The guard then registers it with
+`IChangeUndoTracker` (not inside a batch, never for a change made by an undo) together with its undo flow
+(`ChangeUndo.BeginFlow`, an `AsyncLocal` started in the method that makes the change). The app's `NotificationService`
+adds an **Undo** button only to a success notification shown from that same flow, for 10 seconds from when it appears,
+and asks before running it. `UndoOfferRules` holds the decisions and is tested.
+
 ### `ISettingsService`
 
 `AppSettings` is a plain object tree stored as indented JSON in `%LOCALAPPDATA%\PcChecker\settings.json`. Missing fields take their defaults, and an unreadable file is backed up and replaced with defaults rather than crashing the app. The `Changed` event lets view models react; `ViewModelBase` uses it to keep `IsAdvancedMode` current.

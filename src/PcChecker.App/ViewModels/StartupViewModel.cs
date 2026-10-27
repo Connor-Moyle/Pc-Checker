@@ -220,7 +220,26 @@ public sealed partial class StartupViewModel : ViewModelBase
         row.IsBusy = true;
         try
         {
-            var result = await _startup.SetStartupItemEnabledAsync(row.Item, target, CancellationToken.None);
+            var item = row.Item;
+            var result = await UndoOffers.RunAsync(
+                () => _startup.SetStartupItemEnabledAsync(item, target, CancellationToken.None),
+                async undoCt =>
+                {
+                    // Undo from the success notification: switch it back and show the row as it is again.
+                    var back = await _startup.SetStartupItemEnabledAsync(item with { Enabled = target }, !target, undoCt);
+                    if (back.Success)
+                    {
+                        DispatcherHelper.PostToUi(() =>
+                        {
+                            row.Apply(row.Item with { Enabled = !target });
+                            RecomputeStats();
+                            RebuildWarnings();
+                        });
+                    }
+
+                    return back;
+                },
+                row.Name);
             if (result.Success)
             {
                 row.Apply(row.Item with { Enabled = target });
@@ -413,7 +432,19 @@ public sealed partial class StartupViewModel : ViewModelBase
             }
 
             row.IsBusy = true;
-            var result = await _startup.SetServiceStartModeAsync(row.Name, newMode, CancellationToken.None);
+            var result = await UndoOffers.RunAsync(
+                () => _startup.SetServiceStartModeAsync(row.Name, newMode, CancellationToken.None),
+                async undoCt =>
+                {
+                    var back = await _startup.SetServiceStartModeAsync(row.Name, oldMode, undoCt);
+                    if (back.Success)
+                    {
+                        DispatcherHelper.PostToUi(() => row.Apply(row.Service with { StartMode = oldMode }));
+                    }
+
+                    return back;
+                },
+                row.DisplayName);
             if (result.Success)
             {
                 row.Apply(row.Service with { StartMode = newMode });

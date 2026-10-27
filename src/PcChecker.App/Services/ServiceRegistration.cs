@@ -80,6 +80,8 @@ public static class ServiceRegistration
         services.AddSingleton<ChangeGuard>();
         services.AddSingleton<IChangeGuard>(sp => sp.GetRequiredService<ChangeGuard>());
         services.AddSingleton<IChangeBatchRunner>(sp => sp.GetRequiredService<ChangeGuard>());
+        // Reversible changes that say how to undo them get an Undo button on their success notification for a few seconds.
+        services.AddSingleton<IChangeUndoTracker, ChangeUndoTracker>();
         services.AddSingleton<IReportService, HtmlReportService>();
 
         // Shared hardware monitor host: one LibreHardwareMonitor instance for sensors, fans, SMART and overclock readouts.
@@ -188,6 +190,7 @@ public static class ServiceRegistration
         services.AddSingleton<QuickActionRunner>();
         services.AddSingleton<WelcomeService>();
         services.AddSingleton<QuickSearchViewModel>();
+        services.AddSingleton<SimpleModeHintViewModel>();
         services.AddSingleton<MainWindowViewModel>();
         services.AddSingleton<MainWindow>();
         services.AddSingleton<OverlayWindow>();

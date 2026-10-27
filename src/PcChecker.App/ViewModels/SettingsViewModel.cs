@@ -389,6 +389,9 @@ public sealed partial class SettingsViewModel : ViewModelBase
         var defaults = AppSettings.CreateDefault();
         var current = Settings.Current;
         var apiKey = current.Claude.ProtectedApiKey;
+        // Facts about this PC, not choices: the last check-up time and whether the Simple mode hint was closed.
+        defaults.General.LastCheckupUtc = current.General.LastCheckupUtc;
+        defaults.General.SimpleModeHintDismissed = current.General.SimpleModeHintDismissed;
         current.General = defaults.General;
         current.Updates = defaults.Updates;
         current.RestorePoints = defaults.RestorePoints;

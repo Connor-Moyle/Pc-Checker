@@ -104,9 +104,14 @@ public sealed partial class DashboardViewModel : ViewModelBase
         IReportService reports, IActionJournal journal, IAppUpdateService updates, IFanControlService fans, ILightingService lighting,
         IDisplayService displays, IAudioService audio, IOverclockService overclock, IWindowsUpdateService windowsUpdate, IHistoryService history,
         IDiskSpaceService diskSpace, ICheckupService checkup, QuickActionRunner quickActions, INavigationService navigation, IDialogService dialogs,
-        INotificationService notifications, ILogger<DashboardViewModel> logger)
+        INotificationService notifications, ILogger<DashboardViewModel> logger, Core.Startup.IStartupService startup, PawnIoInstallFlow pawnIo,
+        SimpleModeHintViewModel simpleModeHint)
         : base(settings)
     {
+        _startup = startup;
+        _pawnIo = pawnIo;
+        SimpleModeHint = simpleModeHint;
+        checkup.Completed += OnCheckupCompleted;
         _health = health;
         _sensors = sensors;
         _power = power;
@@ -201,6 +206,7 @@ public sealed partial class DashboardViewModel : ViewModelBase
         await RefreshControlsAsync(ct);
         BusyText = Loc.T("Reading updates, temperature history and drives…");
         await RefreshGlanceAsync(ct);
+        await RefreshAttentionAsync(ct);
         await RefreshRecentActionsAsync();
         if (Settings.Current.Updates.AutoCheck)
         {

@@ -301,7 +301,12 @@
                              Title="No fans to show"
                              Message="Click “Detect fans” after making sure PC Checker runs as administrator. Laptops and many pre-built PCs keep their fans under firmware control."
                              Margin="0,0,0,12"
-                             Visibility="{Binding HasFans, Converter={StaticResource InverseBoolToVisibility}}" />
+                             Visibility="{Binding HasFans, Converter={StaticResource InverseBoolToVisibility}}">
+          <controls:EmptyState.Action>
+            <ui:Button Content="Detect fans" Icon="{ui:SymbolIcon ArrowSync24}" Command="{Binding DetectCommand}"
+                       ToolTip="Look for fans again. Nothing is changed." />
+          </controls:EmptyState.Action>
+        </controls:EmptyState>
 
         <ui:Button Content="Simulate an overheating CPU (demo)" Appearance="Secondary" Icon="{ui:SymbolIcon Fire24}" Command="{Binding SimulateOverheatCommand}" Margin="0,0,0,12"
                    Visibility="{Binding IsDemoMode, Converter={StaticResource BoolToVisibility}}" />

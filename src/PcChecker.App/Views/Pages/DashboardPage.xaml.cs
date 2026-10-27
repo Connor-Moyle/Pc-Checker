@@ -9,6 +9,15 @@ public partial class DashboardPage
         ViewModel = viewModel;
         DataContext = viewModel;
         InitializeComponent();
+
+        // Coming back to the Dashboard (from Startup, Cleanup, Fans…) refreshes What needs attention.
+        IsVisibleChanged += (_, e) =>
+        {
+            if (e.NewValue is true)
+            {
+                ViewModel.OnPageShown();
+            }
+        };
     }
 
     public DashboardViewModel ViewModel { get; }

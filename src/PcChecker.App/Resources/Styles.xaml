@@ -111,8 +111,17 @@
               <RowDefinition Height="3" />
             </Grid.RowDefinitions>
             <Border x:Name="Hover" Grid.Row="0" CornerRadius="4" Margin="-8,2,-8,4" Background="Transparent" />
-            <TextBlock x:Name="Label" Grid.Row="0" Margin="0,8,0,8" Text="{Binding Title, Converter={StaticResource Translate}}"
-                       Foreground="{TemplateBinding Foreground}" FontSize="{TemplateBinding FontSize}" />
+            <StackPanel Grid.Row="0" Orientation="Horizontal">
+              <TextBlock x:Name="Label" Margin="0,8,0,8" Text="{Binding Title, Converter={StaticResource Translate}}"
+                         Foreground="{TemplateBinding Foreground}" FontSize="{TemplateBinding FontSize}" />
+              <!-- Pages that mostly matter in Advanced mode (Core/Shell/SimpleModeRules.cs). The page itself stays open to everyone. -->
+              <Border Margin="6,0,0,0" Padding="5,0" CornerRadius="4" VerticalAlignment="Center"
+                      BorderThickness="1" BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
+                      ToolTip="Mostly for experienced users. The page works in Simple mode too; read what each action does before you use it."
+                      Visibility="{Binding IsAdvanced, Converter={StaticResource BoolToVisibility}}">
+                <TextBlock Text="Advanced" FontSize="10" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+              </Border>
+            </StackPanel>
             <Border x:Name="Underline" Grid.Row="1" CornerRadius="1.5" Background="{DynamicResource AccentFillColorDefaultBrush}"
                     Visibility="Hidden" />
           </Grid>

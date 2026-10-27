@@ -20,6 +20,7 @@ public static class QuickActionIds
     public const string Checkup = "checkup.run";
     public const string BackUpSetup = "setup.export";
     public const string RestoreSetup = "setup.import";
+    public const string ShowShortcuts = "shortcuts.show";
 }
 
 /// <summary>
@@ -45,6 +46,7 @@ public static class QuickActionCatalog
         new(QuickActionIds.ShowWelcome, T("Show the welcome again"), null, T("introduction tour getting started")),
         new(QuickActionIds.BackUpSetup, T("Back up your setup"), "settings", T("export save settings profiles to a file new pc")),
         new(QuickActionIds.RestoreSetup, T("Restore your setup from a file"), "settings", T("import load settings profiles backup reinstall")),
+        new(QuickActionIds.ShowShortcuts, T("Show keyboard shortcuts"), null, T("keys hotkeys keyboard help f1 f5")),
     ];
 
     /// <summary>The action with <paramref name="id"/>, or null.</summary>

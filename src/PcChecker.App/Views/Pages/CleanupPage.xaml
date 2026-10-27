@@ -80,7 +80,7 @@
                      Icon="{ui:SymbolIcon Search24}"
                      Command="{Binding ScanCommand}"
                      ToolTip="Measures every category again. Nothing is deleted by a scan.">
-            <AccessText Text="_Scan" />
+            <AccessText Text="_Scan now" />
           </ui:Button>
         </StackPanel>
       </controls:SectionHeader.Actions>

@@ -57,6 +57,6 @@
     </StackPanel>
 
     <ui:TextBlock Style="{StaticResource Caption}" Margin="0,16,0,0" TextWrapping="Wrap"
-                  Text="Tip: press Ctrl+K to find any page, setting or action." />
+                  Text="Tips: press Ctrl+K to find any page, setting or action. Every page has a ? button (or press F1) that says what it does and the safest first step." />
   </StackPanel>
 </UserControl>

@@ -40,7 +40,7 @@
           </ui:DropDownButton>
           <ui:Button Appearance="Primary" Icon="{ui:SymbolIcon Search24}" Command="{Binding FullScanCommand}"
                      ToolTip="Runs the hardware, health, performance, software and driver scans one after another.">
-            <AccessText Text="_Full scan" />
+            <AccessText Text="_Run full scan" />
           </ui:Button>
         </StackPanel>
       </controls:SectionHeader.Actions>
@@ -75,6 +75,51 @@
 
     <ScrollViewer Grid.Row="2" Style="{StaticResource PageScroll}">
       <StackPanel>
+
+        <!-- One-time hint for new users: Simple mode hides some riskier options. -->
+        <ui:InfoBar Severity="Informational" Title="You're in Simple mode"
+                    Message="Some advanced options are hidden to keep things safe. Menu items marked Advanced are mostly for experienced users. Turn on Advanced mode at the bottom of the menu when you need more."
+                    IsOpen="{Binding SimpleModeHint.IsOpen, Mode=TwoWay}" IsClosable="True" Margin="0,0,0,12">
+          <ui:Button Content="Turn on Advanced mode" Command="{Binding SimpleModeHint.TurnOnAdvancedModeCommand}" Margin="0,8,0,4"
+                     ToolTip="Shows the extra options. Every change still asks first." />
+        </ui:InfoBar>
+
+        <!-- What needs attention: up to five recommendations, each with one button (Core/Shell/AttentionRules.cs). -->
+        <ui:Card Padding="16" Margin="0,0,0,12">
+          <StackPanel>
+            <ui:TextBlock Style="{StaticResource CardTitle}" Text="What needs attention" />
+            <StackPanel Orientation="Horizontal" Visibility="{Binding HasAttentionItems, Converter={StaticResource InverseBoolToVisibility}}">
+              <controls:IconGlyph Symbol="CheckmarkCircle24" Foreground="{DynamicResource AccentGreenBrush}" FontSize="20" Margin="0,0,8,0" VerticalAlignment="Center" />
+              <StackPanel VerticalAlignment="Center">
+                <ui:TextBlock FontWeight="SemiBold" Text="Everything looks good" />
+                <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding AttentionAllClearText}" TextWrapping="Wrap" />
+              </StackPanel>
+            </StackPanel>
+            <ItemsControl ItemsSource="{Binding AttentionItems}" Focusable="False" AutomationProperties.Name="What needs attention">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <Border BorderThickness="0,0,0,1" BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}" Padding="0,8">
+                    <Grid>
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                      </Grid.ColumnDefinitions>
+                      <Ellipse Width="10" Height="10" Margin="0,5,10,0" VerticalAlignment="Top" Fill="{Binding Severity, Converter={StaticResource SeverityToBrush}}" />
+                      <StackPanel Grid.Column="1">
+                        <ui:TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                        <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding Detail}" TextWrapping="Wrap" />
+                      </StackPanel>
+                      <ui:Button Grid.Column="2" Content="{Binding ActionText}" Command="{Binding Command}" Appearance="Secondary"
+                                 Padding="10,4" Margin="12,0,0,0" VerticalAlignment="Center" MinWidth="110"
+                                 AutomationProperties.HelpText="{Binding Title}" />
+                    </Grid>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </ui:Card>
 
         <!-- Live readings -->
         <controls:AdaptiveGrid MinItemWidth="190" MaxColumns="4" Margin="0,0,0,12">

@@ -170,8 +170,13 @@
         <!-- Main content: one expander per part -->
         <ItemsControl ItemsSource="{Binding Groups}" ItemTemplate="{StaticResource HardwareGroup}" />
         <controls:EmptyState Icon="Temperature24" Title="No temperature sensors yet" Margin="0,24"
-                             Message="Readings appear here as soon as the hardware monitor reports them."
-                             Visibility="{Binding HasGroups, Converter={StaticResource InverseBoolToVisibility}}" />
+                             Message="Readings appear here as soon as the hardware monitor reports them. If nothing shows after a minute, reload the sensors; CPU and motherboard sensors also need PawnIO."
+                             Visibility="{Binding HasGroups, Converter={StaticResource InverseBoolToVisibility}}">
+          <controls:EmptyState.Action>
+            <ui:Button Content="Reload sensors" Icon="{ui:SymbolIcon ArrowSync24}" Command="{Binding ReloadSensorsCommand}"
+                       ToolTip="Return every fan to automatic, restart the hardware monitor and read the sensors again." />
+          </controls:EmptyState.Action>
+        </controls:EmptyState>
 
         <!-- Alerts -->
         <ui:Card Style="{StaticResource CardSpacing}">

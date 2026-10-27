@@ -4,7 +4,11 @@ using Wpf.Ui.Controls;
 namespace PcChecker.App.Services;
 
 /// <summary>One page. <see cref="Title"/> is the tab label inside its section.</summary>
-public sealed record NavigationEntry(string Section, string Title, string FileName, Type PageType);
+public sealed record NavigationEntry(string Section, string Title, string FileName, Type PageType)
+{
+    /// <summary>True for pages that mostly matter in Advanced mode; the tab shows an "Advanced" chip (see SimpleModeRules).</summary>
+    public bool IsAdvanced => Core.Shell.SimpleModeRules.IsAdvancedPage(FileName);
+}
 
 /// <summary>
 /// One item in the side navigation. A section with more than one page shows its pages as tabs above the content;

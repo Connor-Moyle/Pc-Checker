@@ -24,6 +24,13 @@ public sealed record ChangeOptions(
     /// <summary>Behaviour when the "before" restore point fails. Modules that make deep changes (Features, Drivers, Overclock) use Abort.</summary>
     public RestorePointFailedBehavior OnRestorePointFailed { get; init; } = RestorePointFailedBehavior.Continue;
 
+    /// <summary>
+    /// How to take the change back straight away (calling the same service the other way round), or null. When set on a
+    /// <see cref="Reversible"/> change that succeeds outside a batch, the success notification offers "Undo" for a few
+    /// seconds. <see cref="ChangeUndo.Offer"/> does the same from the calling code. Never written to the journal.
+    /// </summary>
+    public Func<CancellationToken, Task<PcChecker.Core.Common.OperationResult>>? Undo { get; init; }
+
     public static ChangeOptions For(string module, string target, bool reversible = false, string? undoHint = null) =>
         new(null, null, module, target, reversible, undoHint);
 }

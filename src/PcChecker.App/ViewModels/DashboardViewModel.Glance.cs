@@ -65,7 +65,7 @@ public sealed partial class DashboardViewModel
         await Guard(async () => _updateStatus = await _windowsUpdate.GetStatusAsync(ct).WaitAsync(GlanceTimeout, ct), "Windows Update status");
         ApplyUpdates();
         await RefreshTrendAsync(ct);
-        await Guard(async () => ApplyFullestDrive(await _diskSpace.GetDrivesAsync(ct).WaitAsync(GlanceTimeout, ct)), "drive list");
+        await Guard(async () => ApplyFullestDrive(_attentionDrives = await _diskSpace.GetDrivesAsync(ct).WaitAsync(GlanceTimeout, ct)), "drive list");
         ApplyCheckup(_checkup.Last);
     }
 
@@ -141,6 +141,7 @@ public sealed partial class DashboardViewModel
             await Guard(async () => _updateStatus = await _windowsUpdate.GetStatusAsync(CancellationToken.None).WaitAsync(GlanceTimeout), "Windows Update status");
             ApplyUpdates();
             RebuildAlerts();
+            RebuildAttention();
         }
         catch (Exception ex)
         {
