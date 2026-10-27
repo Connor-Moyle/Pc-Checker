@@ -365,7 +365,7 @@
                               ToolTip="Keys: Enter switches to the program, Delete ends it, Ctrl+F searches, the arrow keys open and close groups." />
               </StackPanel>
               <ui:TextBox x:Name="SearchBox" Grid.Column="1" Width="260" VerticalAlignment="Top"
-                          PlaceholderText="Search name, PID or publisher (Ctrl+F)" Icon="{ui:SymbolIcon Search24}"
+                          PlaceholderText="Search name, PID or publisher" ToolTip="Searches the name, description, window title, PID, publisher and folder (Ctrl+F)" Icon="{ui:SymbolIcon Search24}"
                           AutomationProperties.Name="Search running programs"
                           Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" ClearButtonEnabled="True" />
             </Grid>

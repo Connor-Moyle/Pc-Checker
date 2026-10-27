@@ -23,6 +23,13 @@ public sealed partial class DriversViewModel
     [ObservableProperty]
     private bool _useChipset;
 
+    /// <summary>
+    /// The card shows one summary line until Details is pressed, so the update list below keeps its room on smaller
+    /// screens. The summary line itself carries any BIOS or chipset warning.
+    /// </summary>
+    [ObservableProperty]
+    private bool _isPlatformExpanded;
+
     [ObservableProperty]
     private bool _useDeviceMakers;
 
@@ -33,6 +40,13 @@ public sealed partial class DriversViewModel
     public ObservableCollection<PlatformLink> PlatformLinks { get; } = [];
 
     public bool HasPlatform => Platform is not null;
+
+    /// <summary>One line for the folded card: the BIOS, and what needs attention when something does.</summary>
+    public string PlatformSummaryText => BiosNeedsAttention
+        ? Loc.F("BIOS {0}. {1}", BiosText, BiosStatusText)
+        : ChipsetHasNewer
+            ? Loc.F("BIOS {0}. A newer chipset driver is available.", BiosText)
+            : Loc.F("BIOS {0}. Press Details for the chipset driver and your maker's pages.", BiosText);
 
     public string PlatformTitle => Platform?.Info.DisplayName ?? Loc.T("This PC");
 
@@ -197,7 +211,7 @@ public sealed partial class DriversViewModel
             nameof(PlatformTitle), nameof(PlatformSubtitle), nameof(BiosText), nameof(BiosStatusText), nameof(BiosNeedsAttention),
             nameof(HasChipset), nameof(ChipsetName), nameof(ChipsetInstalledText), nameof(ChipsetStatusText), nameof(ChipsetHasNewer), nameof(ChipsetButtonAppearance),
             nameof(ChipsetActionText), nameof(HasSupportPage), nameof(SupportPageTitle), nameof(SupportPageNote), nameof(PlatformNotes),
-            nameof(HasPlatformNotes), nameof(PlatformCheckedText),
+            nameof(HasPlatformNotes), nameof(PlatformCheckedText), nameof(PlatformSummaryText),
         })
         {
             OnPropertyChanged(name);

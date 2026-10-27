@@ -174,7 +174,18 @@
                     </WrapPanel>
                     <ui:HyperlinkButton Content="{Binding VendorToolText}" NavigateUri="{Binding VendorTool.Url}" Padding="0" Margin="0,6,0,0"
                                         Visibility="{Binding HasVendorTool, Converter={StaticResource BoolToVisibility}}"
-                                        ToolTip="{Binding VendorTool.Note}" />
+                                        ToolTip="{Binding VendorTool.Note}">
+                      <ui:HyperlinkButton.Style>
+                        <!-- On the selected (accent-filled) card the link colour would vanish into the background. -->
+                        <Style TargetType="ui:HyperlinkButton" BasedOn="{StaticResource {x:Type ui:HyperlinkButton}}">
+                          <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" Value="True">
+                              <Setter Property="Foreground" Value="{DynamicResource OnAccentTextBrush}" />
+                            </DataTrigger>
+                          </Style.Triggers>
+                        </Style>
+                      </ui:HyperlinkButton.Style>
+                    </ui:HyperlinkButton>
                   </StackPanel>
                 </Grid>
               </ui:Card>

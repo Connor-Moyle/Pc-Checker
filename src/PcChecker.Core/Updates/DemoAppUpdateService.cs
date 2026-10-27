@@ -2,16 +2,22 @@ using PcChecker.Core.Common;
 
 namespace PcChecker.Core.Updates;
 
-/// <summary>Demo updater: reports 0.1.0 as the running version and a 0.1.1 release with notes, downloadable in a few seconds.</summary>
+/// <summary>
+/// Demo updater: reports the build's own version as running and the next minor version as a release with notes,
+/// downloadable in a few seconds (so screenshots always show believable version numbers).
+/// </summary>
 public sealed class DemoAppUpdateService : IAppUpdateService
 {
     /// <summary>Demo mode never restarts; the event exists to satisfy the contract.</summary>
     public event EventHandler? RestartRequested { add { } remove { } }
 
-    public const string LatestVersion = "0.1.1";
+    private static readonly Version Running = typeof(DemoAppUpdateService).Assembly.GetName().Version ?? new Version(0, 1, 0);
 
-    private const string ReleaseNotes =
-        "## PC Checker 0.1.1\n\n" +
+    /// <summary>The release the demo offers: the next minor version after this build.</summary>
+    public static string LatestVersion { get; } = $"{Running.Major}.{Running.Minor + 1}.0";
+
+    private static readonly string ReleaseNotes =
+        $"## PC Checker {LatestVersion}\n\n" +
         "- Fans: new \"Quiet night\" built-in profile and smoother curve ramping.\n" +
         "- Lighting: reconnects to OpenRGB automatically after it restarts.\n" +
         "- Storage: surface scan now shows a live block map and remembers the last result.\n" +
@@ -19,7 +25,7 @@ public sealed class DemoAppUpdateService : IAppUpdateService
         "- Fixed: the overlay hotkey was ignored while a game ran in exclusive full screen.\n" +
         "- Fixed: the Health page could show a stale score after a drive was removed.";
 
-    public string CurrentVersion => "0.1.0";
+    public string CurrentVersion { get; } = $"{Running.Major}.{Running.Minor}.{Math.Max(0, Running.Build)}";
     public bool IsInstalledViaUpdater => true;
     public bool IsUpdateDownloaded { get; private set; }
 

@@ -201,7 +201,7 @@
                                  ToolTip="Hide connections between programs on this PC (127.0.0.1 and ::1). They never reach the network." />
                 <ui:ToggleSwitch Content="Show host names" IsChecked="{Binding ShowHostNames, Mode=TwoWay}" Margin="0,0,12,8" VerticalAlignment="Center"
                                  ToolTip="Look up the name of each remote address (asks your DNS server). Off by default." />
-                <ui:TextBox Width="220" Margin="0,0,0,8" PlaceholderText="Search program, address or port" Icon="{ui:SymbolIcon Search24}"
+                <ui:TextBox Width="220" Margin="0,0,0,8" PlaceholderText="Search connections" ToolTip="Searches the program, address and port" Icon="{ui:SymbolIcon Search24}"
                             AutomationProperties.Name="Search connections"
                             Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" ClearButtonEnabled="True" />
               </WrapPanel>

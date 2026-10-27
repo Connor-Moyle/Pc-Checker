@@ -11,6 +11,10 @@
       Title="Windows Update"
       ScrollViewer.CanContentScroll="False">
   <Page.Resources>
+    <!-- Text cells centred like the tick box column, so each row reads as one line. -->
+    <Style x:Key="CenteredCellText" TargetType="TextBlock" BasedOn="{x:Static DataGridTextColumn.DefaultElementStyle}">
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
     <Style x:Key="Tile" TargetType="controls:StatCard">
       <Setter Property="Margin" Value="0" />
     </Style>
@@ -160,13 +164,13 @@
                     </DataTemplate>
                   </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
-                <DataGridTextColumn Header="Update" Binding="{Binding Title}" Width="*" IsReadOnly="True" />
-                <DataGridTextColumn Header="KB" Binding="{Binding KbText}" Width="90" IsReadOnly="True" />
-                <DataGridTextColumn Header="Type" Binding="{Binding ClassificationText}" Width="150" IsReadOnly="True" />
-                <DataGridTextColumn Header="Severity" Binding="{Binding SeverityText}" Width="90" IsReadOnly="True" />
-                <DataGridTextColumn Header="Size" Binding="{Binding SizeText}" Width="90" IsReadOnly="True" />
-                <DataGridTextColumn Header="Restart" Binding="{Binding RestartText}" Width="70" IsReadOnly="True" />
-                <DataGridTextColumn Header="State" Binding="{Binding StateText}" Width="150" IsReadOnly="True" />
+                <DataGridTextColumn Header="Update" Binding="{Binding Title}" Width="*" IsReadOnly="True" ElementStyle="{StaticResource CenteredCellText}" />
+                <DataGridTextColumn Header="KB" Binding="{Binding KbText}" Width="90" IsReadOnly="True" ElementStyle="{StaticResource CenteredCellText}" />
+                <DataGridTextColumn Header="Type" Binding="{Binding ClassificationText}" Width="150" IsReadOnly="True" ElementStyle="{StaticResource CenteredCellText}" />
+                <DataGridTextColumn Header="Severity" Binding="{Binding SeverityText}" Width="90" IsReadOnly="True" ElementStyle="{StaticResource CenteredCellText}" />
+                <DataGridTextColumn Header="Size" Binding="{Binding SizeText}" Width="90" IsReadOnly="True" ElementStyle="{StaticResource CenteredCellText}" />
+                <DataGridTextColumn Header="Restart" Binding="{Binding RestartText}" Width="70" IsReadOnly="True" ElementStyle="{StaticResource CenteredCellText}" />
+                <DataGridTextColumn Header="State" Binding="{Binding StateText}" Width="150" IsReadOnly="True" ElementStyle="{StaticResource CenteredCellText}" />
               </ui:DataGrid.Columns>
               <ui:DataGrid.RowDetailsTemplate>
                 <DataTemplate>

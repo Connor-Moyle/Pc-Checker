@@ -62,6 +62,12 @@ public sealed class ScreenshotRunner
             await IdleAsync(window.Dispatcher);
             await Task.Delay(600, cancellationToken);
 
+            // Notifications raised while pages load (a finished check-up, say) would otherwise sit over a later page.
+            if (_services.GetService(typeof(Wpf.Ui.ISnackbarService)) is Wpf.Ui.ISnackbarService snackbar && snackbar.GetSnackbarPresenter() is { } presenter)
+            {
+                presenter.Visibility = Visibility.Collapsed;
+            }
+
             var index = new Dictionary<string, string>();
             foreach (var entry in NavigationCatalog.Pages)
             {

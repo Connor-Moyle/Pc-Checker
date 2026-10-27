@@ -182,7 +182,7 @@
                 <ComboBox Width="180" Margin="0,0,12,0" VerticalAlignment="Center"
                           AutomationProperties.Name="Filter tasks"
                           ItemsSource="{Binding FilterOptions}" SelectedIndex="{Binding SelectedFilterIndex}" />
-                <ui:TextBox Width="240" PlaceholderText="Search name, program or company" Icon="{ui:SymbolIcon Search24}"
+                <ui:TextBox Width="240" PlaceholderText="Search tasks" ToolTip="Searches the task name, the program it runs and the company" Icon="{ui:SymbolIcon Search24}"
                             AutomationProperties.Name="Search tasks"
                             Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" ClearButtonEnabled="True" />
               </StackPanel>
