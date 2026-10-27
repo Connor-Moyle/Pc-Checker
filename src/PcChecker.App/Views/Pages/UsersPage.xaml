@@ -1,0 +1,154 @@
+<Page x:Class="PcChecker.App.Views.Pages.UsersPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+      xmlns:controls="clr-namespace:PcChecker.App.Controls"
+      xmlns:vm="clr-namespace:PcChecker.App.ViewModels"
+      d:DataContext="{d:DesignInstance vm:UsersViewModel}"
+      xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+      mc:Ignorable="d"
+      Title="Users"
+      ScrollViewer.CanContentScroll="False">
+  <Page.Resources>
+    <Style x:Key="UserGrid" TargetType="ui:DataGrid" BasedOn="{StaticResource DefaultUiDataGridStyle}">
+      <Setter Property="AutoGenerateColumns" Value="False" />
+      <Setter Property="IsReadOnly" Value="True" />
+      <Setter Property="CanUserAddRows" Value="False" />
+      <Setter Property="CanUserDeleteRows" Value="False" />
+      <Setter Property="CanUserResizeRows" Value="False" />
+      <Setter Property="CanUserReorderColumns" Value="False" />
+      <Setter Property="HeadersVisibility" Value="Column" />
+      <Setter Property="GridLinesVisibility" Value="None" />
+      <Setter Property="SelectionMode" Value="Single" />
+      <Setter Property="SelectionUnit" Value="FullRow" />
+      <Setter Property="RowHeight" Value="44" />
+      <Setter Property="MaxHeight" Value="360" />
+    </Style>
+    <Style x:Key="TextCell" TargetType="TextBlock">
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+    </Style>
+    <Style x:Key="Tile" TargetType="controls:StatCard">
+      <Setter Property="Margin" Value="0" />
+    </Style>
+
+    <DataTemplate x:Key="UserNameCell">
+      <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+        <controls:IconGlyph Symbol="Person24" FontSize="16" Margin="0,0,8,0" />
+        <ui:TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" VerticalAlignment="Center" />
+        <Border Margin="8,0,0,0" Padding="6,1" CornerRadius="4" Background="{DynamicResource AccentGreenBrush}"
+                Visibility="{Binding IsCurrent, Converter={StaticResource BoolToVisibility}}">
+          <ui:TextBlock Text="{Binding YouBadge}" FontSize="11" Foreground="{DynamicResource OnAccentTextBrush}" />
+        </Border>
+      </StackPanel>
+    </DataTemplate>
+  </Page.Resources>
+
+  <Grid Style="{StaticResource PageRoot}">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="*" />
+    </Grid.RowDefinitions>
+
+    <controls:SectionHeader Grid.Row="0" Title="Users" Subtitle="{Binding StatusText}">
+      <controls:SectionHeader.Actions>
+        <StackPanel Orientation="Horizontal">
+          <ui:Button Content="Switch user" Icon="{ui:SymbolIcon PersonArrowRight24}" Margin="0,0,8,0"
+                     Command="{Binding SwitchUserCommand}"
+                     ToolTip="Lock this PC and show the sign-in screen so someone else can sign in" />
+          <ui:Button Appearance="Primary" Icon="{ui:SymbolIcon ArrowClockwise24}" Command="{Binding RefreshCommand}">
+            <AccessText Text="_Refresh" />
+          </ui:Button>
+        </StackPanel>
+      </controls:SectionHeader.Actions>
+    </controls:SectionHeader>
+
+    <StackPanel Grid.Row="1">
+      <ui:InfoBar Severity="Error" Title="Something went wrong" Message="{Binding ErrorMessage}"
+                  IsOpen="{Binding HasError, Mode=OneWay}" IsClosable="True" Margin="0,0,0,12" />
+    </StackPanel>
+
+    <ScrollViewer Grid.Row="2" Style="{StaticResource PageScroll}">
+      <StackPanel>
+        <controls:AdaptiveGrid MinItemWidth="220" MaxColumns="3" Margin="0,0,0,12">
+          <controls:StatCard Style="{StaticResource Tile}" Title="Signed in" Value="{Binding CountText}" Icon="People24"
+                             Accent="{DynamicResource AccentCyanBrush}" Subtitle="Sessions on this PC" />
+        </controls:AdaptiveGrid>
+
+        <ui:Card Style="{StaticResource CardSpacing}">
+          <StackPanel>
+            <ui:TextBlock Style="{StaticResource CardTitle}" Text="Signed-in users" Margin="0,0,0,4" />
+            <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,8"
+                          Text="Each person's processor and memory totals add up every program in their session." />
+            <ui:DataGrid AutomationProperties.Name="Signed-in users" Style="{StaticResource UserGrid}"
+                         ItemsSource="{Binding Users}" SelectedItem="{Binding SelectedUser, Mode=TwoWay}"
+                         IsReadOnly="True" KeyboardNavigation.TabNavigation="Once"
+                         Visibility="{Binding HasNoRows, Converter={StaticResource InverseBoolToVisibility}}">
+              <ui:DataGrid.Columns>
+                <DataGridTemplateColumn Header="User" Width="1.6*" MinWidth="180" CellTemplate="{StaticResource UserNameCell}" />
+                <DataGridTextColumn Header="ID" Width="60" Binding="{Binding SessionIdText}" ElementStyle="{StaticResource TextCell}" />
+                <DataGridTextColumn Header="State" Width="110" Binding="{Binding StateText}" ElementStyle="{StaticResource TextCell}" />
+                <DataGridTextColumn Header="CPU" Width="80" Binding="{Binding CpuText}" ElementStyle="{StaticResource TextCell}" />
+                <DataGridTextColumn Header="Memory" Width="100" Binding="{Binding MemoryText}" ElementStyle="{StaticResource TextCell}" />
+                <DataGridTextColumn Header="Programs" Width="100" Binding="{Binding ProcessCountText}" ElementStyle="{StaticResource TextCell}" />
+                <DataGridTextColumn Header="Signed in at" Width="1*" MinWidth="120" Binding="{Binding LogonText}" ElementStyle="{StaticResource TextCell}" />
+              </ui:DataGrid.Columns>
+            </ui:DataGrid>
+            <controls:EmptyState Icon="People24" Title="No one else is signed in" Message="Only your session is active right now."
+                                 Visibility="{Binding HasNoRows, Converter={StaticResource BoolToVisibility}}" MinHeight="120" />
+          </StackPanel>
+        </ui:Card>
+
+        <!-- Selected user -->
+        <ui:Card Style="{StaticResource CardSpacing}" Visibility="{Binding HasSelection, Converter={StaticResource BoolToVisibility}}">
+          <StackPanel>
+            <ui:TextBlock Style="{StaticResource CardTitle}" Text="{Binding SelectedUser.DisplayName}" />
+            <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding SelectedUser.StateText}" Margin="0,0,0,10" />
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+              <ui:Button Content="Disconnect" Icon="{ui:SymbolIcon PlugDisconnected24}" Margin="0,0,8,0"
+                         Command="{Binding DisconnectCommand}" IsEnabled="{Binding CanDisconnect}"
+                         ToolTip="Lock this user's desktop; their programs keep running" />
+              <ui:Button Content="Sign out" Appearance="Danger" Icon="{ui:SymbolIcon SignOut24}"
+                         Command="{Binding SignOffCommand}" IsEnabled="{Binding CanSignOff}"
+                         ToolTip="Close this user's programs and sign them out (you confirm first)" />
+            </StackPanel>
+            <ui:TextBlock Style="{StaticResource Muted}" Text="Send this user a message:" Margin="0,0,0,4" />
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
+              <ui:TextBox Grid.Column="0" Margin="0,0,8,0" PlaceholderText="Type a short message"
+                          Text="{Binding MessageText, UpdateSourceTrigger=PropertyChanged}" />
+              <ui:Button Grid.Column="1" Content="Send" Icon="{ui:SymbolIcon ChatMultiple24}"
+                         Command="{Binding SendMessageCommand}" IsEnabled="{Binding CanSendMessage}" />
+            </Grid>
+          </StackPanel>
+        </ui:Card>
+
+        <ui:CardExpander Margin="0,0,0,12" ContentPadding="16" IsExpanded="False" Icon="{ui:SymbolIcon Info24}">
+          <ui:CardExpander.Header>
+            <StackPanel>
+              <ui:TextBlock FontTypography="BodyStrong" Text="About these actions" />
+              <ui:TextBlock Style="{StaticResource Muted}" Text="What switch, disconnect and sign out do." TextWrapping="Wrap" />
+            </StackPanel>
+          </ui:CardExpander.Header>
+          <StackPanel>
+            <ui:TextBlock TextWrapping="Wrap" Margin="0,0,0,8"
+                          Text="Switch user locks this PC and shows the sign-in screen, so another person can sign in while your session stays open." />
+            <ui:TextBlock TextWrapping="Wrap" Margin="0,0,0,8"
+                          Text="Disconnect locks another user's desktop but leaves their programs running. Sign out closes their programs, so it asks you to confirm first. Signing out another user needs administrator rights." />
+            <ui:TextBlock TextWrapping="Wrap"
+                          Text="To sign yourself out, use Switch user or the Start menu, so you are not cut off part-way through something." />
+          </StackPanel>
+        </ui:CardExpander>
+      </StackPanel>
+    </ScrollViewer>
+
+    <controls:BusyOverlay Grid.Row="0" Grid.RowSpan="3"
+                          IsBusy="{Binding IsBusy}" Text="{Binding BusyText}"
+                          CancelCommand="{Binding CancelCommand}" CanCancel="{Binding CanCancelBusy}" />
+  </Grid>
+</Page>

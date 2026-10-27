@@ -1,0 +1,249 @@
+<Page x:Class="PcChecker.App.Views.Pages.ServicesPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+      xmlns:controls="clr-namespace:PcChecker.App.Controls"
+      xmlns:vm="clr-namespace:PcChecker.App.ViewModels"
+      xmlns:services="clr-namespace:PcChecker.Core.Services;assembly=PcChecker.Core"
+      d:DataContext="{d:DesignInstance vm:ServicesViewModel}"
+      xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+      mc:Ignorable="d"
+      Title="Services"
+      ScrollViewer.CanContentScroll="False">
+  <Page.Resources>
+    <Style x:Key="ServiceGrid" TargetType="ui:DataGrid" BasedOn="{StaticResource DefaultUiDataGridStyle}">
+      <Setter Property="AutoGenerateColumns" Value="False" />
+      <Setter Property="IsReadOnly" Value="True" />
+      <Setter Property="CanUserAddRows" Value="False" />
+      <Setter Property="CanUserDeleteRows" Value="False" />
+      <Setter Property="CanUserResizeRows" Value="False" />
+      <Setter Property="CanUserReorderColumns" Value="False" />
+      <Setter Property="HeadersVisibility" Value="Column" />
+      <Setter Property="GridLinesVisibility" Value="None" />
+      <Setter Property="SelectionMode" Value="Single" />
+      <Setter Property="SelectionUnit" Value="FullRow" />
+      <Setter Property="MaxHeight" Value="520" />
+      <Setter Property="RowHeight" Value="44" />
+      <Setter Property="ScrollViewer.CanContentScroll" Value="True" />
+      <Setter Property="VirtualizingPanel.IsVirtualizing" Value="True" />
+      <Setter Property="VirtualizingPanel.VirtualizationMode" Value="Recycling" />
+      <Setter Property="VerticalScrollBarVisibility" Value="Auto" />
+      <Setter Property="HorizontalScrollBarVisibility" Value="Auto" />
+    </Style>
+    <Style x:Key="TextCell" TargetType="TextBlock">
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+    </Style>
+    <Style x:Key="Tile" TargetType="controls:StatCard">
+      <Setter Property="Margin" Value="0" />
+    </Style>
+
+    <DataTemplate x:Key="NameCell">
+      <Grid VerticalAlignment="Center" ToolTip="{Binding Description}">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+        <StackPanel Grid.Column="0" VerticalAlignment="Center">
+          <ui:TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+          <ui:TextBlock Text="{Binding Name}" Style="{StaticResource Caption}" TextTrimming="CharacterEllipsis" />
+        </StackPanel>
+        <controls:IconGlyph Grid.Column="1" Symbol="LockClosed24" FontSize="14" Margin="6,0,4,0"
+                       ToolTip="A core Windows service: PC Checker will not stop or disable it"
+                       Visibility="{Binding IsCritical, Converter={StaticResource BoolToVisibility}}" />
+      </Grid>
+    </DataTemplate>
+
+    <!-- The same actions in the header More menu and the list's right-click menu. -->
+    <ContextMenu x:Key="ServiceActions" x:Shared="False"
+                 DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+      <MenuItem Header="Start" Command="{Binding StartCommand}">
+        <MenuItem.Icon>
+          <controls:IconGlyph Symbol="Play24" />
+        </MenuItem.Icon>
+      </MenuItem>
+      <MenuItem Header="Stop" Command="{Binding StopCommand}">
+        <MenuItem.Icon>
+          <controls:IconGlyph Symbol="Stop24" />
+        </MenuItem.Icon>
+      </MenuItem>
+      <MenuItem Header="Restart" Command="{Binding RestartCommand}">
+        <MenuItem.Icon>
+          <controls:IconGlyph Symbol="ArrowClockwise24" />
+        </MenuItem.Icon>
+      </MenuItem>
+      <MenuItem Header="Pause" Command="{Binding PauseCommand}" />
+      <MenuItem Header="Continue" Command="{Binding ContinueCommand}" />
+      <Separator />
+      <MenuItem Header="Startup type">
+        <MenuItem Header="Automatic" Command="{Binding SetStartupCommand}" CommandParameter="{x:Static services:ServiceStartupType.Automatic}" />
+        <MenuItem Header="Automatic (Delayed)" Command="{Binding SetStartupCommand}" CommandParameter="{x:Static services:ServiceStartupType.AutomaticDelayed}" />
+        <MenuItem Header="Manual" Command="{Binding SetStartupCommand}" CommandParameter="{x:Static services:ServiceStartupType.Manual}" />
+        <MenuItem Header="Disabled" Command="{Binding SetStartupCommand}" CommandParameter="{x:Static services:ServiceStartupType.Disabled}" />
+      </MenuItem>
+      <Separator />
+      <MenuItem Header="Go to the process" Command="{Binding GoToProcessCommand}">
+        <MenuItem.Icon>
+          <controls:IconGlyph Symbol="TaskListLtr24" />
+        </MenuItem.Icon>
+      </MenuItem>
+      <MenuItem Header="Show dependencies" Command="{Binding ShowDependenciesCommand}">
+        <MenuItem.Icon>
+          <controls:IconGlyph Symbol="Flowchart24" />
+        </MenuItem.Icon>
+      </MenuItem>
+      <MenuItem Header="Open file location" Command="{Binding OpenFileLocationCommand}">
+        <MenuItem.Icon>
+          <controls:IconGlyph Symbol="FolderOpen24" />
+        </MenuItem.Icon>
+      </MenuItem>
+      <MenuItem Header="Search the name online" Command="{Binding SearchOnlineCommand}">
+        <MenuItem.Icon>
+          <controls:IconGlyph Symbol="GlobeSearch24" />
+        </MenuItem.Icon>
+      </MenuItem>
+      <Separator />
+      <MenuItem Header="Open the Services console" Command="{Binding OpenServicesConsoleCommand}">
+        <MenuItem.Icon>
+          <controls:IconGlyph Symbol="Settings24" />
+        </MenuItem.Icon>
+      </MenuItem>
+    </ContextMenu>
+  </Page.Resources>
+
+  <Grid Style="{StaticResource PageRoot}">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="*" />
+    </Grid.RowDefinitions>
+
+    <controls:SectionHeader Grid.Row="0" Title="Services" Subtitle="{Binding StatusText}">
+      <controls:SectionHeader.Actions>
+        <StackPanel Orientation="Horizontal">
+          <ui:DropDownButton Content="More" Icon="{ui:SymbolIcon MoreHorizontal24}" Margin="0,0,8,0"
+                             Flyout="{StaticResource ServiceActions}" />
+          <ui:Button Content="Open Services console" Icon="{ui:SymbolIcon Settings24}" Margin="0,0,8,0"
+                     Command="{Binding OpenServicesConsoleCommand}"
+                     ToolTip="Open the built-in Windows Services tool (services.msc)" />
+          <ui:Button Appearance="Primary" Icon="{ui:SymbolIcon ArrowClockwise24}" Command="{Binding RefreshCommand}">
+            <AccessText Text="_Refresh" />
+          </ui:Button>
+        </StackPanel>
+      </controls:SectionHeader.Actions>
+    </controls:SectionHeader>
+
+    <StackPanel Grid.Row="1">
+      <ui:InfoBar Severity="Error" Title="Something went wrong" Message="{Binding ErrorMessage}"
+                  IsOpen="{Binding HasError, Mode=OneWay}" IsClosable="True" Margin="0,0,0,12" />
+    </StackPanel>
+
+    <ScrollViewer Grid.Row="2" Style="{StaticResource PageScroll}">
+      <StackPanel>
+        <controls:AdaptiveGrid MinItemWidth="200" MaxColumns="4" Margin="0,0,0,12">
+          <controls:StatCard Style="{StaticResource Tile}" Title="Services" Value="{Binding TotalText}" Icon="Settings24"
+                             Accent="{DynamicResource AccentCyanBrush}" Subtitle="On this PC" />
+          <controls:StatCard Style="{StaticResource Tile}" Title="Running" Value="{Binding RunningText}" Icon="Play24"
+                             Accent="{DynamicResource AccentGreenBrush}" Subtitle="Active now" />
+          <controls:StatCard Style="{StaticResource Tile}" Title="Stopped" Value="{Binding StoppedText}" Icon="Stop24"
+                             Accent="{DynamicResource AccentOrangeBrush}" Subtitle="Not running" />
+          <controls:StatCard Style="{StaticResource Tile}" Title="Other companies" Value="{Binding ThirdPartyText}" Icon="Wrench24"
+                             Accent="{DynamicResource AccentPurpleBrush}" Subtitle="Not part of Windows" />
+        </controls:AdaptiveGrid>
+
+        <ui:Card Style="{StaticResource CardSpacing}">
+          <StackPanel>
+            <Grid Margin="0,0,0,8">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
+              <StackPanel Grid.Column="0" Margin="0,0,12,0">
+                <ui:TextBlock Style="{StaticResource CardTitle}" Text="Windows services" Margin="0,0,0,4" />
+                <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap"
+                              Text="Right-click a service for actions. Core Windows services are locked so they cannot be broken." />
+              </StackPanel>
+              <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top">
+                <ComboBox Width="180" Margin="0,0,12,0" VerticalAlignment="Center"
+                          AutomationProperties.Name="Filter services"
+                          ItemsSource="{Binding FilterOptions}" SelectedIndex="{Binding SelectedFilterIndex}" />
+                <ui:TextBox Width="240" PlaceholderText="Search name or description" Icon="{ui:SymbolIcon Search24}"
+                            Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" ClearButtonEnabled="True" />
+              </StackPanel>
+            </Grid>
+
+            <ui:DataGrid AutomationProperties.Name="Windows services" x:Name="ServiceGrid" Style="{StaticResource ServiceGrid}"
+                         ItemsSource="{Binding Rows}" SelectedItem="{Binding SelectedRow, Mode=TwoWay}"
+                         ContextMenu="{StaticResource ServiceActions}"
+                         IsReadOnly="True" KeyboardNavigation.TabNavigation="Once"
+                         PreviewMouseRightButtonDown="OnGridRightButtonDown"
+                         Visibility="{Binding HasNoRows, Converter={StaticResource InverseBoolToVisibility}}">
+              <ui:DataGrid.Columns>
+                <DataGridTemplateColumn Header="Name" Width="2.2*" MinWidth="240" CellTemplate="{StaticResource NameCell}" />
+                <DataGridTextColumn Header="Status" Width="90" Binding="{Binding StatusText}" ElementStyle="{StaticResource TextCell}" />
+                <DataGridTextColumn Header="Startup" Width="130" Binding="{Binding StartupText}" ElementStyle="{StaticResource TextCell}" />
+                <DataGridTextColumn Header="Log on as" Width="1.1*" MinWidth="120" Binding="{Binding LogOnText}" ElementStyle="{StaticResource TextCell}" />
+                <DataGridTextColumn Header="PID" Width="64" Binding="{Binding PidText}" ElementStyle="{StaticResource TextCell}" />
+                <DataGridTextColumn Header="Group" Width="1*" MinWidth="100" Binding="{Binding GroupText}" ElementStyle="{StaticResource TextCell}" />
+                <DataGridTextColumn Header="From" Width="90" Binding="{Binding PublisherKind}" ElementStyle="{StaticResource TextCell}" />
+              </ui:DataGrid.Columns>
+            </ui:DataGrid>
+            <controls:EmptyState Icon="Search24" Title="No matching services" Message="Nothing matches your search or filter."
+                                 Visibility="{Binding HasNoRows, Converter={StaticResource BoolToVisibility}}" MinHeight="120" />
+          </StackPanel>
+        </ui:Card>
+
+        <!-- Selected service -->
+        <ui:Card Style="{StaticResource CardSpacing}" Visibility="{Binding HasSelection, Converter={StaticResource BoolToVisibility}}">
+          <StackPanel>
+            <ui:TextBlock Style="{StaticResource CardTitle}" Text="{Binding SelectedRow.DisplayName}" />
+            <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding SelectedRow.Description}" TextWrapping="Wrap" Margin="0,0,0,10" />
+            <Border Margin="0,0,0,10" Padding="12,8" CornerRadius="6" Background="{DynamicResource ControlFillColorSecondaryBrush}"
+                    Visibility="{Binding HasSelectedReason, Converter={StaticResource BoolToVisibility}, FallbackValue=Collapsed}">
+              <StackPanel Orientation="Horizontal">
+                <controls:IconGlyph Symbol="LockClosed24" Margin="0,0,8,0" VerticalAlignment="Top" />
+                <ui:TextBlock Text="{Binding SelectedReason}" TextWrapping="Wrap" MaxWidth="900" />
+              </StackPanel>
+            </Border>
+            <Border Margin="0,0,0,10" Padding="12,8" CornerRadius="6" Background="{DynamicResource ControlFillColorSecondaryBrush}"
+                    Visibility="{Binding SelectedRow.HasSafeNote, Converter={StaticResource BoolToVisibility}, FallbackValue=Collapsed}">
+              <StackPanel Orientation="Horizontal">
+                <controls:IconGlyph Symbol="Info24" Foreground="{DynamicResource AccentGreenBrush}" Margin="0,0,8,0" VerticalAlignment="Top" />
+                <ui:TextBlock Text="{Binding SelectedRow.SafeToSetManualNote}" TextWrapping="Wrap" MaxWidth="900" />
+              </StackPanel>
+            </Border>
+            <StackPanel Orientation="Horizontal">
+              <ui:Button Content="Start" Icon="{ui:SymbolIcon Play24}" Margin="0,0,8,0" Command="{Binding StartCommand}" />
+              <ui:Button Content="Stop" Icon="{ui:SymbolIcon Stop24}" Margin="0,0,8,0" Command="{Binding StopCommand}" />
+              <ui:Button Content="Restart" Icon="{ui:SymbolIcon ArrowClockwise24}" Margin="0,0,8,0" Command="{Binding RestartCommand}" />
+              <ui:Button Content="Dependencies" Icon="{ui:SymbolIcon Flowchart24}" Margin="0,0,8,0" Command="{Binding ShowDependenciesCommand}" />
+              <ui:Button Content="Go to process" Icon="{ui:SymbolIcon TaskListLtr24}" Command="{Binding GoToProcessCommand}" />
+            </StackPanel>
+          </StackPanel>
+        </ui:Card>
+
+        <ui:CardExpander Margin="0,0,0,12" ContentPadding="16" IsExpanded="False" Icon="{ui:SymbolIcon Info24}">
+          <ui:CardExpander.Header>
+            <StackPanel>
+              <ui:TextBlock FontTypography="BodyStrong" Text="About services" />
+              <ui:TextBlock Style="{StaticResource Muted}" Text="What a service is, and what PC Checker will not change." TextWrapping="Wrap" />
+            </StackPanel>
+          </ui:CardExpander.Header>
+          <StackPanel>
+            <ui:TextBlock TextWrapping="Wrap" Margin="0,0,0,8"
+                          Text="A service is a program that runs in the background without a window. Start type decides when it runs: Automatic starts with Windows, Automatic (Delayed) a little later for a smoother start-up, Manual only when something needs it, and Disabled never." />
+            <ui:TextBlock TextWrapping="Wrap" Margin="0,0,0,8"
+                          Text="Core Windows services (sign-in, networking, security, Plug and Play and the like) are locked here, because stopping or disabling them can crash the PC or leave you without network or protection." />
+            <ui:TextBlock TextWrapping="Wrap"
+                          Text="Every start, stop and start-type change is recorded in the Action Journal on the Logs page, with the previous value, so it can be undone." />
+          </StackPanel>
+        </ui:CardExpander>
+      </StackPanel>
+    </ScrollViewer>
+
+    <controls:BusyOverlay Grid.Row="0" Grid.RowSpan="3"
+                          IsBusy="{Binding IsBusy}" Text="{Binding BusyText}"
+                          CancelCommand="{Binding CancelCommand}" CanCancel="{Binding CanCancelBusy}" />
+  </Grid>
+</Page>
