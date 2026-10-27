@@ -48,7 +48,7 @@ public sealed partial class SensorsViewModel : ViewModelBase
     private bool _isPaused;
 
     [ObservableProperty]
-    private string _statusText = "Waiting for the first reading…";
+    private string _statusText = Loc.T("Waiting for the first reading…");
 
     [ObservableProperty]
     private string _windowText = "last 30 minutes";
@@ -72,10 +72,10 @@ public sealed partial class SensorsViewModel : ViewModelBase
     private string _gpuLabel = "GPU";
 
     [ObservableProperty]
-    private string _driveLabel = "Hottest drive";
+    private string _driveLabel = Loc.T("Hottest drive");
 
     [ObservableProperty]
-    private string _boardLabel = "Motherboard";
+    private string _boardLabel = Loc.T("Motherboard");
 
     [ObservableProperty]
     private bool _hasBoardTemp;
@@ -168,7 +168,7 @@ public sealed partial class SensorsViewModel : ViewModelBase
 
     public bool HasAlerts => AlertCount > 0;
 
-    public string PauseText => IsPaused ? "Resume" : "Pause";
+    public string PauseText => IsPaused ? Loc.T("Resume") : Loc.T("Pause");
 
     public override async Task InitializeAsync(CancellationToken cancellationToken)
     {
@@ -178,7 +178,7 @@ public sealed partial class SensorsViewModel : ViewModelBase
             _sensors.Start();
             await WaitForFirstSnapshotAsync(TimeSpan.FromSeconds(6), ct);
             await RefreshPawnIoAsync(ct);
-        }, "Starting hardware monitoring…");
+        }, Loc.T("Starting hardware monitoring…"));
     }
 
     public override Task RefreshAsync(CancellationToken cancellationToken)
@@ -197,7 +197,7 @@ public sealed partial class SensorsViewModel : ViewModelBase
         IsPaused = !IsPaused;
         if (IsPaused)
         {
-            StatusText = "Paused — readings keep being recorded in the background.";
+            StatusText = Loc.T("Paused — readings keep being recorded in the background.");
         }
         else if (_sensors.Latest is { } latest)
         {
@@ -215,7 +215,7 @@ public sealed partial class SensorsViewModel : ViewModelBase
             ApplySnapshot(latest);
         }
 
-        _notifications.Info("Statistics reset", "Minimum, maximum and average start again from now.");
+        _notifications.Info(Loc.T("Statistics reset"), Loc.T("Minimum, maximum and average start again from now."));
     }
 
     [RelayCommand]
@@ -234,7 +234,7 @@ public sealed partial class SensorsViewModel : ViewModelBase
             }
 
             await WaitForFirstSnapshotAsync(TimeSpan.FromSeconds(8), ct);
-        }, "Restarting the hardware monitor…");
+        }, Loc.T("Restarting the hardware monitor…"));
     }
 
     [ObservableProperty]
@@ -336,7 +336,7 @@ public sealed partial class SensorsViewModel : ViewModelBase
     {
         if (EditCpuWarn >= EditCpuCrit || EditGpuWarn >= EditGpuCrit || EditDiskWarn >= EditDiskCrit)
         {
-            ErrorMessage = "Each warning temperature must be lower than its critical temperature.";
+            ErrorMessage = Loc.T("Each warning temperature must be lower than its critical temperature.");
             return;
         }
 
@@ -357,7 +357,7 @@ public sealed partial class SensorsViewModel : ViewModelBase
             LoadThresholds(m);
             IsThresholdPanelOpen = false;
             ErrorMessage = null;
-            _notifications.Success("Thresholds saved", "New limits apply to the gauges, colours and alerts right away.");
+            _notifications.Success(Loc.T("Thresholds saved"), Loc.T("New limits apply to the gauges, colours and alerts right away."));
             if (_sensors.Latest is { } latest)
             {
                 ApplySnapshot(latest);
@@ -366,7 +366,7 @@ public sealed partial class SensorsViewModel : ViewModelBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Saving monitoring settings failed.");
-            ErrorMessage = "The settings could not be saved: " + ex.Message;
+            ErrorMessage = Loc.T("The settings could not be saved:") + " " + ex.Message;
         }
     }
 
@@ -430,7 +430,7 @@ public sealed partial class SensorsViewModel : ViewModelBase
     private void RefreshAvailability()
     {
         IsAvailable = _sensors.IsAvailable;
-        UnavailableReason = _sensors.IsAvailable ? null : _sensors.UnavailableReason ?? "Hardware sensors are not available on this PC.";
+        UnavailableReason = _sensors.IsAvailable ? null : _sensors.UnavailableReason ?? Loc.T("Hardware sensors are not available on this PC.");
         var warnings = (_sensors as ISensorServiceExtras)?.Warnings;
         WarningText = warnings is { Count: > 0 } ? string.Join(" ", warnings) : null;
     }
@@ -538,8 +538,9 @@ public sealed partial class SensorsViewModel : ViewModelBase
         }
 
         UpdateGauges(snapshot, monitoring);
-        WindowText = $"last {monitoring.HistoryMinutes} min";
-        StatusText = $"Updated {now.ToLocalTime():HH:mm:ss} · {snapshot.Readings.Count} sensors · {Groups.Count} parts with temperatures";
+        WindowText = Loc.F("last {0} min", monitoring.HistoryMinutes);
+        StatusText = Loc.F("Updated {0} · {1} sensors · {2} parts with temperatures", now.ToLocalTime().ToString("HH:mm:ss", System.Globalization.CultureInfo.CurrentCulture),
+            snapshot.Readings.Count, Groups.Count);
         if (!IsAvailable && _sensors.IsAvailable)
         {
             RefreshAvailability();
@@ -587,12 +588,12 @@ public sealed partial class SensorsViewModel : ViewModelBase
         var drive = DriveTemperatureRules.HottestDrive(temps);
         HasDriveTemp = drive is not null;
         DriveTemp = drive?.Value ?? double.NaN;
-        DriveLabel = drive is null ? "Hottest drive" : Shorten(drive.HardwareName);
+        DriveLabel = drive is null ? Loc.T("Hottest drive") : Shorten(drive.HardwareName);
 
         var board = Pick(temps.Where(r => r.Hardware == HardwareKind.Motherboard), "vrm", "chipset", "pch", "system", "motherboard");
         HasBoardTemp = board is not null;
         BoardTemp = board?.Value ?? double.NaN;
-        BoardLabel = board is null ? "Motherboard" : "Board · " + board.Name;
+        BoardLabel = board is null ? Loc.T("Motherboard") : Loc.F("Board · {0}", board.Name);
 
         (CpuWarn, CpuCrit) = TemperatureRoles.CpuThresholds(monitoring, cpu?.HardwareName);
         GpuWarn = monitoring.GpuWarnC;
@@ -627,6 +628,6 @@ public sealed partial class SensorsViewModel : ViewModelBase
         GpuCrit = m.GpuCritC;
         DiskWarn = m.DiskWarnC;
         DiskCrit = m.DiskCritC;
-        WindowText = $"last {m.HistoryMinutes} min";
+        WindowText = Loc.F("last {0} min", m.HistoryMinutes);
     }
 }

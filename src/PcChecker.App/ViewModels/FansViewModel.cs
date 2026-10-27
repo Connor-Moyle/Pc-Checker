@@ -116,26 +116,26 @@ public sealed partial class FansViewModel : ViewModelBase
         {
             if (!string.IsNullOrWhiteSpace(ActiveProfileName))
             {
-                return $"Active profile: {ActiveProfileName}";
+                return Loc.F("Active profile: {0}", ActiveProfileName);
             }
 
             return string.IsNullOrWhiteSpace(LastAppliedProfileName)
-                ? "No profile active — fans follow their own mode."
-                : $"No profile active — fans follow their own mode. Last applied: {LastAppliedProfileName} (not re-applied this session).";
+                ? Loc.T("No profile active — fans follow their own mode.")
+                : Loc.F("No profile active — fans follow their own mode. Last applied: {0} (not re-applied this session).", LastAppliedProfileName);
         }
     }
     public string SoftwareControlledText => SoftwareControlledCount switch
     {
-        0 => "All fans are under automatic (firmware) control.",
-        1 => "1 fan is controlled by PC Checker.",
-        _ => $"{SoftwareControlledCount} fans are controlled by PC Checker.",
+        0 => Loc.T("All fans are under automatic (firmware) control."),
+        1 => Loc.T("1 fan is controlled by PC Checker."),
+        _ => Loc.F("{0} fans are controlled by PC Checker.", SoftwareControlledCount),
     };
 
     public IReadOnlyList<string> Presets => FanCurveMath.Presets;
 
     public override Task InitializeAsync(CancellationToken cancellationToken) => RefreshAsync(cancellationToken);
 
-    public override Task RefreshAsync(CancellationToken cancellationToken) => RunBusyAsync(LoadAsync, "Detecting fans…");
+    public override Task RefreshAsync(CancellationToken cancellationToken) => RunBusyAsync(LoadAsync, Loc.T("Detecting fans…"));
 
     [RelayCommand]
     private Task DetectAsync() => RefreshAsync(CancellationToken.None);
@@ -323,11 +323,11 @@ public sealed partial class FansViewModel : ViewModelBase
         AlertCount = Alerts.Count;
         if (alert.Severity >= Severity.High)
         {
-            _notifications.Warning("Fans forced to full speed", alert.Message);
+            _notifications.Warning(Loc.T("Fans forced to full speed"), alert.Message);
         }
         else
         {
-            _notifications.Info("Fan control", alert.Message);
+            _notifications.Info(Loc.T("Fan control"), alert.Message);
         }
     });
 
@@ -346,12 +346,12 @@ public sealed partial class FansViewModel : ViewModelBase
             return true;
         }
 
-        bool ok = await _dialogs.ConfirmAsync("Let PC Checker control your fans?",
-            "PC Checker will set fan speeds through the motherboard sensor chip or graphics driver instead of the firmware.\n\n"
-            + "• Fans never go below the minimum speed you set, and are forced to 100 % if a part reaches its critical temperature.\n"
-            + "• Everything returns to automatic when you click \"Revert all to automatic\" or close the app (if that option is on).\n"
-            + "• If the app crashes, the next start puts the fans back to automatic.",
-            "Take control");
+        bool ok = await _dialogs.ConfirmAsync(Loc.T("Let PC Checker control your fans?"),
+            Loc.T("PC Checker will set fan speeds through the motherboard sensor chip or graphics driver instead of the firmware.") + "\n\n"
+            + "• " + Loc.T("Fans never go below the minimum speed you set, and are forced to 100 % if a part reaches its critical temperature.") + "\n"
+            + "• " + Loc.T("Everything returns to automatic when you click \"Revert all to automatic\" or close the app (if that option is on).") + "\n"
+            + "• " + Loc.T("If the app crashes, the next start puts the fans back to automatic."),
+            Loc.T("Take control"));
         _controlConsentGiven = ok;
         return ok;
     }
@@ -367,9 +367,9 @@ public sealed partial class FansViewModel : ViewModelBase
         bool allowBelow = false;
         if (percent < MinimumPercent)
         {
-            allowBelow = await _dialogs.ConfirmAsync("Run below the minimum fan speed?",
-                $"You asked for {percent:0} %, below the {MinimumPercent:0} % minimum set on this page. Very low speeds can stall some fans and let parts run hot. The safety net still forces 100 % at critical temperatures.",
-                "Allow this once", isDanger: true);
+            allowBelow = await _dialogs.ConfirmAsync(Loc.T("Run below the minimum fan speed?"),
+                Loc.F("You asked for {0:0} %, below the {1:0} % minimum set on this page. Very low speeds can stall some fans and let parts run hot. The safety net still forces 100 % at critical temperatures.", percent, MinimumPercent),
+                Loc.T("Allow this once"), isDanger: true);
             if (!allowBelow)
             {
                 return;
@@ -387,7 +387,7 @@ public sealed partial class FansViewModel : ViewModelBase
                 fan.Mode = FanMode.Manual;
                 SoftwareControlledCount = Fans.Count(f => f.IsSoftwareControlled);
             }
-        }, $"Setting {fan.Name} to {percent:0} %…");
+        }, Loc.F("Setting {0} to {1:0} %…", fan.Name, percent));
     }
 
     internal async Task ApplyCurveAsync(FanItemViewModel fan)
@@ -426,7 +426,7 @@ public sealed partial class FansViewModel : ViewModelBase
                 fan.Mode = FanMode.Curve;
                 SoftwareControlledCount = Fans.Count(f => f.IsSoftwareControlled);
             }
-        }, $"Applying curve to {fan.Name}…");
+        }, Loc.F("Applying curve to {0}…", fan.Name));
     }
 
     internal async Task SetAutoAsync(FanItemViewModel fan)
@@ -435,7 +435,7 @@ public sealed partial class FansViewModel : ViewModelBase
         {
             // RunBusyAsync would silently skip the work; keep the selector honest instead.
             fan.SyncSelectedMode();
-            StatusText = "Another fan operation is still running. Wait for it to finish, then try again.";
+            StatusText = Loc.T("Another fan operation is still running. Wait for it to finish, then try again.");
             return;
         }
 
@@ -448,7 +448,7 @@ public sealed partial class FansViewModel : ViewModelBase
                 fan.Mode = FanMode.Auto;
                 SoftwareControlledCount = Fans.Count(f => f.IsSoftwareControlled);
             }
-        }, $"Returning {fan.Name} to automatic…");
+        }, Loc.F("Returning {0} to automatic…", fan.Name));
 
         if (fan.Mode != FanMode.Auto)
         {
@@ -559,7 +559,7 @@ public sealed partial class FansViewModel : ViewModelBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Could not save fan settings.");
-            ErrorMessage = "Settings could not be saved: " + ex.Message;
+            ErrorMessage = Loc.T("Settings could not be saved:") + " " + ex.Message;
         }
     }
 
@@ -571,7 +571,7 @@ public sealed record FanProfileItem(FanProfile Profile, bool IsBuiltIn)
 {
     public string Name => Profile.Name;
 
-    public string Description => (IsBuiltIn ? "Built-in" : "Saved") + $" • {Profile.Fans.Count} fan{(Profile.Fans.Count == 1 ? string.Empty : "s")}";
+    public string Description => (IsBuiltIn ? Loc.T("Built-in") : Loc.T("Saved")) + " • " + (Profile.Fans.Count == 1 ? Loc.T("1 fan") : Loc.F("{0} fans", Profile.Fans.Count));
 
-    public string Tooltip => IsBuiltIn ? FanCurveMath.DescribePreset(Profile.Name) : $"Saved profile with {Profile.Fans.Count} fan assignment(s).";
+    public string Tooltip => IsBuiltIn ? FanCurveMath.DescribePreset(Profile.Name) : Loc.F("Saved profile with {0} fan assignment(s).", Profile.Fans.Count);
 }
