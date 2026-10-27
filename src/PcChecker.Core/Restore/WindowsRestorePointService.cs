@@ -10,6 +10,8 @@ namespace PcChecker.Core.Restore;
 /// Windows implementation of <see cref="IRestorePointService"/>: the <c>SystemRestore</c> WMI class for listing and
 /// creating points, the registry for the on/off state and the 24-hour frequency override, and
 /// <c>Enable-ComputerRestore</c> to turn System Protection on. Every call degrades to a failed result instead of throwing.
+/// The frequency limit is lifted only while PC Checker creates its own point; the previous value is put back right
+/// after, so Windows and other programs keep the one-per-day limit.
 /// </summary>
 public sealed class WindowsRestorePointService : IRestorePointService
 {
@@ -29,6 +31,7 @@ public sealed class WindowsRestorePointService : IRestorePointService
 
     private readonly ISettingsService _settings;
     private readonly ILogger<WindowsRestorePointService> _logger;
+    private readonly SemaphoreSlim _createGate = new(1, 1);
 
     public WindowsRestorePointService(ISettingsService settings, ILogger<WindowsRestorePointService> logger)
     {
@@ -81,11 +84,6 @@ public sealed class WindowsRestorePointService : IRestorePointService
             var error = string.IsNullOrWhiteSpace(result.StdErr) ? $"PowerShell exit code {result.ExitCode}" : result.StdErr.Split('\n')[0].Trim();
             _logger.LogWarning("Enable-ComputerRestore failed for {Drive}: {Error}", root, error);
             return OperationResult.Fail($"Could not turn on System Protection for {root}: {error}");
-        }
-
-        if (_settings.Current.RestorePoints.BypassFrequencyLimit)
-        {
-            TryApplyFrequencyOverride();
         }
 
         _logger.LogInformation("System Protection enabled on {Drive}.", root);
@@ -171,17 +169,27 @@ public sealed class WindowsRestorePointService : IRestorePointService
             description = description[..MaxDescriptionLength];
         }
 
-        if (_settings.Current.RestorePoints.BypassFrequencyLimit)
+        // One creation at a time, so overlapping calls cannot save each other's temporary value as the previous one.
+        await _createGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
         {
-            TryApplyFrequencyOverride();
+            return await CreateCoreAsync(description, cancellationToken).ConfigureAwait(false);
         }
+        finally
+        {
+            _createGate.Release();
+        }
+    }
 
+    private async Task<OperationResult<RestorePoint>> CreateCoreAsync(string description, CancellationToken cancellationToken)
+    {
         // Snapshot the newest sequence number first: CreateRestorePoint returns 0 even when the 24-hour frequency
         // limit silently suppresses creation, so success is confirmed by a new point appearing afterwards.
         var before = await TryQueryPointsAsync(cancellationToken).ConfigureAwait(false);
         long? previousNewest = before is null ? null : before.Count == 0 ? 0 : before.Max(p => p.SequenceNumber);
 
         uint returnValue;
+        var saved = _settings.Current.RestorePoints.BypassFrequencyLimit ? TryApplyFrequencyOverride() : null;
         try
         {
             var text = description;
@@ -199,6 +207,11 @@ public sealed class WindowsRestorePointService : IRestorePointService
         {
             _logger.LogWarning(ex, "CreateRestorePoint threw.");
             return OperationResult<RestorePoint>.Fail("Windows could not create a restore point: " + ex.Message, ex);
+        }
+        finally
+        {
+            // Windows checks the limit when CreateRestorePoint is called, so the previous value can go back right away.
+            RestoreFrequency(saved);
         }
 
         var (success, message) = RestorePointResultCodes.Describe(returnValue);
@@ -311,22 +324,71 @@ public sealed class WindowsRestorePointService : IRestorePointService
         }
     }
 
-    private void TryApplyFrequencyOverride()
+    /// <summary>The frequency value before PC Checker lifted it: null <see cref="Value"/> means it was not set.</summary>
+    private sealed record SavedFrequency(object? Value, RegistryValueKind Kind);
+
+    /// <summary>
+    /// Sets the frequency value to 0 for one creation and returns what to put back afterwards, or null when nothing was
+    /// changed (already 0, or the registry could not be written).
+    /// </summary>
+    private SavedFrequency? TryApplyFrequencyOverride()
     {
         try
         {
-            using var key = Registry.LocalMachine.CreateSubKey(SystemRestoreKey, writable: true);
-            if (key is null || key.GetValue(FrequencyValue) is int current && current == 0)
+            using var key = Registry.LocalMachine.OpenSubKey(SystemRestoreKey, writable: true);
+            if (key is null)
             {
-                return;
+                return null;
             }
 
+            var current = key.GetValue(FrequencyValue, null, RegistryValueOptions.DoNotExpandEnvironmentNames);
+            if (current is int value && value == 0)
+            {
+                return null;
+            }
+
+            var saved = new SavedFrequency(current, current is null ? RegistryValueKind.None : key.GetValueKind(FrequencyValue));
             key.SetValue(FrequencyValue, 0, RegistryValueKind.DWord);
-            _logger.LogDebug("Set {Value}=0 so more than one restore point per day is allowed.", FrequencyValue);
+            _logger.LogDebug("Set {Value}=0 for this restore point (was {Previous}).", FrequencyValue, current ?? "not set");
+            return saved;
         }
         catch (Exception ex)
         {
             _logger.LogDebug(ex, "Could not set the restore point frequency override.");
+            return null;
+        }
+    }
+
+    /// <summary>Puts the frequency value back the way <see cref="TryApplyFrequencyOverride"/> found it.</summary>
+    private void RestoreFrequency(SavedFrequency? saved)
+    {
+        if (saved is null)
+        {
+            return;
+        }
+
+        try
+        {
+            using var key = Registry.LocalMachine.OpenSubKey(SystemRestoreKey, writable: true);
+            if (key is null)
+            {
+                return;
+            }
+
+            if (saved.Value is null)
+            {
+                key.DeleteValue(FrequencyValue, throwOnMissingValue: false);
+            }
+            else
+            {
+                key.SetValue(FrequencyValue, saved.Value, saved.Kind);
+            }
+
+            _logger.LogDebug("Put {Value} back to {Previous}.", FrequencyValue, saved.Value ?? "not set");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not put {Value} back after creating a restore point.", FrequencyValue);
         }
     }
 
