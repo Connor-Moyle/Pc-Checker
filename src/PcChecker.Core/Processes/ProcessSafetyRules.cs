@@ -209,6 +209,22 @@ public static class ProcessSafetyRules
         }
 
         string text = target.Trim();
+
+        // A file: address is a path in disguise: check the file it names like any other path, and start that path.
+        if (text.StartsWith("file:", StringComparison.OrdinalIgnoreCase))
+        {
+            if (!Uri.TryCreate(text, UriKind.Absolute, out var uri) || !uri.IsFile)
+            {
+                return new ElevatedLaunch(null, Refusal);
+            }
+
+            text = uri.LocalPath.Replace('/', '\\');
+            if (!ProcessSuspicionRules.IsFullPath(text))
+            {
+                return new ElevatedLaunch(null, Refusal);
+            }
+        }
+
         if (text.Contains("://", StringComparison.Ordinal) || IsShellLink(text))
         {
             return new ElevatedLaunch(text, null);
