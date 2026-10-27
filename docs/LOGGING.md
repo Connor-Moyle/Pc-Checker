@@ -31,8 +31,10 @@ Changes apply immediately without a restart.
 
 Each area of the app logs under its own category so you can tune or filter
 them: Hardware, Sensors, Health, Drivers, Software, Performance, Optimization,
-Cleanup, Features, Restore, Overclock, Power, Updates, Assistant, Overlay, UI
-and App.
+Cleanup, Features, Restore, Overclock, Power, Updates, Assistant, Overlay,
+Fans, Lighting, Storage, Memory, Displays, Audio, Input, Latency, Startup, UI
+and App. The authoritative list is `LogCategories.All` in
+[`src/PcChecker.Core/Logging/LogCategories.cs`](../src/PcChecker.Core/Logging/LogCategories.cs).
 
 ## Live viewer
 
