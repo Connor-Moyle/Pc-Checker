@@ -370,7 +370,10 @@ public sealed class DebloatEngine
                     return (null, null);
                 }
 
+                // Only a captured Enabled or Disabled counts: Unknown (the query failed or timed out) or NotPresent says
+                // nothing about the original state, so those fall back to the state the tweak changed away from.
                 bool enable = capture is not null && capture.TryGetValue(feature.Key, out var saved) && Enum.TryParse<FeatureState>(saved, true, out var previous)
+                              && previous is FeatureState.Enabled or FeatureState.Disabled
                     ? previous == FeatureState.Enabled
                     : feature.DisableWhenApplied;
                 return FromResult(await _system.SetOptionalFeatureAsync(feature, enable, cancellationToken).ConfigureAwait(false));

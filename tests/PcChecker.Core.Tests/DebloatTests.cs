@@ -470,6 +470,30 @@ public class DebloatEngineTests
     }
 
     [Fact]
+    public async Task Feature_revert_after_an_unknown_capture_restores_the_state_the_tweak_changed()
+    {
+        var (engine, system) = Create();
+        system.Features["Recall"] = FeatureState.Unknown; // the state query failed while capturing
+        var recall = Tweak("ai.recallfeature");
+        Assert.Equal(TweakOutcome.Applied, (await engine.ApplyAsync(recall, default)).Outcome);
+        Assert.Equal(FeatureState.Disabled, system.Features["Recall"]);
+
+        Assert.Equal(TweakOutcome.Reverted, (await engine.RevertAsync(recall, default)).Outcome);
+        Assert.Equal(FeatureState.Enabled, system.Features["Recall"]);
+    }
+
+    [Fact]
+    public async Task Feature_revert_keeps_a_captured_disabled_state()
+    {
+        var (engine, system) = Create();
+        system.Features["Recall"] = FeatureState.Disabled;
+        var recall = Tweak("ai.recallfeature");
+        await engine.ApplyAsync(recall, default);
+        await engine.RevertAsync(recall, default);
+        Assert.Equal(FeatureState.Disabled, system.Features["Recall"]);
+    }
+
+    [Fact]
     public async Task Capture_book_persists_between_sessions()
     {
         var dir = Path.Combine(Path.GetTempPath(), "pcchecker-debloat-" + Guid.NewGuid().ToString("N"));
