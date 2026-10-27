@@ -45,6 +45,9 @@ public sealed class ScreenshotRunner
             window.WindowState = WindowState.Normal;
             window.Width = WindowWidth;
             window.Height = WindowHeight;
+
+            // Screenshots use the dark theme, the app's intended look, whatever the capturing machine prefers.
+            ViewModels.SettingsViewModel.ApplyTheme(PcChecker.Core.Settings.AppTheme.Dark);
             await IdleAsync(window.Dispatcher);
             await Task.Delay(600, cancellationToken);
 
@@ -66,7 +69,7 @@ public sealed class ScreenshotRunner
                 await IdleAsync(window.Dispatcher);
 
                 var fileName = $"{number:00}-{entry.FileName}.png";
-                RenderToPng((Visual)window.Content, window.ActualWidth, window.ActualHeight, Path.Combine(dir, fileName));
+                RenderPage(window, Path.Combine(dir, fileName));
                 index[entry.Title] = fileName;
                 _logger.LogInformation("Captured {Page} → {File}", entry.Title, fileName);
                 number++;
@@ -122,6 +125,36 @@ public sealed class ScreenshotRunner
 
         RenderToPng(visual, width, height, path);
         overlay.Hide();
+    }
+
+    /// <summary>
+    /// Lays the window content out at the full screenshot size (CI runners often have screens smaller than the
+    /// window) and renders it over the theme's background so the PNG never has transparent areas.
+    /// </summary>
+    private static void RenderPage(Window window, string path)
+    {
+        if (window.Content is not FrameworkElement content)
+        {
+            throw new InvalidOperationException("The main window has no content to render.");
+        }
+
+        var size = new Size(WindowWidth, WindowHeight);
+        content.Measure(size);
+        content.Arrange(new Rect(size));
+        content.UpdateLayout();
+
+        var background = Application.Current.TryFindResource("ApplicationBackgroundBrush") as Brush
+            ?? window.Background
+            ?? new SolidColorBrush(Color.FromRgb(0x20, 0x20, 0x20));
+        var visual = new DrawingVisual();
+        using (var dc = visual.RenderOpen())
+        {
+            dc.DrawRectangle(background, null, new Rect(size));
+            dc.DrawRectangle(new VisualBrush(content) { Stretch = Stretch.None, AlignmentX = AlignmentX.Left, AlignmentY = AlignmentY.Top },
+                null, new Rect(size));
+        }
+
+        RenderToPng(visual, WindowWidth, WindowHeight, path);
     }
 
     private static void RenderToPng(Visual visual, double width, double height, string path)

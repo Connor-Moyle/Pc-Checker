@@ -31,6 +31,4 @@ The file names come from `src/PcChecker.App/Services/ScreenshotRunner.cs`:
 `index.json` maps each page title to its file and records the capture time
 and window size (1440 × 900).
 
-Design mockups, which are *not* screenshots, live in
-[`docs/mockups/`](../mockups/README.md). See [DEMO-MODE.md](../DEMO-MODE.md)
-for how to capture screenshots yourself.
+See [DEMO-MODE.md](../DEMO-MODE.md) for how to capture screenshots yourself.

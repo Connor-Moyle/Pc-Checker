@@ -22,7 +22,7 @@ point and written to a journal with an undo hint.
 ## Contents
 
 - [Download](#download)
-- [Design preview](#design-preview)
+- [Screenshots](#screenshots)
 - [Feature tour](#feature-tour)
 - [Hardware support matrix](#hardware-support-matrix)
 - [Safety first](#safety-first)
@@ -73,42 +73,34 @@ the release notes.
    to explore every page with sample data. See
    [docs/DEMO-MODE.md](docs/DEMO-MODE.md).
 
-## Design preview
+## Screenshots
 
-These are design mockups; real screenshots land in `docs/screenshots` once the
-Windows CI screenshot job runs. Every mockup carries a "Design mockup" caption
-so it cannot be mistaken for the real app.
+Real screenshots of the app, captured automatically on a Windows runner from demo mode (sample data from a
+gaming desktop) every time the app changes. The full set of every page is in
+[`docs/screenshots`](docs/screenshots).
 
 <p align="center">
-  <img src="docs/mockups/contact-sheet.png" width="100%" alt="Design mockup contact sheet showing twelve pages of PC Checker">
+  <img src="docs/screenshots/01-dashboard.png" width="100%" alt="PC Checker Dashboard with health score, live temperatures and quick actions">
 </p>
 
 <table>
   <tr>
-    <td><img src="docs/mockups/dashboard.png" alt="Design mockup of the Dashboard page"></td>
-    <td><img src="docs/mockups/fans.png" alt="Design mockup of the Fans page"></td>
+    <td width="50%"><img src="docs/screenshots/02-temperatures.png" alt="Temperatures page"><br><sub>Temperatures</sub></td>
+    <td width="50%"><img src="docs/screenshots/12-fans.png" alt="Fans page"><br><sub>Fans</sub></td>
   </tr>
   <tr>
-    <td align="center"><sub>Dashboard (mockup)</sub></td>
-    <td align="center"><sub>Fans (mockup)</sub></td>
+    <td width="50%"><img src="docs/screenshots/22-overclock.png" alt="Overclock page"><br><sub>Overclock</sub></td>
+    <td width="50%"><img src="docs/screenshots/07-storage.png" alt="Storage page"><br><sub>Storage</sub></td>
   </tr>
   <tr>
-    <td><img src="docs/mockups/storage.png" alt="Design mockup of the Storage page"></td>
-    <td><img src="docs/mockups/overclock.png" alt="Design mockup of the Overclock page"></td>
+    <td width="50%"><img src="docs/screenshots/21-latency.png" alt="Latency page"><br><sub>Latency</sub></td>
+    <td width="50%"><img src="docs/screenshots/13-lighting.png" alt="Lighting page"><br><sub>Lighting</sub></td>
   </tr>
   <tr>
-    <td align="center"><sub>Storage (mockup)</sub></td>
-    <td align="center"><sub>Overclock (mockup)</sub></td>
+    <td width="50%"><img src="docs/screenshots/06-health.png" alt="Health page"><br><sub>Health</sub></td>
+    <td width="50%"><img src="docs/screenshots/23-assistant.png" alt="Ask Claude page"><br><sub>Ask Claude</sub></td>
   </tr>
 </table>
-
-### Screenshots
-
-Real screenshots are captured automatically from demo mode by the Windows
-`Screenshots` workflow whenever app code changes on `main` (and on demand),
-and committed to [`docs/screenshots/`](docs/screenshots/README.md). Browse
-that folder for the current set (26 pages, 1440 × 900); until the first run
-has completed it contains only its README.
 
 ## Feature tour
 
@@ -262,7 +254,7 @@ src/PcChecker.Claude/    the assistant, built on the official Anthropic SDK
 src/PcChecker.App/       the WPF application (Fluent UI, MVVM)
 tests/PcChecker.Core.Tests/  xUnit tests for the pure logic
 build/                   icon source, the icon script and the local publish script
-docs/                    documentation, design mockups and CI-captured screenshots
+docs/                    documentation and CI-captured screenshots
 ```
 
 How the layers fit together, the app modes, the shared hardware-monitor host
