@@ -1,9 +1,11 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using PcChecker.Core.Overclocking;
 using PcChecker.Core.Settings;
+using Limit = PcChecker.Core.Overclocking.OverclockSafetyValidator.UserLimit;
 
 namespace PcChecker.App.ViewModels;
 
-/// <summary>Monitoring thresholds, electricity price, Claude, fans, lighting, latency, memory and startup sections.</summary>
+/// <summary>Monitoring thresholds, electricity price, Claude, fans, lighting, latency, overclock limits, memory and startup sections.</summary>
 public sealed partial class SettingsViewModel
 {
     // Monitoring (also editable on the Temperatures page; both bind to the same settings).
@@ -34,6 +36,13 @@ public sealed partial class SettingsViewModel
     // Latency
     [ObservableProperty] private string _pingTargets = string.Empty;
     [ObservableProperty] private double _pingCount;
+
+    // Overclock safety limits (the Overclock page clamps every slider and profile to these)
+    [ObservableProperty] private double _maxGpuCoreOffsetMhz;
+    [ObservableProperty] private double _maxGpuMemoryOffsetMhz;
+    [ObservableProperty] private double _maxGpuPowerLimitPercent;
+    [ObservableProperty] private double _maxGpuTempLimitC;
+    [ObservableProperty] private double _maxCpuTempC;
 
     // Memory and startup warnings
     [ObservableProperty] private bool _warnOnLowMemory;
@@ -71,6 +80,12 @@ public sealed partial class SettingsViewModel
         PingTargets = string.Join(", ", s.Latency.PingTargets);
         PingCount = s.Latency.PingCount;
 
+        MaxGpuCoreOffsetMhz = s.Overclock.MaxGpuCoreOffsetMhz;
+        MaxGpuMemoryOffsetMhz = s.Overclock.MaxGpuMemoryOffsetMhz;
+        MaxGpuPowerLimitPercent = s.Overclock.MaxGpuPowerLimitPercent;
+        MaxGpuTempLimitC = s.Overclock.MaxGpuTempLimitC;
+        MaxCpuTempC = s.Overclock.MaxCpuTempC;
+
         WarnOnLowMemory = s.Memory.WarnOnLowMemory;
         LowMemoryPercent = s.Memory.LowMemoryPercent;
         WarnOnManyStartupItems = s.Startup.WarnOnManyStartupItems;
@@ -104,6 +119,12 @@ public sealed partial class SettingsViewModel
 
     partial void OnPingTargetsChanged(string value) => Persist(s => s.Latency.PingTargets = ParsePingTargets(value));
     partial void OnPingCountChanged(double value) => Persist(s => s.Latency.PingCount = (int)Math.Clamp(value, 1, 100));
+
+    partial void OnMaxGpuCoreOffsetMhzChanged(double value) => Persist(s => s.Overclock.MaxGpuCoreOffsetMhz = OverclockSafetyValidator.ClampUserLimit(Limit.GpuCoreOffsetMhz, value));
+    partial void OnMaxGpuMemoryOffsetMhzChanged(double value) => Persist(s => s.Overclock.MaxGpuMemoryOffsetMhz = OverclockSafetyValidator.ClampUserLimit(Limit.GpuMemoryOffsetMhz, value));
+    partial void OnMaxGpuPowerLimitPercentChanged(double value) => Persist(s => s.Overclock.MaxGpuPowerLimitPercent = OverclockSafetyValidator.ClampUserLimit(Limit.GpuPowerLimitPercent, value));
+    partial void OnMaxGpuTempLimitCChanged(double value) => Persist(s => s.Overclock.MaxGpuTempLimitC = OverclockSafetyValidator.ClampUserLimit(Limit.GpuTempLimitC, value));
+    partial void OnMaxCpuTempCChanged(double value) => Persist(s => s.Overclock.MaxCpuTempC = OverclockSafetyValidator.ClampUserLimit(Limit.CpuTempC, value));
 
     partial void OnWarnOnLowMemoryChanged(bool value) => Persist(s => s.Memory.WarnOnLowMemory = value);
     partial void OnLowMemoryPercentChanged(double value) => Persist(s => s.Memory.LowMemoryPercent = (int)Math.Clamp(value, 1, 50));

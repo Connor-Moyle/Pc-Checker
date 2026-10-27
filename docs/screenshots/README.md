@@ -11,8 +11,8 @@ without committing.
 
 They are taken from **demo mode**, which shows realistic sample data for a
 fictional gaming desktop, so they contain nothing from any real machine. They
-are refreshed per release; until the first Windows run has completed this
-folder contains only this file. Screenshots are never added here by hand.
+are refreshed whenever app code changes on `main` (and on demand); until the
+first Windows run has completed this folder contains only this file. Screenshots are never added here by hand.
 
 The file names come from `src/PcChecker.App/Services/ScreenshotRunner.cs`:
 

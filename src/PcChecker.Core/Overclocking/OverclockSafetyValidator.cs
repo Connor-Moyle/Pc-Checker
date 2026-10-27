@@ -12,6 +12,43 @@ public static class OverclockSafetyValidator
     public const int MinGpuPowerLimitPercent = 50;
     public const int MaxFanPercent = 100;
 
+    /// <summary>Which of the user's overclock safety limits (edited in Settings) a value belongs to.</summary>
+    public enum UserLimit
+    {
+        GpuCoreOffsetMhz,
+        GpuMemoryOffsetMhz,
+        GpuPowerLimitPercent,
+        GpuTempLimitC,
+        CpuTempC,
+    }
+
+    /// <summary>
+    /// The range the Settings page accepts for each user safety limit. The ceilings are generous on purpose so a
+    /// limit raised to the driver's maximum (Overclock page, "Raise safety limits") is never silently lowered; the
+    /// driver's own ranges still apply on top. The power floor is 100 % so stock settings always stay valid.
+    /// </summary>
+    public static (int Min, int Max) UserLimitRange(UserLimit limit) => limit switch
+    {
+        UserLimit.GpuCoreOffsetMhz => (0, 2000),
+        UserLimit.GpuMemoryOffsetMhz => (0, 8000),
+        UserLimit.GpuPowerLimitPercent => (100, 300),
+        UserLimit.GpuTempLimitC => (MinGpuTempLimitC, 120),
+        UserLimit.CpuTempC => (60, 115),
+        _ => throw new ArgumentOutOfRangeException(nameof(limit)),
+    };
+
+    /// <summary>Rounds and clamps a value typed into Settings into <see cref="UserLimitRange"/>; NaN falls back to the minimum.</summary>
+    public static int ClampUserLimit(UserLimit limit, double value)
+    {
+        var (min, max) = UserLimitRange(limit);
+        if (double.IsNaN(value))
+        {
+            return min;
+        }
+
+        return (int)Math.Clamp(Math.Round(value), min, max);
+    }
+
     /// <summary>Checks a profile; returns a failure describing the first problem found, including consent.</summary>
     public static OperationResult Validate(OverclockProfile profile, OverclockCapabilities capabilities, OverclockSettings settings)
     {

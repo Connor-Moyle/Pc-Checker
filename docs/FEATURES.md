@@ -595,13 +595,15 @@ minimize to tray, check health on startup), Updates (version, channel,
 auto-check, auto-download, *Check now*, *Download*, *Install*, release notes,
 portable-build note), Restore points (before, after, bypass frequency limit,
 and the restore-point list with *Create now*, *Enable System Protection* and
-*Open System Restore*), Monitoring thresholds, Electricity price, Overlay,
-Logging, Cleanup categories, Overclock limits, Fans (revert on exit, minimum
-percent), Lighting (OpenRGB host and port, auto-connect), Latency (ping
-targets and count), Memory and Startup warnings, Claude, Data and privacy
+*Open System Restore*), Monitoring thresholds, Electricity price, Fans
+(revert on exit, minimum percent), Lighting (OpenRGB host and port,
+auto-connect), Latency (ping targets and count), Overclock limits (GPU core
+and memory offset, highest GPU power limit, highest GPU and CPU
+temperature), Memory and Startup warnings, Claude, Data and privacy
 (open settings and log folders, reset settings, export diagnostics) and
 About (version, licences, GitHub link). A note shows when the app is running
-in demo mode.
+in demo mode. Overlay options are on the Overlay page, logging options on the
+Logs page and cleanup categories on the Cleanup page.
 
 ---
 
@@ -623,5 +625,6 @@ including serial numbers unless *Redact serial numbers* is on.
 
 `PcChecker.exe --demo` runs every page with realistic sample data for a
 gaming desktop and never touches the real machine or your settings.
-`PcChecker.exe --screenshots <dir>` captures every page to PNG; CI does this
-on every release. See [DEMO-MODE.md](DEMO-MODE.md).
+`PcChecker.exe --screenshots <dir>` captures every page to PNG; the
+`Screenshots` workflow does this whenever app code changes on `main` (and on
+demand). See [DEMO-MODE.md](DEMO-MODE.md).

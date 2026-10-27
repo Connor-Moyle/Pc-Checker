@@ -427,6 +427,63 @@
           </StackPanel>
         </ui:CardExpander>
 
+        <!-- Overclock limits (ranges match OverclockSafetyValidator.UserLimitRange) -->
+        <ui:CardExpander Style="{StaticResource Expander}" Icon="{ui:SymbolIcon ShieldCheckmark24}">
+          <ui:CardExpander.Header>
+            <StackPanel>
+              <ui:TextBlock FontTypography="BodyStrong" Text="Overclock limits" />
+              <ui:TextBlock Style="{StaticResource Muted}" Text="The Overclock page never goes past these, whatever the driver allows. Lower them to stay safer." />
+            </StackPanel>
+          </ui:CardExpander.Header>
+          <StackPanel>
+            <ui:CardControl Style="{StaticResource Row}" Icon="{ui:SymbolIcon TopSpeed24}">
+              <ui:CardControl.Header>
+                <StackPanel>
+                  <ui:TextBlock Text="GPU core offset limit (± MHz)" />
+                  <ui:TextBlock Style="{StaticResource Muted}" Text="Default 200." />
+                </StackPanel>
+              </ui:CardControl.Header>
+              <ui:NumberBox Style="{StaticResource Num}" Minimum="0" Maximum="2000" MaxDecimalPlaces="0" Value="{Binding MaxGpuCoreOffsetMhz, Mode=TwoWay}" />
+            </ui:CardControl>
+            <ui:CardControl Style="{StaticResource Row}" Icon="{ui:SymbolIcon DeveloperBoard24}">
+              <ui:CardControl.Header>
+                <StackPanel>
+                  <ui:TextBlock Text="GPU memory offset limit (± MHz)" />
+                  <ui:TextBlock Style="{StaticResource Muted}" Text="Default 1000." />
+                </StackPanel>
+              </ui:CardControl.Header>
+              <ui:NumberBox Style="{StaticResource Num}" Minimum="0" Maximum="8000" MaxDecimalPlaces="0" Value="{Binding MaxGpuMemoryOffsetMhz, Mode=TwoWay}" />
+            </ui:CardControl>
+            <ui:CardControl Style="{StaticResource Row}" Icon="{ui:SymbolIcon Flash24}">
+              <ui:CardControl.Header>
+                <StackPanel>
+                  <ui:TextBlock Text="Highest GPU power limit (%)" />
+                  <ui:TextBlock Style="{StaticResource Muted}" Text="Default 115." />
+                </StackPanel>
+              </ui:CardControl.Header>
+              <ui:NumberBox Style="{StaticResource Num}" Minimum="100" Maximum="300" MaxDecimalPlaces="0" Value="{Binding MaxGpuPowerLimitPercent, Mode=TwoWay}" />
+            </ui:CardControl>
+            <ui:CardControl Style="{StaticResource Row}" Icon="{ui:SymbolIcon Temperature24}">
+              <ui:CardControl.Header>
+                <StackPanel>
+                  <ui:TextBlock Text="Highest GPU temperature (°C)" />
+                  <ui:TextBlock Style="{StaticResource Muted}" Text="Caps the GPU temperature-limit slider and stops changes when the GPU is this hot. Default 87." />
+                </StackPanel>
+              </ui:CardControl.Header>
+              <ui:NumberBox Style="{StaticResource Num}" Minimum="60" Maximum="120" MaxDecimalPlaces="0" Value="{Binding MaxGpuTempLimitC, Mode=TwoWay}" />
+            </ui:CardControl>
+            <ui:CardControl Style="{StaticResource Row}" Icon="{ui:SymbolIcon Temperature24}">
+              <ui:CardControl.Header>
+                <StackPanel>
+                  <ui:TextBlock Text="Highest CPU temperature (°C)" />
+                  <ui:TextBlock Style="{StaticResource Muted}" Text="Changes are refused and stress tests stop above this. Default 90." />
+                </StackPanel>
+              </ui:CardControl.Header>
+              <ui:NumberBox Style="{StaticResource Num}" Minimum="60" Maximum="115" MaxDecimalPlaces="0" Value="{Binding MaxCpuTempC, Mode=TwoWay}" />
+            </ui:CardControl>
+          </StackPanel>
+        </ui:CardExpander>
+
         <!-- Memory and startup warnings -->
         <ui:CardExpander Style="{StaticResource Expander}" Icon="{ui:SymbolIcon Warning24}">
           <ui:CardExpander.Header>

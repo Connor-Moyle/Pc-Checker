@@ -103,31 +103,11 @@ so it cannot be mistaken for the real app.
 
 ### Screenshots
 
-Real screenshots are captured automatically from demo mode on every release
-by the Windows CI screenshot job and committed to
-[`docs/screenshots/`](docs/screenshots/README.md). They appear below once the
-first run has completed; until then the images are empty.
-
-<details>
-<summary>Show the CI-captured screenshots</summary>
-
-| | |
-|---|---|
-| ![Dashboard](docs/screenshots/01-dashboard.png) | ![Temperatures](docs/screenshots/02-temperatures.png) |
-| ![Power](docs/screenshots/03-power.png) | ![Overlay settings](docs/screenshots/04-overlay-settings.png) |
-| ![Hardware](docs/screenshots/05-hardware.png) | ![Health](docs/screenshots/06-health.png) |
-| ![Storage](docs/screenshots/07-storage.png) | ![Memory](docs/screenshots/08-memory.png) |
-| ![Displays](docs/screenshots/09-displays.png) | ![Audio](docs/screenshots/10-audio.png) |
-| ![Keyboard and mouse](docs/screenshots/11-input.png) | ![Fans](docs/screenshots/12-fans.png) |
-| ![Lighting](docs/screenshots/13-lighting.png) | ![Drivers](docs/screenshots/14-drivers.png) |
-| ![Software](docs/screenshots/15-software.png) | ![Startup](docs/screenshots/16-startup.png) |
-| ![Windows Features](docs/screenshots/17-windows-features.png) | ![Cleanup](docs/screenshots/18-cleanup.png) |
-| ![Performance](docs/screenshots/19-performance.png) | ![Optimize](docs/screenshots/20-optimize.png) |
-| ![Latency](docs/screenshots/21-latency.png) | ![Overclock](docs/screenshots/22-overclock.png) |
-| ![Ask Claude](docs/screenshots/23-assistant.png) | ![Logs](docs/screenshots/24-logs.png) |
-| ![Settings](docs/screenshots/25-settings.png) | ![In-game overlay](docs/screenshots/26-overlay.png) |
-
-</details>
+Real screenshots are captured automatically from demo mode by the Windows
+`Screenshots` workflow whenever app code changes on `main` (and on demand),
+and committed to [`docs/screenshots/`](docs/screenshots/README.md). Browse
+that folder for the current set (26 pages, 1440 × 900); until the first run
+has completed it contains only its README.
 
 ## Feature tour
 
@@ -193,7 +173,7 @@ limitations, is in [docs/FEATURES.md](docs/FEATURES.md).
 | Page | What it does |
 |---|---|
 | **Logs** | Live log viewer with per-category levels, filters and a diagnostics zip export, plus the Action Journal: every change the app made, when, and how to undo it. |
-| **Settings** | Theme, advanced mode, startup behaviour, updates and channel, restore-point policy, temperature thresholds, electricity price, overlay, logging, cleanup categories, overclock limits, fans, lighting, latency targets, memory and startup warnings, the Claude connection, data and privacy tools, and About. |
+| **Settings** | Theme, advanced mode, startup behaviour, updates and channel, restore-point policy, temperature thresholds, electricity price, fans, lighting, latency targets, overclock safety limits, memory and startup warnings, the Claude connection, data and privacy tools, and About. Overlay options live on the Overlay page, logging options on the Logs page and cleanup categories on the Cleanup page. |
 
 ## Hardware support matrix
 

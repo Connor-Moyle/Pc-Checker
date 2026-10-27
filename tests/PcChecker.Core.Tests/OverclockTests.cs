@@ -629,3 +629,49 @@ public class OverclockWatchdogOnceTests
             Func<CancellationToken, Task<OperationResult>> change, IProgress<ProgressUpdate>? progress, CancellationToken cancellationToken) => change(cancellationToken);
     }
 }
+
+public class OverclockUserLimitTests
+{
+    [Theory]
+    [InlineData(OverclockSafetyValidator.UserLimit.GpuCoreOffsetMhz, 150.4, 150)]
+    [InlineData(OverclockSafetyValidator.UserLimit.GpuCoreOffsetMhz, -50, 0)]
+    [InlineData(OverclockSafetyValidator.UserLimit.GpuCoreOffsetMhz, 99999, 2000)]
+    [InlineData(OverclockSafetyValidator.UserLimit.GpuMemoryOffsetMhz, 1500, 1500)]
+    [InlineData(OverclockSafetyValidator.UserLimit.GpuPowerLimitPercent, 80, 100)]
+    [InlineData(OverclockSafetyValidator.UserLimit.GpuPowerLimitPercent, 400, 300)]
+    [InlineData(OverclockSafetyValidator.UserLimit.GpuTempLimitC, 40, OverclockSafetyValidator.MinGpuTempLimitC)]
+    [InlineData(OverclockSafetyValidator.UserLimit.GpuTempLimitC, 83.6, 84)]
+    [InlineData(OverclockSafetyValidator.UserLimit.CpuTempC, 200, 115)]
+    public void ClampUserLimit_rounds_and_clamps(OverclockSafetyValidator.UserLimit limit, double value, int expected)
+        => Assert.Equal(expected, OverclockSafetyValidator.ClampUserLimit(limit, value));
+
+    [Fact]
+    public void ClampUserLimit_maps_nan_to_minimum()
+        => Assert.Equal(100, OverclockSafetyValidator.ClampUserLimit(OverclockSafetyValidator.UserLimit.GpuPowerLimitPercent, double.NaN));
+
+    [Fact]
+    public void Default_limits_are_inside_the_editable_ranges()
+    {
+        var d = new OverclockSettings();
+        AssertInRange(OverclockSafetyValidator.UserLimit.GpuCoreOffsetMhz, d.MaxGpuCoreOffsetMhz);
+        AssertInRange(OverclockSafetyValidator.UserLimit.GpuMemoryOffsetMhz, d.MaxGpuMemoryOffsetMhz);
+        AssertInRange(OverclockSafetyValidator.UserLimit.GpuPowerLimitPercent, d.MaxGpuPowerLimitPercent);
+        AssertInRange(OverclockSafetyValidator.UserLimit.GpuTempLimitC, d.MaxGpuTempLimitC);
+        AssertInRange(OverclockSafetyValidator.UserLimit.CpuTempC, d.MaxCpuTempC);
+    }
+
+    [Fact]
+    public void Lowest_power_ceiling_still_allows_stock_power()
+    {
+        var (min, _) = OverclockSafetyValidator.UserLimitRange(OverclockSafetyValidator.UserLimit.GpuPowerLimitPercent);
+        var settings = new OverclockSettings { ConsentAccepted = true, MaxGpuPowerLimitPercent = min };
+        var caps = new OverclockCapabilities(GpuVendor.Nvidia, "GPU", GpuControlMethod.NvApi, null, "CPU", CpuControlMethod.None, null, "Unknown", null, null, []);
+        Assert.True(OverclockSafetyValidator.Validate(new OverclockProfile { GpuPowerLimitPercent = 100 }, caps, settings).Success);
+    }
+
+    private static void AssertInRange(OverclockSafetyValidator.UserLimit limit, int value)
+    {
+        var (min, max) = OverclockSafetyValidator.UserLimitRange(limit);
+        Assert.InRange(value, min, max);
+    }
+}

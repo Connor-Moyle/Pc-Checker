@@ -89,8 +89,9 @@ Initial release.
 - **Logs**: live log viewer, logging settings, diagnostics export and the
   Action Journal with undo hints.
 - **Settings**: theme, advanced mode, updates, restore points, monitoring
-  thresholds, overlay, logging, cleanup, overclock limits, fans, lighting,
-  latency, memory, startup and the Claude connection.
+  thresholds, overclock limits, fans, lighting, latency, memory, startup and
+  the Claude connection (overlay, logging and cleanup options live on their
+  own pages).
 - **Safety**: every change confirmed first, restore point before changes,
   Action Journal with undo hints, overclock and fan watchdogs.
 - **Demo mode** (`--demo`) with realistic sample data and a screenshot runner

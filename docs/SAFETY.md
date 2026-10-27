@@ -110,7 +110,7 @@ Overclocking can crash the system, corrupt data and, if limits are ignored,
 damage hardware. PC Checker reduces the risk; it cannot remove it.
 
 - A consent screen explains this and must be accepted once.
-- Every profile is validated and **clamped** to the limits in Settings
+- Every profile is validated and **clamped** to the limits in Settings → Overclock limits
   (core and memory offset, power limit, temperature limit, CPU temperature)
   and to the limits the driver itself reports.
 - The app refuses to apply a profile while the GPU or CPU is already above
