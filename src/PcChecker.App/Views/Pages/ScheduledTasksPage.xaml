@@ -1,0 +1,363 @@
+<Page x:Class="PcChecker.App.Views.Pages.ScheduledTasksPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+      xmlns:controls="clr-namespace:PcChecker.App.Controls"
+      xmlns:vm="clr-namespace:PcChecker.App.ViewModels"
+      d:DataContext="{d:DesignInstance vm:ScheduledTasksViewModel}"
+      xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+      mc:Ignorable="d"
+      Title="Scheduled tasks"
+      ScrollViewer.CanContentScroll="False">
+  <Page.Resources>
+    <Style x:Key="TaskGrid" TargetType="ui:DataGrid" BasedOn="{StaticResource DefaultUiDataGridStyle}">
+      <Setter Property="AutoGenerateColumns" Value="False" />
+      <Setter Property="IsReadOnly" Value="True" />
+      <Setter Property="CanUserAddRows" Value="False" />
+      <Setter Property="CanUserDeleteRows" Value="False" />
+      <Setter Property="CanUserResizeRows" Value="False" />
+      <Setter Property="CanUserReorderColumns" Value="False" />
+      <Setter Property="HeadersVisibility" Value="Column" />
+      <Setter Property="GridLinesVisibility" Value="None" />
+      <Setter Property="SelectionMode" Value="Single" />
+      <Setter Property="SelectionUnit" Value="FullRow" />
+      <Setter Property="MaxHeight" Value="520" />
+      <Setter Property="RowHeight" Value="48" />
+      <Setter Property="ScrollViewer.CanContentScroll" Value="True" />
+      <Setter Property="VirtualizingPanel.IsVirtualizing" Value="True" />
+      <Setter Property="VirtualizingPanel.VirtualizationMode" Value="Recycling" />
+      <Setter Property="VerticalScrollBarVisibility" Value="Auto" />
+      <Setter Property="HorizontalScrollBarVisibility" Value="Auto" />
+    </Style>
+    <Style x:Key="TextCell" TargetType="TextBlock">
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+    </Style>
+    <Style x:Key="Tile" TargetType="controls:StatCard">
+      <Setter Property="Margin" Value="0" />
+    </Style>
+
+    <DataTemplate x:Key="NameCell">
+      <Grid VerticalAlignment="Center" ToolTip="{Binding ActionText}">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="Auto" />
+          <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        <controls:IconGlyph Grid.Column="0" Symbol="Warning24" FontSize="16" Margin="0,0,8,0" VerticalAlignment="Center"
+                            Foreground="{DynamicResource AccentOrangeBrush}" ToolTip="{Binding FlagText}"
+                            Visibility="{Binding IsFlagged, Converter={StaticResource BoolToVisibility}}" />
+        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+          <ui:TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+          <ui:TextBlock Text="{Binding Folder}" Style="{StaticResource Caption}" TextTrimming="CharacterEllipsis" />
+        </StackPanel>
+      </Grid>
+    </DataTemplate>
+
+    <DataTemplate x:Key="LastRunCell">
+      <StackPanel VerticalAlignment="Center" ToolTip="{Binding ResultText}">
+        <ui:TextBlock Text="{Binding LastRunText}" TextTrimming="CharacterEllipsis" />
+        <Grid>
+          <ui:TextBlock Text="{Binding ResultText}" Style="{StaticResource Caption}" TextTrimming="CharacterEllipsis"
+                        Visibility="{Binding ResultIsProblem, Converter={StaticResource InverseBoolToVisibility}}" />
+          <ui:TextBlock Text="{Binding ResultText}" FontSize="12" TextTrimming="CharacterEllipsis" Foreground="{DynamicResource AccentOrangeBrush}"
+                        Visibility="{Binding ResultIsProblem, Converter={StaticResource BoolToVisibility}}" />
+        </Grid>
+      </StackPanel>
+    </DataTemplate>
+
+    <!-- The same actions in the header More menu and the list's right-click menu. -->
+    <ContextMenu x:Key="TaskActions" x:Shared="False"
+                 DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+      <MenuItem Header="Run now" Command="{Binding RunNowCommand}" InputGestureText="Ctrl+R">
+        <MenuItem.Icon>
+          <controls:IconGlyph Symbol="Play24" />
+        </MenuItem.Icon>
+      </MenuItem>
+      <MenuItem Header="End" Command="{Binding EndCommand}" InputGestureText="Ctrl+E">
+        <MenuItem.Icon>
+          <controls:IconGlyph Symbol="Stop24" />
+        </MenuItem.Icon>
+      </MenuItem>
+      <Separator />
+      <MenuItem Header="Turn off" Command="{Binding TurnOffCommand}" InputGestureText="Ctrl+D">
+        <MenuItem.Icon>
+          <controls:IconGlyph Symbol="DismissCircle24" />
+        </MenuItem.Icon>
+      </MenuItem>
+      <MenuItem Header="Turn on" Command="{Binding TurnOnCommand}" InputGestureText="Ctrl+D">
+        <MenuItem.Icon>
+          <controls:IconGlyph Symbol="CheckmarkCircle24" />
+        </MenuItem.Icon>
+      </MenuItem>
+      <MenuItem Header="Delete…" Command="{Binding DeleteCommand}" InputGestureText="Del">
+        <MenuItem.Icon>
+          <controls:IconGlyph Symbol="Delete24" />
+        </MenuItem.Icon>
+      </MenuItem>
+      <Separator />
+      <MenuItem Header="Open file location" Command="{Binding OpenFileLocationCommand}" InputGestureText="Ctrl+O">
+        <MenuItem.Icon>
+          <controls:IconGlyph Symbol="FolderOpen24" />
+        </MenuItem.Icon>
+      </MenuItem>
+      <MenuItem Header="Search online" Command="{Binding SearchOnlineCommand}">
+        <MenuItem.Icon>
+          <controls:IconGlyph Symbol="GlobeSearch24" />
+        </MenuItem.Icon>
+      </MenuItem>
+      <MenuItem Header="Copy details" Command="{Binding CopyDetailsCommand}" InputGestureText="Ctrl+C">
+        <MenuItem.Icon>
+          <controls:IconGlyph Symbol="Copy24" />
+        </MenuItem.Icon>
+      </MenuItem>
+      <Separator />
+      <MenuItem Header="Open Task Scheduler" Command="{Binding OpenTaskSchedulerCommand}">
+        <MenuItem.Icon>
+          <controls:IconGlyph Symbol="CalendarClock24" />
+        </MenuItem.Icon>
+      </MenuItem>
+    </ContextMenu>
+  </Page.Resources>
+  <Page.InputBindings>
+    <KeyBinding Key="F5" Command="{Binding RefreshCommand}" />
+  </Page.InputBindings>
+
+  <Grid Style="{StaticResource PageRoot}">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="*" />
+    </Grid.RowDefinitions>
+
+    <controls:SectionHeader Grid.Row="0" Title="Scheduled tasks" Subtitle="{Binding StatusText}">
+      <controls:SectionHeader.Actions>
+        <StackPanel Orientation="Horizontal">
+          <ui:DropDownButton Content="More" Icon="{ui:SymbolIcon MoreHorizontal24}" Margin="0,0,8,0"
+                             Flyout="{StaticResource TaskActions}" />
+          <ui:Button Content="Open Task Scheduler" Icon="{ui:SymbolIcon CalendarClock24}" Margin="0,0,8,0"
+                     Command="{Binding OpenTaskSchedulerCommand}"
+                     ToolTip="Open Windows' own Task Scheduler (taskschd.msc)" />
+          <ui:Button Appearance="Primary" Icon="{ui:SymbolIcon ArrowClockwise24}" Command="{Binding RefreshCommand}"
+                     ToolTip="Read the tasks again (F5)">
+            <AccessText Text="_Refresh" />
+          </ui:Button>
+        </StackPanel>
+      </controls:SectionHeader.Actions>
+    </controls:SectionHeader>
+
+    <StackPanel Grid.Row="1">
+      <ui:InfoBar Severity="Error" Title="Something went wrong" Message="{Binding ErrorMessage}"
+                  IsOpen="{Binding HasError, Mode=OneWay}" IsClosable="True" Margin="0,0,0,12" />
+      <ui:InfoBar Severity="Warning" Title="Part of the list is missing" Message="{Binding WarningText}"
+                  IsOpen="{Binding HasWarning, Mode=OneWay}" IsClosable="True" Margin="0,0,0,12" />
+    </StackPanel>
+
+    <ScrollViewer Grid.Row="2" Style="{StaticResource PageScroll}">
+      <StackPanel>
+        <controls:AdaptiveGrid MinItemWidth="200" MaxColumns="4" Margin="0,0,0,12">
+          <controls:StatCard Style="{StaticResource Tile}" Title="Other companies" Value="{Binding ThirdPartyText}" Icon="Wrench24"
+                             Accent="{DynamicResource AccentPurpleBrush}" Subtitle="Updaters and helpers" />
+          <controls:StatCard Style="{StaticResource Tile}" Title="With warnings" Value="{Binding FlaggedText}" Icon="Warning24"
+                             Accent="{DynamicResource AccentOrangeBrush}" Subtitle="Worth a look" />
+          <controls:StatCard Style="{StaticResource Tile}" Title="Running now" Value="{Binding RunningText}" Icon="Play24"
+                             Accent="{DynamicResource AccentGreenBrush}" Subtitle="Started by Task Scheduler" />
+          <controls:StatCard Style="{StaticResource Tile}" Title="Turned off" Value="{Binding TurnedOffText}" Icon="DismissCircle24"
+                             Accent="{DynamicResource AccentGreyBrush}" Subtitle="Will not run" />
+        </controls:AdaptiveGrid>
+
+        <ui:Card Style="{StaticResource CardSpacing}">
+          <StackPanel>
+            <Grid Margin="0,0,0,8">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
+              <StackPanel Grid.Column="0" Margin="0,0,12,0">
+                <ui:TextBlock Style="{StaticResource CardTitle}" Text="Tasks" Margin="0,0,0,4" />
+                <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap"
+                              Text="Programs Windows starts on a schedule or at events. Right-click a task for actions." />
+              </StackPanel>
+              <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top">
+                <ComboBox Width="180" Margin="0,0,12,0" VerticalAlignment="Center"
+                          AutomationProperties.Name="Filter tasks"
+                          ItemsSource="{Binding FilterOptions}" SelectedIndex="{Binding SelectedFilterIndex}" />
+                <ui:TextBox Width="240" PlaceholderText="Search name, program or company" Icon="{ui:SymbolIcon Search24}"
+                            AutomationProperties.Name="Search tasks"
+                            Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" ClearButtonEnabled="True" />
+              </StackPanel>
+            </Grid>
+
+            <ui:DataGrid AutomationProperties.Name="Scheduled tasks" x:Name="TaskGrid" Style="{StaticResource TaskGrid}"
+                         ItemsSource="{Binding Rows}" SelectedItem="{Binding SelectedRow, Mode=TwoWay}"
+                         ContextMenu="{StaticResource TaskActions}"
+                         IsReadOnly="True" KeyboardNavigation.TabNavigation="Once"
+                         PreviewMouseRightButtonDown="OnGridRightButtonDown"
+                         Visibility="{Binding HasNoRows, Converter={StaticResource InverseBoolToVisibility}}">
+              <ui:DataGrid.InputBindings>
+                <KeyBinding Key="R" Modifiers="Control" Command="{Binding RunNowCommand}" />
+                <KeyBinding Key="E" Modifiers="Control" Command="{Binding EndCommand}" />
+                <KeyBinding Key="D" Modifiers="Control" Command="{Binding ToggleOnOffCommand}" />
+                <KeyBinding Key="Delete" Command="{Binding DeleteCommand}" />
+                <KeyBinding Key="O" Modifiers="Control" Command="{Binding OpenFileLocationCommand}" />
+                <KeyBinding Key="C" Modifiers="Control" Command="{Binding CopyDetailsCommand}" />
+              </ui:DataGrid.InputBindings>
+              <ui:DataGrid.Columns>
+                <DataGridTemplateColumn Header="Name" Width="2*" MinWidth="220" CellTemplate="{StaticResource NameCell}" />
+                <DataGridTextColumn Header="Status" Width="80" Binding="{Binding StateText}" ElementStyle="{StaticResource TextCell}" />
+                <DataGridTextColumn Header="When" Width="1.6*" MinWidth="160" Binding="{Binding TriggerText}" ElementStyle="{StaticResource TextCell}" />
+                <DataGridTemplateColumn Header="Last run" Width="1.3*" MinWidth="150" CellTemplate="{StaticResource LastRunCell}" />
+                <DataGridTextColumn Header="Next run" Width="120" Binding="{Binding NextRunText}" ElementStyle="{StaticResource TextCell}" />
+                <DataGridTextColumn Header="From" Width="1*" MinWidth="110" Binding="{Binding PublisherText}" ElementStyle="{StaticResource TextCell}" />
+              </ui:DataGrid.Columns>
+            </ui:DataGrid>
+            <controls:EmptyState Icon="CalendarClock24" Title="No tasks to show"
+                                 Message="Nothing matches this filter or search. Show all tasks to see Windows' own tasks too."
+                                 Visibility="{Binding HasNoRows, Converter={StaticResource BoolToVisibility}}" MinHeight="140">
+              <controls:EmptyState.Action>
+                <ui:Button Content="Show all tasks" Icon="{ui:SymbolIcon Eye24}" Command="{Binding ShowAllCommand}" />
+              </controls:EmptyState.Action>
+            </controls:EmptyState>
+          </StackPanel>
+        </ui:Card>
+
+        <!-- Selected task -->
+        <ui:Card Style="{StaticResource CardSpacing}" Visibility="{Binding HasSelection, Converter={StaticResource BoolToVisibility}}">
+          <StackPanel>
+            <ui:TextBlock Style="{StaticResource CardTitle}" Text="{Binding SelectedRow.Name}" TextWrapping="Wrap" />
+            <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding SelectedRow.Description}" TextWrapping="Wrap" Margin="0,0,0,10"
+                          Visibility="{Binding SelectedRow.HasDescription, Converter={StaticResource BoolToVisibility}, FallbackValue=Collapsed}" />
+
+            <Border Margin="0,0,0,10" Padding="12,8" CornerRadius="6" Background="{DynamicResource ControlFillColorSecondaryBrush}"
+                    Visibility="{Binding SelectedRow.IsFlagged, Converter={StaticResource BoolToVisibility}, FallbackValue=Collapsed}">
+              <StackPanel Orientation="Horizontal">
+                <controls:IconGlyph Symbol="Warning24" Foreground="{DynamicResource AccentOrangeBrush}" Margin="0,0,8,0" VerticalAlignment="Top" />
+                <StackPanel>
+                  <ui:TextBlock FontWeight="SemiBold" Text="Worth a look" />
+                  <ui:TextBlock Text="{Binding SelectedRow.FlagText}" TextWrapping="Wrap" MaxWidth="900" />
+                  <ui:TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" MaxWidth="900" Margin="0,4,0,0"
+                                Text="A warning is not proof of harm. Search the name online, and turn the task off if you do not recognise it." />
+                </StackPanel>
+              </StackPanel>
+            </Border>
+            <Border Margin="0,0,0,10" Padding="12,8" CornerRadius="6" Background="{DynamicResource ControlFillColorSecondaryBrush}"
+                    Visibility="{Binding SelectedRow.HasNotes, Converter={StaticResource BoolToVisibility}, FallbackValue=Collapsed}">
+              <StackPanel Orientation="Horizontal">
+                <controls:IconGlyph Symbol="Info24" Margin="0,0,8,0" VerticalAlignment="Top" />
+                <ui:TextBlock Text="{Binding SelectedRow.NotesText}" TextWrapping="Wrap" MaxWidth="900" />
+              </StackPanel>
+            </Border>
+            <Border Margin="0,0,0,10" Padding="12,8" CornerRadius="6" Background="{DynamicResource ControlFillColorSecondaryBrush}"
+                    Visibility="{Binding HasSelectedReason, Converter={StaticResource BoolToVisibility}, FallbackValue=Collapsed}">
+              <StackPanel Orientation="Horizontal">
+                <controls:IconGlyph Symbol="LockClosed24" Margin="0,0,8,0" VerticalAlignment="Top" />
+                <ui:TextBlock Text="{Binding SelectedReason}" TextWrapping="Wrap" MaxWidth="900" />
+              </StackPanel>
+            </Border>
+
+            <Grid Margin="0,0,0,12">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="110" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+              <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+              </Grid.RowDefinitions>
+              <ui:TextBlock Grid.Row="0" Grid.Column="0" Style="{StaticResource Muted}" Text="Runs" Margin="0,0,0,6" />
+              <ui:TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding SelectedRow.ActionText}" TextWrapping="Wrap" Margin="0,0,0,6" />
+              <ui:TextBlock Grid.Row="1" Grid.Column="0" Style="{StaticResource Muted}" Text="As" Margin="0,0,0,6" />
+              <ui:TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding SelectedRow.RunsAsText}" TextWrapping="Wrap" Margin="0,0,0,6" />
+              <ui:TextBlock Grid.Row="2" Grid.Column="0" Style="{StaticResource Muted}" Text="When" Margin="0,0,0,6" />
+              <ui:TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding SelectedRow.TriggerDetails}" TextWrapping="Wrap" Margin="0,0,0,6" />
+              <ui:TextBlock Grid.Row="3" Grid.Column="0" Style="{StaticResource Muted}" Text="Last result" Margin="0,0,0,6" />
+              <ui:TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding SelectedRow.ResultText}" TextWrapping="Wrap" Margin="0,0,0,6" />
+              <ui:TextBlock Grid.Row="4" Grid.Column="0" Style="{StaticResource Muted}" Text="Next run" Margin="0,0,0,6" />
+              <ui:TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding SelectedRow.NextRunText}" TextWrapping="Wrap" Margin="0,0,0,6" />
+              <ui:TextBlock Grid.Row="5" Grid.Column="0" Style="{StaticResource Muted}" Text="From" Margin="0,0,0,6" />
+              <ui:TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding SelectedRow.PublisherText}" TextWrapping="Wrap" Margin="0,0,0,6" />
+              <ui:TextBlock Grid.Row="6" Grid.Column="0" Style="{StaticResource Muted}" Text="Folder" />
+              <ui:TextBlock Grid.Row="6" Grid.Column="1" Text="{Binding SelectedRow.Folder}" TextWrapping="Wrap" />
+            </Grid>
+
+            <WrapPanel Orientation="Horizontal">
+              <ui:Button Content="Run now" Icon="{ui:SymbolIcon Play24}" Margin="0,0,8,8" Command="{Binding RunNowCommand}" />
+              <ui:Button Content="End" Icon="{ui:SymbolIcon Stop24}" Margin="0,0,8,8" Command="{Binding EndCommand}" />
+              <ui:Button Content="Turn off" Icon="{ui:SymbolIcon DismissCircle24}" Margin="0,0,8,8" Command="{Binding TurnOffCommand}"
+                         Visibility="{Binding SelectedRow.IsOn, Converter={StaticResource BoolToVisibility}, FallbackValue=Collapsed}"
+                         ToolTip="Stop the task from running until you turn it on again" />
+              <ui:Button Content="Turn on" Icon="{ui:SymbolIcon CheckmarkCircle24}" Margin="0,0,8,8" Command="{Binding TurnOnCommand}"
+                         Visibility="{Binding SelectedRow.IsOn, Converter={StaticResource InverseBoolToVisibility}, FallbackValue=Collapsed}" />
+              <ui:Button Content="Open file location" Icon="{ui:SymbolIcon FolderOpen24}" Margin="0,0,8,8" Command="{Binding OpenFileLocationCommand}" />
+              <ui:Button Content="Search online" Icon="{ui:SymbolIcon GlobeSearch24}" Margin="0,0,8,8" Command="{Binding SearchOnlineCommand}" />
+              <ui:Button Content="Delete…" Icon="{ui:SymbolIcon Delete24}" Appearance="Danger" Margin="0,0,8,8" Command="{Binding DeleteCommand}"
+                         ToolTip="Save a copy, then delete the task. You can put it back under Deleted tasks." />
+            </WrapPanel>
+          </StackPanel>
+        </ui:Card>
+
+        <ui:CardExpander Margin="0,0,0,12" ContentPadding="16" IsExpanded="False" Icon="{ui:SymbolIcon ArrowUndo24}">
+          <ui:CardExpander.Header>
+            <StackPanel>
+              <ui:TextBlock FontTypography="BodyStrong" Text="Deleted tasks" />
+              <ui:TextBlock Style="{StaticResource Muted}" Text="Tasks you delete here are saved first. Put one back if something stops working." TextWrapping="Wrap" />
+            </StackPanel>
+          </ui:CardExpander.Header>
+          <StackPanel>
+            <ui:TextBlock Style="{StaticResource Muted}" Text="Nothing deleted yet." TextWrapping="Wrap"
+                          Visibility="{Binding HasBackups, Converter={StaticResource InverseBoolToVisibility}}" />
+            <ItemsControl ItemsSource="{Binding Backups}" AutomationProperties.Name="Deleted tasks"
+                          Visibility="{Binding HasBackups, Converter={StaticResource BoolToVisibility}}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <Grid Margin="0,0,0,8">
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="*" />
+                      <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                      <ui:TextBlock Text="{Binding Path}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                      <ui:TextBlock Text="{Binding WhenText}" Style="{StaticResource Caption}" />
+                    </StackPanel>
+                    <ui:Button Grid.Column="1" Content="Restore" Icon="{ui:SymbolIcon ArrowUndo24}"
+                               AutomationProperties.Name="{Binding AccessibleName}"
+                               Command="{Binding DataContext.RestoreCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                               CommandParameter="{Binding}" />
+                  </Grid>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </ui:CardExpander>
+
+        <ui:CardExpander Margin="0,0,0,12" ContentPadding="16" IsExpanded="False" Icon="{ui:SymbolIcon Info24}">
+          <ui:CardExpander.Header>
+            <StackPanel>
+              <ui:TextBlock FontTypography="BodyStrong" Text="About scheduled tasks" />
+              <ui:TextBlock Style="{StaticResource Muted}" Text="What the warnings mean and what PC Checker will not change." TextWrapping="Wrap" />
+            </StackPanel>
+          </ui:CardExpander.Header>
+          <StackPanel>
+            <ui:TextBlock TextWrapping="Wrap" Margin="0,0,0,8"
+                          Text="Task Scheduler starts programs at set times or events: when you sign in, when the PC is idle, every day at 3 AM. Most other companies' tasks are updaters. Some programs add tasks that keep them running or bring them back after you close them." />
+            <ui:TextBlock TextWrapping="Wrap" Margin="0,0,0,8"
+                          Text="A warning appears when a task runs a program from a folder any program can write to, runs a script with a scrambled command or one that downloads code, is hidden from Task Scheduler's own list, or runs a program without a valid signature. A warning is a reason to look, not proof of harm." />
+            <ui:TextBlock TextWrapping="Wrap" Margin="0,0,0,8"
+                          Text="Turning a task off is the safe choice: it stays where it is and you can turn it on again. Delete is for other companies' tasks only, and PC Checker saves the task first so it can be put back." />
+            <ui:TextBlock TextWrapping="Wrap"
+                          Text="Windows' own tasks keep Windows updated, backed up and secure, so they are read-only here. Advanced mode lets you turn them off or on, with a restore point first. PC Checker's own schedules are changed in Settings. Every change is recorded in the Action Journal on the Logs page." />
+          </StackPanel>
+        </ui:CardExpander>
+      </StackPanel>
+    </ScrollViewer>
+
+    <controls:BusyOverlay Grid.Row="0" Grid.RowSpan="3"
+                          IsBusy="{Binding IsBusy}" Text="{Binding BusyText}"
+                          CancelCommand="{Binding CancelCommand}" CanCancel="{Binding CanCancelBusy}" />
+  </Grid>
+</Page>

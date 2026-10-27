@@ -1,0 +1,301 @@
+<Page x:Class="PcChecker.App.Views.Pages.ConnectionsPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+      xmlns:controls="clr-namespace:PcChecker.App.Controls"
+      xmlns:vm="clr-namespace:PcChecker.App.ViewModels"
+      d:DataContext="{d:DesignInstance vm:ConnectionsViewModel}"
+      xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+      mc:Ignorable="d"
+      Title="Connections"
+      ScrollViewer.CanContentScroll="False">
+  <Page.Resources>
+    <Style x:Key="ConnectionGrid" TargetType="ui:DataGrid" BasedOn="{StaticResource DefaultUiDataGridStyle}">
+      <Setter Property="AutoGenerateColumns" Value="False" />
+      <Setter Property="IsReadOnly" Value="True" />
+      <Setter Property="CanUserAddRows" Value="False" />
+      <Setter Property="CanUserDeleteRows" Value="False" />
+      <Setter Property="CanUserResizeRows" Value="False" />
+      <Setter Property="CanUserReorderColumns" Value="False" />
+      <Setter Property="HeadersVisibility" Value="Column" />
+      <Setter Property="GridLinesVisibility" Value="None" />
+      <Setter Property="SelectionMode" Value="Single" />
+      <Setter Property="SelectionUnit" Value="FullRow" />
+      <Setter Property="Height" Value="520" />
+      <Setter Property="RowHeight" Value="40" />
+      <Setter Property="ScrollViewer.CanContentScroll" Value="True" />
+      <Setter Property="VirtualizingPanel.IsVirtualizing" Value="True" />
+      <Setter Property="VirtualizingPanel.VirtualizationMode" Value="Recycling" />
+      <Setter Property="VerticalScrollBarVisibility" Value="Auto" />
+      <Setter Property="HorizontalScrollBarVisibility" Value="Auto" />
+    </Style>
+    <Style x:Key="TextCell" TargetType="TextBlock">
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+    </Style>
+    <Style x:Key="Tile" TargetType="controls:StatCard">
+      <Setter Property="Margin" Value="0" />
+    </Style>
+
+    <DataTemplate x:Key="ProgramCell">
+      <StackPanel Orientation="Horizontal" VerticalAlignment="Center" ToolTip="{Binding PathText}">
+        <Grid Width="16" Height="16" Margin="0,0,8,0">
+          <Image Source="{Binding Icon}" Width="16" Height="16" AutomationProperties.Name="{Binding Program}" RenderOptions.BitmapScalingMode="HighQuality"
+                 Visibility="{Binding HasIcon, Converter={StaticResource BoolToVisibility}}" />
+          <controls:IconGlyph Symbol="WindowApps24" FontSize="16" Opacity="0.7"
+                              Visibility="{Binding HasIcon, Converter={StaticResource InverseBoolToVisibility}}" />
+        </Grid>
+        <ui:TextBlock Text="{Binding Program}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+      </StackPanel>
+    </DataTemplate>
+
+    <DataTemplate x:Key="RemoteCell">
+      <StackPanel VerticalAlignment="Center" ToolTip="{Binding HostName}">
+        <ui:TextBlock Text="{Binding RemoteText}" TextTrimming="CharacterEllipsis" />
+        <ui:TextBlock Text="{Binding HostName}" Style="{StaticResource Caption}" TextTrimming="CharacterEllipsis"
+                      Visibility="{Binding HostName, Converter={StaticResource NullToVisibility}}" />
+      </StackPanel>
+    </DataTemplate>
+
+    <DataTemplate x:Key="StateCell">
+      <StackPanel Orientation="Horizontal" VerticalAlignment="Center" ToolTip="{Binding StateToolTip}">
+        <controls:IconGlyph Symbol="Warning24" FontSize="14" Margin="0,0,6,0" VerticalAlignment="Center"
+                            Foreground="{DynamicResource AccentOrangeBrush}"
+                            ToolTip="Accepts connections from other devices: other PCs and phones on your network can connect to this program"
+                            Visibility="{Binding IsExposed, Converter={StaticResource BoolToVisibility}}" />
+        <ui:TextBlock Text="{Binding StateText}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+      </StackPanel>
+    </DataTemplate>
+
+    <DataTemplate x:Key="ProgramItem">
+      <Grid Margin="0,4">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="Auto" />
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+        <Grid Grid.Column="0" Width="20" Height="20" Margin="0,0,10,0" VerticalAlignment="Center">
+          <Image Source="{Binding Icon}" Width="20" Height="20" AutomationProperties.Name="{Binding Name}" RenderOptions.BitmapScalingMode="HighQuality"
+                 Visibility="{Binding HasIcon, Converter={StaticResource BoolToVisibility}}" />
+          <controls:IconGlyph Symbol="Apps24" FontSize="18" Opacity="0.7"
+                              Visibility="{Binding HasIcon, Converter={StaticResource InverseBoolToVisibility}}" />
+        </Grid>
+        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+          <ui:TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+          <ui:TextBlock Text="{Binding Detail}" Style="{StaticResource Caption}" TextTrimming="CharacterEllipsis" />
+        </StackPanel>
+        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0,0,0">
+          <controls:IconGlyph Symbol="Warning24" FontSize="14" Margin="0,0,6,0" Foreground="{DynamicResource AccentOrangeBrush}"
+                              ToolTip="Accepts connections from other devices"
+                              Visibility="{Binding IsExposed, Converter={StaticResource BoolToVisibility}}" />
+          <ui:TextBlock Text="{Binding CountText}" Style="{StaticResource Muted}" />
+        </StackPanel>
+      </Grid>
+    </DataTemplate>
+
+    <!-- The same actions in the header More menu and the list's right-click menu. -->
+    <ContextMenu x:Key="ConnectionActions" x:Shared="False"
+                 DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+      <MenuItem Header="Copy" Command="{Binding CopyCommand}" InputGestureText="Ctrl+C">
+        <MenuItem.Icon>
+          <controls:IconGlyph Symbol="Copy24" />
+        </MenuItem.Icon>
+      </MenuItem>
+      <MenuItem Header="Search the remote address online" Command="{Binding SearchRemoteCommand}">
+        <MenuItem.Icon>
+          <controls:IconGlyph Symbol="GlobeSearch24" />
+        </MenuItem.Icon>
+      </MenuItem>
+      <MenuItem Header="Open file location" Command="{Binding OpenFileLocationCommand}" InputGestureText="Ctrl+O">
+        <MenuItem.Icon>
+          <controls:IconGlyph Symbol="FolderOpen24" />
+        </MenuItem.Icon>
+      </MenuItem>
+      <MenuItem Header="Go to the process" Command="{Binding GoToProcessCommand}" InputGestureText="Ctrl+G">
+        <MenuItem.Icon>
+          <controls:IconGlyph Symbol="TaskListLtr24" />
+        </MenuItem.Icon>
+      </MenuItem>
+      <Separator />
+      <MenuItem Header="Close connection…" Command="{Binding CloseConnectionCommand}" InputGestureText="Del">
+        <MenuItem.Icon>
+          <controls:IconGlyph Symbol="PlugDisconnected24" />
+        </MenuItem.Icon>
+      </MenuItem>
+      <MenuItem Header="End process…" Command="{Binding EndProcessCommand}" InputGestureText="Shift+Del">
+        <MenuItem.Icon>
+          <controls:IconGlyph Symbol="Dismiss24" />
+        </MenuItem.Icon>
+      </MenuItem>
+    </ContextMenu>
+  </Page.Resources>
+  <Page.InputBindings>
+    <KeyBinding Key="F5" Command="{Binding RefreshCommand}" />
+    <KeyBinding Key="P" Modifiers="Control" Command="{Binding TogglePauseCommand}" />
+  </Page.InputBindings>
+
+  <Grid Style="{StaticResource PageRoot}">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="*" />
+    </Grid.RowDefinitions>
+
+    <controls:SectionHeader Grid.Row="0" Title="Connections" Subtitle="{Binding LiveText}">
+      <controls:SectionHeader.Actions>
+        <StackPanel Orientation="Horizontal">
+          <ui:DropDownButton Content="More" Icon="{ui:SymbolIcon MoreHorizontal24}" Margin="0,0,8,0"
+                             Flyout="{StaticResource ConnectionActions}" />
+          <ui:Button Content="{Binding PauseText}" Icon="{ui:SymbolIcon Pause24}" Margin="0,0,8,0"
+                     Command="{Binding TogglePauseCommand}" ToolTip="Stop or restart the live updates (Ctrl+P)" />
+          <ui:Button Appearance="Primary" Icon="{ui:SymbolIcon ArrowClockwise24}" Command="{Binding RefreshCommand}"
+                     ToolTip="Read the connections now (F5)">
+            <AccessText Text="_Refresh" />
+          </ui:Button>
+        </StackPanel>
+      </controls:SectionHeader.Actions>
+    </controls:SectionHeader>
+
+    <StackPanel Grid.Row="1">
+      <ui:InfoBar Severity="Error" Title="Something went wrong" Message="{Binding ErrorMessage}"
+                  IsOpen="{Binding HasError, Mode=OneWay}" IsClosable="True" Margin="0,0,0,12" />
+      <ui:InfoBar Severity="Warning" Title="Part of the list is missing" Message="{Binding WarningText}"
+                  IsOpen="{Binding HasWarning, Mode=OneWay}" IsClosable="True" Margin="0,0,0,12" />
+    </StackPanel>
+
+    <ScrollViewer Grid.Row="2" Style="{StaticResource PageScroll}">
+      <StackPanel>
+        <controls:AdaptiveGrid MinItemWidth="200" MaxColumns="4" Margin="0,0,0,12">
+          <controls:StatCard Style="{StaticResource Tile}" Title="Programs" Value="{Binding ProgramsText}" Icon="Apps24"
+                             Accent="{DynamicResource AccentCyanBrush}" Subtitle="Using the network" />
+          <controls:StatCard Style="{StaticResource Tile}" Title="Connected" Value="{Binding ConnectedText}" Icon="PlugConnected24"
+                             Accent="{DynamicResource AccentGreenBrush}" Subtitle="Talking to other computers" />
+          <controls:StatCard Style="{StaticResource Tile}" Title="Listening" Value="{Binding ListeningText}" Icon="Server24"
+                             Accent="{DynamicResource AccentBlueBrush}" Subtitle="Waiting for connections" />
+          <controls:StatCard Style="{StaticResource Tile}" Title="Open to other devices" Value="{Binding ExposedText}" Icon="Warning24"
+                             Accent="{DynamicResource AccentOrangeBrush}" Subtitle="Accept connections from outside" />
+        </controls:AdaptiveGrid>
+
+        <ui:InfoBar Severity="Informational" Title="Accepts connections from other devices" IsClosable="True" Margin="0,0,0,12"
+                    IsOpen="{Binding HasExposed, Mode=OneWay}"
+                    Message="{Binding ExposedNames}" />
+
+        <ui:Card Style="{StaticResource CardSpacing}">
+          <StackPanel>
+            <Grid Margin="0,0,0,8">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
+              <StackPanel Grid.Column="0" Margin="0,0,12,0">
+                <ui:TextBlock Style="{StaticResource CardTitle}" Text="Open connections" Margin="0,0,0,4" />
+                <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap"
+                              Text="Which programs use the network right now. Pick a program on the left; right-click a connection for actions." />
+              </StackPanel>
+              <WrapPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top" HorizontalAlignment="Right">
+                <ComboBox Width="160" Margin="0,0,12,8" VerticalAlignment="Center"
+                          AutomationProperties.Name="Filter connections"
+                          ItemsSource="{Binding FilterOptions}" SelectedIndex="{Binding SelectedFilterIndex}" />
+                <ui:ToggleSwitch Content="Hide this-PC-only" IsChecked="{Binding HideLoopback, Mode=TwoWay}" Margin="0,0,12,8" VerticalAlignment="Center"
+                                 ToolTip="Hide connections between programs on this PC (127.0.0.1 and ::1). They never reach the network." />
+                <ui:ToggleSwitch Content="Show host names" IsChecked="{Binding ShowHostNames, Mode=TwoWay}" Margin="0,0,12,8" VerticalAlignment="Center"
+                                 ToolTip="Look up the name of each remote address (asks your DNS server). Off by default." />
+                <ui:TextBox Width="220" Margin="0,0,0,8" PlaceholderText="Search program, address or port" Icon="{ui:SymbolIcon Search24}"
+                            AutomationProperties.Name="Search connections"
+                            Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" ClearButtonEnabled="True" />
+              </WrapPanel>
+            </Grid>
+
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="260" />
+                <ColumnDefinition Width="12" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+
+              <ListBox Grid.Column="0" Height="520" ItemsSource="{Binding Programs}" SelectedItem="{Binding SelectedProgram, Mode=TwoWay}"
+                       ItemTemplate="{StaticResource ProgramItem}" AutomationProperties.Name="Programs with connections"
+                       ToolTip="Pick a program to see only its connections"
+                       ScrollViewer.HorizontalScrollBarVisibility="Disabled" VirtualizingPanel.IsVirtualizing="True">
+                <ListBox.ItemContainerStyle>
+                  <!-- Screen readers read the item container, not the template inside it. -->
+                  <Style TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
+                    <Setter Property="AutomationProperties.Name" Value="{Binding AutomationName}" />
+                  </Style>
+                </ListBox.ItemContainerStyle>
+              </ListBox>
+
+              <Grid Grid.Column="2">
+                <ui:DataGrid AutomationProperties.Name="Connections" x:Name="ConnectionGrid" Style="{StaticResource ConnectionGrid}"
+                             ItemsSource="{Binding Rows}" SelectedItem="{Binding SelectedRow, Mode=TwoWay}"
+                             ContextMenu="{StaticResource ConnectionActions}"
+                             IsReadOnly="True" KeyboardNavigation.TabNavigation="Once"
+                             PreviewMouseRightButtonDown="OnGridRightButtonDown"
+                             Visibility="{Binding HasNoRows, Converter={StaticResource InverseBoolToVisibility}}">
+                  <ui:DataGrid.InputBindings>
+                    <KeyBinding Key="C" Modifiers="Control" Command="{Binding CopyCommand}" />
+                    <KeyBinding Key="Delete" Command="{Binding CloseConnectionCommand}" />
+                    <KeyBinding Key="Delete" Modifiers="Shift" Command="{Binding EndProcessCommand}" />
+                    <KeyBinding Key="O" Modifiers="Control" Command="{Binding OpenFileLocationCommand}" />
+                    <KeyBinding Key="G" Modifiers="Control" Command="{Binding GoToProcessCommand}" />
+                  </ui:DataGrid.InputBindings>
+                  <ui:DataGrid.Columns>
+                    <DataGridTemplateColumn Header="Program" Width="1.4*" MinWidth="150" CellTemplate="{StaticResource ProgramCell}" />
+                    <DataGridTextColumn Header="PID" Width="64" Binding="{Binding PidText}" ElementStyle="{StaticResource TextCell}" />
+                    <DataGridTextColumn Header="Protocol" Width="76" Binding="{Binding ProtocolText}" ElementStyle="{StaticResource TextCell}" />
+                    <DataGridTextColumn Header="Local" Width="1.1*" MinWidth="130" Binding="{Binding LocalText}" ElementStyle="{StaticResource TextCell}" />
+                    <DataGridTemplateColumn Header="Remote" Width="1.6*" MinWidth="160" CellTemplate="{StaticResource RemoteCell}" />
+                    <DataGridTemplateColumn Header="State" Width="140" CellTemplate="{StaticResource StateCell}" />
+                  </ui:DataGrid.Columns>
+                </ui:DataGrid>
+                <controls:EmptyState Icon="PlugDisconnected24" Title="No connections to show"
+                                     Message="Nothing matches the filter, the search or the chosen program. Show everything to see all connections, including this-PC-only ones."
+                                     Visibility="{Binding HasNoRows, Converter={StaticResource BoolToVisibility}}" MinHeight="200">
+                  <controls:EmptyState.Action>
+                    <ui:Button Content="Show everything" Icon="{ui:SymbolIcon Eye24}" Command="{Binding ShowEverythingCommand}" />
+                  </controls:EmptyState.Action>
+                </controls:EmptyState>
+              </Grid>
+            </Grid>
+
+            <WrapPanel Orientation="Horizontal" Margin="0,12,0,0" Visibility="{Binding HasSelection, Converter={StaticResource BoolToVisibility}}">
+              <ui:Button Content="Copy" Icon="{ui:SymbolIcon Copy24}" Margin="0,0,8,8" Command="{Binding CopyCommand}" />
+              <ui:Button Content="Search address online" Icon="{ui:SymbolIcon GlobeSearch24}" Margin="0,0,8,8" Command="{Binding SearchRemoteCommand}"
+                         ToolTip="Look up who owns the remote address" />
+              <ui:Button Content="Open file location" Icon="{ui:SymbolIcon FolderOpen24}" Margin="0,0,8,8" Command="{Binding OpenFileLocationCommand}" />
+              <ui:Button Content="Go to the process" Icon="{ui:SymbolIcon TaskListLtr24}" Margin="0,0,8,8" Command="{Binding GoToProcessCommand}" />
+              <ui:Button Content="Close connection…" Icon="{ui:SymbolIcon PlugDisconnected24}" Margin="0,0,8,8" Command="{Binding CloseConnectionCommand}"
+                         ToolTip="Cut this one connection (IPv4 TCP only). The program keeps running." />
+              <ui:Button Content="End process…" Icon="{ui:SymbolIcon Dismiss24}" Appearance="Danger" Margin="0,0,8,8" Command="{Binding EndProcessCommand}"
+                         ToolTip="Close the program and all its connections" />
+            </WrapPanel>
+          </StackPanel>
+        </ui:Card>
+
+        <ui:CardExpander Margin="0,0,0,12" ContentPadding="16" IsExpanded="False" Icon="{ui:SymbolIcon Info24}">
+          <ui:CardExpander.Header>
+            <StackPanel>
+              <ui:TextBlock FontTypography="BodyStrong" Text="About connections" />
+              <ui:TextBlock Style="{StaticResource Muted}" Text="What the columns mean and when to act." TextWrapping="Wrap" />
+            </StackPanel>
+          </ui:CardExpander.Header>
+          <StackPanel>
+            <ui:TextBlock TextWrapping="Wrap" Margin="0,0,0,8"
+                          Text="Connected means the program is talking to another computer, usually a web server on port 443. Listening means it waits for others to connect. UDP endpoints send and receive without a fixed connection (voice chat, games, local discovery)." />
+            <ui:TextBlock TextWrapping="Wrap" Margin="0,0,0,8"
+                          Text="Any as the local address means every network adapter. A program that listens there on a port Windows does not use itself accepts connections from other devices on your network. That is expected for game servers, media sharing and remote tools; for anything you do not recognise, end the program or turn the feature off in its settings." />
+            <ui:TextBlock TextWrapping="Wrap" Margin="0,0,0,8"
+                          Text="Close connection cuts one IPv4 TCP connection; the program keeps running and may simply connect again. End process closes the program, with the same protections as the Processes page. Both ask first and are recorded in the Action Journal." />
+            <ui:TextBlock TextWrapping="Wrap"
+                          Text="Host names come from your DNS server and are only looked up while Show host names is on. Nothing is sent to any other service; the country of an address is not shown." />
+          </StackPanel>
+        </ui:CardExpander>
+      </StackPanel>
+    </ScrollViewer>
+
+    <controls:BusyOverlay Grid.Row="0" Grid.RowSpan="3"
+                          IsBusy="{Binding IsBusy}" Text="{Binding BusyText}"
+                          CancelCommand="{Binding CancelCommand}" CanCancel="{Binding CanCancelBusy}" />
+  </Grid>
+</Page>
