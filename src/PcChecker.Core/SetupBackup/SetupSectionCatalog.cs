@@ -14,12 +14,12 @@ public static class SetupSectionCatalog
     public static IReadOnlyList<SetupSectionInfo> All { get; } =
     [
         new(SetupSectionIds.App, "App settings",
-            "Theme, language, alerts and limits, restore points, updates, logging, cleanup, network and latency tests, history recording.",
+            "Theme, language, alerts and limits, restore points, updates, logging, cleanup, driver sources, network and latency tests, history recording.",
             [
                 nameof(AppSettings.General), nameof(AppSettings.Updates), nameof(AppSettings.RestorePoints),
                 nameof(AppSettings.Monitoring), nameof(AppSettings.Logging), nameof(AppSettings.Claude),
                 nameof(AppSettings.Cleanup), nameof(AppSettings.Network), nameof(AppSettings.Latency),
-                nameof(AppSettings.Startup), nameof(AppSettings.History),
+                nameof(AppSettings.Startup), nameof(AppSettings.History), nameof(AppSettings.DriverSources),
             ]),
         new(SetupSectionIds.Fans, "Fans", "Fan profiles and curves, the lowest speed and start-up options.", [nameof(AppSettings.Fans)]),
         new(SetupSectionIds.Lighting, "Lighting", "Lighting profiles and the OpenRGB connection.", [nameof(AppSettings.Lighting)]),

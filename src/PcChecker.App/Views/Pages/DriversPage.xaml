@@ -46,14 +46,11 @@
             </ui:DropDownButton.Flyout>
           </ui:DropDownButton>
           <ui:Button Content="Check for updates" Icon="{ui:SymbolIcon CloudArrowDown24}" Command="{Binding CheckForUpdatesCommand}" Margin="0,0,8,0"
-                     ToolTip="Asks Windows Update for driver updates that are not installed yet. This can take a minute." />
+                     ToolTip="Searches Windows Update, NVIDIA, AMD, Intel and your PC maker for newer drivers. This can take a minute." />
           <ui:Button Icon="{ui:SymbolIcon ArrowSync24}" Appearance="Primary" Command="{Binding ScanCommand}"
                      ToolTip="Reads every installed driver from Windows and flags problems, old or unsigned drivers.">
             <AccessText Text="_Scan drivers" />
           </ui:Button>
-                     ToolTip="Searches Windows Update, NVIDIA, AMD, Intel and your PC maker for newer drivers. This can take a minute." />
-          <ui:Button Content="Scan drivers" Icon="{ui:SymbolIcon ArrowSync24}" Appearance="Primary" Command="{Binding ScanCommand}"
-                     ToolTip="Reads every installed driver from Windows and flags problems, old or unsigned drivers." />
         </StackPanel>
       </controls:SectionHeader.Actions>
     </controls:SectionHeader>
@@ -118,44 +115,6 @@
 
           <!-- Devices with each source's newest driver -->
           <Grid Grid.Row="1" Grid.Column="0" Margin="0,0,12,0">
-            <ui:DataGrid AutomationProperties.Name="Driver updates" ItemsSource="{Binding Updates}"
-                         AutoGenerateColumns="False"
-                         CanUserAddRows="False"
-                         CanUserDeleteRows="False"
-                         CanUserReorderColumns="False"
-                         SelectionMode="Single"
-                         GridLinesVisibility="Horizontal"
-                         HeadersVisibility="Column"
-                         RowDetailsVisibilityMode="VisibleWhenSelected"
-                         Visibility="{Binding HasUpdates, Converter={StaticResource BoolToVisibility}}">
-              <ui:DataGrid.Columns>
-                <DataGridTemplateColumn Width="44">
-                  <DataGridTemplateColumn.CellTemplate>
-                    <DataTemplate>
-                      <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="4,0" />
-                    </DataTemplate>
-                  </DataGridTemplateColumn.CellTemplate>
-                </DataGridTemplateColumn>
-                <DataGridTextColumn Header="Update" Binding="{Binding Title}" Width="*" IsReadOnly="True" />
-                <DataGridTextColumn Header="Provider" Binding="{Binding Provider}" Width="150" IsReadOnly="True" />
-                <DataGridTextColumn Header="Version" Binding="{Binding Version}" Width="130" IsReadOnly="True" />
-                <DataGridTextColumn Header="Released" Binding="{Binding DateText}" Width="100" IsReadOnly="True" />
-                <DataGridTextColumn Header="Size" Binding="{Binding SizeText}" Width="80" IsReadOnly="True" />
-                <DataGridTextColumn Header="Source" Binding="{Binding SourceText}" Width="120" IsReadOnly="True" />
-                <DataGridTextColumn Header="State" Binding="{Binding StateText}" Width="140" IsReadOnly="True" />
-              </ui:DataGrid.Columns>
-              <ui:DataGrid.RowDetailsTemplate>
-                <DataTemplate>
-                  <StackPanel Margin="48,8,16,12">
-                    <ui:TextBlock Text="{Binding Description}" TextWrapping="Wrap" />
-                    <ui:TextBlock Style="{StaticResource Caption}" Margin="0,6,0,0" Visibility="{Binding KbText, Converter={StaticResource NullToVisibility}}">
-                      <Run Text="Knowledge Base article: " /><Run Text="{Binding KbText, Mode=OneWay}" />
-                    </ui:TextBlock>
-                    <ui:TextBlock Style="{StaticResource Caption}" Margin="0,2,0,0" Text="A restart will be needed after this update." Visibility="{Binding RebootRequired, Converter={StaticResource BoolToVisibility}}" />
-                  </StackPanel>
-                </DataTemplate>
-              </ui:DataGrid.RowDetailsTemplate>
-            </ui:DataGrid>
             <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
                           Visibility="{Binding HasDeviceOffers, Converter={StaticResource BoolToVisibility}}">
               <ItemsControl ItemsSource="{Binding DeviceOffers}">
@@ -220,10 +179,10 @@
                                 <ui:TextBlock Grid.Column="4" Text="{Binding DateText}" Margin="0,2,8,0" ToolTip="Release date" />
                                 <ui:TextBlock Grid.Column="5" Text="{Binding SizeText}" Margin="0,2,8,0" Style="{StaticResource Muted}" />
                                 <StackPanel Grid.Column="6" Margin="0,2,0,0">
-                                  <Border Background="{StaticResource AccentGreenBrush}" CornerRadius="4" Padding="6,1" HorizontalAlignment="Left"
+                                  <Border Background="{DynamicResource AccentGreenBrush}" CornerRadius="4" Padding="6,1" HorizontalAlignment="Left"
                                           Visibility="{Binding ShowNewest, Converter={StaticResource BoolToVisibility}}"
                                           ToolTip="The newest version any source offers for this device.">
-                                    <TextBlock Text="Newest" Foreground="White" FontSize="11" FontWeight="SemiBold" />
+                                    <TextBlock Text="Newest" Foreground="{DynamicResource OnAccentTextBrush}" FontSize="11" FontWeight="SemiBold" />
                                   </Border>
                                   <ui:TextBlock Style="{StaticResource Caption}" Text="{Binding ComparisonText}" />
                                 </StackPanel>

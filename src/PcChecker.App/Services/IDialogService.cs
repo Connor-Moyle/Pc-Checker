@@ -8,8 +8,6 @@ public interface IDialogService
 
     Task ShowMessageAsync(string title, string message);
 
-    /// <summary>Asks with up to three choices. <paramref name="secondaryText"/> may be null for two choices.</summary>
-    Task<DialogChoice> AskAsync(string title, string message, string primaryText, string? secondaryText, string closeText);
     /// <summary>
     /// Offers up to two actions and Cancel. Returns which one was chosen; <paramref name="secondaryText"/> null shows
     /// only the primary action and Cancel. Closing the dialog counts as Cancel.
@@ -30,14 +28,6 @@ public interface IDialogService
     /// <paramref name="confirmText"/> and Cancel. Returns true when the user chose <paramref name="confirmText"/>.
     /// </summary>
     Task<bool> ShowContentAsync(string title, object content, string confirmText, bool isDanger = false);
-}
-
-/// <summary>The button the user chose in <see cref="IDialogService.AskAsync"/>.</summary>
-public enum DialogChoice
-{
-    Primary,
-    Secondary,
-    Close,
 }
 
 /// <summary>The button chosen in <see cref="IDialogService.ChooseAsync"/>.</summary>

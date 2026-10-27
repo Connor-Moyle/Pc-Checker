@@ -42,9 +42,6 @@ public sealed class DialogService : IDialogService
         });
     }
 
-    public async Task<DialogChoice> AskAsync(string title, string message, string primaryText, string? secondaryText, string closeText)
-    {
-        var result = await ShowAsync(new ContentDialog
     public async Task<DialogChoice> ChooseAsync(string title, string message, string primaryText, string? secondaryText, string closeText = "Cancel")
     {
         var dialog = new ContentDialog
@@ -52,16 +49,6 @@ public sealed class DialogService : IDialogService
             Title = Localization.Loc.T(title),
             Content = Localization.Loc.T(message),
             PrimaryButtonText = Localization.Loc.T(primaryText),
-            SecondaryButtonText = secondaryText is null ? string.Empty : Localization.Loc.T(secondaryText),
-            IsSecondaryButtonEnabled = secondaryText is not null,
-            CloseButtonText = Localization.Loc.T(closeText),
-            DefaultButton = ContentDialogButton.Primary,
-        });
-        return result switch
-        {
-            ContentDialogResult.Primary => DialogChoice.Primary,
-            ContentDialogResult.Secondary => DialogChoice.Secondary,
-            _ => DialogChoice.Close,
             CloseButtonText = Localization.Loc.T(closeText),
             DefaultButton = ContentDialogButton.Close,
         };

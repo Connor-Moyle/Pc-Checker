@@ -158,7 +158,7 @@ public sealed class UpdatePrompter
             + (highlights.Length > 0 ? Environment.NewLine + Environment.NewLine + Localization.Loc.T("What's new:") + Environment.NewLine + highlights : string.Empty)
             + Environment.NewLine + Environment.NewLine
             + Localization.Loc.T("Update now downloads it from GitHub, checks it and restarts PC Checker. Your settings are kept.");
-        var choice = await _dialogs.AskAsync(Localization.Loc.T("Update available"), message, Localization.Loc.T("Update now"), Localization.Loc.T("Skip this version"), Localization.Loc.T("Later"));
+        var choice = await _dialogs.ChooseAsync(Localization.Loc.T("Update available"), message, Localization.Loc.T("Update now"), Localization.Loc.T("Skip this version"), Localization.Loc.T("Later"));
         switch (choice)
         {
             case DialogChoice.Primary:
