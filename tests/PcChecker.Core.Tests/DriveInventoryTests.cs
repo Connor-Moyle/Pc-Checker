@@ -480,6 +480,38 @@ public class DriveInventoryTests
         Assert.True(AtaCommands.LooksLikeSmartData(SmartBlobParser.Build([(5, 0x33, 100, 100, 0)])));
     }
 
+    [Fact]
+    public void ReadingCache_SurvivesARestart()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "pcchecker-drive-cache-" + Guid.NewGuid().ToString("N"));
+        var path = Path.Combine(dir, "drive-readings.json");
+        try
+        {
+            var attributes = SmartBlobParser.Parse(SmartBlobParser.Build([(5, 0x33, 199, 199, 8), (9, 0x32, 80, 80, 15_230)]));
+            var reading = new SmartReading(Now, attributes, SmartDecoder.Summarize(attributes, "WDC WD4005FZBX"), false, "SMART");
+            var cache = new DriveReadingCache(path);
+            cache.Put("SN:ABC123", reading);
+            cache.Save();
+
+            var reloaded = new DriveReadingCache(path).Get("SN:ABC123");
+            Assert.NotNull(reloaded);
+            Assert.Equal(Now, reloaded!.ReadAt);
+            Assert.Equal(8, reloaded.Values.ReallocatedSectors);
+            Assert.Equal(2, reloaded.Attributes.Count);
+            Assert.Null(new DriveReadingCache(Path.Combine(dir, "missing.json")).Get("SN:ABC123"));
+        }
+        finally
+        {
+            try
+            {
+                Directory.Delete(dir, true);
+            }
+            catch (IOException)
+            {
+            }
+        }
+    }
+
     // ---- demo ----------------------------------------------------------------------------------------------------
 
     [Fact]

@@ -146,7 +146,7 @@ public sealed class WindowsDriveInventoryService : IDriveInventoryService
             _logger.LogDebug(ex, "Query handle for disk {Number} failed.", joined.Number);
         }
 
-        string? pcie = joined.BusTypeCode == DriveMediaRules.BusNvme ? DriveNative.PcieLink(joined.PnpDeviceId) : null;
+        string? pcie = joined.Bus == "NVMe" ? DriveNative.PcieLink(joined.PnpDeviceId) : null;
         string key = KeyFor(joined);
 
         if (!DriveSleepRules.ShouldReadSmart(power, mode))
@@ -188,7 +188,7 @@ public sealed class WindowsDriveInventoryService : IDriveInventoryService
         var now = DateTimeOffset.Now;
         try
         {
-            if (joined.BusTypeCode == DriveMediaRules.BusNvme)
+            if (joined.Bus == "NVMe")
             {
                 var reading = DriveFactsBuilder.FromNvmeLog(DriveNative.NvmeHealthLog(handle), now, "NVMe health log");
                 return reading is null

@@ -280,7 +280,8 @@ public sealed partial class StorageViewModel : ViewModelBase
             : warn > 0 ? Loc.F("{0} need caution", warn)
             : Loc.T("no problems reported");
         string sleeping = asleep > 0 ? " " + Loc.F("{0} asleep (not woken).", asleep) : string.Empty;
-        return Loc.F("{0} physical drives, {1} in total; {2}.", physical.Count, DriveText.Decimal(total), health) + sleeping;
+        string count = physical.Count == 1 ? Loc.T("1 physical drive") : Loc.F("{0} physical drives", physical.Count);
+        return Loc.F("{0}, {1} in total; {2}.", count, DriveText.Decimal(total), health) + sleeping;
     }
 
     private static string BuildEventsSummary(IReadOnlyList<DiskErrorEvent> events)
