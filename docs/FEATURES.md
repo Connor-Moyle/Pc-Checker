@@ -9,17 +9,18 @@ The side menu has one item per section. A section with several pages shows
 them as tabs above the content:
 
 ```
-Home            Dashboard
-Monitor         Temperatures · Power · Processes
+Home            Dashboard · Check-up
 Monitor         Temperatures · Power · History
-Hardware        Overview · Health · Storage · Memory
+Task manager    Processes · Live usage · Services · Users
+Hardware        Overview · Health · Storage · Memory · Battery
 Devices         Displays · Audio · Keyboard & Mouse
 Cooling & RGB   Fans · Lighting
-Apps & Drivers  Apps · Drivers · Startup · Windows Features
-Clean up        Cleanup · Debloat · Registry
+Apps & Drivers  Apps · Leftovers · Drivers · Old drivers · Windows Update ·
+                Startup · Scheduled tasks · Windows Features
+Clean up        Cleanup · Disk space · Debloat · Right-click menu · Registry
 Performance     Speed check · Optimize · Benchmark · Overclock
-Gaming          Overlay · Latency
-Network         Network
+Gaming          Overlay · Latency · Missing DLLs
+Network         Network · Connections · Hosts file
 Ask Claude      Ask Claude
 Footer          Logs · Settings
 ```
@@ -31,7 +32,7 @@ the Action Journal with an undo hint, and a log line. See
 
 ---
 
-## Overview
+## Home
 
 ### Dashboard
 
@@ -66,7 +67,6 @@ The first thing you see.
   on them, from the Overclock page's detection.
 - **Recent activity**: the last five Action Journal entries.
 - **System summary**: CPU, GPU, RAM, storage, OS build and uptime.
-
 
 ### Check-up
 
@@ -122,7 +122,7 @@ Speed check pages show its new results; the other pages keep their own scans.
 
 ---
 
-## Monitoring
+## Monitor
 
 ### Temperatures
 
@@ -165,6 +165,49 @@ often expose very few sensors, and virtual machines almost none.
 Limitations: the total is the sum of known sensors plus a baseline when there
 is no PSU sensor; the page labels it *Estimated* in that case. A PC with no
 CPU or GPU power sensors shows dashes.
+
+### History
+
+What the PC did over the last hour, day, week, month or three months.
+
+- **Recording**: while PC Checker is open, also when it is minimised to the
+  tray, a background recorder takes one sample a minute (configurable): the
+  highest CPU and GPU temperature in that minute, the average CPU and GPU
+  load, power draw and memory use, and the free space of every fixed drive
+  once an hour. Every health check (on the Health page, the Dashboard or a
+  scheduled run) adds its score.
+- **Storage**: one small JSON Lines file per day in
+  `%LOCALAPPDATA%\PcChecker\history`. After 7 days a day is rolled up to
+  15-minute points and after 30 days to hourly points (temperature peaks and
+  the lowest health score are kept, loads and power are averaged), so 90 days
+  take a few megabytes. Days older than the retention setting (default 90)
+  are deleted. A line cut short by a crash or power cut is skipped and
+  dropped at the next roll-up. Nothing leaves the PC.
+- **Range picker**: last hour, 24 hours, 7 days, 30 days or 90 days.
+- **Tiles**: hottest CPU and GPU with when it happened, energy used in kWh
+  with its cost at your electricity price, and the number of notable events.
+- **Charts**: one per metric (temperatures with the warning limit as a dashed
+  line, loads, power, memory, health score, free space per drive) with value
+  and time axes, average, highest and lowest, gaps where the PC was off, and
+  the exact value under the mouse.
+- **Notable events**: temperature spells above your warning limits (one per
+  spell, at its peak; critical when the critical limit was reached), sudden
+  drops in a drive's free space (at least 10 GB and 5 % within a day), and
+  health scores that fell by 5 points or more.
+- **Export CSV** saves the recorded values of the chosen range. *More* opens
+  the history folder or the recording settings.
+- **Settings → History**: record on or off, how often (30 seconds to 15
+  minutes) and how many days to keep (7 to 365).
+
+Limitations: nothing is recorded while PC Checker is closed, so those times
+show as gaps. Temperatures, loads and power need the same sensors as the
+Temperatures and Power pages; without them only memory, free space and
+health scores are recorded. Demo mode shows 30 days of generated history and
+writes nothing to disk.
+
+---
+
+## Task manager
 
 ### Processes
 
@@ -267,7 +310,6 @@ is offered on PCs with up to 64 logical processors. Starting a program
 without administrator rights needs File Explorer's desktop to be running.
 CPU and disk figures are averages over the last refresh.
 
-
 ### Live usage
 
 Task manager → Live usage is the equivalent of Task Manager's Performance tab.
@@ -323,7 +365,6 @@ graphs need a WDDM 2 driver with GPU Engine counters. The compressed amount
 needs the Memory Compression process to be readable and shows nothing
 otherwise. On a PC with more than 64 logical processors, the core count and
 cache sizes cover only the first processor group.
-
 
 ### Services
 
@@ -430,78 +471,6 @@ Options *Debugger* value for `taskmgr.exe`. When Windows launches Task Manager
 Limitations: PC Checker asks for administrator rights, so on accounts without
 them Windows shows a sign-in prompt instead of Task Manager while the option is
 on.
-
-### History
-
-What the PC did over the last hour, day, week, month or three months.
-
-- **Recording**: while PC Checker is open, also when it is minimised to the
-  tray, a background recorder takes one sample a minute (configurable): the
-  highest CPU and GPU temperature in that minute, the average CPU and GPU
-  load, power draw and memory use, and the free space of every fixed drive
-  once an hour. Every health check (on the Health page, the Dashboard or a
-  scheduled run) adds its score.
-- **Storage**: one small JSON Lines file per day in
-  `%LOCALAPPDATA%\PcChecker\history`. After 7 days a day is rolled up to
-  15-minute points and after 30 days to hourly points (temperature peaks and
-  the lowest health score are kept, loads and power are averaged), so 90 days
-  take a few megabytes. Days older than the retention setting (default 90)
-  are deleted. A line cut short by a crash or power cut is skipped and
-  dropped at the next roll-up. Nothing leaves the PC.
-- **Range picker**: last hour, 24 hours, 7 days, 30 days or 90 days.
-- **Tiles**: hottest CPU and GPU with when it happened, energy used in kWh
-  with its cost at your electricity price, and the number of notable events.
-- **Charts**: one per metric (temperatures with the warning limit as a dashed
-  line, loads, power, memory, health score, free space per drive) with value
-  and time axes, average, highest and lowest, gaps where the PC was off, and
-  the exact value under the mouse.
-- **Notable events**: temperature spells above your warning limits (one per
-  spell, at its peak; critical when the critical limit was reached), sudden
-  drops in a drive's free space (at least 10 GB and 5 % within a day), and
-  health scores that fell by 5 points or more.
-- **Export CSV** saves the recorded values of the chosen range. *More* opens
-  the history folder or the recording settings.
-- **Settings → History**: record on or off, how often (30 seconds to 15
-  minutes) and how many days to keep (7 to 365).
-
-Limitations: nothing is recorded while PC Checker is closed, so those times
-show as gaps. Temperatures, loads and power need the same sensors as the
-Temperatures and Power pages; without them only memory, free space and
-health scores are recorded. Demo mode shows 30 days of generated history and
-writes nothing to disk.
-
-### Overlay
-
-Configures the in-game overlay; the overlay itself is a separate click-through
-window. Full detail in [OVERLAY.md](OVERLAY.md).
-
-- **Enable** toggle, **Show / Hide now**, **Edit position on screen** (makes
-  the overlay draggable; drop saves a custom position).
-- **Hotkey** (default `Ctrl+Shift+O`, validated as you type).
-- **Corner** or custom X/Y, **opacity**, **scale**, font family and size,
-  **orientation** (vertical list or horizontal row), background on/off and
-  colours (background, text, accent), **sparklines**, **update interval**.
-- **Metrics** list with checkboxes, reorder buttons and editable labels.
-- **Presets**: save, load and delete; built-ins *Minimal*, *Full* and *Temps
-  only*.
-- A live preview on a sample "game" background, naming the game the FPS
-  metrics are measured for.
-- **FPS counter**: metrics *FPS*, *Frame time* and *1% low* for the game in
-  front, counted from the Windows graphics present events like PresentMon
-  (needs administrator rights, which the app has). The card explains why it is
-  unavailable when Windows refuses the tracing session.
-- **Game profiles**: per game (matched by its .exe name) an overlay preset and
-  visibility, a fan profile and a power plan. Applied after the game has been
-  in front for 2 seconds, put back when the game's process exits. Add from the
-  running programs or by browsing for the .exe; edit, remove, switch on/off;
-  global *Switch automatically* and *Only when the game fills the screen*; a
-  status line shows the active profile. Switches are journaled (module
-  *Gaming*).
-
-Limitations: the overlay is a transparent desktop window. It shows over
-borderless and windowed games; exclusive full-screen games hide every desktop
-window. Some anti-cheat systems block overlays and can hide a game's frames
-from the FPS counter (it then shows "--").
 
 ---
 
@@ -691,6 +660,10 @@ depend on the Windows display language. A missing source becomes a warning and
 the page shows what the others returned. Demo mode shows a two-year-old 57 Wh
 laptop battery at 86 % health after 318 cycles.
 
+---
+
+## Devices
+
 ### Displays
 
 - **Arrangement preview**: rectangles proportional to each display's
@@ -750,6 +723,10 @@ properties in Windows; the page links to them rather than duplicating them.
 
 Limitations: DPI, button mapping and onboard profiles live in the vendor's
 software; the app cannot change them.
+
+---
+
+## Cooling & RGB
 
 ### Fans
 
@@ -860,7 +837,72 @@ changes are cosmetic, so they are journaled but do not create restore points.
 
 ---
 
-## Software
+## Apps & Drivers
+
+### Software
+
+- **Scan**: programs from the 64-bit, 32-bit and per-user registry plus Store
+  apps, with version, publisher, install date, size, location and source
+  badge. *Calculate sizes* measures folders that did not report a size.
+  *Export CSV*.
+- **Installed alongside**: programs installed within minutes of another with
+  a different publisher, or installed inside another program's folder, or on
+  the known-bundler list, are grouped with the reason. Runtime dependencies
+  (Visual C++, .NET) are grouped separately so they are not mistaken for
+  bloat. *Uninstall extras* removes a bundle's children.
+- **Uninstall** (confirmed): quiet with the installer's silent switch (MSI,
+  Inno Setup, NSIS, InstallShield, Squirrel, Store) or normal with the
+  vendor's wizard. Exit codes are translated (reboot required, cancelled, not
+  installed).
+- **Protected** entries (Edge, WebView2, Defender, .NET and Visual C++
+  runtimes, driver packages) show a lock with the reason. **Advanced** lets
+  you override for non-critical ones with a warning.
+- **Find leftovers**: after a program is uninstalled the page offers to look
+  for what it left behind; the Leftovers tab opens and scans with that
+  program's traces marked *Just uninstalled* and ticked.
+
+### Leftovers
+
+- **Scan** (read only, cancellable) compares what is on disk with every
+  installed program and Store app (names, makers, package names and install
+  folders, with fuzzy matching that ignores versions, "x64", brackets and
+  "Inc."/"GmbH"). It reports:
+  - folders in Program Files, Program Files (x86), ProgramData and
+    AppData\Local, Roaming and LocalLow that nothing installed uses, one level
+    deeper inside a maker's folder that still has other programs, and empty
+    folders uninstallers left;
+  - registry keys under `HKLM\SOFTWARE`, `HKLM\SOFTWARE\WOW6432Node` and
+    `HKCU\Software` of makers or products that are no longer installed;
+  - services whose program file is gone, scheduled tasks that start a missing
+    program, and Start menu shortcuts to missing targets.
+- **Each finding** says what it is, why it looks orphaned, its size and a
+  confidence: **High** (empty folders, things whose whole program folder is
+  gone, traces of the program just uninstalled), **Medium** (probably left
+  behind) or **Low** (recently changed, or inside a maker's folder that still
+  has programs). Only High is ticked; *Select recommended* ticks it again.
+- **Never reported**: Windows and Microsoft folders and keys, shared folders
+  (Common Files, Package Cache, InstallShield data, Store packages), NVIDIA,
+  Intel, AMD, Realtek and other driver parts, game libraries (Steam, Epic,
+  GOG, Ubisoft, Xbox), developer caches, GUID-named installer folders,
+  hidden dot-folders, links (junctions) and anything outside the listed
+  folders. Services and shortcuts that point into the Windows folder are left
+  to Windows.
+- **Remove selected** (confirmed) creates a restore point first and checks
+  every item again right before touching it: folders and shortcuts go to the
+  Recycle Bin; registry keys are exported to one sealed `.reg` backup (the
+  Registry page's format, so it also appears under Registry → Backups);
+  scheduled tasks are exported to XML and deleted; services are deleted with
+  `sc.exe` only while their program is still missing and they are stopped.
+  Folders are only removed one or two levels inside the listed roots, never
+  through or inside a link. Every item is written to the Action Journal.
+- **Restore list** puts removed registry keys and scheduled tasks back. Task
+  backups are sealed in `HKLM` and only imported unchanged, through a folder
+  only administrators can write to, and never over an existing task.
+- **Limitations**: folders of portable programs (which have no uninstall
+  entry) can show up; they are scored Low or Medium when they hold programs
+  or changed recently, so check before ticking them. A folder Windows will
+  not let PC Checker read completely is not reported. Per-user folders and
+  keys are those of the account PC Checker runs as.
 
 ### Drivers
 
@@ -1121,71 +1163,6 @@ is only possible within Windows' own window and while Windows.old exists; an
 update Windows Update no longer lists cannot be hidden until it is offered
 again.
 
-### Software
-
-- **Scan**: programs from the 64-bit, 32-bit and per-user registry plus Store
-  apps, with version, publisher, install date, size, location and source
-  badge. *Calculate sizes* measures folders that did not report a size.
-  *Export CSV*.
-- **Installed alongside**: programs installed within minutes of another with
-  a different publisher, or installed inside another program's folder, or on
-  the known-bundler list, are grouped with the reason. Runtime dependencies
-  (Visual C++, .NET) are grouped separately so they are not mistaken for
-  bloat. *Uninstall extras* removes a bundle's children.
-- **Uninstall** (confirmed): quiet with the installer's silent switch (MSI,
-  Inno Setup, NSIS, InstallShield, Squirrel, Store) or normal with the
-  vendor's wizard. Exit codes are translated (reboot required, cancelled, not
-  installed).
-- **Protected** entries (Edge, WebView2, Defender, .NET and Visual C++
-  runtimes, driver packages) show a lock with the reason. **Advanced** lets
-  you override for non-critical ones with a warning.
-- **Find leftovers**: after a program is uninstalled the page offers to look
-  for what it left behind; the Leftovers tab opens and scans with that
-  program's traces marked *Just uninstalled* and ticked.
-
-### Leftovers
-
-- **Scan** (read only, cancellable) compares what is on disk with every
-  installed program and Store app (names, makers, package names and install
-  folders, with fuzzy matching that ignores versions, "x64", brackets and
-  "Inc."/"GmbH"). It reports:
-  - folders in Program Files, Program Files (x86), ProgramData and
-    AppData\Local, Roaming and LocalLow that nothing installed uses, one level
-    deeper inside a maker's folder that still has other programs, and empty
-    folders uninstallers left;
-  - registry keys under `HKLM\SOFTWARE`, `HKLM\SOFTWARE\WOW6432Node` and
-    `HKCU\Software` of makers or products that are no longer installed;
-  - services whose program file is gone, scheduled tasks that start a missing
-    program, and Start menu shortcuts to missing targets.
-- **Each finding** says what it is, why it looks orphaned, its size and a
-  confidence: **High** (empty folders, things whose whole program folder is
-  gone, traces of the program just uninstalled), **Medium** (probably left
-  behind) or **Low** (recently changed, or inside a maker's folder that still
-  has programs). Only High is ticked; *Select recommended* ticks it again.
-- **Never reported**: Windows and Microsoft folders and keys, shared folders
-  (Common Files, Package Cache, InstallShield data, Store packages), NVIDIA,
-  Intel, AMD, Realtek and other driver parts, game libraries (Steam, Epic,
-  GOG, Ubisoft, Xbox), developer caches, GUID-named installer folders,
-  hidden dot-folders, links (junctions) and anything outside the listed
-  folders. Services and shortcuts that point into the Windows folder are left
-  to Windows.
-- **Remove selected** (confirmed) creates a restore point first and checks
-  every item again right before touching it: folders and shortcuts go to the
-  Recycle Bin; registry keys are exported to one sealed `.reg` backup (the
-  Registry page's format, so it also appears under Registry → Backups);
-  scheduled tasks are exported to XML and deleted; services are deleted with
-  `sc.exe` only while their program is still missing and they are stopped.
-  Folders are only removed one or two levels inside the listed roots, never
-  through or inside a link. Every item is written to the Action Journal.
-- **Restore list** puts removed registry keys and scheduled tasks back. Task
-  backups are sealed in `HKLM` and only imported unchanged, through a folder
-  only administrators can write to, and never over an existing task.
-- **Limitations**: folders of portable programs (which have no uninstall
-  entry) can show up; they are scored Low or Medium when they hold programs
-  or changed recently, so check before ticking them. A folder Windows will
-  not let PC Checker read completely is not reported. Per-user folders and
-  keys are those of the account PC Checker runs as.
-
 ### Startup
 
 - **Startup apps**: registry Run keys, startup folders and logon tasks with an
@@ -1263,49 +1240,9 @@ Three sections with a plain-English note on what each is:
 Every change is confirmed, creates a restore point and shows a reboot bar
 when needed.
 
-### Debloat
+---
 
-Turns off ads, data collection, AI features and clutter, and removes
-pre-installed apps, with the coverage of the popular debloat tools (WinUtil,
-Win11Debloat, O&O ShutUp10++, Sophia Script and others; full list and table in
-[DEBLOAT.md](DEBLOAT.md)).
-
-- **Presets**: Recommended (highlighted), Gaming, Privacy max, Minimal UI,
-  Remove consumer apps and Custom. A preset only ticks boxes.
-- **Categories**: Privacy & telemetry, Ads & suggestions, AI & Copilot,
-  Taskbar & Start, File Explorer, Windows preferences, Edge & OneDrive, Other
-  apps (Office, Outlook, Chrome, Brave, Firefox, developer tools, NVIDIA
-  Control Panel; shown only when installed), Gaming & Xbox, Automatic installs
-  (WPBT firmware installers, device co-installers, remote Store installs), and
-  (**Advanced**) Windows Update and Background services, plus AMD & NVIDIA
-  software (only when AMD Software or NVIDIA's driver tools are installed:
-  AMD User Experience Program, update and AMD Link tasks, Instant Replay and
-  tray autostart, Crash Defender, NVIDIA telemetry) and Apps (consumer,
-  promotional, retired Microsoft and PC-maker apps; AMD, NVIDIA, Intel and
-  audio driver control panels are never offered). Each row
-  shows its state (*Applied*, *Not applied*, *Partly applied*, *Not
-  available* with the reason), a risk badge, *One-way* / *Explorer restart* /
-  *Windows 11* badges, a warning when something stops working, and which other
-  tools offer it. Hover a row for the exact registry values, services and tasks.
-- **Apply selected** / **Revert selected** in the bar at the bottom, or per
-  row. The confirmation lists every change grouped by risk. A restore point is
-  always created first and previous values are saved, so *Revert* puts back
-  exactly what was there (or the Windows default, which it says). When
-  Windows cannot make the restore point, the page asks whether to turn on
-  System Protection, continue without one (reversible tweaks only) or cancel.
-- **Results** are read back from the PC after every batch: *Applied*,
-  *Already applied*, *Skipped* or *Failed*, each with a plain reason, and
-  applied changes say whether they show after a File Explorer restart, a
-  sign-out or a Windows restart. Per-user tweaks go to the account signed in
-  to Windows, even when PC Checker runs as another administrator.
-- **Restart Explorer** (this session only, not elevated) or **Restart later**
-  is offered after taskbar, Start, File Explorer and context menu changes; a
-  sign-out note and a restart bar appear when those are needed.
-- **Import / Export** the selection as JSON, including WinUtil exports.
-- **Check these yourself** links to settings with no safe policy, and
-  **Deliberately not offered** explains why disabling Defender or Windows
-  Update, removing Edge or the Store, forcing S3 sleep and similar steps are
-  left out.
+## Clean up
 
 ### Cleanup
 
@@ -1431,6 +1368,50 @@ of them. Junctions and symbolic links are never followed, and each item is
 checked again right before it moves. Every move is written to the Action
 Journal; no restore point is made because the Recycle Bin is the undo. The
 space comes back when the Recycle Bin is emptied (Cleanup page).
+
+### Debloat
+
+Turns off ads, data collection, AI features and clutter, and removes
+pre-installed apps, with the coverage of the popular debloat tools (WinUtil,
+Win11Debloat, O&O ShutUp10++, Sophia Script and others; full list and table in
+[DEBLOAT.md](DEBLOAT.md)).
+
+- **Presets**: Recommended (highlighted), Gaming, Privacy max, Minimal UI,
+  Remove consumer apps and Custom. A preset only ticks boxes.
+- **Categories**: Privacy & telemetry, Ads & suggestions, AI & Copilot,
+  Taskbar & Start, File Explorer, Windows preferences, Edge & OneDrive, Other
+  apps (Office, Outlook, Chrome, Brave, Firefox, developer tools, NVIDIA
+  Control Panel; shown only when installed), Gaming & Xbox, Automatic installs
+  (WPBT firmware installers, device co-installers, remote Store installs), and
+  (**Advanced**) Windows Update and Background services, plus AMD & NVIDIA
+  software (only when AMD Software or NVIDIA's driver tools are installed:
+  AMD User Experience Program, update and AMD Link tasks, Instant Replay and
+  tray autostart, Crash Defender, NVIDIA telemetry) and Apps (consumer,
+  promotional, retired Microsoft and PC-maker apps; AMD, NVIDIA, Intel and
+  audio driver control panels are never offered). Each row
+  shows its state (*Applied*, *Not applied*, *Partly applied*, *Not
+  available* with the reason), a risk badge, *One-way* / *Explorer restart* /
+  *Windows 11* badges, a warning when something stops working, and which other
+  tools offer it. Hover a row for the exact registry values, services and tasks.
+- **Apply selected** / **Revert selected** in the bar at the bottom, or per
+  row. The confirmation lists every change grouped by risk. A restore point is
+  always created first and previous values are saved, so *Revert* puts back
+  exactly what was there (or the Windows default, which it says). When
+  Windows cannot make the restore point, the page asks whether to turn on
+  System Protection, continue without one (reversible tweaks only) or cancel.
+- **Results** are read back from the PC after every batch: *Applied*,
+  *Already applied*, *Skipped* or *Failed*, each with a plain reason, and
+  applied changes say whether they show after a File Explorer restart, a
+  sign-out or a Windows restart. Per-user tweaks go to the account signed in
+  to Windows, even when PC Checker runs as another administrator.
+- **Restart Explorer** (this session only, not elevated) or **Restart later**
+  is offered after taskbar, Start, File Explorer and context menu changes; a
+  sign-out note and a restart bar appear when those are needed.
+- **Import / Export** the selection as JSON, including WinUtil exports.
+- **Check these yourself** links to settings with no safe policy, and
+  **Deliberately not offered** explains why disabling Defender or Windows
+  Update, removing Edge or the Store, forcing S3 sleep and similar steps are
+  left out.
 
 ### Right-click menu
 
@@ -1586,6 +1567,156 @@ Nothing on the PC is changed.
 The reference numbers are PC Checker's own estimates for its own workloads;
 compare scores with other PC Checker runs, not with other benchmark apps.
 
+### Overclock
+
+Behind a one-time **consent gate** that explains the risks (instability,
+crashes, data loss, heat, warranty), what the app can and cannot control on
+this PC, and the safety features.
+
+- **Supported hardware** matrix: feature × vendor × level (Full, Partial,
+  Experimental, Monitor only, Unsupported) with a one-line reason for your
+  machine, and vendor badges next to the GPU and CPU names.
+- **GPU tuning** (when a method is available): core offset, memory offset,
+  power limit, temperature limit and fan percent sliders with numeric boxes,
+  ranges clamped by the driver's limits and your Settings. *Apply*
+  (confirmed; lists the changes, the restore point and the watchdog), *Reset
+  to defaults*, *Save as profile*, load profile, presets *Default*, *Mild*
+  (+50/+200) and *Moderate* (+100/+500). Live clock, temperature, power and
+  fan readouts.
+  - **NVIDIA**: through NVAPI. Clock offsets are fully supported; power and
+    temperature limits where the driver API exposes them (the page notes when
+    it does not).
+  - **AMD**: through ADL/Overdrive8, marked **experimental**. Every value is
+    validated against the driver's own minimum, maximum and capability mask
+    and read back after it is sent. RX 7000/9000 add a **voltage offset**
+    (undervolt) slider and Radeon presets (*Undervolt -50 mV*, *Undervolt
+    -80 mV + power -10 %*, *Quiet*); the core control is called *Max
+    frequency* and the minimum clock is kept 100 MHz below a lowered maximum.
+    The GPU fan goes through an Overdrive8 fan curve (RX 5000 and newer
+    ignore the hardware monitor's fan commands). *Reset* only touches what
+    PC Checker manages and retries one setting at a time. If any call fails
+    the page falls back to *Open AMD Software: Adrenalin Edition*.
+  - **Intel Arc**: through IGCL, marked **experimental**; integrated Intel
+    graphics are monitor only. Fallback: *Open Intel Graphics Software*.
+- **CPU**: Intel XTU CLI when installed (lists the tunables it recognises and
+  refuses to guess when a name does not match); AMD Ryzen Master launch
+  (found through its uninstall entry; notes on laptops and Virtualization-Based
+  Security), and `ryzenadj` power limits on Ryzen laptops, handhelds and APUs
+  only (5 W and up, short boost 25 % above the sustained limit, re-applied
+  every 45 seconds, a blocked WinRing0 driver is explained). Otherwise BIOS
+  guidance that follows the Ryzen model (5000X3D locked, 7000X3D PBO and
+  Curve Optimizer only, where each board maker hides the menu) and a download
+  link.
+- **Memory**: XMP/EXPO state and a link to the Memory page.
+- **Stress test**: target (CPU, GPU, both), duration, abort temperatures,
+  live readouts (elapsed time, GPU work rate, errors, temperatures and
+  clocks), temperature sparklines, and a verdict with plain-English reasons
+  (errors, peak temperatures, average clocks, throttling, driver resets). It
+  needs no overclock consent: consent only gates applying clocks.
+  - **CPU**: a built-in all-core workload that verifies its own results.
+  - **GPU, built in**: a vendor-neutral DirectX 11 compute workload, so no
+    game is needed (NVIDIA, AMD and Intel, integrated graphics included).
+    Pick the graphics card when the PC has more than one (the one with the
+    most video memory is recommended) and an intensity: *Light* (small
+    buffer, about half-time load), *Medium* (near-constant load, like a
+    demanding game) or *Heavy* (back-to-back work over up to 1 GB of video
+    memory, capped at a quarter of the card's memory). The work per pass is
+    calibrated so each pass takes 50 to 100 ms, far below the Windows driver
+    timeout. With *Check results for errors* on, part of the result is read
+    back every couple of seconds and compared with the first run; any
+    difference counts as an error, the same kind of fault that shows up as
+    artifacts in games. If the graphics driver resets, the test stops,
+    reports "The graphics driver reset — the GPU is not stable at these
+    settings" and resets an applied overclock to defaults.
+  - **GPU, guided**: tick *Use my own game or benchmark instead* and the app
+    watches temperatures and clocks while your own load runs.
+  - **Safety**: the watchdog samples temperatures every second and stops at
+    your limits (resetting an applied overclock); a laptop on battery below
+    20 % cannot start a test and above that gets a warning; *Stop* ends
+    everything within a second.
+- **Claude advisor** (when configured): describe your goal and get a staged
+  plan with warnings and assumptions; *Apply this step* loads the step into
+  the sliders for you to confirm, *Run suggested stress test* runs it, *Send
+  results back* asks for the next step. The disclaimer is always visible.
+- **Watchdog**: a session marker is written when a profile is applied; if the
+  PC did not shut down cleanly the next start resets the GPU and tells you.
+  GPU offsets do not persist across reboots in any case.
+- **Advanced**: raw limits, offsets up to the driver's range beyond your
+  Settings maximum (still validated), and the session file.
+
+### AMD platform support
+
+AMD-specific behaviour across the app (CPU traits come from the processor
+name: Zen generation, socket, desktop/laptop/APU, X3D, Tjmax):
+
+- **The right GPU**: the integrated Radeon of every Ryzen 7000/9000 desktop
+  is never taken for "the GPU" on the Dashboard, overlay, Overclock page,
+  fan profiles, power total or watchdog; the discrete card is. One rule
+  recognises current Radeon APUs (760M, 780M, 890M, 8060S, Vega 3–11).
+- **Temperatures**: Tdie is shown instead of the offset Tctl on Ryzen
+  1000/2000 X and Threadripper. With the stock thresholds, Ryzen 7000
+  (except 7000X3D) and 9000 desktop chips, 9000X3D included (which run at
+  95 °C by design), use 90/98 °C and the stress test stops at Tjmax + 3 °C;
+  integrated Radeon sensors share the CPU's limits, and GPU hot spot
+  (100/110 °C) and memory (95/105 °C) have their own. Integrated GPU power is
+  not added to the CPU package twice.
+- **X3D**: on dual-CCD Ryzen 9 X3D, nothing recommends High performance or
+  turning core parking off, actions that would undo AMD's CCD parking (and
+  game profiles that switch plans, removing Game Bar) warn first, and the
+  Latency page checks Balanced, Game Mode, Game Bar and the V-Cache service.
+- **Health**: AMD Chipset Software, PPM provisioning, platform devices on
+  generic drivers and the 3D V-Cache optimizer; WHEA hardware errors with
+  Ryzen advice (Curve Optimizer core, FCLK, PCIe, memory, BugCheck 0x124);
+  graphics driver timeouts (Display 4101, LiveKernelEvent 141/117).
+- **Memory**: EXPO is judged against the part-number rating as well, a JEDEC
+  speed is "check the BIOS" rather than "on", and the Infinity Fabric 1:1
+  sweet spot (AM5 DDR5-6000, AM4 DDR4-3600) and the AM5 training pause are
+  explained.
+- **Drivers**: older Adrenalin packages count as superseded, AMD chipset
+  components are not "old", Windows Update display and chipset offers that
+  would replace AMD Software are unticked with a warning and can be hidden,
+  and the chipset link names your socket.
+- **Latency**: AMD BIOS guidance (CPPC, Global C-states, AM4 Power Supply
+  Idle Control) and the legacy *AMD Ryzen Balanced* plan.
+- **Overlay**: a note that AMD Fluid Motion Frames are not counted.
+
+---
+
+## Gaming
+
+### Overlay
+
+Configures the in-game overlay; the overlay itself is a separate click-through
+window. Full detail in [OVERLAY.md](OVERLAY.md).
+
+- **Enable** toggle, **Show / Hide now**, **Edit position on screen** (makes
+  the overlay draggable; drop saves a custom position).
+- **Hotkey** (default `Ctrl+Shift+O`, validated as you type).
+- **Corner** or custom X/Y, **opacity**, **scale**, font family and size,
+  **orientation** (vertical list or horizontal row), background on/off and
+  colours (background, text, accent), **sparklines**, **update interval**.
+- **Metrics** list with checkboxes, reorder buttons and editable labels.
+- **Presets**: save, load and delete; built-ins *Minimal*, *Full* and *Temps
+  only*.
+- A live preview on a sample "game" background, naming the game the FPS
+  metrics are measured for.
+- **FPS counter**: metrics *FPS*, *Frame time* and *1% low* for the game in
+  front, counted from the Windows graphics present events like PresentMon
+  (needs administrator rights, which the app has). The card explains why it is
+  unavailable when Windows refuses the tracing session.
+- **Game profiles**: per game (matched by its .exe name) an overlay preset and
+  visibility, a fan profile and a power plan. Applied after the game has been
+  in front for 2 seconds, put back when the game's process exits. Add from the
+  running programs or by browsing for the .exe; edit, remove, switch on/off;
+  global *Switch automatically* and *Only when the game fills the screen*; a
+  status line shows the active profile. Switches are journaled (module
+  *Gaming*).
+
+Limitations: the overlay is a transparent desktop window. It shows over
+borderless and windowed games; exclusive full-screen games hide every desktop
+window. Some anti-cheat systems block overlays and can hide a game's frames
+from the FPS counter (it then shows "--").
+
 ### Latency
 
 - **Run latency check** with a sample length (5, 10 or 30 seconds) and an
@@ -1677,6 +1808,10 @@ section still shows them. Creative does not document OpenAL's `/s` switch
 (it is the one Steam uses). OpenAL's installer is signed with an older
 certificate; if Windows no longer accepts it, PC Checker refuses to run it and
 the vendor page button opens openal.org instead.
+
+---
+
+## Network
 
 ### Network
 
@@ -1779,122 +1914,10 @@ and the Tcpip `DataBasePath` setting, as a table and as text.
   Windows default** (Microsoft's default text, with a backup).
 - When security software locks the file, the page says so and how to save
   anyway (pause its hosts file protection for a moment).
-### Overclock
-
-Behind a one-time **consent gate** that explains the risks (instability,
-crashes, data loss, heat, warranty), what the app can and cannot control on
-this PC, and the safety features.
-
-- **Supported hardware** matrix: feature × vendor × level (Full, Partial,
-  Experimental, Monitor only, Unsupported) with a one-line reason for your
-  machine, and vendor badges next to the GPU and CPU names.
-- **GPU tuning** (when a method is available): core offset, memory offset,
-  power limit, temperature limit and fan percent sliders with numeric boxes,
-  ranges clamped by the driver's limits and your Settings. *Apply*
-  (confirmed; lists the changes, the restore point and the watchdog), *Reset
-  to defaults*, *Save as profile*, load profile, presets *Default*, *Mild*
-  (+50/+200) and *Moderate* (+100/+500). Live clock, temperature, power and
-  fan readouts.
-  - **NVIDIA**: through NVAPI. Clock offsets are fully supported; power and
-    temperature limits where the driver API exposes them (the page notes when
-    it does not).
-  - **AMD**: through ADL/Overdrive8, marked **experimental**. Every value is
-    validated against the driver's own minimum, maximum and capability mask
-    and read back after it is sent. RX 7000/9000 add a **voltage offset**
-    (undervolt) slider and Radeon presets (*Undervolt -50 mV*, *Undervolt
-    -80 mV + power -10 %*, *Quiet*); the core control is called *Max
-    frequency* and the minimum clock is kept 100 MHz below a lowered maximum.
-    The GPU fan goes through an Overdrive8 fan curve (RX 5000 and newer
-    ignore the hardware monitor's fan commands). *Reset* only touches what
-    PC Checker manages and retries one setting at a time. If any call fails
-    the page falls back to *Open AMD Software: Adrenalin Edition*.
-  - **Intel Arc**: through IGCL, marked **experimental**; integrated Intel
-    graphics are monitor only. Fallback: *Open Intel Graphics Software*.
-- **CPU**: Intel XTU CLI when installed (lists the tunables it recognises and
-  refuses to guess when a name does not match); AMD Ryzen Master launch
-  (found through its uninstall entry; notes on laptops and Virtualization-Based
-  Security), and `ryzenadj` power limits on Ryzen laptops, handhelds and APUs
-  only (5 W and up, short boost 25 % above the sustained limit, re-applied
-  every 45 seconds, a blocked WinRing0 driver is explained). Otherwise BIOS
-  guidance that follows the Ryzen model (5000X3D locked, 7000X3D PBO and
-  Curve Optimizer only, where each board maker hides the menu) and a download
-  link.
-- **Memory**: XMP/EXPO state and a link to the Memory page.
-- **Stress test**: target (CPU, GPU, both), duration, abort temperatures,
-  live readouts (elapsed time, GPU work rate, errors, temperatures and
-  clocks), temperature sparklines, and a verdict with plain-English reasons
-  (errors, peak temperatures, average clocks, throttling, driver resets). It
-  needs no overclock consent: consent only gates applying clocks.
-  - **CPU**: a built-in all-core workload that verifies its own results.
-  - **GPU, built in**: a vendor-neutral DirectX 11 compute workload, so no
-    game is needed (NVIDIA, AMD and Intel, integrated graphics included).
-    Pick the graphics card when the PC has more than one (the one with the
-    most video memory is recommended) and an intensity: *Light* (small
-    buffer, about half-time load), *Medium* (near-constant load, like a
-    demanding game) or *Heavy* (back-to-back work over up to 1 GB of video
-    memory, capped at a quarter of the card's memory). The work per pass is
-    calibrated so each pass takes 50 to 100 ms, far below the Windows driver
-    timeout. With *Check results for errors* on, part of the result is read
-    back every couple of seconds and compared with the first run; any
-    difference counts as an error, the same kind of fault that shows up as
-    artifacts in games. If the graphics driver resets, the test stops,
-    reports "The graphics driver reset — the GPU is not stable at these
-    settings" and resets an applied overclock to defaults.
-  - **GPU, guided**: tick *Use my own game or benchmark instead* and the app
-    watches temperatures and clocks while your own load runs.
-  - **Safety**: the watchdog samples temperatures every second and stops at
-    your limits (resetting an applied overclock); a laptop on battery below
-    20 % cannot start a test and above that gets a warning; *Stop* ends
-    everything within a second.
-- **Claude advisor** (when configured): describe your goal and get a staged
-  plan with warnings and assumptions; *Apply this step* loads the step into
-  the sliders for you to confirm, *Run suggested stress test* runs it, *Send
-  results back* asks for the next step. The disclaimer is always visible.
-- **Watchdog**: a session marker is written when a profile is applied; if the
-  PC did not shut down cleanly the next start resets the GPU and tells you.
-  GPU offsets do not persist across reboots in any case.
-- **Advanced**: raw limits, offsets up to the driver's range beyond your
-  Settings maximum (still validated), and the session file.
 
 ---
 
-### AMD platform support
-
-AMD-specific behaviour across the app (CPU traits come from the processor
-name: Zen generation, socket, desktop/laptop/APU, X3D, Tjmax):
-
-- **The right GPU**: the integrated Radeon of every Ryzen 7000/9000 desktop
-  is never taken for "the GPU" on the Dashboard, overlay, Overclock page,
-  fan profiles, power total or watchdog; the discrete card is. One rule
-  recognises current Radeon APUs (760M, 780M, 890M, 8060S, Vega 3–11).
-- **Temperatures**: Tdie is shown instead of the offset Tctl on Ryzen
-  1000/2000 X and Threadripper. With the stock thresholds, Ryzen 7000
-  (except 7000X3D) and 9000 desktop chips, 9000X3D included (which run at
-  95 °C by design), use 90/98 °C and the stress test stops at Tjmax + 3 °C;
-  integrated Radeon sensors share the CPU's limits, and GPU hot spot
-  (100/110 °C) and memory (95/105 °C) have their own. Integrated GPU power is
-  not added to the CPU package twice.
-- **X3D**: on dual-CCD Ryzen 9 X3D, nothing recommends High performance or
-  turning core parking off, actions that would undo AMD's CCD parking (and
-  game profiles that switch plans, removing Game Bar) warn first, and the
-  Latency page checks Balanced, Game Mode, Game Bar and the V-Cache service.
-- **Health**: AMD Chipset Software, PPM provisioning, platform devices on
-  generic drivers and the 3D V-Cache optimizer; WHEA hardware errors with
-  Ryzen advice (Curve Optimizer core, FCLK, PCIe, memory, BugCheck 0x124);
-  graphics driver timeouts (Display 4101, LiveKernelEvent 141/117).
-- **Memory**: EXPO is judged against the part-number rating as well, a JEDEC
-  speed is "check the BIOS" rather than "on", and the Infinity Fabric 1:1
-  sweet spot (AM5 DDR5-6000, AM4 DDR4-3600) and the AM5 training pause are
-  explained.
-- **Drivers**: older Adrenalin packages count as superseded, AMD chipset
-  components are not "old", Windows Update display and chipset offers that
-  would replace AMD Software are unticked with a warning and can be hidden,
-  and the chipset link names your socket.
-- **Latency**: AMD BIOS guidance (CPPC, Global C-states, AM4 Power Supply
-  Idle Control) and the legacy *AMD Ryzen Balanced* plan.
-- **Overlay**: a note that AMD Fluid Motion Frames are not counted.
-
-## Assistant
+## Ask Claude
 
 ### Ask Claude
 
@@ -1934,9 +1957,11 @@ Details in [LOGGING.md](LOGGING.md).
 ### Settings
 
 Sections with immediate save: General (theme, advanced mode, start minimized,
-check health on startup), Tray and Schedules (see the next two sections),
-Updates (version, channel, auto-check, auto-download, *Check now*,
-*Download*, *Install*, release notes, portable-build note), Restore points (before, after, bypass frequency limit,
+check health on startup, *Install in Program Files* while running from
+another folder), Tray and Schedules (see the next two sections),
+Updates (version, channel, automatic checks, what happens when a new
+version is out, *Check for updates*, *Download*, *Install and restart*,
+release notes, and the skipped version with *Offer it again*), Restore points (before, after, bypass frequency limit,
 and the restore-point list with *Create now*, *Enable System Protection* and
 *Open System Restore*), Monitoring thresholds, Electricity price, Fans
 (revert on exit, minimum percent), Lighting (OpenRGB host and port,
@@ -2260,10 +2285,25 @@ The full list of shortcuts, the colour table and the known gaps are in
 
 ## Updates
 
-The app checks GitHub Releases for new versions and, when installed with the
-Setup installer, downloads and applies them in place. The portable build only
-tells you a version is available and links the release page. Choose the
-Stable or Beta channel in Settings.
+PC Checker is one exe that updates itself from GitHub Releases. It checks when
+it opens and every 6 hours while it runs (also from the tray), on the Stable
+or Beta channel, and picks the build for the PC: `PcChecker.exe` on x64,
+`PcChecker-arm64.exe` on Windows on Arm.
+
+*When a new version is available* (Settings → Updates) is one of:
+
+- **Ask me** (default): a dialog with *Update now*, *Later* and *Skip this
+  version*. A skipped version is not offered again; Settings shows it with
+  *Offer it again*.
+- **Download it, then ask to restart**: the update is downloaded and checked
+  straight away, then PC Checker asks before it restarts.
+- **Just tell me**: only a notification.
+
+Every download is checked against GitHub's SHA-256 digest for the file, or the
+`SHA-256 (file name)` line in the release notes, and checked again right
+before it is installed; a file that does not match is deleted and never run.
+Installing renames the running exe to `PcChecker.exe.old`, puts the new one in
+its place and restarts; the `.old` file is removed on the next start.
 
 ## Reports
 
