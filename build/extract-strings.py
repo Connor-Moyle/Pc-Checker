@@ -3,7 +3,8 @@
 src/PcChecker.App/Localization/strings.txt. Translators fill in src/PcChecker.App/Localization/Languages/<code>.json
 (English text -> translated text); anything missing stays English.
 
-Sources: literal XAML attributes that hold interface text, setters of those properties, section and page names in
+Sources: literal XAML attributes that hold interface text (access key markers removed), setters of those properties,
+screen-reader names and help text (AutomationProperties.Name and HelpText), section and page names in
 NavigationCatalog.cs, C# string literals passed to Loc.T(...) or Loc.F(...), and the quick search catalogs in
 src/PcChecker.Core/Shell, where interface text is marked with T("...").
 
@@ -19,6 +20,10 @@ TEXT_ATTRS = ("Text", "ToolTip", "Content", "Title", "Header", "Message", "Subti
               "Description", "Label", "Unit", "Caption", "Reason", "ActionText")
 ATTR = re.compile(r'\b(?:[a-zA-Z]+:)?(?:[A-Z][A-Za-z]*\.)?(' + "|".join(TEXT_ATTRS) + r')="([^"]*)"')
 SETTER = re.compile(r'<Setter\s+Property="(?:[A-Za-z]+\.)?(' + "|".join(TEXT_ATTRS) + r')"\s+Value="([^"]*)"')
+# Screen-reader names and help text written in the XAML.
+AUTOMATION = re.compile(r'\bAutomationProperties\.(Name|HelpText)="([^"]*)"')
+# An access key marker at the start of a word ("_Scan", "Check for _updates"); translations are keyed without it.
+ACCESS_KEY = re.compile(r'(?:(?<=^)|(?<=\s))_(?=[A-Za-z0-9])')
 CODE = re.compile(r'\bLoc\.[TF]\(\s*"((?:[^"\\]|\\.)*)"')
 DESCRIPTION = re.compile(r'\bDescription\(\s*"((?:[^"\\]|\\.)*)"\s*\)')
 CATALOG = re.compile(r'\b(?:Section|Footer|Page)\("([^"]+)"')
@@ -57,8 +62,8 @@ def collect():
         if "obj" in path.parts or "bin" in path.parts:
             continue
         source = path.read_text(encoding="utf-8")
-        for match in list(ATTR.finditer(source)) + list(SETTER.finditer(source)):
-            value = html.unescape(match.group(2))
+        for match in list(ATTR.finditer(source)) + list(SETTER.finditer(source)) + list(AUTOMATION.finditer(source)):
+            value = ACCESS_KEY.sub("", html.unescape(match.group(2)), count=1)
             if wanted(value):
                 found.add(value)
     for path in APP.rglob("*.cs"):

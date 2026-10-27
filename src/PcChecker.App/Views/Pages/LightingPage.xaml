@@ -54,7 +54,7 @@
             </Grid.ColumnDefinitions>
             <Border Grid.Column="0" Width="40" Height="40" CornerRadius="10" Margin="0,0,12,0" VerticalAlignment="Top"
                     Background="{Binding ColorBrush}" Opacity="0.95">
-              <ui:SymbolIcon Symbol="{Binding Icon}" FontSize="22" Foreground="White" />
+              <controls:IconGlyph Symbol="{Binding Icon}" FontSize="22" Foreground="White" />
             </Border>
             <StackPanel Grid.Column="1" VerticalAlignment="Center">
               <ui:TextBlock FontTypography="BodyStrong" Text="{Binding Name}" TextTrimming="CharacterEllipsis" ToolTip="{Binding Name}" />
@@ -84,7 +84,7 @@
               <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
             <ui:TextBlock Grid.Column="0" Text="Colour" VerticalAlignment="Center" Margin="0,0,12,0" MinWidth="64" />
-            <ToggleButton x:Name="DeviceSwatch" Grid.Column="1" Style="{StaticResource SwatchToggle}" Background="{Binding ColorBrush}"
+            <ToggleButton x:Name="DeviceSwatch" AutomationProperties.Name="Device colour" Grid.Column="1" Style="{StaticResource SwatchToggle}" Background="{Binding ColorBrush}"
                           IsChecked="{Binding IsPickerOpen, Mode=TwoWay}" ToolTip="Pick a colour" />
             <ui:TextBlock Grid.Column="2" Text="{Binding ColorHex}" Style="{StaticResource Muted}" VerticalAlignment="Center" Margin="10,0,0,0" />
             <Popup IsOpen="{Binding IsPickerOpen, Mode=TwoWay}" StaysOpen="True" Placement="Bottom" PlacementTarget="{Binding ElementName=DeviceSwatch}"
@@ -135,7 +135,7 @@
                       <ColumnDefinition Width="*" />
                       <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
-                    <ToggleButton x:Name="ZoneSwatch" Grid.Column="0" Style="{StaticResource SwatchToggle}" Width="28" Height="28" Background="{Binding ColorBrush}"
+                    <ToggleButton x:Name="ZoneSwatch" AutomationProperties.Name="Zone colour" Grid.Column="0" Style="{StaticResource SwatchToggle}" Width="28" Height="28" Background="{Binding ColorBrush}"
                                   IsChecked="{Binding IsPickerOpen, Mode=TwoWay}" ToolTip="Pick a colour for this zone" />
                     <StackPanel Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center">
                       <ui:TextBlock Text="{Binding Name}" />
@@ -220,8 +220,8 @@
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
               </Grid.ColumnDefinitions>
-              <Border Grid.Column="0" Width="40" Height="40" CornerRadius="10" Margin="0,0,12,0" VerticalAlignment="Center" Background="{StaticResource AccentPurpleBrush}">
-                <ui:SymbolIcon Symbol="{Binding StatusIconName, Converter={StaticResource SymbolName}}" FontSize="22" Foreground="White" />
+              <Border Grid.Column="0" Width="40" Height="40" CornerRadius="10" Margin="0,0,12,0" VerticalAlignment="Center" Background="{DynamicResource AccentPurpleBrush}">
+                <controls:IconGlyph Symbol="{Binding StatusIconName, Converter={StaticResource SymbolName}}" FontSize="22" Foreground="{DynamicResource OnAccentIconBrush}" />
               </Border>
               <StackPanel Grid.Column="1" VerticalAlignment="Center">
                 <ui:TextBlock FontTypography="BodyStrong" Text="{Binding Status}" TextWrapping="Wrap" />
@@ -272,7 +272,7 @@
               <ui:TextBlock Style="{StaticResource CardTitle}" Text="Everything at once" />
               <ui:TextBlock Text="Sync colour" Style="{StaticResource Muted}" Margin="0,0,0,6" />
               <StackPanel Orientation="Horizontal">
-                <ToggleButton x:Name="SyncSwatch" Style="{StaticResource SwatchToggle}" Background="{Binding SyncColorBrush}" IsChecked="{Binding IsSyncPickerOpen, Mode=TwoWay}" ToolTip="Pick the colour for every device" />
+                <ToggleButton x:Name="SyncSwatch" AutomationProperties.Name="Colour for every device" Style="{StaticResource SwatchToggle}" Background="{Binding SyncColorBrush}" IsChecked="{Binding IsSyncPickerOpen, Mode=TwoWay}" ToolTip="Pick the colour for every device" />
                 <Popup IsOpen="{Binding IsSyncPickerOpen, Mode=TwoWay}" StaysOpen="True" Placement="Bottom" PlacementTarget="{Binding ElementName=SyncSwatch}" AllowsTransparency="True" PopupAnimation="Fade" VerticalOffset="6">
                   <Border Style="{StaticResource PickerPopupBorder}">
                     <StackPanel>

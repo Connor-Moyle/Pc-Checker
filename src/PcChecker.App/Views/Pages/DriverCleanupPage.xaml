@@ -21,13 +21,13 @@
       <Setter Property="Height" Value="10" />
       <Setter Property="VerticalAlignment" Value="Center" />
       <Setter Property="Margin" Value="0,0,12,0" />
-      <Setter Property="Fill" Value="{StaticResource AccentGreenBrush}" />
+      <Setter Property="Fill" Value="{DynamicResource AccentGreenBrush}" />
       <Style.Triggers>
         <DataTrigger Binding="{Binding Status}" Value="{x:Static drv:DriverCleanupStatus.ProbablySafe}">
-          <Setter Property="Fill" Value="{StaticResource AccentYellowBrush}" />
+          <Setter Property="Fill" Value="{DynamicResource AccentYellowBrush}" />
         </DataTrigger>
         <DataTrigger Binding="{Binding Status}" Value="{x:Static drv:DriverCleanupStatus.Keep}">
-          <Setter Property="Fill" Value="{StaticResource AccentGreyBrush}" />
+          <Setter Property="Fill" Value="{DynamicResource AccentGreyBrush}" />
         </DataTrigger>
       </Style.Triggers>
     </Style>
@@ -52,8 +52,10 @@
               </ContextMenu>
             </ui:DropDownButton.Flyout>
           </ui:DropDownButton>
-          <ui:Button Content="Scan" Appearance="Primary" Icon="{ui:SymbolIcon Search24}" Command="{Binding ScanCommand}"
-                     ToolTip="Looks for driver versions that newer ones replaced, drivers nothing uses, and devices that are no longer connected. Nothing is removed by a scan." />
+          <ui:Button Appearance="Primary" Icon="{ui:SymbolIcon Search24}" Command="{Binding ScanCommand}"
+                     ToolTip="Looks for driver versions that newer ones replaced, drivers nothing uses, and devices that are no longer connected. Nothing is removed by a scan.">
+            <AccessText Text="_Scan" />
+          </ui:Button>
         </StackPanel>
       </controls:SectionHeader.Actions>
     </controls:SectionHeader>
@@ -89,13 +91,13 @@
         <!-- Summary -->
         <controls:AdaptiveGrid MinItemWidth="200" MaxColumns="4" Margin="0,0,0,12">
           <controls:StatCard Style="{StaticResource Tile}" Title="Packages found" Value="{Binding PackagesFound}" Icon="Box24"
-                             Accent="{StaticResource AccentCyanBrush}" Subtitle="Old or unused driver packages" />
+                             Accent="{DynamicResource AccentCyanBrush}" Subtitle="Old or unused driver packages" />
           <controls:StatCard Style="{StaticResource Tile}" Title="Safe to remove" Value="{Binding SafeCount}" Icon="BoxCheckmark24"
-                             Accent="{StaticResource AccentGreenBrush}" Subtitle="A newer version is installed" />
+                             Accent="{DynamicResource AccentGreenBrush}" Subtitle="A newer version is installed" />
           <controls:StatCard Style="{StaticResource Tile}" Title="Space you can free" Value="{Binding FreeableText}" Icon="HardDrive20"
-                             Accent="{StaticResource AccentPurpleBrush}" Subtitle="{Binding FreeableSubtitle}" />
+                             Accent="{DynamicResource AccentPurpleBrush}" Subtitle="{Binding FreeableSubtitle}" />
           <controls:StatCard Style="{StaticResource Tile}" Title="Disconnected devices" Value="{Binding DisconnectedCount}" Icon="PlugDisconnected24"
-                             Accent="{StaticResource AccentOrangeBrush}" Subtitle="Remembered, with their own driver" />
+                             Accent="{DynamicResource AccentOrangeBrush}" Subtitle="Remembered, with their own driver" />
         </controls:AdaptiveGrid>
 
         <!-- Nothing found -->
@@ -161,7 +163,7 @@
                                       ToolTip="{Binding CheckTooltip}" ToolTipService.ShowOnDisabled="True" />
                             <StackPanel Grid.Column="1">
                               <StackPanel Orientation="Horizontal">
-                                <ui:SymbolIcon Symbol="PlugDisconnected24" FontSize="16" Margin="0,0,6,0" VerticalAlignment="Center"
+                                <controls:IconGlyph Symbol="PlugDisconnected24" FontSize="16" Margin="0,0,6,0" VerticalAlignment="Center"
                                                ToolTip="A device that is not connected"
                                                Visibility="{Binding IsDevice, Converter={StaticResource BoolToVisibility}}" />
                                 <ui:TextBlock FontWeight="SemiBold" Text="{Binding Title}" TextTrimming="CharacterEllipsis" />

@@ -23,7 +23,7 @@
     <Style x:Key="BadgeText" TargetType="TextBlock">
       <Setter Property="FontSize" Value="11" />
       <Setter Property="FontWeight" Value="SemiBold" />
-      <Setter Property="Foreground" Value="White" />
+      <Setter Property="Foreground" Value="{DynamicResource OnAccentTextBrush}" />
     </Style>
     <Style x:Key="ColumnHeader" TargetType="ui:TextBlock" BasedOn="{StaticResource Muted}">
       <Setter Property="FontWeight" Value="SemiBold" />
@@ -77,8 +77,10 @@
           </ui:DropDownButton>
           <ui:Button Content="Quick improve Wi-Fi" Icon="{ui:SymbolIcon Sparkle24}" Command="{Binding OpenQuickImproveCommand}" IsEnabled="{Binding IsIdle}" Margin="0,0,8,0"
                      ToolTip="Lists the recommended changes that differ from your current settings. Nothing changes until you confirm." />
-          <ui:Button Appearance="Primary" Content="Run all tests" Icon="{ui:SymbolIcon PlayCircle24}" Command="{Binding RunAllTestsCommand}" IsEnabled="{Binding IsIdle}"
-                     ToolTip="Analyzes Wi-Fi, then runs the packet loss test and the speed test, one after another." />
+          <ui:Button Appearance="Primary" Icon="{ui:SymbolIcon PlayCircle24}" Command="{Binding RunAllTestsCommand}" IsEnabled="{Binding IsIdle}"
+                     ToolTip="Analyzes Wi-Fi, then runs the packet loss test and the speed test, one after another.">
+            <AccessText Text="_Run all tests" />
+          </ui:Button>
         </StackPanel>
       </controls:SectionHeader.Actions>
     </controls:SectionHeader>
@@ -106,19 +108,19 @@
 
         <!-- 1. Connection summary -->
         <controls:AdaptiveGrid MinItemWidth="200" MaxColumns="5" Margin="0,0,0,12">
-          <controls:StatCard Style="{StaticResource Tile}" Title="Connection" Value="{Binding AdapterText}" Icon="PlugConnected24" Accent="{StaticResource AccentCyanBrush}"
+          <controls:StatCard Style="{StaticResource Tile}" Title="Connection" Value="{Binding AdapterText}" Icon="PlugConnected24" Accent="{DynamicResource AccentCyanBrush}"
                              Subtitle="{Binding AdapterSubtitle}"
                              ToolTip="The adapter this PC uses to reach the internet right now." />
-          <controls:StatCard Style="{StaticResource Tile}" Title="IP address" Value="{Binding IpText}" Icon="Desktop24" Accent="{StaticResource AccentPurpleBrush}"
+          <controls:StatCard Style="{StaticResource Tile}" Title="IP address" Value="{Binding IpText}" Icon="Desktop24" Accent="{DynamicResource AccentPurpleBrush}"
                              Subtitle="{Binding IpSubtitle}"
                              ToolTip="The address your router gave this PC on your home network (not your public internet address)." />
-          <controls:StatCard Style="{StaticResource Tile}" Title="Router" Value="{Binding GatewayText}" Icon="Router24" Accent="{StaticResource AccentGreyBrush}"
+          <controls:StatCard Style="{StaticResource Tile}" Title="Router" Value="{Binding GatewayText}" Icon="Router24" Accent="{DynamicResource AccentGreyBrush}"
                              Subtitle="{Binding GatewaySubtitle}"
                              ToolTip="The default gateway: the router every packet to the internet goes through. DNS servers turn web addresses into IP addresses." />
-          <controls:StatCard Style="{StaticResource Tile}" Title="Link speed" Value="{Binding LinkSpeedText}" Unit="{Binding LinkSpeedUnit}" Icon="TopSpeed24" Accent="{StaticResource AccentGreenBrush}"
+          <controls:StatCard Style="{StaticResource Tile}" Title="Link speed" Value="{Binding LinkSpeedText}" Unit="{Binding LinkSpeedUnit}" Icon="TopSpeed24" Accent="{DynamicResource AccentGreenBrush}"
                              Subtitle="Between this PC and the router"
                              ToolTip="How fast the adapter talks to the router. Your internet speed can be lower: it is limited by your plan and the provider." />
-          <controls:StatCard Style="{StaticResource Tile}" Title="Wi-Fi signal" Value="{Binding SignalText}" Unit="%" Icon="Wifi124" Accent="{StaticResource AccentYellowBrush}"
+          <controls:StatCard Style="{StaticResource Tile}" Title="Wi-Fi signal" Value="{Binding SignalText}" Unit="%" Icon="Wifi124" Accent="{DynamicResource AccentYellowBrush}"
                              Subtitle="{Binding SignalSubtitle}"
                              ToolTip="Signal quality as Windows reports it. dBm is the radio power: -50 is excellent, -67 is good for calls and games, below -75 is weak." />
         </controls:AdaptiveGrid>
@@ -133,7 +135,7 @@
               </Grid.ColumnDefinitions>
               <StackPanel>
                 <StackPanel Orientation="Horizontal">
-                  <ui:SymbolIcon Symbol="Sparkle24" Foreground="{StaticResource AccentCyanBrush}" Margin="0,0,8,0" />
+                  <controls:IconGlyph Symbol="Sparkle24" Foreground="{DynamicResource AccentCyanBrush}" Margin="0,0,8,0" />
                   <ui:TextBlock Style="{StaticResource CardTitle}" Text="Quick improve Wi-Fi" Margin="0" />
                 </StackPanel>
                 <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding QuickImproveSummary}" TextWrapping="Wrap" Margin="0,4,0,0" />
@@ -157,11 +159,11 @@
                           <Border Style="{StaticResource Badge}" Background="{Binding RiskBrush}">
                             <TextBlock Style="{StaticResource BadgeText}" Text="{Binding RiskText}" />
                           </Border>
-                          <Border Style="{StaticResource Badge}" Background="{StaticResource AccentGreyBrush}" Visibility="{Binding MayDisconnect, Converter={StaticResource BoolToVisibility}}"
+                          <Border Style="{StaticResource Badge}" Background="{DynamicResource AccentGreyBrush}" Visibility="{Binding MayDisconnect, Converter={StaticResource BoolToVisibility}}"
                                   ToolTip="The adapter restarts to apply this, so the connection drops for a few seconds.">
                             <TextBlock Style="{StaticResource BadgeText}" Text="Brief disconnect" />
                           </Border>
-                          <Border Style="{StaticResource Badge}" Background="{StaticResource AccentGreyBrush}" Visibility="{Binding RequiresRestart, Converter={StaticResource BoolToVisibility}}">
+                          <Border Style="{StaticResource Badge}" Background="{DynamicResource AccentGreyBrush}" Visibility="{Binding RequiresRestart, Converter={StaticResource BoolToVisibility}}">
                             <TextBlock Style="{StaticResource BadgeText}" Text="Restart needed" />
                           </Border>
                         </StackPanel>
@@ -243,7 +245,7 @@
               </Grid.ColumnDefinitions>
               <StackPanel>
                 <StackPanel Orientation="Horizontal">
-                  <ui:SymbolIcon Symbol="Wifi124" Margin="0,0,8,0" />
+                  <controls:IconGlyph Symbol="Wifi124" Margin="0,0,8,0" />
                   <ui:TextBlock Style="{StaticResource CardTitle}" Text="Wi-Fi" Margin="0" />
                 </StackPanel>
                 <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding WifiCapturedText}" />
@@ -295,7 +297,7 @@
             <StackPanel Margin="0,12,0,0" Visibility="{Binding HasWifiConnection, Converter={StaticResource BoolToVisibility}}">
               <ui:TextBlock FontTypography="BodyStrong" Text="What PC Checker found" Margin="0,0,0,4" />
               <StackPanel Orientation="Horizontal" Visibility="{Binding HasFindings, Converter={StaticResource InverseBoolToVisibility}}" Margin="0,4,0,4">
-                <ui:SymbolIcon Symbol="CheckmarkCircle24" Foreground="{StaticResource AccentGreenBrush}" FontSize="20" Margin="0,0,8,0" />
+                <controls:IconGlyph Symbol="CheckmarkCircle24" Foreground="{DynamicResource AccentGreenBrush}" FontSize="20" Margin="0,0,8,0" />
                 <ui:TextBlock Text="Your Wi-Fi connection looks healthy." VerticalAlignment="Center" />
               </StackPanel>
               <ItemsControl ItemsSource="{Binding Findings}">
@@ -326,7 +328,7 @@
                                      CommandParameter="{Binding}" IsEnabled="{Binding CanFix}"
                                      Visibility="{Binding HasAction, Converter={StaticResource BoolToVisibility}}" />
                           <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Visibility="{Binding IsFixed, Converter={StaticResource BoolToVisibility}}">
-                            <ui:SymbolIcon Symbol="CheckmarkCircle24" Foreground="{StaticResource AccentGreenBrush}" Margin="0,0,4,0" />
+                            <controls:IconGlyph Symbol="CheckmarkCircle24" Foreground="{DynamicResource AccentGreenBrush}" Margin="0,0,4,0" />
                             <ui:TextBlock Style="{StaticResource Muted}" Text="Fixed" VerticalAlignment="Center" />
                           </StackPanel>
                         </StackPanel>
@@ -345,7 +347,7 @@
             <ui:TextBlock Style="{StaticResource CardTitle}" Text="Nearby networks" />
             <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,8" Text="Every access point this PC can hear, from Windows' latest scan."
                           ToolTip="Many routers show up twice: once on 2.4 GHz and once on 5 GHz." />
-            <ui:DataGrid ItemsSource="{Binding Nearby}" AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False" CanUserReorderColumns="False"
+            <ui:DataGrid AutomationProperties.Name="Nearby networks" KeyboardNavigation.TabNavigation="Once" ItemsSource="{Binding Nearby}" AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False" CanUserReorderColumns="False"
                          IsReadOnly="True" SelectionMode="Single" GridLinesVisibility="Horizontal" HeadersVisibility="Column" MaxHeight="360">
               <ui:DataGrid.Columns>
                 <DataGridTemplateColumn Header="Network" Width="2*" SortMemberPath="Ssid">
@@ -353,7 +355,7 @@
                     <DataTemplate>
                       <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="4,0">
                         <ui:TextBlock Text="{Binding Ssid}" VerticalAlignment="Center" Margin="0,0,8,0" />
-                        <Border Style="{StaticResource Badge}" Background="{StaticResource AccentCyanBrush}" Visibility="{Binding IsConnected, Converter={StaticResource BoolToVisibility}}">
+                        <Border Style="{StaticResource Badge}" Background="{DynamicResource AccentCyanBrush}" Visibility="{Binding IsConnected, Converter={StaticResource BoolToVisibility}}">
                           <TextBlock Style="{StaticResource BadgeText}" Text="Connected" />
                         </Border>
                       </StackPanel>
@@ -402,7 +404,7 @@
                             <ProgressBar Grid.Column="1" Minimum="0" Maximum="{Binding Maximum}" Value="{Binding NetworkCount, Mode=OneWay}" Foreground="{Binding BarBrush}" Height="10" VerticalAlignment="Center" />
                             <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="10,0,0,0">
                               <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding CountText}" VerticalAlignment="Center" Margin="0,0,8,0" />
-                              <Border Style="{StaticResource Badge}" Background="{StaticResource AccentCyanBrush}" Visibility="{Binding HasTag, Converter={StaticResource BoolToVisibility}}">
+                              <Border Style="{StaticResource Badge}" Background="{DynamicResource AccentCyanBrush}" Visibility="{Binding HasTag, Converter={StaticResource BoolToVisibility}}">
                                 <TextBlock Style="{StaticResource BadgeText}" Text="{Binding Tag}" />
                               </Border>
                             </StackPanel>
@@ -428,7 +430,7 @@
               </Grid.ColumnDefinitions>
               <StackPanel>
                 <StackPanel Orientation="Horizontal">
-                  <ui:SymbolIcon Symbol="TopSpeed24" Margin="0,0,8,0" />
+                  <controls:IconGlyph Symbol="TopSpeed24" Margin="0,0,8,0" />
                   <ui:TextBlock Style="{StaticResource CardTitle}" Text="Internet speed test" Margin="0" />
                 </StackPanel>
                 <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding SpeedDataText}" TextWrapping="Wrap" />
@@ -456,15 +458,15 @@
 
             <StackPanel Visibility="{Binding HasSpeedResult, Converter={StaticResource BoolToVisibility}}">
               <controls:AdaptiveGrid MinItemWidth="200" MaxColumns="5" Margin="0,0,0,12">
-                <controls:StatCard Style="{StaticResource Tile}" Title="Download" Value="{Binding DownloadText}" Unit="Mbps" Icon="ArrowDownload24" Accent="{StaticResource AccentCyanBrush}"
+                <controls:StatCard Style="{StaticResource Tile}" Title="Download" Value="{Binding DownloadText}" Unit="Mbps" Icon="ArrowDownload24" Accent="{DynamicResource AccentCyanBrush}"
                                    Subtitle="Megabits per second" ToolTip="How fast data comes in: streaming, downloads, web pages. 8 Mbps = 1 megabyte per second." />
-                <controls:StatCard Style="{StaticResource Tile}" Title="Upload" Value="{Binding UploadText}" Unit="Mbps" Icon="ArrowUpload24" Accent="{StaticResource AccentPurpleBrush}"
+                <controls:StatCard Style="{StaticResource Tile}" Title="Upload" Value="{Binding UploadText}" Unit="Mbps" Icon="ArrowUpload24" Accent="{DynamicResource AccentPurpleBrush}"
                                    Subtitle="Megabits per second" ToolTip="How fast data goes out: video calls, cloud backups, streaming your games." />
-                <controls:StatCard Style="{StaticResource Tile}" Title="Ping (idle)" Value="{Binding IdlePingText}" Icon="Timer24" Accent="{StaticResource AccentGreenBrush}"
+                <controls:StatCard Style="{StaticResource Tile}" Title="Ping (idle)" Value="{Binding IdlePingText}" Icon="Timer24" Accent="{DynamicResource AccentGreenBrush}"
                                    Subtitle="Round trip to the test server" ToolTip="Ping: the time a tiny request takes to reach the server and come back while nothing else is happening." />
-                <controls:StatCard Style="{StaticResource Tile}" Title="Ping under load" Value="{Binding LoadedPingText}" Icon="Pulse24" Accent="{StaticResource AccentOrangeBrush}"
+                <controls:StatCard Style="{StaticResource Tile}" Title="Ping under load" Value="{Binding LoadedPingText}" Icon="Pulse24" Accent="{DynamicResource AccentOrangeBrush}"
                                    Subtitle="While downloading and uploading" ToolTip="The same ping measured while the line is full. A big rise means bufferbloat: lag whenever someone downloads." />
-                <controls:StatCard Style="{StaticResource Tile}" Title="Jitter" Value="{Binding SpeedJitterText}" Icon="DataBarHorizontal24" Accent="{StaticResource AccentGreyBrush}"
+                <controls:StatCard Style="{StaticResource Tile}" Title="Jitter" Value="{Binding SpeedJitterText}" Icon="DataBarHorizontal24" Accent="{DynamicResource AccentGreyBrush}"
                                    Subtitle="How much ping varies" ToolTip="Jitter: how much the ping changes from one request to the next. Under 5 ms is smooth; above 30 ms calls and games stutter." />
               </controls:AdaptiveGrid>
               <Grid Margin="0,0,0,8">
@@ -474,7 +476,7 @@
                 </Grid.ColumnDefinitions>
                 <Border Width="64" Height="64" CornerRadius="32" Background="{Binding GradeBrush}" Margin="0,0,16,0" VerticalAlignment="Top"
                         ToolTip="Bufferbloat grade: how much extra delay appears when the connection is busy. A+ means none.">
-                  <TextBlock Text="{Binding GradeText}" FontSize="24" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                  <TextBlock Text="{Binding GradeText}" FontSize="24" FontWeight="Bold" Foreground="{DynamicResource OnAccentTextBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
                 </Border>
                 <StackPanel Grid.Column="1">
                   <ui:TextBlock FontTypography="BodyStrong" Text="Bufferbloat grade" />
@@ -500,7 +502,7 @@
               </Grid.ColumnDefinitions>
               <StackPanel>
                 <StackPanel Orientation="Horizontal">
-                  <ui:SymbolIcon Symbol="NetworkCheck24" Margin="0,0,8,0" />
+                  <controls:IconGlyph Symbol="NetworkCheck24" Margin="0,0,8,0" />
                   <ui:TextBlock Style="{StaticResource CardTitle}" Text="Packet loss test" Margin="0" />
                 </StackPanel>
                 <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Text="Pings your router and two public servers to find lost packets."
@@ -638,7 +640,7 @@
                           <Border Style="{StaticResource Badge}" Background="{Binding StatusBrush}">
                             <TextBlock Style="{StaticResource BadgeText}" Text="{Binding StatusText}" />
                           </Border>
-                          <Border Style="{StaticResource Badge}" Background="{StaticResource AccentGreyBrush}" Visibility="{Binding RequiresRestart, Converter={StaticResource BoolToVisibility}}">
+                          <Border Style="{StaticResource Badge}" Background="{DynamicResource AccentGreyBrush}" Visibility="{Binding RequiresRestart, Converter={StaticResource BoolToVisibility}}">
                             <TextBlock Style="{StaticResource BadgeText}" Text="Restart needed" />
                           </Border>
                         </StackPanel>
@@ -697,7 +699,7 @@
                 <DataTemplate>
                   <StackPanel Margin="0,0,0,12">
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
-                      <ui:SymbolIcon Symbol="Settings24" Margin="0,0,8,0" />
+                      <controls:IconGlyph Symbol="Settings24" Margin="0,0,8,0" />
                       <ui:TextBlock FontTypography="BodyStrong" Text="{Binding AdapterName}" VerticalAlignment="Center" />
                     </StackPanel>
                     <StackPanel>
@@ -717,7 +719,7 @@
                                       <TextBlock Style="{StaticResource BadgeText}" Text="{Binding RiskText}" />
                                     </Border>
                                     <StackPanel Orientation="Horizontal" Visibility="{Binding MatchesRecommendation, Converter={StaticResource BoolToVisibility}}">
-                                      <ui:SymbolIcon Symbol="CheckmarkCircle24" Foreground="{StaticResource AccentGreenBrush}" FontSize="16" Margin="0,0,4,0" />
+                                      <controls:IconGlyph Symbol="CheckmarkCircle24" Foreground="{DynamicResource AccentGreenBrush}" FontSize="16" Margin="0,0,4,0" />
                                       <ui:TextBlock Style="{StaticResource Muted}" Text="As recommended" VerticalAlignment="Center" />
                                     </StackPanel>
                                   </StackPanel>
@@ -779,7 +781,7 @@
                       <StackPanel Grid.Column="1" VerticalAlignment="Center">
                         <StackPanel Orientation="Horizontal">
                           <ui:TextBlock Text="{Binding Name}" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,8,0" />
-                          <Border Style="{StaticResource Badge}" Background="{StaticResource AccentCyanBrush}" Visibility="{Binding IsCurrent, Converter={StaticResource BoolToVisibility}}">
+                          <Border Style="{StaticResource Badge}" Background="{DynamicResource AccentCyanBrush}" Visibility="{Binding IsCurrent, Converter={StaticResource BoolToVisibility}}">
                             <TextBlock Style="{StaticResource BadgeText}" Text="Connected" />
                           </Border>
                         </StackPanel>
@@ -793,9 +795,9 @@
                         <ui:ToggleSwitch Content="Metered" IsChecked="{Binding Metered, Mode=OneWay}" Margin="0,0,16,0"
                                          ToolTip="A metered connection makes Windows hold back big downloads such as updates."
                                          Command="{Binding DataContext.ToggleMeteredCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}" />
-                        <ui:Button Icon="{ui:SymbolIcon ArrowUp24}" ToolTip="Try this network earlier" Margin="0,0,4,0" IsEnabled="{Binding CanMoveUp}"
+                        <ui:Button Icon="{ui:SymbolIcon ArrowUp24}" AutomationProperties.Name="Move up" ToolTip="Try this network earlier" Margin="0,0,4,0" IsEnabled="{Binding CanMoveUp}"
                                    Command="{Binding DataContext.MoveNetworkUpCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}" />
-                        <ui:Button Icon="{ui:SymbolIcon ArrowDown24}" ToolTip="Try this network later" Margin="0,0,8,0" IsEnabled="{Binding CanMoveDown}"
+                        <ui:Button Icon="{ui:SymbolIcon ArrowDown24}" AutomationProperties.Name="Move down" ToolTip="Try this network later" Margin="0,0,8,0" IsEnabled="{Binding CanMoveDown}"
                                    Command="{Binding DataContext.MoveNetworkDownCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}" />
                         <ui:Button Content="Revert" Icon="{ui:SymbolIcon ArrowUndo24}" Margin="0,0,8,0"
                                    ToolTip="Put this network's position, auto-connect and metered settings back to how they were before PC Checker changed them."
@@ -823,7 +825,7 @@
             </StackPanel>
           </ui:CardExpander.Header>
           <StackPanel>
-            <ui:DataGrid ItemsSource="{Binding Adapters}" AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False" CanUserReorderColumns="False"
+            <ui:DataGrid AutomationProperties.Name="Network adapters" KeyboardNavigation.TabNavigation="Once" ItemsSource="{Binding Adapters}" AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False" CanUserReorderColumns="False"
                          IsReadOnly="True" SelectionMode="Single" GridLinesVisibility="Horizontal" HeadersVisibility="Column">
               <ui:DataGrid.Columns>
                 <DataGridTemplateColumn Header="Adapter" Width="2*" SortMemberPath="Name">
@@ -880,9 +882,9 @@
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="*" />
                       </Grid.ColumnDefinitions>
-                      <ui:SymbolIcon Grid.Column="0" Symbol="Star24" Foreground="{StaticResource AccentYellowBrush}" Margin="0,0,10,0" VerticalAlignment="Top"
+                      <controls:IconGlyph Grid.Column="0" Symbol="Star24" Foreground="{DynamicResource AccentYellowBrush}" Margin="0,0,10,0" VerticalAlignment="Top"
                                      Visibility="{Binding Highlight, Converter={StaticResource BoolToVisibility}}" />
-                      <ui:SymbolIcon Grid.Column="0" Symbol="Info24" Margin="0,0,10,0" VerticalAlignment="Top"
+                      <controls:IconGlyph Grid.Column="0" Symbol="Info24" Margin="0,0,10,0" VerticalAlignment="Top"
                                      Visibility="{Binding Highlight, Converter={StaticResource InverseBoolToVisibility}}" />
                       <StackPanel Grid.Column="1">
                         <ui:TextBlock FontWeight="SemiBold" Text="{Binding Title}" />

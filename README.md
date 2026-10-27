@@ -333,6 +333,7 @@ and the module boundaries are described in
 | [Demo mode](docs/DEMO-MODE.md) | Exploring the app safely and capturing screenshots |
 | [FAQ](docs/FAQ.md) | Common questions |
 | [Translating](docs/TRANSLATING.md) | Interface languages and how to improve a translation |
+| [Accessibility](docs/ACCESSIBILITY.md) | Keyboard shortcuts (Ctrl+K, F6, Ctrl+Tab, access keys), screen readers, contrast, high contrast, known gaps |
 | [UI guidelines](docs/UI-GUIDELINES.md) | How pages are laid out |
 | [Building](docs/BUILDING.md) | Build, test, publish, package, release |
 | [Architecture](docs/ARCHITECTURE.md) | How the code is organised |

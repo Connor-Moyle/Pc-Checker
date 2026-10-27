@@ -60,8 +60,10 @@
           </ui:DropDownButton>
           <ui:Button Content="Calculate sizes" Icon="{ui:SymbolIcon Ruler24}" Command="{Binding CalculateSizesCommand}" IsEnabled="{Binding HasResults}" Margin="0,0,8,0"
                      ToolTip="Measure each program's install folder. Takes a moment on large drives; you can cancel." />
-          <ui:Button Content="Scan" Appearance="Primary" Icon="{ui:SymbolIcon Search24}" Command="{Binding ScanCommand}"
-                     ToolTip="Read the installed-programs lists from the registry and the Store." />
+          <ui:Button Appearance="Primary" Icon="{ui:SymbolIcon Search24}" Command="{Binding ScanCommand}"
+                     ToolTip="Read the installed-programs lists from the registry and the Store.">
+            <AccessText Text="_Scan" />
+          </ui:Button>
         </StackPanel>
       </controls:SectionHeader.Actions>
     </controls:SectionHeader>
@@ -93,10 +95,10 @@
     <!-- Summary -->
     <controls:AdaptiveGrid Grid.Row="2" MinItemWidth="200" MaxColumns="4" Margin="0,0,0,12"
                            Visibility="{Binding HasScanned, Converter={StaticResource BoolToVisibility}}">
-      <controls:StatCard Style="{StaticResource Tile}" Title="Programs" Value="{Binding ProgramCount}" Icon="Apps24" Accent="{StaticResource AccentCyanBrush}" Subtitle="{Binding LastScanText}" />
-      <controls:StatCard Style="{StaticResource Tile}" Title="Store apps" Value="{Binding StoreAppCount}" Icon="StoreMicrosoft24" Accent="{StaticResource AccentPurpleBrush}" Subtitle="From the Microsoft Store" />
-      <controls:StatCard Style="{StaticResource Tile}" Title="Bundles detected" Value="{Binding BundleCount}" Icon="BoxMultiple24" Accent="{StaticResource AccentOrangeBrush}" Subtitle="Programs that arrived together" />
-      <controls:StatCard Style="{StaticResource Tile}" Title="Total size known" Value="{Binding TotalSizeText}" Icon="HardDrive20" Accent="{StaticResource AccentGreenBrush}" Subtitle="{Binding SizeKnownText}" />
+      <controls:StatCard Style="{StaticResource Tile}" Title="Programs" Value="{Binding ProgramCount}" Icon="Apps24" Accent="{DynamicResource AccentCyanBrush}" Subtitle="{Binding LastScanText}" />
+      <controls:StatCard Style="{StaticResource Tile}" Title="Store apps" Value="{Binding StoreAppCount}" Icon="StoreMicrosoft24" Accent="{DynamicResource AccentPurpleBrush}" Subtitle="From the Microsoft Store" />
+      <controls:StatCard Style="{StaticResource Tile}" Title="Bundles detected" Value="{Binding BundleCount}" Icon="BoxMultiple24" Accent="{DynamicResource AccentOrangeBrush}" Subtitle="Programs that arrived together" />
+      <controls:StatCard Style="{StaticResource Tile}" Title="Total size known" Value="{Binding TotalSizeText}" Icon="HardDrive20" Accent="{DynamicResource AccentGreenBrush}" Subtitle="{Binding SizeKnownText}" />
     </controls:AdaptiveGrid>
 
     <!-- Filter bar: search, source and sort. Uninstall settings live in Options at the bottom. -->
@@ -179,7 +181,7 @@
 
     <!-- Main list. -->
     <Grid Grid.Row="5">
-      <ui:DataGrid ItemsSource="{Binding Programs}"
+      <ui:DataGrid AutomationProperties.Name="Installed programs" ItemsSource="{Binding Programs}"
                    SelectedItem="{Binding SelectedProgram, Mode=TwoWay}"
                    AutoGenerateColumns="False"
                    IsReadOnly="True"
@@ -199,7 +201,7 @@
             <DataGridTemplateColumn.CellTemplate>
               <DataTemplate>
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                  <ui:SymbolIcon Symbol="LockClosed16" Margin="0,0,6,0" Foreground="{StaticResource AccentYellowBrush}"
+                  <controls:IconGlyph Symbol="LockClosed16" Margin="0,0,6,0" Foreground="{DynamicResource AccentYellowBrush}"
                                  ToolTip="{Binding ProtectionReason}"
                                  Visibility="{Binding IsProtected, Converter={StaticResource BoolToVisibility}}" />
                   <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" ToolTip="{Binding Name}" />
@@ -268,7 +270,7 @@
                     </ItemsControl>
                   </StackPanel>
                   <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
-                    <ui:SymbolIcon Symbol="LockClosed16" Margin="0,0,6,0" Foreground="{StaticResource AccentYellowBrush}"
+                    <controls:IconGlyph Symbol="LockClosed16" Margin="0,0,6,0" Foreground="{DynamicResource AccentYellowBrush}"
                                    Visibility="{Binding IsProtected, Converter={StaticResource BoolToVisibility}}" />
                     <ui:TextBlock Text="{Binding UninstallReason}" Style="{StaticResource Muted}" TextWrapping="Wrap" />
                   </StackPanel>
@@ -338,7 +340,7 @@
                   <ui:TextBlock Grid.Column="0" Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
                   <ui:TextBlock Grid.Column="1" Text="{Binding Id}" Style="{StaticResource Muted}" TextTrimming="CharacterEllipsis" />
                   <ui:TextBlock Grid.Column="2" Text="{Binding Version}" Style="{StaticResource Muted}" />
-                  <ui:SymbolIcon Grid.Column="3" Symbol="ArrowRight16" Margin="8,0" />
+                  <controls:IconGlyph Grid.Column="3" Symbol="ArrowRight16" Margin="8,0" />
                   <ui:TextBlock Grid.Column="4" Text="{Binding Available}" FontWeight="SemiBold" />
                 </Grid>
               </DataTemplate>

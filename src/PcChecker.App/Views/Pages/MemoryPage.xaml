@@ -69,14 +69,14 @@
           </ui:Card>
           <controls:AdaptiveGrid Grid.Column="1" MinItemWidth="200" MaxColumns="3">
             <controls:StatCard Style="{StaticResource Tile}" Title="Installed" Value="{Binding TotalText}" Icon="Memory16" Subtitle="{Binding SlotsText}" />
-            <controls:StatCard Style="{StaticResource Tile}" Title="Available right now" Value="{Binding AvailableText}" Icon="Checkmark24" Accent="{StaticResource AccentGreenBrush}" Subtitle="Free for new programs" />
-            <controls:StatCard Style="{StaticResource Tile}" Title="Committed" Value="{Binding CommitText}" Icon="Database24" Accent="{StaticResource AccentPurpleBrush}" Subtitle="{Binding CommitSubtitle}"
+            <controls:StatCard Style="{StaticResource Tile}" Title="Available right now" Value="{Binding AvailableText}" Icon="Checkmark24" Accent="{DynamicResource AccentGreenBrush}" Subtitle="Free for new programs" />
+            <controls:StatCard Style="{StaticResource Tile}" Title="Committed" Value="{Binding CommitText}" Icon="Database24" Accent="{DynamicResource AccentPurpleBrush}" Subtitle="{Binding CommitSubtitle}"
                                ToolTip="Memory promised to programs. It can exceed physical RAM because the page file on disk backs the rest." />
-            <controls:StatCard Style="{StaticResource Tile}" Title="Cached / standby" Value="{Binding CachedText}" Icon="History24" Accent="{StaticResource AccentGreyBrush}" Subtitle="{Binding StandbyText, StringFormat='{}{0} on the standby list'}"
+            <controls:StatCard Style="{StaticResource Tile}" Title="Cached / standby" Value="{Binding CachedText}" Icon="History24" Accent="{DynamicResource AccentGreyBrush}" Subtitle="{Binding StandbyText, StringFormat='{}{0} on the standby list'}"
                                ToolTip="Recently used file data kept in RAM so it opens faster next time. Windows gives it up instantly when a program needs the space." />
-            <controls:StatCard Style="{StaticResource Tile}" Title="Memory compression" Value="{Binding CompressionText}" Icon="BoxMultiple24" Accent="{StaticResource AccentCyanBrush}" Subtitle="Fits more in RAM by squeezing idle pages"
+            <controls:StatCard Style="{StaticResource Tile}" Title="Memory compression" Value="{Binding CompressionText}" Icon="BoxMultiple24" Accent="{DynamicResource AccentCyanBrush}" Subtitle="Fits more in RAM by squeezing idle pages"
                                ToolTip="Changes take effect after a restart." />
-            <controls:StatCard Style="{StaticResource Tile}" Title="SysMain (Superfetch)" Value="{Binding SysMainText}" Icon="Rocket24" Accent="{StaticResource AccentOrangeBrush}" Subtitle="Preloads the programs you use most" />
+            <controls:StatCard Style="{StaticResource Tile}" Title="SysMain (Superfetch)" Value="{Binding SysMainText}" Icon="Rocket24" Accent="{DynamicResource AccentOrangeBrush}" Subtitle="Preloads the programs you use most" />
           </controls:AdaptiveGrid>
         </Grid>
 
@@ -94,7 +94,7 @@
               <ui:TextBlock Style="{StaticResource Muted}" Margin="0,2,0,10">
                 <Run Text="{Binding ChannelTitle, Mode=OneWay}" FontWeight="SemiBold" /><Run Text=" — " /><Run Text="{Binding ChannelDetail, Mode=OneWay}" />
               </ui:TextBlock>
-              <ui:DataGrid ItemsSource="{Binding Modules}"
+              <ui:DataGrid AutomationProperties.Name="Memory modules" KeyboardNavigation.TabNavigation="Once" ItemsSource="{Binding Modules}"
                            AutoGenerateColumns="False"
                            IsReadOnly="True"
                            CanUserAddRows="False"
@@ -130,7 +130,7 @@
                 <ui:TextBlock Grid.Column="0" Style="{StaticResource CardTitle}" Text="{Binding XmpProfileName, StringFormat='{}{0} memory profile'}" />
                 <Border Grid.Column="1" CornerRadius="10" Padding="10,3" VerticalAlignment="Top"
                         Background="{Binding XmpSeverity, Converter={StaticResource SeverityToBrush}}">
-                  <ui:TextBlock Text="{Binding XmpState}" FontSize="12" FontWeight="SemiBold" Foreground="White" />
+                  <ui:TextBlock Text="{Binding XmpState}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource OnAccentTextBrush}" />
                 </Border>
               </Grid>
               <ui:TextBlock FontTypography="BodyStrong" Text="{Binding XmpTitle}" TextWrapping="Wrap" />
@@ -149,7 +149,7 @@
             <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,8"
                           Text="Disk space Windows uses when RAM is full, and for crash reports." />
             <ui:TextBlock Text="{Binding PageFileSummary}" TextWrapping="Wrap" Margin="0,0,0,8" />
-            <ui:DataGrid ItemsSource="{Binding PageFiles}"
+            <ui:DataGrid AutomationProperties.Name="Page files" KeyboardNavigation.TabNavigation="Once" ItemsSource="{Binding PageFiles}"
                          AutoGenerateColumns="False"
                          IsReadOnly="True"
                          CanUserAddRows="False"
@@ -266,9 +266,9 @@
               <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap"
                             Text="Checks every byte of RAM before Windows loads. Runs at the next restart, 5–20 minutes." />
               <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                <ui:SymbolIcon Symbol="ErrorCircle24" Foreground="{StaticResource AccentRedBrush}" Margin="0,0,6,0" VerticalAlignment="Top"
+                <controls:IconGlyph Symbol="ErrorCircle24" Foreground="{DynamicResource AccentRedBrush}" Margin="0,0,6,0" VerticalAlignment="Top"
                                Visibility="{Binding DiagnosticHasProblems, Converter={StaticResource BoolToVisibility}}" />
-                <ui:SymbolIcon Symbol="CheckmarkCircle24" Foreground="{StaticResource AccentGreenBrush}" Margin="0,0,6,0" VerticalAlignment="Top"
+                <controls:IconGlyph Symbol="CheckmarkCircle24" Foreground="{DynamicResource AccentGreenBrush}" Margin="0,0,6,0" VerticalAlignment="Top"
                                Visibility="{Binding DiagnosticHasProblems, Converter={StaticResource InverseBoolToVisibility}}" />
                 <ui:TextBlock Text="{Binding DiagnosticText}" TextWrapping="Wrap" />
               </StackPanel>
@@ -312,9 +312,9 @@
                       <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
                     <ui:TextBlock Grid.Column="0" FontTypography="BodyStrong" Text="{Binding Name}" TextWrapping="Wrap" />
-                    <Border Grid.Column="1" CornerRadius="10" Padding="10,3" Background="{StaticResource AccentCyanBrush}" VerticalAlignment="Top" Margin="8,0,0,0"
+                    <Border Grid.Column="1" CornerRadius="10" Padding="10,3" Background="{DynamicResource AccentCyanBrush}" VerticalAlignment="Top" Margin="8,0,0,0"
                             Visibility="{Binding HasBadge, Converter={StaticResource BoolToVisibility}}">
-                      <ui:TextBlock Text="{Binding Badge}" FontSize="12" FontWeight="SemiBold" Foreground="White" />
+                      <ui:TextBlock Text="{Binding Badge}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource OnAccentTextBrush}" />
                     </Border>
                   </Grid>
                   <StackPanel Grid.Row="1" Margin="0,6,0,10">

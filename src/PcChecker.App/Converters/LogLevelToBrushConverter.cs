@@ -2,18 +2,21 @@ using System.Globalization;
 using System.Windows.Data;
 using System.Windows.Media;
 using PcChecker.Core.Logging;
+using PcChecker.App.Services;
+using PcChecker.Core.Accessibility;
 
 namespace PcChecker.App.Converters;
 
-/// <summary>Log level → badge brush (grey for Verbose/Debug, blue Information, yellow Warning, red Error/Fatal).</summary>
+/// <summary>Log level → badge brush (grey for Verbose/Debug, cyan Information, yellow Warning, red Error/Fatal), in the
+/// current theme's shades.</summary>
 public sealed class LogLevelToBrushConverter : IValueConverter
 {
-    public static readonly Brush Verbose = SeverityToBrushConverter.Freeze(new SolidColorBrush(Color.FromRgb(0x6B, 0x72, 0x80)));
-    public static readonly Brush Debug = SeverityToBrushConverter.Freeze(new SolidColorBrush(Color.FromRgb(0x9C, 0xA3, 0xAF)));
-    public static readonly Brush Information = SeverityToBrushConverter.Freeze(new SolidColorBrush(Color.FromRgb(0x4C, 0xC2, 0xFF)));
-    public static readonly Brush Warning = SeverityToBrushConverter.Freeze(new SolidColorBrush(Color.FromRgb(0xFA, 0xCC, 0x15)));
-    public static readonly Brush Error = SeverityToBrushConverter.Freeze(new SolidColorBrush(Color.FromRgb(0xEF, 0x44, 0x44)));
-    public static readonly Brush Fatal = SeverityToBrushConverter.Freeze(new SolidColorBrush(Color.FromRgb(0xB9, 0x1C, 0x1C)));
+    public static Brush Verbose => ThemeColors.Accent(AccentRole.Grey);
+    public static Brush Debug => ThemeColors.Accent(AccentRole.Grey);
+    public static Brush Information => ThemeColors.Accent(AccentRole.Cyan);
+    public static Brush Warning => ThemeColors.Accent(AccentRole.Yellow);
+    public static Brush Error => ThemeColors.Accent(AccentRole.Red);
+    public static Brush Fatal => ThemeColors.Accent(AccentRole.Red);
 
     public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture) => value switch
     {

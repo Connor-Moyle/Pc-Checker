@@ -6,14 +6,18 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Shapes;
+using PcChecker.App.Services;
+using PcChecker.Core.Accessibility;
 using PcChecker.Core.Fans;
 
 namespace PcChecker.App.Controls;
 
 /// <summary>
 /// Interactive fan curve: temperature (0–100 °C) across, fan speed (0–100 %) up. Drag a point to move it,
-/// double-click empty space to add one, double-click a point to remove it. A dashed marker shows where the
-/// current temperature lands on the curve. Edits are written straight back into <see cref="Points"/>.
+/// double-click empty space to add one, double-click a point to remove it. From the keyboard: Left and Right pick a
+/// point, Up and Down change its fan speed (Shift for 5 %), Ctrl with Left or Right moves it along the temperature
+/// axis, Insert adds a point after it and Delete removes it. A dashed marker shows where the current temperature
+/// lands on the curve. Edits are written straight back into <see cref="Points"/>.
 /// </summary>
 public partial class FanCurveEditor : UserControl
 {
@@ -33,17 +37,25 @@ public partial class FanCurveEditor : UserControl
             new PropertyMetadata(new SolidColorBrush(Color.FromRgb(0x4C, 0xC2, 0xFF)), OnVisualChanged));
 
     private static readonly Brush GridBrush = Freeze(new SolidColorBrush(Color.FromArgb(0x30, 0x80, 0x80, 0x80)));
-    private static readonly Brush AxisTextBrush = Freeze(new SolidColorBrush(Color.FromArgb(0xB0, 0x9C, 0xA3, 0xAF)));
-    private static readonly Brush MarkerBrush = Freeze(new SolidColorBrush(Color.FromRgb(0xFA, 0xCC, 0x15)));
     private static readonly Brush PointFill = Freeze(new SolidColorBrush(Color.FromRgb(0x1E, 0x1E, 0x1E)));
 
     private int _dragIndex = -1;
+    private int _keyIndex = -1;
     private bool _suppressRedraw;
 
     public FanCurveEditor()
     {
         InitializeComponent();
+
+        // Theme colours: follow light, dark and high contrast unless the page sets its own accent.
+        SetResourceReference(AccentProperty, AccentPalette.ResourceKey(AccentRole.Cyan));
+        IsKeyboardFocusedChanged += (_, _) => Redraw();
     }
+
+    // Axis labels are small text, so they use the Caption colour, which meets 4.5:1 in every theme.
+    private Brush AxisTextBrush => TryFindResource(AccentPalette.CaptionTextKey) as Brush ?? Brushes.Gray;
+
+    private static Brush MarkerBrush => ThemeColors.Accent(AccentRole.Yellow);
 
     /// <summary>The curve points; an <see cref="ObservableCollection{T}"/> of <see cref="FanCurvePoint"/> redraws automatically.</summary>
     public IList? Points
@@ -186,7 +198,125 @@ public partial class FanCurveEditor : UserControl
             Canvas.SetLeft(dot, c.X - 6);
             Canvas.SetTop(dot, c.Y - 6);
             Surface.Children.Add(dot);
+
+            if (i == _keyIndex && IsKeyboardFocused)
+            {
+                // The point the arrow keys move: a ring in the focus colour around it.
+                var ring = new Ellipse
+                {
+                    Width = 22,
+                    Height = 22,
+                    Stroke = TryFindResource("FocusStrokeColorOuterBrush") as Brush ?? SystemColors.HighlightBrush,
+                    StrokeThickness = 2,
+                    IsHitTestVisible = false,
+                };
+                Canvas.SetLeft(ring, c.X - 11);
+                Canvas.SetTop(ring, c.Y - 11);
+                Surface.Children.Add(ring);
+            }
         }
+
+        UpdateAutomationText(unsorted);
+    }
+
+    /// <summary>Tells screen readers which point is selected and where it is.</summary>
+    private void UpdateAutomationText(List<FanCurvePoint> points)
+    {
+        string help = Localization.Loc.T("Left and Right pick a point, Up and Down change the fan speed, Ctrl+Left and Ctrl+Right change the temperature, Insert adds a point, Delete removes it.");
+        if (_keyIndex >= 0 && _keyIndex < points.Count)
+        {
+            var p = points[_keyIndex];
+            help = Localization.Loc.F("Point {0} of {1}: {2} °C, {3} % fan speed.", _keyIndex + 1, points.Count, p.TemperatureC, p.Percent) + " " + help;
+        }
+
+        System.Windows.Automation.AutomationProperties.SetHelpText(this, help);
+    }
+
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        base.OnKeyDown(e);
+        if (e.Handled || IsReadOnly || Points is null || Points.Count == 0)
+        {
+            return;
+        }
+
+        var points = CurrentPoints();
+        var byTemperature = Enumerable.Range(0, points.Count).OrderBy(i => points[i].TemperatureC).ToList();
+        if (_keyIndex < 0 || _keyIndex >= points.Count)
+        {
+            _keyIndex = byTemperature[0];
+        }
+
+        bool ctrl = Keyboard.Modifiers.HasFlag(ModifierKeys.Control);
+        double step = Keyboard.Modifiers.HasFlag(ModifierKeys.Shift) ? 5 : 1;
+        var selected = points[_keyIndex];
+        int order = byTemperature.IndexOf(_keyIndex);
+
+        switch (e.Key)
+        {
+            case Key.Left when !ctrl:
+                _keyIndex = byTemperature[Math.Max(0, order - 1)];
+                Redraw();
+                break;
+            case Key.Right when !ctrl:
+                _keyIndex = byTemperature[Math.Min(byTemperature.Count - 1, order + 1)];
+                Redraw();
+                break;
+            case Key.Left or Key.Right:
+                MoveSelected(points, selected.TemperatureC + (e.Key == Key.Left ? -step : step), selected.Percent);
+                break;
+            case Key.Up or Key.PageUp:
+                MoveSelected(points, selected.TemperatureC, selected.Percent + (e.Key == Key.PageUp ? 10 : step));
+                break;
+            case Key.Down or Key.PageDown:
+                MoveSelected(points, selected.TemperatureC, selected.Percent - (e.Key == Key.PageDown ? 10 : step));
+                break;
+            case Key.Insert:
+                if (FanCurveMath.PointBetween(points, _keyIndex) is { } added)
+                {
+                    Points.Add(added);
+                    _keyIndex = Points.Count - 1;
+                    PointsEdited?.Invoke(this, EventArgs.Empty);
+                }
+
+                break;
+            case Key.Delete:
+                if (Points.Count > 2)
+                {
+                    Points.RemoveAt(_keyIndex);
+                    _keyIndex = Math.Min(_keyIndex, Points.Count - 1);
+                    PointsEdited?.Invoke(this, EventArgs.Empty);
+                    Redraw();
+                }
+
+                break;
+            default:
+                return;
+        }
+
+        e.Handled = true;
+    }
+
+    private void MoveSelected(List<FanCurvePoint> points, double tempC, double percent)
+    {
+        var moved = FanCurveMath.MoveWithinNeighbours(points, _keyIndex, tempC, percent);
+        if (moved == points[_keyIndex] || Points is null)
+        {
+            return;
+        }
+
+        _suppressRedraw = true;
+        try
+        {
+            Points[_keyIndex] = moved;
+        }
+        finally
+        {
+            _suppressRedraw = false;
+        }
+
+        PointsEdited?.Invoke(this, EventArgs.Empty);
+        Redraw();
     }
 
     private void DrawGrid()
@@ -309,6 +439,7 @@ public partial class FanCurveEditor : UserControl
         if (hit >= 0)
         {
             _dragIndex = hit;
+            _keyIndex = hit;
             Surface.CaptureMouse();
             e.Handled = true;
         }
@@ -322,29 +453,14 @@ public partial class FanCurveEditor : UserControl
         }
 
         var (t, p) = FromCanvas(e.GetPosition(Surface));
-        var points = CurrentPoints();
 
         // Keep the dragged point between its neighbours so the curve never folds back on itself.
-        var others = points.Select((pt, i) => (pt, i)).Where(x => x.i != _dragIndex).Select(x => x.pt.TemperatureC).ToList();
-        double lower = others.Where(x => x < points[_dragIndex].TemperatureC).DefaultIfEmpty(0).Max();
-        double upper = others.Where(x => x > points[_dragIndex].TemperatureC).DefaultIfEmpty(100).Min();
-        if (others.Any(x => x < points[_dragIndex].TemperatureC))
-        {
-            lower += 1;
-        }
-
-        if (others.Any(x => x > points[_dragIndex].TemperatureC))
-        {
-            upper -= 1;
-        }
-
-        t = Math.Clamp(Math.Round(t), lower, upper);
-        p = Math.Round(p);
+        var moved = FanCurveMath.MoveWithinNeighbours(CurrentPoints(), _dragIndex, t, p);
 
         _suppressRedraw = true;
         try
         {
-            Points[_dragIndex] = new FanCurvePoint(t, p);
+            Points[_dragIndex] = moved;
         }
         finally
         {

@@ -76,6 +76,8 @@ public partial class App : Application
         var settings = _services.GetRequiredService<ISettingsService>();
 
         SettingsViewModel.ApplyTheme(settings.Current.General.Theme);
+        ThemeColors.Initialize(() => SettingsViewModel.ApplyTheme(settings.Current.General.Theme));
+        Helpers.AccessibleNames.Register();
         ApplyLanguage(options.Language ?? settings.Current.General.Language, options.ScreenshotsRequested && options.Language is null);
 
         var window = _services.GetRequiredService<MainWindow>();

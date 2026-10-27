@@ -38,6 +38,20 @@ public partial class TrayPopupWindow : Window
         Hide();
     }
 
+    /// <summary>Esc hides the popup, like any flyout.</summary>
+    protected override void OnPreviewKeyDown(System.Windows.Input.KeyEventArgs e)
+    {
+        if (e.Key == System.Windows.Input.Key.Escape && !KeepOpen)
+        {
+            e.Handled = true;
+            LastHiddenUtc = DateTime.UtcNow;
+            Hide();
+            return;
+        }
+
+        base.OnPreviewKeyDown(e);
+    }
+
     protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
     {
         if (!AllowClose && !Dispatcher.HasShutdownStarted)

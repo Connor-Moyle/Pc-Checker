@@ -42,6 +42,12 @@ public sealed class HistoryChartControl : FrameworkElement
         ClipToBounds = true;
         SnapsToDevicePixels = true;
         MinHeight = 120;
+
+        // Theme colours unless the page sets its own: the axis labels are small text, so they use the Caption colour,
+        // which meets 4.5:1 on every theme; the line and the limit follow the accent palette.
+        SetResourceReference(StrokeProperty, "AccentCyanBrush");
+        SetResourceReference(LimitBrushProperty, "AccentOrangeBrush");
+        SetResourceReference(TextBrushProperty, "CaptionTextBrush");
     }
 
     public IReadOnlyList<HistoryPoint>? Points { get => (IReadOnlyList<HistoryPoint>?)GetValue(PointsProperty); set => SetValue(PointsProperty, value); }

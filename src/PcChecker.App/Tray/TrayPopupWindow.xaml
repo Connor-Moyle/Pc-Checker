@@ -47,12 +47,12 @@
           <ColumnDefinition Width="*" />
           <ColumnDefinition Width="Auto" />
         </Grid.ColumnDefinitions>
-        <Image Source="pack://application:,,,/Assets/logo.png" Width="20" Height="20" Margin="0,0,8,0" VerticalAlignment="Center" />
+        <Image Source="pack://application:,,,/Assets/logo.png" AutomationProperties.Name="PC Checker logo" Width="20" Height="20" Margin="0,0,8,0" VerticalAlignment="Center" />
         <ui:TextBlock Grid.Column="1" FontTypography="BodyStrong" Text="PC Checker" VerticalAlignment="Center" />
         <Border Grid.Column="2" CornerRadius="10" Padding="8,2" VerticalAlignment="Center"
                 Background="{Binding AlertCount, Converter={StaticResource AlertCountToBrush}}"
                 ToolTip="Parts at or above the warning temperature you set in Settings → Monitoring.">
-          <TextBlock Text="{Binding AlertsText}" FontSize="11" Foreground="White" />
+          <TextBlock Text="{Binding AlertsText}" FontSize="11" Foreground="{DynamicResource OnAccentTextBrush}" />
         </Border>
       </Grid>
 
@@ -146,7 +146,7 @@
                    Command="{Binding OpenAppCommand}" Margin="0,0,6,0" />
         <ui:Button Grid.Column="1" Content="Quick clean" Icon="{ui:SymbolIcon Broom24}" Command="{Binding QuickCleanCommand}" Margin="0,0,6,0"
                    ToolTip="Remove temporary files from the Safe cleanup categories (asks first)" />
-        <ui:Button Grid.Column="2" Icon="{ui:SymbolIcon Power24}" Command="{Binding ExitCommand}" ToolTip="Exit PC Checker" />
+        <ui:Button Grid.Column="2" Icon="{ui:SymbolIcon Power24}" AutomationProperties.Name="Exit PC Checker" Command="{Binding ExitCommand}" ToolTip="Exit PC Checker" />
       </Grid>
     </StackPanel>
   </Border>

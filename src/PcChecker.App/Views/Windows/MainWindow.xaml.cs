@@ -19,6 +19,7 @@ public partial class MainWindow : FluentWindow
     private readonly IContentDialogService _dialogs;
     private readonly ISettingsService _settings;
     private readonly WelcomeService _welcome;
+    private FrameworkElement? _currentPage;
 
     public MainWindow(MainWindowViewModel viewModel, IPageService pageService, INavigationService navigation,
         ISnackbarService snackbar, IContentDialogService dialogs, ISettingsService settings, WelcomeService welcome)
@@ -49,15 +50,32 @@ public partial class MainWindow : FluentWindow
             SystemThemeWatcher.Watch(this, WindowBackdropType.Mica, true);
         }
 
+        NameTitleBarButtons();
         _navigation.Navigate(typeof(DashboardPage));
 
         // First start only (never in screenshot or scheduled runs); after the Dashboard has had its first layout.
         Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, () => _ = _welcome.ShowOnFirstStartAsync());
     }
 
-    /// <summary>Ctrl+K opens quick search from anywhere in the window, or closes it again; not while a dialog is open.</summary>
+    /// <summary>
+    /// Window-wide keys: Esc closes an open dialog (as its Close button does), Ctrl+K opens or closes quick search,
+    /// Ctrl+Tab and Ctrl+Shift+Tab (or Ctrl+Page Down and Ctrl+Page Up) switch between the section's tabs, and F6 and
+    /// Shift+F6 move between the menu, the tabs and the page. See docs/ACCESSIBILITY.md.
+    /// </summary>
     private void OnPreviewKeyDown(object sender, KeyEventArgs e)
     {
+        if (DialogHost.Content is ContentDialog dialog)
+        {
+            // An open drop-down inside the dialog closes first, as usual.
+            if (e.Key == Key.Escape && Keyboard.FocusedElement is not (System.Windows.Controls.ComboBox { IsDropDownOpen: true } or System.Windows.Controls.ComboBoxItem))
+            {
+                dialog.Hide(ContentDialogResult.None);
+                e.Handled = true;
+            }
+
+            return;
+        }
+
         // While the palette is open, its keys (Esc, arrows, Enter) work even when focus is outside it.
         if (ViewModel.QuickSearch.IsOpen && !QuickSearchPalette.IsKeyboardFocusWithin && QuickSearchPalette.HandleKey(e.Key))
         {
@@ -65,7 +83,29 @@ public partial class MainWindow : FluentWindow
             return;
         }
 
-        if (e.Key != Key.K || Keyboard.Modifiers != ModifierKeys.Control || DialogHost.Content is not null)
+        var key = e.Key == Key.System ? e.SystemKey : e.Key;
+        var modifiers = Keyboard.Modifiers;
+        if (!ViewModel.QuickSearch.IsOpen)
+        {
+            // A page's own tab control (Drivers, Windows Update, Disk space…) keeps Ctrl+Tab while focus is in it.
+            bool tabKey = key == Key.Tab && (modifiers == ModifierKeys.Control || modifiers == (ModifierKeys.Control | ModifierKeys.Shift));
+            bool pageKey = (key is Key.PageDown or Key.PageUp) && modifiers == ModifierKeys.Control;
+            if ((tabKey || pageKey) && !IsInsidePageTabControl(e.OriginalSource as DependencyObject) && ViewModel.SelectAdjacentTab(key == Key.PageUp || modifiers.HasFlag(ModifierKeys.Shift) ? -1 : 1))
+            {
+                Dispatcher.BeginInvoke(DispatcherPriority.Loaded, () => FocusSelectedTab());
+                e.Handled = true;
+                return;
+            }
+
+            if (key == Key.F6 && (modifiers == ModifierKeys.None || modifiers == ModifierKeys.Shift))
+            {
+                MoveBetweenRegions(modifiers == ModifierKeys.Shift ? -1 : 1);
+                e.Handled = true;
+                return;
+            }
+        }
+
+        if (e.Key != Key.K || Keyboard.Modifiers != ModifierKeys.Control)
         {
             return;
         }
@@ -111,6 +151,7 @@ public partial class MainWindow : FluentWindow
             return;
         }
 
+        _currentPage = page;
         var pageType = page.GetType();
         ViewModel.SyncToPage(pageType);
 
@@ -124,5 +165,78 @@ public partial class MainWindow : FluentWindow
                 item.SetCurrentValue(NavigationViewItem.IsActiveProperty, section is not null && item.TargetPageType == section.FirstPage);
             }
         });
+    }
+
+    /// <summary>F6: the side menu, then the section tabs (when there are any), then the page, and round again.</summary>
+    private void MoveBetweenRegions(int offset)
+    {
+        Func<bool>[] regions = [FocusMenu, FocusSelectedTab, FocusPage];
+        int current = SectionTabs.IsKeyboardFocusWithin ? 1 : _currentPage?.IsKeyboardFocusWithin == true ? 2 : 0;
+        for (int step = 1; step <= regions.Length; step++)
+        {
+            if (regions[Core.Accessibility.AccessibleText.Cycle(current, offset * step, regions.Length)]())
+            {
+                return;
+            }
+        }
+    }
+
+    private bool FocusMenu()
+    {
+        var items = NavigationView.MenuItems.Cast<object>().Concat(NavigationView.FooterMenuItems.Cast<object>()).OfType<NavigationViewItem>().ToList();
+        var target = items.FirstOrDefault(i => i.IsActive) ?? items.FirstOrDefault();
+        return target?.Focus() == true;
+    }
+
+    private bool FocusSelectedTab()
+    {
+        if (!ViewModel.HasTabs || ViewModel.SelectedTab is null)
+        {
+            return false;
+        }
+
+        return SectionTabs.ItemContainerGenerator.ContainerFromItem(ViewModel.SelectedTab) is System.Windows.Controls.ListBoxItem item && item.Focus();
+    }
+
+    private static bool IsInsidePageTabControl(DependencyObject? element)
+    {
+        for (var node = element; node is not null; node = node is System.Windows.Media.Visual ? System.Windows.Media.VisualTreeHelper.GetParent(node) ?? LogicalTreeHelper.GetParent(node) : LogicalTreeHelper.GetParent(node))
+        {
+            if (node is System.Windows.Controls.TabControl)
+            {
+                return true;
+            }
+
+            if (node is System.Windows.Controls.Page)
+            {
+                return false;
+            }
+        }
+
+        return false;
+    }
+
+    private bool FocusPage() =>
+        _currentPage is not null && _currentPage.MoveFocus(new TraversalRequest(FocusNavigationDirection.First));
+
+    /// <summary>The title bar's caption buttons come without names; give them the ones Windows uses.</summary>
+    private void NameTitleBarButtons()
+    {
+        TitleBar.ApplyTemplate();
+        (string Part, string Name)[] buttons =
+        [
+            ("PART_HelpButton", Localization.Loc.T("Help")),
+            ("PART_MinimizeButton", Localization.Loc.T("Minimize")),
+            ("PART_MaximizeButton", Localization.Loc.T("Maximize")),
+            ("PART_CloseButton", Localization.Loc.T("Close")),
+        ];
+        foreach (var (part, name) in buttons)
+        {
+            if (TitleBar.Template?.FindName(part, TitleBar) is DependencyObject button &&
+                string.IsNullOrEmpty(System.Windows.Automation.AutomationProperties.GetName(button)))
+            {
+                System.Windows.Automation.AutomationProperties.SetName(button, name);
+            }
+        }
     }
 }

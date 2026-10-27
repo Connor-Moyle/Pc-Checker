@@ -53,6 +53,18 @@ All notable changes to PC Checker are recorded here. The format follows
   unknown or newer parts with a note, saves an automatic backup of the current
   setup first and offers *Undo*. *Reset one part* puts single parts back to
   their defaults. The Claude API key is never exported or imported.
+- **Accessibility pass** over the whole app (no new page; see
+  [docs/ACCESSIBILITY.md](docs/ACCESSIBILITY.md)): every icon-only button,
+  image, list and data table has a screen-reader name, other controls take
+  theirs from the label beside them, tooltips are read as help text and
+  decorative icons are hidden from screen readers. Keyboard: Esc closes
+  dialogs and the tray popup, F6 moves between the menu, the tabs and the page,
+  Ctrl+Tab switches tabs, read-only tables are one Tab stop with arrow keys
+  inside, the section tabs show a focus ring, the fan curve can be edited with
+  the arrow keys, and each page's main action has an Alt access key. Colours:
+  the light theme gets its own deeper status colours, badge text and small
+  notes meet WCAG AA contrast in both themes, and Windows high-contrast mode
+  switches the whole app to the system colours.
 
 ## [0.4.0] - 2026-10-27
 

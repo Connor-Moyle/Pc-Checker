@@ -41,7 +41,9 @@
         <StackPanel Orientation="Horizontal">
           <ui:Button Content="Export" Icon="{ui:SymbolIcon DocumentArrowDown20}" Command="{Binding ExportCommand}" Margin="0,0,8,0"
                      ToolTip="Save the findings and snapshot as a Markdown or JSON file." />
-          <ui:Button Content="Scan for slowdowns" Appearance="Primary" Icon="{ui:SymbolIcon ArrowSync24}" Command="{Binding ScanCommand}" />
+          <ui:Button Appearance="Primary" Icon="{ui:SymbolIcon ArrowSync24}" Command="{Binding ScanCommand}">
+            <AccessText Text="_Scan for slowdowns" />
+          </ui:Button>
         </StackPanel>
       </controls:SectionHeader.Actions>
     </controls:SectionHeader>
@@ -93,11 +95,11 @@
 
           <!-- Summary: system snapshot -->
           <controls:AdaptiveGrid MinItemWidth="200" MaxColumns="5" Margin="0,0,0,12">
-            <controls:StatCard Style="{StaticResource Tile}" Title="Last startup" Value="{Binding BootTimeText}" Icon="Power24" Accent="{StaticResource AccentCyanBrush}" Subtitle="From power on to desktop" />
-            <controls:StatCard Style="{StaticResource Tile}" Title="Uptime" Value="{Binding UptimeText}" Icon="Clock24" Accent="{StaticResource AccentGreenBrush}" Subtitle="Since Windows last started" />
+            <controls:StatCard Style="{StaticResource Tile}" Title="Last startup" Value="{Binding BootTimeText}" Icon="Power24" Accent="{DynamicResource AccentCyanBrush}" Subtitle="From power on to desktop" />
+            <controls:StatCard Style="{StaticResource Tile}" Title="Uptime" Value="{Binding UptimeText}" Icon="Clock24" Accent="{DynamicResource AccentGreenBrush}" Subtitle="Since Windows last started" />
             <controls:StatCard Style="{StaticResource Tile}" Title="Memory in use" Value="{Binding MemoryText}" Icon="Memory16" Accent="{Binding MemoryPercent, Converter={StaticResource UsageToBrush}}" Subtitle="RAM used right now" />
-            <controls:StatCard Style="{StaticResource Tile}" Title="Power plan" Value="{Binding PowerPlanText}" Icon="Flash24" Accent="{StaticResource AccentPurpleBrush}" Subtitle="Active Windows power plan" />
-            <controls:StatCard Style="{StaticResource Tile}" Title="Startup programs" Value="{Binding StartupText}" Icon="Rocket24" Accent="{StaticResource AccentOrangeBrush}" Subtitle="Launch at sign-in" />
+            <controls:StatCard Style="{StaticResource Tile}" Title="Power plan" Value="{Binding PowerPlanText}" Icon="Flash24" Accent="{DynamicResource AccentPurpleBrush}" Subtitle="Active Windows power plan" />
+            <controls:StatCard Style="{StaticResource Tile}" Title="Startup programs" Value="{Binding StartupText}" Icon="Rocket24" Accent="{DynamicResource AccentOrangeBrush}" Subtitle="Launch at sign-in" />
           </controls:AdaptiveGrid>
           <ItemsControl ItemsSource="{Binding Drives}" Margin="0,0,0,12">
             <ItemsControl.ItemsPanel>
@@ -122,7 +124,7 @@
           <ui:TextBlock Style="{StaticResource CardTitle}" Text="Findings" />
           <ui:Card Style="{StaticResource CardSpacing}" Visibility="{Binding HasNoFindings, Converter={StaticResource BoolToVisibility}}">
             <StackPanel Orientation="Horizontal">
-              <ui:SymbolIcon Symbol="CheckmarkCircle24" Foreground="{StaticResource AccentGreenBrush}" FontSize="24" Margin="0,0,12,0" />
+              <controls:IconGlyph Symbol="CheckmarkCircle24" Foreground="{DynamicResource AccentGreenBrush}" FontSize="24" Margin="0,0,12,0" />
               <ui:TextBlock VerticalAlignment="Center" Text="No slowdowns found. This PC is set up well." />
             </StackPanel>
           </ui:Card>
@@ -138,15 +140,15 @@
                       <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
                     <Border Grid.Column="0" Background="{Binding Severity, Converter={StaticResource SeverityToBrush}}" CornerRadius="4,0,0,4" />
-                    <ui:SymbolIcon Grid.Column="1" Symbol="{Binding Icon}" FontSize="24" Margin="14,16,12,16" VerticalAlignment="Top"
+                    <controls:IconGlyph Grid.Column="1" Symbol="{Binding Icon}" FontSize="24" Margin="14,16,12,16" VerticalAlignment="Top"
                                    Foreground="{Binding Severity, Converter={StaticResource SeverityToBrush}}" />
                     <StackPanel Grid.Column="2" Margin="0,12,12,12">
                       <StackPanel Orientation="Horizontal">
                         <ui:TextBlock FontTypography="BodyStrong" Text="{Binding Title}" TextWrapping="Wrap" ToolTip="{Binding LearnMore}" />
                       </StackPanel>
                       <StackPanel Orientation="Horizontal" Margin="0,4,0,6">
-                        <Border Style="{StaticResource Pill}" Background="{Binding Severity, Converter={StaticResource SeverityToBrush}}" Opacity="0.9">
-                          <ui:TextBlock FontSize="11" FontWeight="SemiBold" Foreground="White" Text="{Binding SeverityText}" />
+                        <Border Style="{StaticResource Pill}" Background="{Binding Severity, Converter={StaticResource SeverityToBrush}}">
+                          <ui:TextBlock FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource OnAccentTextBrush}" Text="{Binding SeverityText}" />
                         </Border>
                         <Border Style="{StaticResource Pill}" Background="{DynamicResource ControlFillColorSecondaryBrush}">
                           <ui:TextBlock FontSize="11" Text="{Binding CategoryText}" />
@@ -206,7 +208,7 @@
             <Grid>
               <ui:TextBlock Appearance="Secondary" Margin="16" Text="No startup programs were found. The Startup page lists everything once it has scanned."
                             Visibility="{Binding StartupItems.Count, Converter={StaticResource CountToVisibility}, ConverterParameter=Invert}" />
-              <ui:DataGrid ItemsSource="{Binding StartupItems}" AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True"
+              <ui:DataGrid AutomationProperties.Name="Startup programs" ItemsSource="{Binding StartupItems}" AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True"
                            HeadersVisibility="Column" GridLinesVisibility="Horizontal" SelectionMode="Single" MaxHeight="360" BorderThickness="0"
                            Visibility="{Binding StartupItems.Count, Converter={StaticResource CountToVisibility}}">
                 <ui:DataGrid.Columns>
@@ -235,7 +237,7 @@
                               ToolTip="CPU use was sampled for two seconds during the scan." />
               </StackPanel>
             </ui:CardExpander.Header>
-            <ui:DataGrid ItemsSource="{Binding TopProcesses}" AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True"
+            <ui:DataGrid AutomationProperties.Name="Busiest processes" ItemsSource="{Binding TopProcesses}" AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True"
                          HeadersVisibility="Column" GridLinesVisibility="Horizontal" SelectionMode="Single" MaxHeight="360" BorderThickness="0">
               <ui:DataGrid.Columns>
                 <DataGridTextColumn Header="Process" Binding="{Binding Name}" Width="2*" />
@@ -275,7 +277,7 @@
                 <ui:TextBox Grid.Column="0" PlaceholderText="Search services" Icon="{ui:SymbolIcon Search24}" Text="{Binding ServiceSearch, UpdateSourceTrigger=PropertyChanged}" MaxWidth="360" HorizontalAlignment="Left" />
                 <ui:ToggleSwitch Grid.Column="1" Content="Show Windows services" IsChecked="{Binding ShowMicrosoftServices, Mode=TwoWay}" />
               </Grid>
-              <ui:DataGrid ItemsSource="{Binding Services}" AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True"
+              <ui:DataGrid AutomationProperties.Name="Services" ItemsSource="{Binding Services}" AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True"
                            HeadersVisibility="Column" GridLinesVisibility="Horizontal" SelectionMode="Single" MaxHeight="420" BorderThickness="0">
                 <ui:DataGrid.Columns>
                   <DataGridTextColumn Header="Service" Binding="{Binding DisplayName}" Width="2*" />

@@ -44,7 +44,8 @@
                 Margin="24,4,24,0"
                 BorderThickness="0,0,0,1"
                 BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}">
-          <ListBox ItemsSource="{Binding Tabs}"
+          <ListBox x:Name="SectionTabs"
+                   ItemsSource="{Binding Tabs}"
                    SelectedItem="{Binding SelectedTab, Mode=TwoWay}"
                    Style="{StaticResource SectionTabStrip}"
                    ItemContainerStyle="{StaticResource SectionTab}"
@@ -63,7 +64,7 @@
               <ColumnDefinition Width="*" />
               <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
-            <ui:SymbolIcon Grid.Column="0" Symbol="Search24" FontSize="16" Margin="0,0,8,0" VerticalAlignment="Center" />
+            <controls:IconGlyph Grid.Column="0" Symbol="Search24" FontSize="16" Margin="0,0,8,0" VerticalAlignment="Center" />
             <ui:TextBlock Grid.Column="1" Text="Search" Opacity="0.75" VerticalAlignment="Center" />
             <ui:TextBlock Grid.Column="2" Style="{StaticResource Caption}" Text="Ctrl+K" Margin="8,0,0,0" VerticalAlignment="Center" />
           </Grid>

@@ -47,8 +47,10 @@
           </ui:DropDownButton>
           <ui:Button Content="Check for updates" Icon="{ui:SymbolIcon CloudArrowDown24}" Command="{Binding CheckForUpdatesCommand}" Margin="0,0,8,0"
                      ToolTip="Asks Windows Update for driver updates that are not installed yet. This can take a minute." />
-          <ui:Button Content="Scan drivers" Icon="{ui:SymbolIcon ArrowSync24}" Appearance="Primary" Command="{Binding ScanCommand}"
-                     ToolTip="Reads every installed driver from Windows and flags problems, old or unsigned drivers." />
+          <ui:Button Icon="{ui:SymbolIcon ArrowSync24}" Appearance="Primary" Command="{Binding ScanCommand}"
+                     ToolTip="Reads every installed driver from Windows and flags problems, old or unsigned drivers.">
+            <AccessText Text="_Scan drivers" />
+          </ui:Button>
         </StackPanel>
       </controls:SectionHeader.Actions>
     </controls:SectionHeader>
@@ -67,12 +69,12 @@
 
     <!-- Summary -->
     <controls:AdaptiveGrid Grid.Row="2" MinItemWidth="180" MaxColumns="6" Margin="0,0,0,12">
-      <controls:StatCard Style="{StaticResource Tile}" Title="Installed drivers" Value="{Binding TotalDrivers}" Icon="Wrench24" Accent="{StaticResource AccentCyanBrush}" Subtitle="{Binding LastScanText}" />
-      <controls:StatCard Style="{StaticResource Tile}" Title="Third-party" Value="{Binding ThirdPartyCount}" Icon="Box24" Accent="{StaticResource AccentPurpleBrush}" Subtitle="Not shipped with Windows" />
-      <controls:StatCard Style="{StaticResource Tile}" Title="With problems" Value="{Binding ProblemCount}" Icon="Warning24" Accent="{StaticResource AccentRedBrush}" Subtitle="Device Manager error codes" />
-      <controls:StatCard Style="{StaticResource Tile}" Title="Older than 3 years" Value="{Binding OldCount}" Icon="History24" Accent="{StaticResource AccentOrangeBrush}" Subtitle="Third-party only" />
-      <controls:StatCard Style="{StaticResource Tile}" Title="Unsigned" Value="{Binding UnsignedCount}" Icon="ShieldError24" Accent="{StaticResource AccentYellowBrush}" Subtitle="No valid signature" />
-      <controls:StatCard Style="{StaticResource Tile}" Title="Updates available" Value="{Binding UpdatesAvailable}" Icon="CloudArrowDown24" Accent="{StaticResource AccentGreenBrush}" Subtitle="{Binding LastCheckText}" />
+      <controls:StatCard Style="{StaticResource Tile}" Title="Installed drivers" Value="{Binding TotalDrivers}" Icon="Wrench24" Accent="{DynamicResource AccentCyanBrush}" Subtitle="{Binding LastScanText}" />
+      <controls:StatCard Style="{StaticResource Tile}" Title="Third-party" Value="{Binding ThirdPartyCount}" Icon="Box24" Accent="{DynamicResource AccentPurpleBrush}" Subtitle="Not shipped with Windows" />
+      <controls:StatCard Style="{StaticResource Tile}" Title="With problems" Value="{Binding ProblemCount}" Icon="Warning24" Accent="{DynamicResource AccentRedBrush}" Subtitle="Device Manager error codes" />
+      <controls:StatCard Style="{StaticResource Tile}" Title="Older than 3 years" Value="{Binding OldCount}" Icon="History24" Accent="{DynamicResource AccentOrangeBrush}" Subtitle="Third-party only" />
+      <controls:StatCard Style="{StaticResource Tile}" Title="Unsigned" Value="{Binding UnsignedCount}" Icon="ShieldError24" Accent="{DynamicResource AccentYellowBrush}" Subtitle="No valid signature" />
+      <controls:StatCard Style="{StaticResource Tile}" Title="Updates available" Value="{Binding UpdatesAvailable}" Icon="CloudArrowDown24" Accent="{DynamicResource AccentGreenBrush}" Subtitle="{Binding LastCheckText}" />
     </controls:AdaptiveGrid>
 
     <!-- Main content: Updates / Installed -->
@@ -111,7 +113,7 @@
           </Grid>
 
           <Grid Grid.Row="1" Grid.Column="0" Margin="0,0,12,0">
-            <ui:DataGrid ItemsSource="{Binding Updates}"
+            <ui:DataGrid AutomationProperties.Name="Driver updates" ItemsSource="{Binding Updates}"
                          AutoGenerateColumns="False"
                          CanUserAddRows="False"
                          CanUserDeleteRows="False"
@@ -228,7 +230,7 @@
           </Grid>
 
           <Grid Grid.Row="1">
-            <ui:DataGrid x:Name="DriverGrid"
+            <ui:DataGrid AutomationProperties.Name="Installed drivers" x:Name="DriverGrid"
                          ItemsSource="{Binding FilteredDrivers}"
                          SelectedItem="{Binding SelectedDriver}"
                          AutoGenerateColumns="False"
@@ -312,7 +314,7 @@
               <controls:EmptyState Icon="Archive24" Title="Driver store not read yet"
                                    Message="Press Refresh to list the third-party driver packages Windows has staged. This takes a few seconds."
                                    Visibility="{Binding DriverStoreLoaded, Converter={StaticResource InverseBoolToVisibility}}" />
-              <ui:DataGrid ItemsSource="{Binding DriverStore}"
+              <ui:DataGrid AutomationProperties.Name="Driver store packages" KeyboardNavigation.TabNavigation="Once" ItemsSource="{Binding DriverStore}"
                          AutoGenerateColumns="False"
                          IsReadOnly="True"
                          CanUserAddRows="False"

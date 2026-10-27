@@ -23,7 +23,7 @@
     <Style x:Key="BadgeText" TargetType="TextBlock">
       <Setter Property="FontSize" Value="11" />
       <Setter Property="FontWeight" Value="SemiBold" />
-      <Setter Property="Foreground" Value="#111111" />
+      <Setter Property="Foreground" Value="{DynamicResource OnAccentTextBrush}" />
     </Style>
     <Style x:Key="RowLabel" TargetType="ui:TextBlock">
       <Setter Property="VerticalAlignment" Value="Center" />
@@ -74,7 +74,7 @@
         <ui:Card Style="{StaticResource CardSpacing}" Visibility="{Binding ShowConsentGate, Converter={StaticResource BoolToVisibility}}">
           <StackPanel>
             <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-              <ui:SymbolIcon Symbol="ShieldCheckmark24" FontSize="28" Foreground="{StaticResource AccentOrangeBrush}" Margin="0,0,12,0" />
+              <controls:IconGlyph Symbol="ShieldCheckmark24" FontSize="28" Foreground="{DynamicResource AccentOrangeBrush}" Margin="0,0,12,0" />
               <ui:TextBlock FontTypography="Subtitle" Text="Before you start: what overclocking means" VerticalAlignment="Center" TextWrapping="Wrap" />
             </StackPanel>
             <ui:TextBlock TextWrapping="Wrap" Text="{Binding Disclaimer}" Margin="0,0,0,12" />
@@ -82,7 +82,7 @@
               <ItemsControl.ItemTemplate>
                 <DataTemplate>
                   <StackPanel Orientation="Horizontal" Margin="0,3">
-                    <ui:SymbolIcon Symbol="ChevronDown24" FontSize="12" Margin="0,2,8,0" VerticalAlignment="Top" Opacity="0.6" />
+                    <controls:IconGlyph Symbol="ChevronDown24" FontSize="12" Margin="0,2,8,0" VerticalAlignment="Top" Opacity="0.6" />
                     <ui:TextBlock Text="{Binding}" TextWrapping="Wrap" MaxWidth="980" />
                   </StackPanel>
                 </DataTemplate>
@@ -123,13 +123,13 @@
 
           <!-- Live readouts -->
           <controls:AdaptiveGrid MinItemWidth="200" MaxColumns="4" Margin="0,0,0,12">
-            <controls:StatCard Style="{StaticResource Tile}" Title="GPU core clock" Value="{Binding GpuCoreClockText}" Unit="MHz" Icon="Gauge24" Accent="{StaticResource AccentCyanBrush}" />
-            <controls:StatCard Style="{StaticResource Tile}" Title="GPU memory clock" Value="{Binding GpuMemoryClockText}" Unit="MHz" Icon="Memory16" Accent="{StaticResource AccentPurpleBrush}" />
+            <controls:StatCard Style="{StaticResource Tile}" Title="GPU core clock" Value="{Binding GpuCoreClockText}" Unit="MHz" Icon="Gauge24" Accent="{DynamicResource AccentCyanBrush}" />
+            <controls:StatCard Style="{StaticResource Tile}" Title="GPU memory clock" Value="{Binding GpuMemoryClockText}" Unit="MHz" Icon="Memory16" Accent="{DynamicResource AccentPurpleBrush}" />
             <controls:StatCard Style="{StaticResource Tile}" Title="GPU temperature" Value="{Binding GpuTempText}" Unit="°C" Icon="Temperature24" Accent="{Binding GpuTempValue, Converter={StaticResource TemperatureToBrush}, ConverterParameter='83,92'}" />
-            <controls:StatCard Style="{StaticResource Tile}" Title="GPU power" Value="{Binding GpuPowerText}" Unit="W" Icon="Flash24" Accent="{StaticResource AccentYellowBrush}" />
-            <controls:StatCard Style="{StaticResource Tile}" Title="GPU fan" Value="{Binding GpuFanText}" Unit="%" Icon="ArrowSyncCircle24" Accent="{StaticResource AccentGreyBrush}" />
+            <controls:StatCard Style="{StaticResource Tile}" Title="GPU power" Value="{Binding GpuPowerText}" Unit="W" Icon="Flash24" Accent="{DynamicResource AccentYellowBrush}" />
+            <controls:StatCard Style="{StaticResource Tile}" Title="GPU fan" Value="{Binding GpuFanText}" Unit="%" Icon="ArrowSyncCircle24" Accent="{DynamicResource AccentGreyBrush}" />
             <controls:StatCard Style="{StaticResource Tile}" Title="CPU temperature" Value="{Binding CpuTempText}" Unit="°C" Icon="Fire24" Accent="{Binding CpuTempValue, Converter={StaticResource TemperatureToBrush}, ConverterParameter='85,95'}" />
-            <controls:StatCard Style="{StaticResource Tile}" Title="CPU clock" Value="{Binding CpuClockText}" Unit="MHz" Icon="TopSpeed24" Accent="{StaticResource AccentGreenBrush}" />
+            <controls:StatCard Style="{StaticResource Tile}" Title="CPU clock" Value="{Binding CpuClockText}" Unit="MHz" Icon="TopSpeed24" Accent="{DynamicResource AccentGreenBrush}" />
           </controls:AdaptiveGrid>
 
           <!-- Your hardware: GPU, CPU, memory (XMP / EXPO) -->
@@ -139,7 +139,7 @@
               <controls:AdaptiveGrid MinItemWidth="260" MaxColumns="3" Spacing="16">
                 <StackPanel>
                   <StackPanel Orientation="Horizontal">
-                    <ui:SymbolIcon Symbol="DeveloperBoard24" FontSize="18" Margin="0,0,8,0" />
+                    <controls:IconGlyph Symbol="DeveloperBoard24" FontSize="18" Margin="0,0,8,0" />
                     <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding GpuVendorText, StringFormat='Graphics card · {0}'}" VerticalAlignment="Center" />
                     <Border Style="{StaticResource Badge}" Background="{Binding GpuSupportBrush}">
                       <TextBlock Style="{StaticResource BadgeText}" Text="{Binding GpuSupportLevel}" />
@@ -157,7 +157,7 @@
 
                 <StackPanel>
                   <StackPanel Orientation="Horizontal">
-                    <ui:SymbolIcon Symbol="DeveloperBoard24" FontSize="18" Margin="0,0,8,0" />
+                    <controls:IconGlyph Symbol="DeveloperBoard24" FontSize="18" Margin="0,0,8,0" />
                     <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding CpuVendorText, StringFormat='Processor · {0}'}" VerticalAlignment="Center" />
                     <Border Style="{StaticResource Badge}" Background="{Binding CpuSupportBrush}">
                       <TextBlock Style="{StaticResource BadgeText}" Text="{Binding CpuSupportLevel}" />
@@ -175,7 +175,7 @@
 
                 <StackPanel>
                   <StackPanel Orientation="Horizontal">
-                    <ui:SymbolIcon Symbol="Memory16" FontSize="18" Margin="0,0,8,0" />
+                    <controls:IconGlyph Symbol="Memory16" FontSize="18" Margin="0,0,8,0" />
                     <ui:TextBlock Style="{StaticResource Muted}" Text="Memory · XMP / EXPO" VerticalAlignment="Center" />
                     <Border Style="{StaticResource Badge}" Background="{Binding XmpBrush}">
                       <TextBlock Style="{StaticResource BadgeText}" Text="{Binding XmpState}" />
@@ -191,7 +191,7 @@
                 <ItemsControl.ItemTemplate>
                   <DataTemplate>
                     <StackPanel Orientation="Horizontal" Margin="0,2">
-                      <ui:SymbolIcon Symbol="Info24" FontSize="14" Margin="0,2,8,0" VerticalAlignment="Top" Opacity="0.7" />
+                      <controls:IconGlyph Symbol="Info24" FontSize="14" Margin="0,2,8,0" VerticalAlignment="Top" Opacity="0.7" />
                       <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding}" TextWrapping="Wrap" MaxWidth="1000" />
                     </StackPanel>
                   </DataTemplate>
@@ -285,7 +285,7 @@
                           ToolTip="Pick a saved profile to load its values into the sliders." />
                 <ui:TextBox Grid.Column="1" Text="{Binding NewProfileName, UpdateSourceTrigger=PropertyChanged}" PlaceholderText="Profile name" Margin="0,0,8,0" />
                 <ui:Button Grid.Column="2" Content="Save" Icon="{ui:SymbolIcon Save24}" Command="{Binding SaveProfileCommand}" Margin="0,0,6,0" ToolTip="Saves the current slider values under this name." />
-                <ui:Button Grid.Column="3" Icon="{ui:SymbolIcon Delete24}" Command="{Binding DeleteProfileCommand}" ToolTip="Deletes the selected saved profile." />
+                <ui:Button Grid.Column="3" Icon="{ui:SymbolIcon Delete24}" Command="{Binding DeleteProfileCommand}" AutomationProperties.Name="Delete profile" ToolTip="Deletes the selected saved profile." />
               </Grid>
             </StackPanel>
           </ui:Card>
@@ -354,7 +354,7 @@
                     <ItemsControl.ItemTemplate>
                       <DataTemplate>
                         <StackPanel Orientation="Horizontal" Margin="0,2">
-                          <ui:SymbolIcon Symbol="ArrowRight24" FontSize="12" Margin="0,3,8,0" VerticalAlignment="Top" Opacity="0.6" />
+                          <controls:IconGlyph Symbol="ArrowRight24" FontSize="12" Margin="0,3,8,0" VerticalAlignment="Top" Opacity="0.6" />
                           <ui:TextBlock Text="{Binding}" TextWrapping="Wrap" MaxWidth="980" />
                         </StackPanel>
                       </DataTemplate>
@@ -381,7 +381,7 @@
               </Grid.ColumnDefinitions>
               <StackPanel Grid.Column="0" Margin="0,0,12,0">
                 <StackPanel Orientation="Horizontal">
-                  <ui:SymbolIcon Symbol="Beaker24" FontSize="20" Foreground="{StaticResource AccentOrangeBrush}" Margin="0,0,8,0" />
+                  <controls:IconGlyph Symbol="Beaker24" FontSize="20" Foreground="{DynamicResource AccentOrangeBrush}" Margin="0,0,8,0" />
                   <ui:TextBlock Style="{StaticResource CardTitle}" Text="Stress test with temperature watchdog" Margin="0" VerticalAlignment="Center" />
                 </StackPanel>
                 <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding StressTargetHelp}" TextWrapping="Wrap" Margin="0,4,0,0" />
@@ -432,7 +432,7 @@
                 <StackPanel Visibility="{Binding ShowBuiltInGpuOptions, Converter={StaticResource BoolToVisibility}}">
                   <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
                     <ui:TextBlock Text="Built-in GPU load" FontWeight="SemiBold" VerticalAlignment="Center" />
-                    <Border Style="{StaticResource Badge}" Background="{StaticResource AccentPurpleBrush}"
+                    <Border Style="{StaticResource Badge}" Background="{DynamicResource AccentPurpleBrush}"
                             ToolTip="Standard DirectX 11 compute that works on NVIDIA, AMD and Intel graphics; not yet verified across many cards.">
                       <TextBlock Style="{StaticResource BadgeText}" Text="Experimental" />
                     </Border>
@@ -475,7 +475,7 @@
             <Expander Margin="0,0,0,10" IsExpanded="False">
               <Expander.Header>
                 <StackPanel Orientation="Horizontal">
-                  <ui:SymbolIcon Symbol="Warning24" FontSize="16" Foreground="{StaticResource AccentYellowBrush}" Margin="0,0,8,0" />
+                  <controls:IconGlyph Symbol="Warning24" FontSize="16" Foreground="{DynamicResource AccentYellowBrush}" Margin="0,0,8,0" />
                   <ui:TextBlock Text="Before you start: fans get loud, laptops drain fast, and you can stop at any time" VerticalAlignment="Center" TextWrapping="Wrap" />
                 </StackPanel>
               </Expander.Header>
@@ -483,7 +483,7 @@
                 <ItemsControl.ItemTemplate>
                   <DataTemplate>
                     <StackPanel Orientation="Horizontal" Margin="0,2">
-                      <ui:SymbolIcon Symbol="ArrowRight24" FontSize="12" Margin="0,3,8,0" VerticalAlignment="Top" Opacity="0.6" />
+                      <controls:IconGlyph Symbol="ArrowRight24" FontSize="12" Margin="0,3,8,0" VerticalAlignment="Top" Opacity="0.6" />
                       <ui:TextBlock Text="{Binding}" TextWrapping="Wrap" MaxWidth="980" />
                     </StackPanel>
                   </DataTemplate>
@@ -496,19 +496,19 @@
             <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding StressDetail}" TextWrapping="Wrap" />
 
             <controls:AdaptiveGrid MinItemWidth="170" MaxColumns="5" Margin="0,10,0,0" Visibility="{Binding ShowLiveReadouts, Converter={StaticResource BoolToVisibility}}">
-              <controls:StatCard Style="{StaticResource Tile}" Title="Elapsed" Icon="Timer24" Accent="{StaticResource AccentCyanBrush}"
+              <controls:StatCard Style="{StaticResource Tile}" Title="Elapsed" Icon="Timer24" Accent="{DynamicResource AccentCyanBrush}"
                                  Value="{Binding LiveElapsedText}" Subtitle="{Binding LiveRemainingText}" />
-              <controls:StatCard Style="{StaticResource Tile}" Title="GPU work rate" Icon="Flash24" Accent="{StaticResource AccentPurpleBrush}" Unit="passes/s"
+              <controls:StatCard Style="{StaticResource Tile}" Title="GPU work rate" Icon="Flash24" Accent="{DynamicResource AccentPurpleBrush}" Unit="passes/s"
                                  Value="{Binding LiveDispatchRateText}" Subtitle="{Binding LiveAdapterText}"
                                  ToolTip="Compute passes the graphics card finishes per second. It should stay steady; a falling rate under constant load hints at throttling."
                                  Visibility="{Binding LiveShowsGpuLoad, Converter={StaticResource BoolToVisibility}}" />
-              <controls:StatCard Style="{StaticResource Tile}" Title="CPU" Icon="DeveloperBoard24" Accent="{StaticResource AccentOrangeBrush}" Unit="°C"
+              <controls:StatCard Style="{StaticResource Tile}" Title="CPU" Icon="DeveloperBoard24" Accent="{DynamicResource AccentOrangeBrush}" Unit="°C"
                                  Value="{Binding LiveCpuText}" Subtitle="{Binding LiveCpuDetail}"
                                  Visibility="{Binding LiveShowsCpu, Converter={StaticResource BoolToVisibility}}" />
-              <controls:StatCard Style="{StaticResource Tile}" Title="Errors" Icon="Bug24" Accent="{StaticResource AccentRedBrush}"
+              <controls:StatCard Style="{StaticResource Tile}" Title="Errors" Icon="Bug24" Accent="{DynamicResource AccentRedBrush}"
                                  Value="{Binding LiveErrorsText}" Subtitle="{Binding LiveErrorsDetail}"
                                  ToolTip="Wrong results found so far. Any error means the hardware is not stable at these settings." />
-              <controls:StatCard Style="{StaticResource Tile}" Title="GPU" Icon="Temperature24" Accent="{StaticResource AccentGreenBrush}" Unit="°C"
+              <controls:StatCard Style="{StaticResource Tile}" Title="GPU" Icon="Temperature24" Accent="{DynamicResource AccentGreenBrush}" Unit="°C"
                                  Value="{Binding LiveGpuText}" Subtitle="{Binding LiveGpuDetail}" />
             </controls:AdaptiveGrid>
 
@@ -520,11 +520,11 @@
               </Grid.ColumnDefinitions>
               <StackPanel Grid.Column="0">
                 <ui:TextBlock Style="{StaticResource Caption}" Text="GPU temperature, last 60 s" />
-                <controls:SparklineControl Height="48" ItemsSource="{Binding GpuTempHistory}" Minimum="20" Maximum="100" Stroke="{StaticResource AccentCyanBrush}" />
+                <controls:SparklineControl Height="48" ItemsSource="{Binding GpuTempHistory}" Minimum="20" Maximum="100" Stroke="{DynamicResource AccentCyanBrush}" />
               </StackPanel>
               <StackPanel Grid.Column="2">
                 <ui:TextBlock Style="{StaticResource Caption}" Text="CPU temperature, last 60 s" />
-                <controls:SparklineControl Height="48" ItemsSource="{Binding CpuTempHistory}" Minimum="20" Maximum="100" Stroke="{StaticResource AccentOrangeBrush}" Fill="#33F97316" />
+                <controls:SparklineControl Height="48" ItemsSource="{Binding CpuTempHistory}" Minimum="20" Maximum="100" Stroke="{DynamicResource AccentOrangeBrush}" Fill="#33F97316" />
               </StackPanel>
             </Grid>
             <ui:InfoBar Severity="{Binding StressSeverity}" Title="{Binding StressTitle}" Message="{Binding StressSummary}" IsOpen="{Binding HasStressResult, Mode=OneWay}" IsClosable="False" Margin="0,10,0,0" />
@@ -532,7 +532,7 @@
               <ItemsControl.ItemTemplate>
                 <DataTemplate>
                   <StackPanel Orientation="Horizontal" Margin="0,2">
-                    <ui:SymbolIcon Symbol="CheckmarkCircle24" FontSize="12" Margin="0,3,8,0" VerticalAlignment="Top" Opacity="0.6" />
+                    <controls:IconGlyph Symbol="CheckmarkCircle24" FontSize="12" Margin="0,3,8,0" VerticalAlignment="Top" Opacity="0.6" />
                     <ui:TextBlock Text="{Binding}" TextWrapping="Wrap" MaxWidth="980" />
                   </StackPanel>
                 </DataTemplate>
@@ -548,7 +548,7 @@
           <ui:Card Style="{StaticResource CardSpacing}">
             <StackPanel>
               <StackPanel Orientation="Horizontal" Margin="0,0,0,2">
-                <ui:SymbolIcon Symbol="Sparkle24" FontSize="20" Foreground="{StaticResource AccentPurpleBrush}" Margin="0,0,8,0" />
+                <controls:IconGlyph Symbol="Sparkle24" FontSize="20" Foreground="{DynamicResource AccentPurpleBrush}" Margin="0,0,8,0" />
                 <ui:TextBlock Style="{StaticResource CardTitle}" Text="Claude overclock advisor" Margin="0" VerticalAlignment="Center" />
               </StackPanel>
               <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,10"
@@ -583,7 +583,7 @@
                   <ItemsControl.ItemTemplate>
                     <DataTemplate>
                       <StackPanel Orientation="Horizontal" Margin="0,2">
-                        <ui:SymbolIcon Symbol="Warning24" FontSize="14" Foreground="{StaticResource AccentOrangeBrush}" Margin="0,2,8,0" VerticalAlignment="Top" />
+                        <controls:IconGlyph Symbol="Warning24" FontSize="14" Foreground="{DynamicResource AccentOrangeBrush}" Margin="0,2,8,0" VerticalAlignment="Top" />
                         <ui:TextBlock Text="{Binding}" TextWrapping="Wrap" MaxWidth="980" />
                       </StackPanel>
                     </DataTemplate>
@@ -593,7 +593,7 @@
                   <ItemsControl.ItemTemplate>
                     <DataTemplate>
                       <StackPanel Orientation="Horizontal" Margin="0,2">
-                        <ui:SymbolIcon Symbol="Info24" FontSize="14" Margin="0,2,8,0" VerticalAlignment="Top" Opacity="0.7" />
+                        <controls:IconGlyph Symbol="Info24" FontSize="14" Margin="0,2,8,0" VerticalAlignment="Top" Opacity="0.7" />
                         <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding StringFormat='Assumes: {0}'}" TextWrapping="Wrap" MaxWidth="980" />
                       </StackPanel>
                     </DataTemplate>
@@ -611,13 +611,13 @@
                           <StackPanel Grid.Column="0" Margin="0,0,12,0">
                             <StackPanel Orientation="Horizontal">
                               <ui:TextBlock FontTypography="BodyStrong" Text="{Binding Title}" />
-                              <ui:SymbolIcon Symbol="CheckmarkCircle24" Foreground="{StaticResource AccentGreenBrush}" Margin="8,0,0,0" Visibility="{Binding IsApplied, Converter={StaticResource BoolToVisibility}}" />
+                              <controls:IconGlyph Symbol="CheckmarkCircle24" Foreground="{DynamicResource AccentGreenBrush}" Margin="8,0,0,0" Visibility="{Binding IsApplied, Converter={StaticResource BoolToVisibility}}" />
                             </StackPanel>
                             <ui:TextBlock Text="{Binding Changes}" TextWrapping="Wrap" Margin="0,2,0,2" />
                             <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding Rationale}" TextWrapping="Wrap" />
                             <ui:TextBlock Style="{StaticResource Caption}" Text="{Binding ExpectedGain, StringFormat='Expected gain: {0}'}" Margin="0,4,0,0" />
                             <ui:TextBlock Style="{StaticResource Caption}" Text="{Binding AbortIf, StringFormat='Stop if: {0}'}" />
-                            <ui:TextBlock Style="{StaticResource Caption}" Text="{Binding ResultText}" Foreground="{StaticResource AccentCyanBrush}" Visibility="{Binding ResultText, Converter={StaticResource NullToVisibility}}" />
+                            <ui:TextBlock Style="{StaticResource Caption}" Text="{Binding ResultText}" Foreground="{DynamicResource AccentCyanBrush}" Visibility="{Binding ResultText, Converter={StaticResource NullToVisibility}}" />
                           </StackPanel>
                           <StackPanel Grid.Column="1">
                             <ui:Button Content="Load this step" Icon="{ui:SymbolIcon ArrowRight24}" Command="{Binding DataContext.ApplyStepCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}" Margin="0,0,0,6" HorizontalAlignment="Stretch" />

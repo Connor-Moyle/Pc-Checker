@@ -1356,6 +1356,27 @@ people upgrading from an earlier version (their settings file already exists).
 **Settings → About → Show welcome again** (or *Show the welcome again* in quick
 search) brings it back.
 
+## Accessibility
+
+Every page works from the keyboard and with a screen reader, in the light and
+dark themes and in Windows high-contrast mode.
+
+- **Keys**: Ctrl+K quick search, F6 and Shift+F6 to move between the menu, the
+  section tabs and the page, Ctrl+Tab and Ctrl+Shift+Tab (or Ctrl+Page Down
+  and Ctrl+Page Up) for the next or previous tab, Esc to close a dialog, quick
+  search or the tray popup, and Alt plus a letter for each page's main action
+  (Alt+S *Scan*, Alt+R *Refresh* and so on). Read-only tables are one Tab stop
+  with arrow keys inside; the fan curve is edited with the arrow keys, Insert
+  and Delete.
+- **Screen readers**: buttons, images, lists and tables have names; tooltips
+  are read as help; decorative icons are skipped.
+- **Colours**: status colours and small text meet WCAG AA contrast (4.5:1) on
+  both themes, with deeper shades in the light theme. In high-contrast mode the
+  app uses the Windows contrast colours throughout.
+
+The full list of shortcuts, the colour table and the known gaps are in
+[ACCESSIBILITY.md](ACCESSIBILITY.md).
+
 ---
 
 ## Updates

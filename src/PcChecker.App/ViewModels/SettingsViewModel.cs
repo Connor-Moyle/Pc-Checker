@@ -283,12 +283,26 @@ public sealed partial class SettingsViewModel : ViewModelBase
         }
     }
 
-    /// <summary>Applies the chosen theme to the running app.</summary>
+    /// <summary>
+    /// Applies the chosen theme to the running app. Windows high-contrast mode wins over the setting: the app then
+    /// draws with the system colours so text stays readable.
+    /// </summary>
     public static void ApplyTheme(AppTheme theme)
     {
-        bool systemIsDark = ApplicationThemeManager.GetSystemTheme() != SystemTheme.Light;
-        var applied = ThemeResolver.IsDark(theme, systemIsDark) ? ApplicationTheme.Dark : ApplicationTheme.Light;
+        SystemThemeManager.UpdateSystemThemeCache();
+        ApplicationTheme applied;
+        if (System.Windows.SystemParameters.HighContrast)
+        {
+            applied = ApplicationTheme.HighContrast;
+        }
+        else
+        {
+            bool systemIsDark = ApplicationThemeManager.GetSystemTheme() != SystemTheme.Light;
+            applied = ThemeResolver.IsDark(theme, systemIsDark) ? ApplicationTheme.Dark : ApplicationTheme.Light;
+        }
+
         ApplicationThemeManager.Apply(applied, WindowBackdropType.Mica, true);
+        ThemeColors.Apply(applied);
     }
 
     [RelayCommand]

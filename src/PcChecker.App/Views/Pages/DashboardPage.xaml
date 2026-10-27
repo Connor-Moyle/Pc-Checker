@@ -38,8 +38,10 @@
               </ContextMenu>
             </ui:DropDownButton.Flyout>
           </ui:DropDownButton>
-          <ui:Button Content="Full scan" Appearance="Primary" Icon="{ui:SymbolIcon Search24}" Command="{Binding FullScanCommand}"
-                     ToolTip="Runs the hardware, health, performance, software and driver scans one after another." />
+          <ui:Button Appearance="Primary" Icon="{ui:SymbolIcon Search24}" Command="{Binding FullScanCommand}"
+                     ToolTip="Runs the hardware, health, performance, software and driver scans one after another.">
+            <AccessText Text="_Full scan" />
+          </ui:Button>
         </StackPanel>
       </controls:SectionHeader.Actions>
     </controls:SectionHeader>
@@ -56,7 +58,7 @@
             <ColumnDefinition Width="*" />
             <ColumnDefinition Width="Auto" />
           </Grid.ColumnDefinitions>
-          <ui:SymbolIcon Grid.Column="0" Symbol="ArrowDownload24" FontSize="22" Foreground="{StaticResource AccentGreenBrush}" VerticalAlignment="Center" Margin="0,0,12,0" />
+          <controls:IconGlyph Grid.Column="0" Symbol="ArrowDownload24" FontSize="22" Foreground="{DynamicResource AccentGreenBrush}" VerticalAlignment="Center" Margin="0,0,12,0" />
           <StackPanel Grid.Column="1" VerticalAlignment="Center">
             <ui:TextBlock FontTypography="BodyStrong" Text="Update available" />
             <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding UpdateBannerText}" TextWrapping="Wrap" />
@@ -80,6 +82,8 @@
           <controls:StatCard Style="{StaticResource Tile}" Title="GPU temperature" Value="{Binding GpuTempText}" Unit="°C" Icon="Games24" Accent="{Binding GpuTempBrush}" Subtitle="{Binding GpuSubtitle}" />
           <controls:StatCard Style="{StaticResource Tile}" Title="Memory in use" Value="{Binding RamText}" Unit="%" Icon="Memory16" Accent="{Binding RamBrush}" Subtitle="{Binding RamSubtitle}" />
           <controls:StatCard Style="{StaticResource Tile}" Title="Power draw" Value="{Binding PowerText}" Unit="W" Icon="Flash24" Accent="{StaticResource AccentPurpleBrush}" Subtitle="{Binding PowerSubtitle}" />
+          <controls:StatCard Style="{StaticResource Tile}" Title="Disk space" Value="{Binding DiskFreeText}" Icon="HardDrive20" Accent="{Binding DiskBrush}" Subtitle="{Binding DiskFreeSubtitle}" />
+          <controls:StatCard Style="{StaticResource Tile}" Title="Power draw" Value="{Binding PowerText}" Unit="W" Icon="Flash24" Accent="{DynamicResource AccentPurpleBrush}" Subtitle="{Binding PowerSubtitle}" />
         </controls:AdaptiveGrid>
 
         <!-- Check-up strip -->
@@ -217,7 +221,7 @@
               <StackPanel>
                 <ui:TextBlock Style="{StaticResource CardTitle}" Text="Alerts" />
                 <StackPanel Orientation="Horizontal" Visibility="{Binding HasNoAlerts, Converter={StaticResource BoolToVisibility}}">
-                  <ui:SymbolIcon Symbol="CheckmarkCircle24" Foreground="{StaticResource AccentGreenBrush}" FontSize="20" Margin="0,0,8,0" />
+                  <controls:IconGlyph Symbol="CheckmarkCircle24" Foreground="{DynamicResource AccentGreenBrush}" FontSize="20" Margin="0,0,8,0" />
                   <ui:TextBlock Appearance="Secondary" VerticalAlignment="Center" Text="Nothing needs your attention right now." />
                 </StackPanel>
                 <ItemsControl ItemsSource="{Binding Alerts}">
@@ -239,7 +243,7 @@
                             <ui:Button Content="{Binding ActionText}" Appearance="Secondary" Padding="8,4"
                                        Command="{Binding DataContext.OpenAlertCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}"
                                        Visibility="{Binding HasPage, Converter={StaticResource BoolToVisibility}}" />
-                            <ui:Button Icon="{ui:SymbolIcon Dismiss24}" Appearance="Transparent" Padding="6,4" Margin="4,0,0,0" ToolTip="Dismiss"
+                            <ui:Button Icon="{ui:SymbolIcon Dismiss24}" Appearance="Transparent" AutomationProperties.Name="Dismiss" Padding="6,4" Margin="4,0,0,0" ToolTip="Dismiss"
                                        Command="{Binding DataContext.DismissAlertCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}" />
                           </StackPanel>
                         </Grid>
@@ -268,7 +272,7 @@
                             <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="*" />
                           </Grid.ColumnDefinitions>
-                          <ui:SymbolIcon Symbol="{Binding Icon}" FontSize="22" Margin="0,0,12,0" VerticalAlignment="Center" Foreground="{StaticResource AccentCyanBrush}" />
+                          <controls:IconGlyph Symbol="{Binding Icon}" FontSize="22" Margin="0,0,12,0" VerticalAlignment="Center" Foreground="{DynamicResource AccentCyanBrush}" />
                           <StackPanel Grid.Column="1">
                             <ui:TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
                             <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding Description}" TextWrapping="Wrap" />
@@ -354,15 +358,15 @@
                 <ui:HyperlinkButton Grid.Column="1" Content="Overclock" Command="{Binding GoToOverclockCommand}" Padding="4,0" Margin="0,-6,0,0" />
               </Grid>
               <StackPanel Orientation="Horizontal" Margin="0,2">
-                <ui:SymbolIcon Symbol="Games24" FontSize="16" Margin="0,2,8,0" VerticalAlignment="Top" />
+                <controls:IconGlyph Symbol="Games24" FontSize="16" Margin="0,2,8,0" VerticalAlignment="Top" />
                 <ui:TextBlock Text="{Binding SupportGpuText}" TextWrapping="Wrap" MaxWidth="330" />
               </StackPanel>
               <StackPanel Orientation="Horizontal" Margin="0,2">
-                <ui:SymbolIcon Symbol="DeveloperBoard24" FontSize="16" Margin="0,2,8,0" VerticalAlignment="Top" />
+                <controls:IconGlyph Symbol="DeveloperBoard24" FontSize="16" Margin="0,2,8,0" VerticalAlignment="Top" />
                 <ui:TextBlock Text="{Binding SupportCpuText}" TextWrapping="Wrap" MaxWidth="330" />
               </StackPanel>
               <StackPanel Orientation="Horizontal" Margin="0,2,0,6">
-                <ui:SymbolIcon Symbol="Memory16" FontSize="16" Margin="0,2,8,0" VerticalAlignment="Top" />
+                <controls:IconGlyph Symbol="Memory16" FontSize="16" Margin="0,2,8,0" VerticalAlignment="Top" />
                 <ui:TextBlock Text="{Binding SupportMemoryText}" TextWrapping="Wrap" MaxWidth="330" />
               </StackPanel>
               <ItemsControl ItemsSource="{Binding SupportRows}" Visibility="{Binding HasSupportRows, Converter={StaticResource BoolToVisibility}}">
@@ -377,13 +381,13 @@
                       <ui:TextBlock Grid.Column="1" FontSize="12" Text="{Binding Level}" Margin="8,0,0,0" ToolTip="{Binding Note}">
                         <ui:TextBlock.Style>
                           <Style TargetType="ui:TextBlock">
-                            <Setter Property="Foreground" Value="{StaticResource AccentYellowBrush}" />
+                            <Setter Property="Foreground" Value="{DynamicResource AccentYellowBrush}" />
                             <Style.Triggers>
                               <DataTrigger Binding="{Binding IsFull}" Value="True">
-                                <Setter Property="Foreground" Value="{StaticResource AccentGreenBrush}" />
+                                <Setter Property="Foreground" Value="{DynamicResource AccentGreenBrush}" />
                               </DataTrigger>
                               <DataTrigger Binding="{Binding IsUnsupported}" Value="True">
-                                <Setter Property="Foreground" Value="{StaticResource AccentGreyBrush}" />
+                                <Setter Property="Foreground" Value="{DynamicResource AccentGreyBrush}" />
                               </DataTrigger>
                             </Style.Triggers>
                           </Style>

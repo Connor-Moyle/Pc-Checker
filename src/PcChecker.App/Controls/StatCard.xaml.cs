@@ -30,6 +30,9 @@ public partial class StatCard : UserControl
     public StatCard()
     {
         InitializeComponent();
+
+        // Follows the theme (light, dark, high contrast) unless the page sets an accent.
+        SetResourceReference(AccentProperty, "AccentCyanBrush");
     }
 
     public string Title

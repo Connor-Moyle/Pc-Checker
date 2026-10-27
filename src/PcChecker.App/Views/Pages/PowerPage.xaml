@@ -76,14 +76,14 @@
       <StackPanel>
         <!-- Summary -->
         <controls:AdaptiveGrid MinItemWidth="200" MaxColumns="4" Margin="0,0,0,12">
-          <controls:StatCard Style="{StaticResource Tile}" Title="Total draw now" Value="{Binding TotalText}" Unit="W" Icon="Flash24" Accent="{StaticResource AccentCyanBrush}" Subtitle="{Binding TotalSubtitle}" />
-          <controls:StatCard Style="{StaticResource Tile}" Title="Processor" Value="{Binding CpuText}" Unit="W" Icon="DeveloperBoard24" Accent="{StaticResource AccentPurpleBrush}" Subtitle="CPU package" />
-          <controls:StatCard Style="{StaticResource Tile}" Title="Graphics card" Value="{Binding GpuText}" Unit="W" Icon="VideoClip24" Accent="{StaticResource AccentGreenBrush}" Subtitle="GPU board" />
-          <controls:StatCard Style="{StaticResource Tile}" Title="Battery" Value="{Binding BatteryText}" Unit="W" Icon="BatteryCharge24" Accent="{StaticResource AccentYellowBrush}" Subtitle="{Binding BatterySubtitle}"
+          <controls:StatCard Style="{StaticResource Tile}" Title="Total draw now" Value="{Binding TotalText}" Unit="W" Icon="Flash24" Accent="{DynamicResource AccentCyanBrush}" Subtitle="{Binding TotalSubtitle}" />
+          <controls:StatCard Style="{StaticResource Tile}" Title="Processor" Value="{Binding CpuText}" Unit="W" Icon="DeveloperBoard24" Accent="{DynamicResource AccentPurpleBrush}" Subtitle="CPU package" />
+          <controls:StatCard Style="{StaticResource Tile}" Title="Graphics card" Value="{Binding GpuText}" Unit="W" Icon="VideoClip24" Accent="{DynamicResource AccentGreenBrush}" Subtitle="GPU board" />
+          <controls:StatCard Style="{StaticResource Tile}" Title="Battery" Value="{Binding BatteryText}" Unit="W" Icon="BatteryCharge24" Accent="{DynamicResource AccentYellowBrush}" Subtitle="{Binding BatterySubtitle}"
                              Visibility="{Binding HasBattery, Converter={StaticResource BoolToVisibility}}" />
-          <controls:StatCard Style="{StaticResource Tile}" Title="Energy this session" Value="{Binding EnergyText}" Unit="Wh" Icon="ChartMultiple24" Accent="{StaticResource AccentOrangeBrush}" Subtitle="{Binding EnergySubtitle}" />
-          <controls:StatCard Style="{StaticResource Tile}" Title="Cost per hour" Value="{Binding CostHourText}" Icon="Receipt24" Accent="{StaticResource AccentGreyBrush}" Subtitle="At the current draw" />
-          <controls:StatCard Style="{StaticResource Tile}" Title="Cost per day" Value="{Binding CostDayText}" Icon="CalendarClock24" Accent="{StaticResource AccentGreyBrush}" Subtitle="If it ran like this for 24 h" />
+          <controls:StatCard Style="{StaticResource Tile}" Title="Energy this session" Value="{Binding EnergyText}" Unit="Wh" Icon="ChartMultiple24" Accent="{DynamicResource AccentOrangeBrush}" Subtitle="{Binding EnergySubtitle}" />
+          <controls:StatCard Style="{StaticResource Tile}" Title="Cost per hour" Value="{Binding CostHourText}" Icon="Receipt24" Accent="{DynamicResource AccentGreyBrush}" Subtitle="At the current draw" />
+          <controls:StatCard Style="{StaticResource Tile}" Title="Cost per day" Value="{Binding CostDayText}" Icon="CalendarClock24" Accent="{DynamicResource AccentGreyBrush}" Subtitle="If it ran like this for 24 h" />
         </controls:AdaptiveGrid>
 
         <!-- History -->
@@ -127,7 +127,7 @@
             <ui:Card Style="{StaticResource CardSpacing}">
               <StackPanel>
                 <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                  <ui:SymbolIcon Symbol="BatteryCharge24" FontSize="20" Margin="0,0,8,0" />
+                  <controls:IconGlyph Symbol="BatteryCharge24" FontSize="20" Margin="0,0,8,0" />
                   <ui:TextBlock FontTypography="BodyStrong" Text="Battery" VerticalAlignment="Center" />
                 </StackPanel>
                 <ui:TextBlock Text="{Binding BatteryStatusText}" TextWrapping="Wrap" />
@@ -142,7 +142,7 @@
             <ui:Card Style="{StaticResource CardSpacing}">
               <StackPanel>
                 <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                  <ui:SymbolIcon Symbol="Power24" FontSize="20" Margin="0,0,8,0" />
+                  <controls:IconGlyph Symbol="Power24" FontSize="20" Margin="0,0,8,0" />
                   <ui:TextBlock FontTypography="BodyStrong" Text="Windows power plan" VerticalAlignment="Center"
                                 ToolTip="A power plan tells Windows how to balance speed against power use. Switching is safe and can be undone at any time. If restore points before changes are on in Settings, one is created first, which can take a few seconds." />
                 </StackPanel>

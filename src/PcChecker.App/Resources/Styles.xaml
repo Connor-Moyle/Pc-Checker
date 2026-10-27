@@ -15,14 +15,23 @@
   <conv:DoubleToPercentConverter x:Key="DoubleToPercent" />
   <conv:TemperatureToBrushConverter x:Key="TemperatureToBrush" />
 
-  <!-- Accent brushes -->
+  <!-- Accent brushes. These are the dark-theme values for the designer and the first frame; at start-up and on every
+       theme change Services/ThemeColors.cs replaces them with the palette for the theme in use (deeper shades on
+       light, system colours in high contrast), so use them through DynamicResource. The colours themselves live in
+       Core/Accessibility/AccentPalette.cs, where tests check them against WCAG AA. -->
   <SolidColorBrush x:Key="AccentCyanBrush" Color="#4CC2FF" />
   <SolidColorBrush x:Key="AccentGreenBrush" Color="#22C55E" />
   <SolidColorBrush x:Key="AccentYellowBrush" Color="#FACC15" />
   <SolidColorBrush x:Key="AccentOrangeBrush" Color="#F97316" />
-  <SolidColorBrush x:Key="AccentRedBrush" Color="#EF4444" />
+  <SolidColorBrush x:Key="AccentRedBrush" Color="#F87171" />
   <SolidColorBrush x:Key="AccentPurpleBrush" Color="#A78BFA" />
   <SolidColorBrush x:Key="AccentGreyBrush" Color="#9CA3AF" />
+  <SolidColorBrush x:Key="AccentBlueBrush" Color="#60A5FA" />
+  <!-- Text on a solid accent colour (status badges), and icons on a coloured tile. -->
+  <SolidColorBrush x:Key="OnAccentTextBrush" Color="#111111" />
+  <SolidColorBrush x:Key="OnAccentIconBrush" Color="#FFFFFF" />
+  <!-- Small notes (the Caption style): readable on every theme, unlike the theme's tertiary text. -->
+  <SolidColorBrush x:Key="CaptionTextBrush" Color="#87FFFFFF" />
 
   <!-- Layout -->
   <Thickness x:Key="PageMargin">24,16,24,24</Thickness>
@@ -49,7 +58,7 @@
     <Setter Property="FontSize" Value="12" />
   </Style>
   <Style x:Key="Caption" TargetType="ui:TextBlock">
-    <Setter Property="Appearance" Value="Tertiary" />
+    <Setter Property="Foreground" Value="{DynamicResource CaptionTextBrush}" />
     <Setter Property="FontSize" Value="11" />
   </Style>
 
@@ -76,11 +85,23 @@
       </Setter.Value>
     </Setter>
   </Style>
+  <!-- Keyboard focus on a section tab: a ring around the label, in the same place as the hover highlight. -->
+  <Style x:Key="SectionTabFocusVisual">
+    <Setter Property="Control.Template">
+      <Setter.Value>
+        <ControlTemplate>
+          <Border Margin="-8,2,16,7" CornerRadius="4" BorderThickness="2" SnapsToDevicePixels="True"
+                  BorderBrush="{DynamicResource FocusStrokeColorOuterBrush}" />
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
   <Style x:Key="SectionTab" TargetType="ListBoxItem">
     <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
     <Setter Property="FontSize" Value="14" />
     <Setter Property="Cursor" Value="Hand" />
-    <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+    <Setter Property="FocusVisualStyle" Value="{StaticResource SectionTabFocusVisual}" />
+    <Setter Property="AutomationProperties.Name" Value="{Binding Title, Converter={StaticResource Translate}}" />
     <Setter Property="Template">
       <Setter.Value>
         <ControlTemplate TargetType="ListBoxItem">

@@ -3,6 +3,8 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using PcChecker.Core.Storage;
+using PcChecker.App.Services;
+using PcChecker.Core.Accessibility;
 
 namespace PcChecker.App.Controls;
 
@@ -38,9 +40,9 @@ public partial class BlockMapControl : UserControl
 public sealed class BlockMapCanvas : FrameworkElement
 {
     public static readonly Brush UntestedBrush = Freeze(new SolidColorBrush(Color.FromArgb(0x55, 0x9C, 0xA3, 0xAF)));
-    public static readonly Brush OkBrush = Freeze(new SolidColorBrush(Color.FromRgb(0x22, 0xC5, 0x5E)));
-    public static readonly Brush SlowBrush = Freeze(new SolidColorBrush(Color.FromRgb(0xFA, 0xCC, 0x15)));
-    public static readonly Brush BadBrush = Freeze(new SolidColorBrush(Color.FromRgb(0xEF, 0x44, 0x44)));
+    public static Brush OkBrush => ThemeColors.Accent(AccentRole.Green);
+    public static Brush SlowBrush => ThemeColors.Accent(AccentRole.Yellow);
+    public static Brush BadBrush => ThemeColors.Accent(AccentRole.Red);
 
     public static readonly DependencyProperty MapProperty =
         DependencyProperty.Register(nameof(Map), typeof(IEnumerable), typeof(BlockMapCanvas),

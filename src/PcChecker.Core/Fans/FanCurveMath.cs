@@ -116,6 +116,58 @@ public static class FanCurveMath
         return map.Select(kv => new FanCurvePoint(kv.Key, kv.Value)).ToList();
     }
 
+    /// <summary>
+    /// Where point <paramref name="index"/> lands when it is moved to (<paramref name="tempC"/>,
+    /// <paramref name="percent"/>) in the editor: whole numbers, fan speed within 0–100 %, and the temperature kept at
+    /// least 1 °C inside its neighbours so the curve never folds back on itself. Used by mouse drags and arrow keys.
+    /// </summary>
+    public static FanCurvePoint MoveWithinNeighbours(IReadOnlyList<FanCurvePoint> points, int index, double tempC, double percent)
+    {
+        ArgumentNullException.ThrowIfNull(points);
+        ArgumentOutOfRangeException.ThrowIfNegative(index);
+        ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(index, points.Count);
+
+        double current = points[index].TemperatureC;
+        var others = points.Where((_, i) => i != index).Select(p => p.TemperatureC).ToList();
+        double lower = others.Where(t => t < current).Select(t => t + 1).DefaultIfEmpty(0).Max();
+        double upper = others.Where(t => t > current).Select(t => t - 1).DefaultIfEmpty(100).Min();
+        double t = Math.Round(tempC);
+        if (lower <= upper)
+        {
+            t = Math.Clamp(t, lower, upper);
+        }
+        else
+        {
+            t = current;
+        }
+
+        return new FanCurvePoint(t, Math.Clamp(Math.Round(percent), 0, 100));
+    }
+
+    /// <summary>
+    /// A new point halfway between point <paramref name="index"/> and the next one by temperature (or the previous
+    /// one for the hottest point), on the line between them. Null when they are too close to fit one in.
+    /// </summary>
+    public static FanCurvePoint? PointBetween(IReadOnlyList<FanCurvePoint> points, int index)
+    {
+        ArgumentNullException.ThrowIfNull(points);
+        if (index < 0 || index >= points.Count || points.Count < 2)
+        {
+            return null;
+        }
+
+        var sorted = points.OrderBy(p => p.TemperatureC).ToList();
+        int at = sorted.IndexOf(points[index]);
+        var (a, b) = at < sorted.Count - 1 ? (sorted[at], sorted[at + 1]) : (sorted[at - 1], sorted[at]);
+        double t = Math.Round((a.TemperatureC + b.TemperatureC) / 2);
+        if (t <= a.TemperatureC || t >= b.TemperatureC)
+        {
+            return null;
+        }
+
+        return new FanCurvePoint(t, Math.Round(Interpolate(sorted, t)));
+    }
+
     /// <summary>Plain-English problem with a curve, or null when it is usable.</summary>
     public static string? Validate(FanCurve? curve)
     {

@@ -23,7 +23,7 @@
     <Style x:Key="BadgeText" TargetType="TextBlock">
       <Setter Property="FontSize" Value="11" />
       <Setter Property="FontWeight" Value="SemiBold" />
-      <Setter Property="Foreground" Value="White" />
+      <Setter Property="Foreground" Value="{DynamicResource OnAccentTextBrush}" />
     </Style>
     <Style x:Key="ColumnHeader" TargetType="ui:TextBlock" BasedOn="{StaticResource Muted}">
       <Setter Property="FontWeight" Value="SemiBold" />
@@ -49,11 +49,12 @@
     <controls:SectionHeader Grid.Row="0" Title="Latency" Subtitle="How quickly your PC reacts, and one-click fixes for what slows it down.">
       <controls:SectionHeader.Actions>
         <ui:Button Appearance="Primary"
-                   Content="Run latency check"
                    Icon="{ui:SymbolIcon Timer24}"
                    Command="{Binding RunCheckCommand}"
                    IsEnabled="{Binding IsNotBusy}"
-                   ToolTip="Measures driver load, timers, power saving, mouse polling and, if chosen in Options, the network." />
+                   ToolTip="Measures driver load, timers, power saving, mouse polling and, if chosen in Options, the network.">
+          <AccessText Text="_Run latency check" />
+        </ui:Button>
       </controls:SectionHeader.Actions>
     </controls:SectionHeader>
 
@@ -119,25 +120,25 @@
 
           <!-- Summary: measurements -->
           <controls:AdaptiveGrid MinItemWidth="200" MaxColumns="4" Margin="0,0,0,12">
-            <controls:StatCard Style="{StaticResource Tile}" Title="Driver (DPC) time" Value="{Binding DpcText}" Unit="%" Icon="DesktopPulse24" Accent="{StaticResource AccentCyanBrush}"
+            <controls:StatCard Style="{StaticResource Tile}" Title="Driver (DPC) time" Value="{Binding DpcText}" Unit="%" Icon="DesktopPulse24" Accent="{DynamicResource AccentCyanBrush}"
                                Subtitle="Under 3 % is healthy"
                                ToolTip="DPC = deferred procedure call: work a driver postpones after an interrupt. High values mean a driver is hogging the CPU and audio or input can stutter." />
-            <controls:StatCard Style="{StaticResource Tile}" Title="Interrupt (ISR) time" Value="{Binding IsrText}" Unit="%" Icon="Flash24" Accent="{StaticResource AccentPurpleBrush}"
+            <controls:StatCard Style="{StaticResource Tile}" Title="Interrupt (ISR) time" Value="{Binding IsrText}" Unit="%" Icon="Flash24" Accent="{DynamicResource AccentPurpleBrush}"
                                Subtitle="Under 1 % is healthy"
                                ToolTip="ISR = interrupt service routine: the first, very short reaction to a hardware event. High values point at a misbehaving device or driver." />
-            <controls:StatCard Style="{StaticResource Tile}" Title="DPCs queued" Value="{Binding DpcsText}" Unit="/s" Icon="DataLine24" Accent="{StaticResource AccentGreyBrush}"
+            <controls:StatCard Style="{StaticResource Tile}" Title="DPCs queued" Value="{Binding DpcsText}" Unit="/s" Icon="DataLine24" Accent="{DynamicResource AccentGreyBrush}"
                                Subtitle="Count only; no fixed limit"
                                ToolTip="How many deferred calls drivers queue per second. Only a problem when DPC time is high too." />
-            <controls:StatCard Style="{StaticResource Tile}" Title="Interrupts" Value="{Binding InterruptsText}" Unit="/s" Icon="Timeline24" Accent="{StaticResource AccentGreyBrush}"
+            <controls:StatCard Style="{StaticResource Tile}" Title="Interrupts" Value="{Binding InterruptsText}" Unit="/s" Icon="Timeline24" Accent="{DynamicResource AccentGreyBrush}"
                                Subtitle="Count only; no fixed limit"
                                ToolTip="Hardware events per second. Busy GPUs, NVMe drives and fast network adapters raise this normally." />
-            <controls:StatCard Style="{StaticResource Tile}" Title="Timer resolution" Value="{Binding TimerText}" Unit="ms" Icon="Timer324" Accent="{StaticResource AccentYellowBrush}"
+            <controls:StatCard Style="{StaticResource Tile}" Title="Timer resolution" Value="{Binding TimerText}" Unit="ms" Icon="Timer324" Accent="{DynamicResource AccentYellowBrush}"
                                Subtitle="{Binding TimerSubtitle}"
                                ToolTip="How often the system timer ticks. Games ask Windows for 0.5–1 ms while they run; a coarser value at idle is normal." />
-            <controls:StatCard Style="{StaticResource Tile}" Title="Mouse polling" Value="{Binding PollingText}" Unit="Hz" Icon="CursorHover24" Accent="{StaticResource AccentGreenBrush}"
+            <controls:StatCard Style="{StaticResource Tile}" Title="Mouse polling" Value="{Binding PollingText}" Unit="Hz" Icon="CursorHover24" Accent="{DynamicResource AccentGreenBrush}"
                                Subtitle="{Binding PollingSubtitle}"
                                ToolTip="How many times per second the mouse reports its position. 1000 Hz = a report every millisecond." />
-            <controls:StatCard Style="{StaticResource Tile}" Title="DNS lookup" Value="{Binding DnsText}" Unit="ms" Icon="NetworkCheck24" Accent="{StaticResource AccentOrangeBrush}"
+            <controls:StatCard Style="{StaticResource Tile}" Title="DNS lookup" Value="{Binding DnsText}" Unit="ms" Icon="NetworkCheck24" Accent="{DynamicResource AccentOrangeBrush}"
                                Subtitle="{Binding DnsSubtitle}"
                                ToolTip="Time to turn a web address into an IP address. Every new connection waits for this first." />
           </controls:AdaptiveGrid>
@@ -161,7 +162,7 @@
                           IsClosable="True"
                           Margin="0,0,0,8" />
               <StackPanel Orientation="Horizontal" Visibility="{Binding ShowNoFindings, Converter={StaticResource BoolToVisibility}}" Margin="0,4,0,4">
-                <ui:SymbolIcon Symbol="CheckmarkCircle24" Foreground="{StaticResource AccentGreenBrush}" FontSize="20" Margin="0,0,8,0" />
+                <controls:IconGlyph Symbol="CheckmarkCircle24" Foreground="{DynamicResource AccentGreenBrush}" FontSize="20" Margin="0,0,8,0" />
                 <ui:TextBlock Text="Nothing to fix. All measured values and settings look good for low latency." VerticalAlignment="Center" />
               </StackPanel>
               <ItemsControl ItemsSource="{Binding Findings}">
@@ -184,7 +185,7 @@
                             <Border Style="{StaticResource Badge}" Background="{Binding RiskBrush}" Visibility="{Binding HasAction, Converter={StaticResource BoolToVisibility}}">
                               <TextBlock Style="{StaticResource BadgeText}" Text="{Binding RiskText}" />
                             </Border>
-                            <Border Style="{StaticResource Badge}" Background="{StaticResource AccentGreyBrush}" Visibility="{Binding RequiresRestart, Converter={StaticResource BoolToVisibility}}">
+                            <Border Style="{StaticResource Badge}" Background="{DynamicResource AccentGreyBrush}" Visibility="{Binding RequiresRestart, Converter={StaticResource BoolToVisibility}}">
                               <TextBlock Style="{StaticResource BadgeText}" Text="Restart needed" />
                             </Border>
                           </StackPanel>
@@ -201,7 +202,7 @@
                                      IsEnabled="{Binding CanFix}"
                                      Visibility="{Binding HasAction, Converter={StaticResource BoolToVisibility}}" />
                           <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Visibility="{Binding IsFixed, Converter={StaticResource BoolToVisibility}}">
-                            <ui:SymbolIcon Symbol="CheckmarkCircle24" Foreground="{StaticResource AccentGreenBrush}" Margin="0,0,4,0" />
+                            <controls:IconGlyph Symbol="CheckmarkCircle24" Foreground="{DynamicResource AccentGreenBrush}" Margin="0,0,4,0" />
                             <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding StatusText}" VerticalAlignment="Center" />
                           </StackPanel>
                         </StackPanel>

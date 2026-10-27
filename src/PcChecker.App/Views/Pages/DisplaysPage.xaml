@@ -16,12 +16,12 @@
       <Setter Property="Padding" Value="8,2" />
       <Setter Property="Margin" Value="6,0,0,0" />
       <Setter Property="VerticalAlignment" Value="Center" />
-      <Setter Property="Background" Value="{StaticResource AccentCyanBrush}" />
+      <Setter Property="Background" Value="{DynamicResource AccentCyanBrush}" />
     </Style>
     <Style x:Key="BadgeText" TargetType="TextBlock">
       <Setter Property="FontSize" Value="11" />
       <Setter Property="FontWeight" Value="SemiBold" />
-      <Setter Property="Foreground" Value="#101418" />
+      <Setter Property="Foreground" Value="{DynamicResource OnAccentTextBrush}" />
     </Style>
     <Style x:Key="FieldLabel" TargetType="ui:TextBlock">
       <Setter Property="Appearance" Value="Secondary" />
@@ -65,11 +65,13 @@
                      IsEnabled="{Binding HasDisplays}"
                      ToolTip="Shows a big number on each display for a few seconds so you know which card is which."
                      Margin="0,0,8,0" />
-          <ui:Button Content="Refresh"
+          <ui:Button
                      Icon="{ui:SymbolIcon ArrowSync24}"
                      Appearance="Primary"
                      Command="{Binding RefreshNowCommand}"
-                     IsEnabled="{Binding IsNotBusy}" />
+                     IsEnabled="{Binding IsNotBusy}">
+            <AccessText Text="_Refresh" />
+          </ui:Button>
         </StackPanel>
       </controls:SectionHeader.Actions>
     </controls:SectionHeader>
@@ -121,7 +123,7 @@
                     <ItemsControl.ItemTemplate>
                       <DataTemplate>
                         <Border Width="{Binding Width}" Height="{Binding Height}" CornerRadius="6" BorderThickness="2"
-                                BorderBrush="{StaticResource AccentCyanBrush}"
+                                BorderBrush="{DynamicResource AccentCyanBrush}"
                                 ToolTip="{Binding Label}">
                           <Border.Style>
                             <Style TargetType="Border">
@@ -134,13 +136,13 @@
                             </Style>
                           </Border.Style>
                           <Grid>
-                            <TextBlock Text="{Binding Number}" FontSize="40" FontWeight="Bold" Foreground="White"
+                            <TextBlock Text="{Binding Number}" FontSize="40" FontWeight="Bold" Foreground="{DynamicResource TextFillColorPrimaryBrush}"
                                        HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0.9" />
-                            <ui:SymbolIcon Symbol="Star24" Filled="True" FontSize="16" Foreground="{StaticResource AccentYellowBrush}"
+                            <controls:IconGlyph Symbol="Star24" Filled="True" FontSize="16" Foreground="{DynamicResource AccentYellowBrush}"
                                            HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,6,8,0"
                                            Visibility="{Binding IsPrimary, Converter={StaticResource BoolToVisibility}}"
                                            ToolTip="Main display" />
-                            <TextBlock Text="{Binding Label}" FontSize="11" Foreground="#DDFFFFFF" TextTrimming="CharacterEllipsis"
+                            <TextBlock Text="{Binding Label}" FontSize="11" Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis"
                                        HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="8,0,8,6" />
                           </Grid>
                         </Border>
@@ -189,8 +191,8 @@
                       <ColumnDefinition Width="*" />
                       <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
-                    <Border Grid.Column="0" Width="44" Height="44" CornerRadius="10" Background="{StaticResource AccentCyanBrush}" Margin="0,0,12,0" VerticalAlignment="Top">
-                      <TextBlock Text="{Binding Number}" FontSize="22" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    <Border Grid.Column="0" Width="44" Height="44" CornerRadius="10" Background="{DynamicResource AccentCyanBrush}" Margin="0,0,12,0" VerticalAlignment="Top">
+                      <TextBlock Text="{Binding Number}" FontSize="22" FontWeight="Bold" Foreground="{DynamicResource OnAccentTextBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
                     </Border>
                     <StackPanel Grid.Column="1" VerticalAlignment="Center">
                       <WrapPanel>
@@ -198,7 +200,7 @@
                         <Border Style="{StaticResource Badge}" Visibility="{Binding IsPrimary, Converter={StaticResource BoolToVisibility}}">
                           <TextBlock Style="{StaticResource BadgeText}" Text="Main display" />
                         </Border>
-                        <Border Style="{StaticResource Badge}" Background="{StaticResource AccentPurpleBrush}"
+                        <Border Style="{StaticResource Badge}" Background="{DynamicResource AccentPurpleBrush}"
                                 Visibility="{Binding HdrEnabled, Converter={StaticResource BoolToVisibility}}">
                           <TextBlock Style="{StaticResource BadgeText}" Text="HDR on" />
                         </Border>
@@ -322,7 +324,7 @@
               <ui:Button Grid.Column="1" Content="Save current layout" Icon="{ui:SymbolIcon Save24}" Command="{Binding SaveProfileCommand}" IsEnabled="{Binding HasDisplays}" />
             </Grid>
 
-            <ListView ItemsSource="{Binding Profiles}" SelectedItem="{Binding SelectedProfile}" MaxHeight="240"
+            <ListView ItemsSource="{Binding Profiles}" AutomationProperties.Name="Saved display profiles" SelectedItem="{Binding SelectedProfile}" MaxHeight="240"
                       Visibility="{Binding HasProfiles, Converter={StaticResource BoolToVisibility}}">
               <ListView.ItemTemplate>
                 <DataTemplate DataType="{x:Type vm:DisplayProfileItem}">
@@ -336,10 +338,10 @@
                       <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding Description}" TextWrapping="Wrap" />
                     </StackPanel>
                     <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                      <Border Style="{StaticResource Badge}" Background="{StaticResource AccentGreenBrush}" Visibility="{Binding IsActive, Converter={StaticResource BoolToVisibility}}">
+                      <Border Style="{StaticResource Badge}" Background="{DynamicResource AccentGreenBrush}" Visibility="{Binding IsActive, Converter={StaticResource BoolToVisibility}}">
                         <TextBlock Style="{StaticResource BadgeText}" Text="Active now" />
                       </Border>
-                      <Border Style="{StaticResource Badge}" Background="{StaticResource AccentYellowBrush}" Visibility="{Binding MissingText, Converter={StaticResource NullToVisibility}}">
+                      <Border Style="{StaticResource Badge}" Background="{DynamicResource AccentYellowBrush}" Visibility="{Binding MissingText, Converter={StaticResource NullToVisibility}}">
                         <TextBlock Style="{StaticResource BadgeText}" Text="{Binding MissingText}" />
                       </Border>
                     </StackPanel>

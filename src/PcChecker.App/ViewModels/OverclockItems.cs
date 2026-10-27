@@ -1,6 +1,8 @@
 using System.Windows.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using PcChecker.Core.Overclocking;
+using PcChecker.App.Services;
+using PcChecker.Core.Accessibility;
 
 namespace PcChecker.App.ViewModels;
 
@@ -22,19 +24,14 @@ public sealed class SupportMatrixRow
     public string Note { get; }
     public Brush Brush { get; }
 
-    public static Brush BrushFor(string level)
+    public static Brush BrushFor(string level) => ThemeColors.Accent(level switch
     {
-        var brush = level switch
-        {
-            SupportLevel.Full => new SolidColorBrush(Color.FromRgb(0x22, 0xC5, 0x5E)),
-            SupportLevel.Partial => new SolidColorBrush(Color.FromRgb(0x4C, 0xC2, 0xFF)),
-            SupportLevel.Experimental => new SolidColorBrush(Color.FromRgb(0xA7, 0x8B, 0xFA)),
-            SupportLevel.MonitorOnly => new SolidColorBrush(Color.FromRgb(0xFA, 0xCC, 0x15)),
-            _ => new SolidColorBrush(Color.FromRgb(0x9C, 0xA3, 0xAF)),
-        };
-        brush.Freeze();
-        return brush;
-    }
+        SupportLevel.Full => AccentRole.Green,
+        SupportLevel.Partial => AccentRole.Cyan,
+        SupportLevel.Experimental => AccentRole.Purple,
+        SupportLevel.MonitorOnly => AccentRole.Yellow,
+        _ => AccentRole.Grey,
+    });
 }
 
 /// <summary>One step of an assistant plan with its target profile and a "done" marker.</summary>

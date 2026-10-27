@@ -46,7 +46,7 @@
     <Style x:Key="BusyNumberCell" TargetType="TextBlock" BasedOn="{StaticResource NumberCell}">
       <Style.Triggers>
         <DataTrigger Binding="{Binding IsBusyProcess}" Value="True">
-          <Setter Property="Foreground" Value="{StaticResource AccentOrangeBrush}" />
+          <Setter Property="Foreground" Value="{DynamicResource AccentOrangeBrush}" />
           <Setter Property="FontWeight" Value="SemiBold" />
         </DataTrigger>
       </Style.Triggers>
@@ -73,23 +73,23 @@
           <ColumnDefinition Width="*" />
           <ColumnDefinition Width="Auto" />
         </Grid.ColumnDefinitions>
-        <ui:Button Grid.Column="0" Appearance="Transparent" Padding="4,2" Margin="0,0,4,0" BorderThickness="0"
+        <ui:Button Grid.Column="0" Appearance="Transparent" Padding="4,2" Margin="0,0,4,0" BorderThickness="0" AutomationProperties.Name="Show or hide processes"
                    Icon="{Binding ExpandIcon, Converter={StaticResource SymbolToIcon}}"
                    ToolTip="Show or hide the processes of this program"
                    Visibility="{Binding IsGroup, Converter={StaticResource BoolToVisibility}}"
                    Command="{Binding DataContext.ToggleGroupCommand, RelativeSource={RelativeSource AncestorType=Page}}"
                    CommandParameter="{Binding}" />
         <Grid Grid.Column="1" Width="20" Height="20" Margin="2,0,10,0" VerticalAlignment="Center">
-          <Image Source="{Binding Icon}" Width="16" Height="16" RenderOptions.BitmapScalingMode="HighQuality"
+          <Image Source="{Binding Icon}" Width="16" Height="16" AutomationProperties.Name="Program icon" RenderOptions.BitmapScalingMode="HighQuality"
                  Visibility="{Binding HasIcon, Converter={StaticResource BoolToVisibility}}" />
-          <ui:SymbolIcon Symbol="WindowApps24" FontSize="16" Opacity="0.7"
+          <controls:IconGlyph Symbol="WindowApps24" FontSize="16" Opacity="0.7"
                          Visibility="{Binding HasIcon, Converter={StaticResource InverseBoolToVisibility}}" />
         </Grid>
         <StackPanel Grid.Column="2" VerticalAlignment="Center">
           <ui:TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
           <ui:TextBlock Text="{Binding WhatIsThis}" Style="{StaticResource Caption}" TextTrimming="CharacterEllipsis" />
         </StackPanel>
-        <ui:SymbolIcon Grid.Column="3" Symbol="Warning24" FontSize="16" Margin="6,0,4,0" Foreground="{StaticResource AccentOrangeBrush}"
+        <controls:IconGlyph Grid.Column="3" Symbol="Warning24" FontSize="16" Margin="6,0,4,0" Foreground="{DynamicResource AccentOrangeBrush}"
                        ToolTip="{Binding FlagText}"
                        Visibility="{Binding IsFlagged, Converter={StaticResource BoolToVisibility}}" />
       </Grid>
@@ -97,10 +97,10 @@
 
     <DataTemplate x:Key="PublisherCell">
       <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-        <ui:SymbolIcon Symbol="ShieldCheckmark24" FontSize="14" Margin="0,0,6,0" Foreground="{StaticResource AccentGreenBrush}"
+        <controls:IconGlyph Symbol="ShieldCheckmark24" FontSize="14" Margin="0,0,6,0" Foreground="{DynamicResource AccentGreenBrush}"
                        ToolTip="Digitally signed by this publisher"
                        Visibility="{Binding IsSigned, Converter={StaticResource BoolToVisibility}}" />
-        <ui:SymbolIcon Symbol="ShieldError24" FontSize="14" Margin="0,0,6,0" Foreground="{StaticResource AccentOrangeBrush}"
+        <controls:IconGlyph Symbol="ShieldError24" FontSize="14" Margin="0,0,6,0" Foreground="{DynamicResource AccentOrangeBrush}"
                        ToolTip="No valid digital signature"
                        Visibility="{Binding IsSignatureProblem, Converter={StaticResource BoolToVisibility}}" />
         <ui:TextBlock Text="{Binding PublisherText}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
@@ -120,7 +120,7 @@
                  DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
       <MenuItem Header="End task" Command="{Binding EndTaskCommand}" InputGestureText="Del">
         <MenuItem.Icon>
-          <ui:SymbolIcon Symbol="DismissCircle24" />
+          <controls:IconGlyph Symbol="DismissCircle24" />
         </MenuItem.Icon>
       </MenuItem>
       <MenuItem Header="End process tree" Command="{Binding EndTreeCommand}"
@@ -139,17 +139,17 @@
       <Separator />
       <MenuItem Header="Open file location" Command="{Binding OpenFileLocationCommand}">
         <MenuItem.Icon>
-          <ui:SymbolIcon Symbol="FolderOpen24" />
+          <controls:IconGlyph Symbol="FolderOpen24" />
         </MenuItem.Icon>
       </MenuItem>
       <MenuItem Header="Search the name online" Command="{Binding SearchOnlineCommand}">
         <MenuItem.Icon>
-          <ui:SymbolIcon Symbol="GlobeSearch24" />
+          <controls:IconGlyph Symbol="GlobeSearch24" />
         </MenuItem.Icon>
       </MenuItem>
       <MenuItem Header="Copy details" Command="{Binding CopyDetailsCommand}">
         <MenuItem.Icon>
-          <ui:SymbolIcon Symbol="Copy24" />
+          <controls:IconGlyph Symbol="Copy24" />
         </MenuItem.Icon>
       </MenuItem>
     </ContextMenu>
@@ -197,14 +197,14 @@
         <!-- Summary -->
         <controls:AdaptiveGrid MinItemWidth="200" MaxColumns="4" Margin="0,0,0,12">
           <controls:StatCard Style="{StaticResource Tile}" Title="Total CPU" Value="{Binding TotalCpuText}" Icon="Gauge24"
-                             Accent="{StaticResource AccentCyanBrush}" Subtitle="All programs together"
+                             Accent="{DynamicResource AccentCyanBrush}" Subtitle="All programs together"
                              ToolTip="{Binding CpuHeader}" />
           <controls:StatCard Style="{StaticResource Tile}" Title="Memory in use" Value="{Binding MemoryUsedText}" Unit="{Binding MemoryTotalText}" Icon="DataUsage24"
-                             Accent="{StaticResource AccentPurpleBrush}" Subtitle="{Binding MemorySubtitle}" />
+                             Accent="{DynamicResource AccentPurpleBrush}" Subtitle="{Binding MemorySubtitle}" />
           <controls:StatCard Style="{StaticResource Tile}" Title="Processes" Value="{Binding ProcessCountText}" Icon="TaskListLtr24"
-                             Accent="{StaticResource AccentGreenBrush}" Subtitle="{Binding AppCountText}" />
+                             Accent="{DynamicResource AccentGreenBrush}" Subtitle="{Binding AppCountText}" />
           <controls:StatCard Style="{StaticResource Tile}" Title="Busiest right now" Value="{Binding TopConsumerText}" Icon="Trophy24"
-                             Accent="{StaticResource AccentOrangeBrush}" Subtitle="{Binding TopConsumerDetail}" />
+                             Accent="{DynamicResource AccentOrangeBrush}" Subtitle="{Binding TopConsumerDetail}" />
         </controls:AdaptiveGrid>
 
         <!-- Possibly unwanted: informational only -->
@@ -240,7 +240,7 @@
               </StackPanel>
             </Grid>
 
-            <ui:DataGrid x:Name="ProcessGrid" Style="{StaticResource ProcessGrid}" ItemsSource="{Binding Rows}"
+            <ui:DataGrid AutomationProperties.Name="Running programs" KeyboardNavigation.TabNavigation="Once" x:Name="ProcessGrid" Style="{StaticResource ProcessGrid}" ItemsSource="{Binding Rows}"
                          SelectedItem="{Binding SelectedRow, Mode=TwoWay}"
                          ContextMenu="{StaticResource ProcessActions}"
                          Sorting="OnGridSorting"
@@ -276,14 +276,14 @@
             <Border Margin="0,0,0,10" Padding="12,8" CornerRadius="6" Background="{DynamicResource ControlFillColorSecondaryBrush}"
                     Visibility="{Binding SelectedRow.IsFlagged, Converter={StaticResource BoolToVisibility}, FallbackValue=Collapsed}">
               <StackPanel Orientation="Horizontal">
-                <ui:SymbolIcon Symbol="Warning24" Foreground="{StaticResource AccentOrangeBrush}" Margin="0,0,8,0" VerticalAlignment="Top" />
+                <controls:IconGlyph Symbol="Warning24" Foreground="{DynamicResource AccentOrangeBrush}" Margin="0,0,8,0" VerticalAlignment="Top" />
                 <ui:TextBlock Text="{Binding SelectedRow.FlagText}" TextWrapping="Wrap" MaxWidth="900" />
               </StackPanel>
             </Border>
             <Border Margin="0,0,0,10" Padding="12,8" CornerRadius="6" Background="{DynamicResource ControlFillColorSecondaryBrush}"
                     Visibility="{Binding SelectedRow.IsProtected, Converter={StaticResource BoolToVisibility}, FallbackValue=Collapsed}">
               <StackPanel Orientation="Horizontal">
-                <ui:SymbolIcon Symbol="LockClosed24" Margin="0,0,8,0" VerticalAlignment="Top" />
+                <controls:IconGlyph Symbol="LockClosed24" Margin="0,0,8,0" VerticalAlignment="Top" />
                 <ui:TextBlock Text="{Binding SelectedRow.ProtectionReason}" TextWrapping="Wrap" MaxWidth="900" />
               </StackPanel>
             </Border>

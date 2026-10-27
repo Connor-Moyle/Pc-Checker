@@ -34,6 +34,7 @@
               <ui:TextBlock x:Name="Sender" Grid.Column="0" FontTypography="Caption" FontWeight="SemiBold" Text="{Binding SenderLabel}" VerticalAlignment="Center" />
               <ui:TextBlock x:Name="Time" Grid.Column="1" Style="{StaticResource Caption}" Text="{Binding TimeText}" Margin="8,0,0,0" VerticalAlignment="Center" />
               <ui:Button x:Name="CopyButton"
+                         AutomationProperties.Name="Copy message"
                          Grid.Column="3"
                          Appearance="Transparent"
                          Padding="4"
@@ -68,9 +69,9 @@
           <Setter TargetName="CopyButton" Property="Foreground" Value="{DynamicResource TextOnAccentFillColorPrimaryBrush}" />
         </DataTrigger>
         <DataTrigger Binding="{Binding IsError}" Value="True">
-          <Setter TargetName="Bubble" Property="BorderBrush" Value="{StaticResource AccentRedBrush}" />
+          <Setter TargetName="Bubble" Property="BorderBrush" Value="{DynamicResource AccentRedBrush}" />
           <Setter TargetName="Sender" Property="Text" Value="Problem" />
-          <Setter TargetName="Sender" Property="Foreground" Value="{StaticResource AccentRedBrush}" />
+          <Setter TargetName="Sender" Property="Foreground" Value="{DynamicResource AccentRedBrush}" />
         </DataTrigger>
       </DataTemplate.Triggers>
     </DataTemplate>
@@ -139,7 +140,7 @@
               <ColumnDefinition Width="Auto" />
               <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
-            <ui:SymbolIcon Grid.Column="0" Symbol="ShieldCheckmark24" FontSize="16" Margin="0,0,6,0" VerticalAlignment="Top" />
+            <controls:IconGlyph Grid.Column="0" Symbol="ShieldCheckmark24" FontSize="16" Margin="0,0,6,0" VerticalAlignment="Top" />
             <ui:TextBlock Grid.Column="1" Style="{StaticResource Muted}" TextWrapping="Wrap"
                           Text="Nothing is sent until you ask, and the key stays encrypted on this PC." />
           </Grid>
@@ -151,7 +152,7 @@
               <ColumnDefinition Width="*" />
               <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
-            <ui:PasswordBox Grid.Column="0"
+            <ui:PasswordBox Grid.Column="0" AutomationProperties.Name="API key"
                             PlaceholderText="Paste your key (starts with sk-ant-…)"
                             Password="{Binding ApiKeyInput, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"
                             Margin="0,0,8,0" />
@@ -222,9 +223,9 @@
           </StackPanel>
           <StackPanel Orientation="Horizontal" Margin="0,8,0,0"
                       Visibility="{Binding ConnectionStatus, Converter={StaticResource NullToVisibility}}">
-            <ui:SymbolIcon Symbol="CheckmarkCircle24" Foreground="{StaticResource AccentGreenBrush}" VerticalAlignment="Top" Margin="0,2,6,0"
+            <controls:IconGlyph Symbol="CheckmarkCircle24" Foreground="{DynamicResource AccentGreenBrush}" VerticalAlignment="Top" Margin="0,2,6,0"
                            Visibility="{Binding ConnectionOk, Converter={StaticResource BoolToVisibility}}" />
-            <ui:SymbolIcon Symbol="ErrorCircle24" Foreground="{StaticResource AccentOrangeBrush}" VerticalAlignment="Top" Margin="0,2,6,0"
+            <controls:IconGlyph Symbol="ErrorCircle24" Foreground="{DynamicResource AccentOrangeBrush}" VerticalAlignment="Top" Margin="0,2,6,0"
                            Visibility="{Binding ConnectionOk, Converter={StaticResource InverseBoolToVisibility}}" />
             <ui:TextBlock Text="{Binding ConnectionStatus}" TextWrapping="Wrap" MaxWidth="420" />
           </StackPanel>

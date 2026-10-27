@@ -44,7 +44,7 @@
       <Border x:Name="Preview" Grid.Column="0" Width="44" Height="44" CornerRadius="10" BorderThickness="1" BorderBrush="#55FFFFFF" Margin="0,0,12,0" />
       <StackPanel Grid.Column="1" VerticalAlignment="Center">
         <ui:TextBlock Text="Hex colour" Style="{StaticResource Muted}" />
-        <ui:TextBox x:Name="HexBox" PlaceholderText="#4CC2FF" MaxLength="9" LostFocus="OnHexCommitted" KeyDown="OnHexKeyDown"
+        <ui:TextBox x:Name="HexBox" AutomationProperties.Name="Colour code" PlaceholderText="#4CC2FF" MaxLength="9" LostFocus="OnHexCommitted" KeyDown="OnHexKeyDown"
                     ToolTip="Type a colour such as #FF8800 and press Enter." />
       </StackPanel>
     </Grid>
@@ -70,7 +70,7 @@
       </ItemsControl.ItemsPanel>
       <ItemsControl.ItemTemplate>
         <DataTemplate>
-          <Button Style="{StaticResource SwatchButton}" Background="{Binding Brush}" ToolTip="{Binding Name}" Click="OnSwatchClick" Tag="{Binding}" />
+          <Button Style="{StaticResource SwatchButton}" Background="{Binding Brush}" ToolTip="{Binding Name}" AutomationProperties.Name="{Binding Name}" Click="OnSwatchClick" Tag="{Binding}" />
         </DataTemplate>
       </ItemsControl.ItemTemplate>
     </ItemsControl>

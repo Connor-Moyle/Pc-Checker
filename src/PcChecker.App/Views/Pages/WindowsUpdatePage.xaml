@@ -19,7 +19,7 @@
       <Setter Property="VerticalAlignment" Value="Center" />
       <Style.Triggers>
         <DataTrigger Binding="{Binding IsFailure}" Value="True">
-          <Setter Property="Foreground" Value="{StaticResource AccentRedBrush}" />
+          <Setter Property="Foreground" Value="{DynamicResource AccentRedBrush}" />
           <Setter Property="FontWeight" Value="SemiBold" />
         </DataTrigger>
       </Style.Triggers>
@@ -29,10 +29,10 @@
       <Setter Property="Height" Value="10" />
       <Setter Property="HorizontalAlignment" Value="Center" />
       <Setter Property="VerticalAlignment" Value="Center" />
-      <Setter Property="Fill" Value="{StaticResource AccentGreenBrush}" />
+      <Setter Property="Fill" Value="{DynamicResource AccentGreenBrush}" />
       <Style.Triggers>
         <DataTrigger Binding="{Binding IsFailure}" Value="True">
-          <Setter Property="Fill" Value="{StaticResource AccentRedBrush}" />
+          <Setter Property="Fill" Value="{DynamicResource AccentRedBrush}" />
         </DataTrigger>
       </Style.Triggers>
     </Style>
@@ -64,8 +64,10 @@
           </ui:DropDownButton>
           <ui:Button Content="Open Settings" Icon="{ui:SymbolIcon Open24}" Command="{Binding OpenSettingsCommand}" Margin="0,0,8,0"
                      ToolTip="Opens Windows Update in the Settings app." />
-          <ui:Button Content="Check for updates" Appearance="Primary" Icon="{ui:SymbolIcon ArrowSync24}" Command="{Binding CheckForUpdatesCommand}"
-                     ToolTip="Asks Windows Update for updates that are not installed yet. This can take a minute. Nothing is installed by a check." />
+          <ui:Button Appearance="Primary" Icon="{ui:SymbolIcon ArrowSync24}" Command="{Binding CheckForUpdatesCommand}"
+                     ToolTip="Asks Windows Update for updates that are not installed yet. This can take a minute. Nothing is installed by a check.">
+            <AccessText Text="_Check for updates" />
+          </ui:Button>
         </StackPanel>
       </controls:SectionHeader.Actions>
     </controls:SectionHeader>
@@ -91,13 +93,13 @@
     <!-- Summary -->
     <controls:AdaptiveGrid Grid.Row="2" MinItemWidth="200" MaxColumns="4" Margin="0,0,0,12">
       <controls:StatCard Style="{StaticResource Tile}" Title="Updates waiting" Value="{Binding PendingCountText}" Icon="CloudArrowDown24"
-                         Accent="{StaticResource AccentCyanBrush}" Subtitle="{Binding PendingSubtitle}" />
+                         Accent="{DynamicResource AccentCyanBrush}" Subtitle="{Binding PendingSubtitle}" />
       <controls:StatCard Style="{StaticResource Tile}" Title="Last checked" Value="{Binding LastCheckText}" Icon="ArrowSync24"
-                         Accent="{StaticResource AccentPurpleBrush}" Subtitle="By Windows or by PC Checker" />
+                         Accent="{DynamicResource AccentPurpleBrush}" Subtitle="By Windows or by PC Checker" />
       <controls:StatCard Style="{StaticResource Tile}" Title="Last installed" Value="{Binding LastInstallText}" Icon="History24"
-                         Accent="{StaticResource AccentGreenBrush}" Subtitle="{Binding LastInstallSubtitle}" />
+                         Accent="{DynamicResource AccentGreenBrush}" Subtitle="{Binding LastInstallSubtitle}" />
       <controls:StatCard Style="{StaticResource Tile}" Title="Pause" Value="{Binding PauseText}" Icon="PauseCircle24"
-                         Accent="{StaticResource AccentOrangeBrush}" Subtitle="{Binding PauseSubtitle}" />
+                         Accent="{DynamicResource AccentOrangeBrush}" Subtitle="{Binding PauseSubtitle}" />
     </controls:AdaptiveGrid>
 
     <TabControl Grid.Row="3" Padding="0,8,0,0">
@@ -133,7 +135,7 @@
           </Grid>
 
           <Grid Grid.Row="1">
-            <ui:DataGrid ItemsSource="{Binding Updates}"
+            <ui:DataGrid AutomationProperties.Name="Available updates" ItemsSource="{Binding Updates}"
                          AutoGenerateColumns="False"
                          CanUserAddRows="False"
                          CanUserDeleteRows="False"
@@ -237,7 +239,7 @@
           </Grid>
 
           <Grid Grid.Row="1">
-            <ui:DataGrid ItemsSource="{Binding History}"
+            <ui:DataGrid AutomationProperties.Name="Update history" KeyboardNavigation.TabNavigation="Once" ItemsSource="{Binding History}"
                          AutoGenerateColumns="False"
                          IsReadOnly="True"
                          CanUserAddRows="False"
@@ -338,7 +340,7 @@
                     <ui:Button Content="Save" Icon="{ui:SymbolIcon Clock24}" Command="{Binding SaveActiveHoursCommand}" Margin="0,0,0,8"
                                ToolTip="Saves these hours after you confirm." />
                   </WrapPanel>
-                  <ui:TextBlock Style="{StaticResource Caption}" Foreground="{StaticResource AccentOrangeBrush}" TextWrapping="Wrap" Margin="0,8,0,0"
+                  <ui:TextBlock Style="{StaticResource Caption}" Foreground="{DynamicResource AccentOrangeBrush}" TextWrapping="Wrap" Margin="0,8,0,0"
                                 Text="{Binding ActiveHoursProblem}"
                                 Visibility="{Binding HasActiveHoursProblem, Converter={StaticResource BoolToVisibility}}" />
                   <ui:TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,8,0,0"

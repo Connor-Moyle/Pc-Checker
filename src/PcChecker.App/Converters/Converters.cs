@@ -5,6 +5,8 @@ using System.Windows;
 using System.Windows.Data;
 using System.Windows.Media;
 using PcChecker.Core.Common;
+using PcChecker.App.Services;
+using PcChecker.Core.Accessibility;
 
 namespace PcChecker.App.Converters;
 
@@ -48,14 +50,14 @@ public sealed class BytesToStringConverter : IValueConverter
     public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => throw new NotSupportedException();
 }
 
-/// <summary>Severity → brush (grey/blue/yellow/orange/red).</summary>
+/// <summary>Severity → brush (grey/blue/yellow/orange/red), in the current theme's shades (see <see cref="ThemeColors"/>).</summary>
 public sealed class SeverityToBrushConverter : IValueConverter
 {
-    public static readonly Brush Info = Freeze(new SolidColorBrush(Color.FromRgb(0x60, 0xA5, 0xFA)));
-    public static readonly Brush Low = Freeze(new SolidColorBrush(Color.FromRgb(0x9C, 0xA3, 0xAF)));
-    public static readonly Brush Medium = Freeze(new SolidColorBrush(Color.FromRgb(0xFA, 0xCC, 0x15)));
-    public static readonly Brush High = Freeze(new SolidColorBrush(Color.FromRgb(0xF9, 0x73, 0x16)));
-    public static readonly Brush Critical = Freeze(new SolidColorBrush(Color.FromRgb(0xEF, 0x44, 0x44)));
+    public static Brush Info => ThemeColors.Accent(AccentRole.Blue);
+    public static Brush Low => ThemeColors.Accent(AccentRole.Grey);
+    public static Brush Medium => ThemeColors.Accent(AccentRole.Yellow);
+    public static Brush High => ThemeColors.Accent(AccentRole.Orange);
+    public static Brush Critical => ThemeColors.Accent(AccentRole.Red);
 
     public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture) => value switch
     {
@@ -67,21 +69,15 @@ public sealed class SeverityToBrushConverter : IValueConverter
     };
 
     public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => throw new NotSupportedException();
-
-    internal static Brush Freeze(Brush b)
-    {
-        b.Freeze();
-        return b;
-    }
 }
 
-/// <summary>HealthStatus → brush (grey/green/yellow/red).</summary>
+/// <summary>HealthStatus → brush (grey/green/yellow/red), in the current theme's shades.</summary>
 public sealed class HealthStatusToBrushConverter : IValueConverter
 {
-    public static readonly Brush Unknown = SeverityToBrushConverter.Freeze(new SolidColorBrush(Color.FromRgb(0x9C, 0xA3, 0xAF)));
-    public static readonly Brush Good = SeverityToBrushConverter.Freeze(new SolidColorBrush(Color.FromRgb(0x22, 0xC5, 0x5E)));
-    public static readonly Brush Warning = SeverityToBrushConverter.Freeze(new SolidColorBrush(Color.FromRgb(0xFA, 0xCC, 0x15)));
-    public static readonly Brush Critical = SeverityToBrushConverter.Freeze(new SolidColorBrush(Color.FromRgb(0xEF, 0x44, 0x44)));
+    public static Brush Unknown => ThemeColors.Accent(AccentRole.Grey);
+    public static Brush Good => ThemeColors.Accent(AccentRole.Green);
+    public static Brush Warning => ThemeColors.Accent(AccentRole.Yellow);
+    public static Brush Critical => ThemeColors.Accent(AccentRole.Red);
 
     public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture) => value switch
     {
@@ -192,11 +188,11 @@ public sealed class DoubleToPercentConverter : IValueConverter
 /// <summary>Temperature → brush using warn/crit thresholds. Parameter "warn,crit" (e.g. "85,95"); defaults 80/90.</summary>
 public sealed class TemperatureToBrushConverter : IValueConverter
 {
-    public static readonly Brush Cool = SeverityToBrushConverter.Freeze(new SolidColorBrush(Color.FromRgb(0x4C, 0xC2, 0xFF)));
-    public static readonly Brush Normal = SeverityToBrushConverter.Freeze(new SolidColorBrush(Color.FromRgb(0x22, 0xC5, 0x5E)));
-    public static readonly Brush Warm = SeverityToBrushConverter.Freeze(new SolidColorBrush(Color.FromRgb(0xFA, 0xCC, 0x15)));
-    public static readonly Brush Hot = SeverityToBrushConverter.Freeze(new SolidColorBrush(Color.FromRgb(0xEF, 0x44, 0x44)));
-    public static readonly Brush Unknown = SeverityToBrushConverter.Freeze(new SolidColorBrush(Color.FromRgb(0x9C, 0xA3, 0xAF)));
+    public static Brush Cool => ThemeColors.Accent(AccentRole.Cyan);
+    public static Brush Normal => ThemeColors.Accent(AccentRole.Green);
+    public static Brush Warm => ThemeColors.Accent(AccentRole.Yellow);
+    public static Brush Hot => ThemeColors.Accent(AccentRole.Red);
+    public static Brush Unknown => ThemeColors.Accent(AccentRole.Grey);
 
     public double DefaultWarn { get; set; } = 80;
     public double DefaultCrit { get; set; } = 90;

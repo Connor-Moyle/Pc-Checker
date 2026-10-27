@@ -22,10 +22,10 @@
       <Setter Property="FontWeight" Value="SemiBold" />
       <Style.Triggers>
         <DataTrigger Binding="{Binding Change}" Value="{x:Static bench:BenchmarkChange.Better}">
-          <Setter Property="Foreground" Value="{StaticResource AccentGreenBrush}" />
+          <Setter Property="Foreground" Value="{DynamicResource AccentGreenBrush}" />
         </DataTrigger>
         <DataTrigger Binding="{Binding Change}" Value="{x:Static bench:BenchmarkChange.Worse}">
-          <Setter Property="Foreground" Value="{StaticResource AccentOrangeBrush}" />
+          <Setter Property="Foreground" Value="{DynamicResource AccentOrangeBrush}" />
         </DataTrigger>
         <DataTrigger Binding="{Binding IsDetail}" Value="True">
           <Setter Property="FontWeight" Value="Normal" />
@@ -54,7 +54,7 @@
       <Setter Property="Background" Value="Transparent" />
       <Style.Triggers>
         <DataTrigger Binding="{Binding IsShown}" Value="True">
-          <Setter Property="Background" Value="{StaticResource AccentCyanBrush}" />
+          <Setter Property="Background" Value="{DynamicResource AccentCyanBrush}" />
         </DataTrigger>
       </Style.Triggers>
     </Style>
@@ -69,8 +69,8 @@
               <ColumnDefinition Width="*" />
               <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
-            <Border Grid.Column="0" Width="36" Height="36" CornerRadius="8" Background="{StaticResource AccentCyanBrush}" Opacity="0.9" Margin="0,0,12,0" VerticalAlignment="Top">
-              <ui:SymbolIcon Symbol="{Binding Icon}" FontSize="20" Foreground="White" />
+            <Border Grid.Column="0" Width="36" Height="36" CornerRadius="8" Background="{DynamicResource AccentCyanBrush}" Opacity="0.9" Margin="0,0,12,0" VerticalAlignment="Top">
+              <controls:IconGlyph Symbol="{Binding Icon}" FontSize="20" Foreground="{DynamicResource OnAccentIconBrush}" />
             </Border>
             <StackPanel Grid.Column="1" VerticalAlignment="Center">
               <ui:TextBlock FontTypography="BodyStrong" Text="{Binding Name}" TextTrimming="CharacterEllipsis" ToolTip="{Binding Description}" />
@@ -143,8 +143,10 @@
               </ContextMenu>
             </ui:DropDownButton.Flyout>
           </ui:DropDownButton>
-          <ui:Button Content="Run benchmark" Appearance="Primary" Icon="{ui:SymbolIcon Play24}" Command="{Binding RunSelectedCommand}"
-                     ToolTip="Runs the tests ticked in Options one after another (about a minute and a half for all of them). Nothing on the PC is changed." />
+          <ui:Button Appearance="Primary" Icon="{ui:SymbolIcon Play24}" Command="{Binding RunSelectedCommand}"
+                     ToolTip="Runs the tests ticked in Options one after another (about a minute and a half for all of them). Nothing on the PC is changed.">
+            <AccessText Text="_Run benchmark" />
+          </ui:Button>
         </StackPanel>
       </controls:SectionHeader.Actions>
     </controls:SectionHeader>
@@ -175,13 +177,13 @@
           <!-- Summary -->
           <controls:AdaptiveGrid MinItemWidth="200" MaxColumns="4" Margin="0,0,0,12">
             <controls:StatCard Style="{StaticResource Tile}" Title="Overall score" Value="{Binding OverallText}" Icon="Trophy24"
-                               Accent="{StaticResource AccentCyanBrush}" Subtitle="{Binding OverallSubtitle}" />
+                               Accent="{DynamicResource AccentCyanBrush}" Subtitle="{Binding OverallSubtitle}" />
             <controls:StatCard Style="{StaticResource Tile}" Title="Change" Value="{Binding ChangeText}" Icon="ArrowTrending24"
-                               Accent="{StaticResource AccentGreenBrush}" Subtitle="{Binding ChangeSubtitle}" />
+                               Accent="{DynamicResource AccentGreenBrush}" Subtitle="{Binding ChangeSubtitle}" />
             <controls:StatCard Style="{StaticResource Tile}" Title="Tests with a score" Value="{Binding TestsText}" Icon="DataBarVertical24"
-                               Accent="{StaticResource AccentPurpleBrush}" Subtitle="{Binding TestsSubtitle}" />
+                               Accent="{DynamicResource AccentPurpleBrush}" Subtitle="{Binding TestsSubtitle}" />
             <controls:StatCard Style="{StaticResource Tile}" Title="Run" Value="{Binding RunDateText}" Icon="History24"
-                               Accent="{StaticResource AccentOrangeBrush}" Subtitle="{Binding RunDateSubtitle}" />
+                               Accent="{DynamicResource AccentOrangeBrush}" Subtitle="{Binding RunDateSubtitle}" />
           </controls:AdaptiveGrid>
 
           <!-- One card per test -->
@@ -240,7 +242,7 @@
                   <ui:TextBlock Style="{StaticResource Caption}" Text="Before" />
                   <ComboBox ItemsSource="{Binding Runs}" SelectedItem="{Binding CompareBefore}" DisplayMemberPath="Title" />
                 </StackPanel>
-                <ui:Button Grid.Column="1" Icon="{ui:SymbolIcon ArrowSwap24}" Command="{Binding SwapComparisonCommand}" Margin="8,0" VerticalAlignment="Bottom"
+                <ui:Button Grid.Column="1" Icon="{ui:SymbolIcon ArrowSwap24}" AutomationProperties.Name="Swap before and after" Command="{Binding SwapComparisonCommand}" Margin="8,0" VerticalAlignment="Bottom"
                            ToolTip="Swap before and after" />
                 <StackPanel Grid.Column="2">
                   <ui:TextBlock Style="{StaticResource Caption}" Text="After" />

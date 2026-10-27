@@ -2,15 +2,17 @@ using System.Globalization;
 using System.Windows.Data;
 using System.Windows.Media;
 using PcChecker.Core.WindowsFeatures;
+using PcChecker.App.Services;
+using PcChecker.Core.Accessibility;
 
 namespace PcChecker.App.Converters;
 
-/// <summary>FeatureState → badge brush (green when on/installed, grey otherwise).</summary>
+/// <summary>FeatureState → badge brush (green when on/installed, grey otherwise), in the current theme's shades.</summary>
 public sealed class FeatureStateToBrushConverter : IValueConverter
 {
-    public static readonly Brush On = SeverityToBrushConverter.Freeze(new SolidColorBrush(Color.FromRgb(0x16, 0xA3, 0x4A)));
-    public static readonly Brush Off = SeverityToBrushConverter.Freeze(new SolidColorBrush(Color.FromRgb(0x6B, 0x72, 0x80)));
-    public static readonly Brush Unknown = SeverityToBrushConverter.Freeze(new SolidColorBrush(Color.FromRgb(0x9C, 0xA3, 0xAF)));
+    public static Brush On => ThemeColors.Accent(AccentRole.Green);
+    public static Brush Off => ThemeColors.Accent(AccentRole.Grey);
+    public static Brush Unknown => ThemeColors.Accent(AccentRole.Grey);
 
     public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture) => value switch
     {

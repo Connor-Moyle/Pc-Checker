@@ -60,9 +60,9 @@
           </StackPanel>
           <ui:TextBlock Grid.Column="2" Text="{Binding SizeText}" FontWeight="SemiBold" VerticalAlignment="Center" MinWidth="80" TextAlignment="Right" Margin="12,0,8,0" />
           <StackPanel Grid.Column="3" Orientation="Horizontal">
-            <ui:Button Style="{StaticResource RowIconButton}" Icon="{ui:SymbolIcon Open24}" ToolTip="Show in File Explorer"
+            <ui:Button Style="{StaticResource RowIconButton}" Icon="{ui:SymbolIcon Open24}" AutomationProperties.Name="Show in File Explorer" ToolTip="Show in File Explorer"
                        Command="{Binding DataContext.ShowInExplorerCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}" />
-            <ui:Button Style="{StaticResource RowIconButton}" Icon="{ui:SymbolIcon Copy24}" ToolTip="Copy path"
+            <ui:Button Style="{StaticResource RowIconButton}" Icon="{ui:SymbolIcon Copy24}" AutomationProperties.Name="Copy path" ToolTip="Copy path"
                        Command="{Binding DataContext.CopyPathCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}" />
           </StackPanel>
         </Grid>
@@ -95,8 +95,10 @@
           </ui:DropDownButton>
           <ui:Button Content="Choose folder…" Icon="{ui:SymbolIcon FolderOpen24}" Command="{Binding ChooseFolderCommand}" Margin="0,0,8,0"
                      ToolTip="Measure one folder instead of a whole drive." />
-          <ui:Button Content="Scan" Appearance="Primary" Icon="{ui:SymbolIcon Search24}" Command="{Binding ScanCommand}"
-                     ToolTip="Measures the drive or folder again. Nothing is changed by a scan." />
+          <ui:Button Appearance="Primary" Icon="{ui:SymbolIcon Search24}" Command="{Binding ScanCommand}"
+                     ToolTip="Measures the drive or folder again. Nothing is changed by a scan.">
+            <AccessText Text="_Scan" />
+          </ui:Button>
         </StackPanel>
       </controls:SectionHeader.Actions>
     </controls:SectionHeader>
@@ -132,7 +134,7 @@
                       <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
                     <ui:TextBlock FontTypography="BodyStrong" Text="{Binding Title}" TextTrimming="CharacterEllipsis" />
-                    <ui:SymbolIcon Grid.Column="1" Symbol="CheckmarkCircle24" FontSize="16" Foreground="{StaticResource AccentGreenBrush}"
+                    <controls:IconGlyph Grid.Column="1" Symbol="CheckmarkCircle24" FontSize="16" Foreground="{DynamicResource AccentGreenBrush}"
                                    ToolTip="Shown below" Visibility="{Binding IsCurrent, Converter={StaticResource BoolToVisibility}}" />
                   </Grid>
                   <ProgressBar Style="{StaticResource ShareBar}" Value="{Binding UsedPercent, Mode=OneWay}" Foreground="{Binding BarBrush}" Margin="0,6,0,4" />
@@ -157,13 +159,13 @@
           <!-- Summary -->
           <controls:AdaptiveGrid MinItemWidth="200" MaxColumns="4" Margin="0,0,0,12">
             <controls:StatCard Style="{StaticResource Tile}" Title="Scanned" Value="{Binding ScannedText}" Icon="Storage24"
-                               Accent="{StaticResource AccentCyanBrush}" Subtitle="{Binding ScannedSubtitle}" />
+                               Accent="{DynamicResource AccentCyanBrush}" Subtitle="{Binding ScannedSubtitle}" />
             <controls:StatCard Style="{StaticResource Tile}" Title="Used" Value="{Binding UsedText}" Icon="DataPie24"
-                               Accent="{StaticResource AccentPurpleBrush}" Subtitle="{Binding UsedSubtitle}" />
+                               Accent="{DynamicResource AccentPurpleBrush}" Subtitle="{Binding UsedSubtitle}" />
             <controls:StatCard Style="{StaticResource Tile}" Title="Largest folder" Value="{Binding LargestFolderText}" Icon="Folder24"
-                               Accent="{StaticResource AccentOrangeBrush}" Subtitle="{Binding LargestFolderSubtitle}" />
+                               Accent="{DynamicResource AccentOrangeBrush}" Subtitle="{Binding LargestFolderSubtitle}" />
             <controls:StatCard Style="{StaticResource Tile}" Title="Files" Value="{Binding FilesText}" Icon="DocumentMultiple24"
-                               Accent="{StaticResource AccentGreenBrush}" Subtitle="{Binding FilesSubtitle}" />
+                               Accent="{DynamicResource AccentGreenBrush}" Subtitle="{Binding FilesSubtitle}" />
           </controls:AdaptiveGrid>
 
           <ui:InfoBar Severity="Informational" Title="About these numbers" Message="{Binding ScanNote}"
@@ -200,7 +202,7 @@
                       <ColumnDefinition Width="*" />
                       <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
-                    <ui:Button Grid.Column="0" Icon="{ui:SymbolIcon FolderArrowUp24}" Command="{Binding GoUpCommand}" Padding="8,4" Margin="0,0,8,0"
+                    <ui:Button Grid.Column="0" Icon="{ui:SymbolIcon FolderArrowUp24}" AutomationProperties.Name="Up one folder" Command="{Binding GoUpCommand}" Padding="8,4" Margin="0,0,8,0"
                                ToolTip="Up one folder" VerticalAlignment="Center" />
                     <ItemsControl Grid.Column="1" ItemsSource="{Binding Breadcrumbs}" VerticalAlignment="Center">
                       <ItemsControl.ItemsPanel>
@@ -214,7 +216,7 @@
                             <ui:HyperlinkButton Content="{Binding Name}" Padding="4,2"
                                                 Command="{Binding DataContext.GoToBreadcrumbCommand, RelativeSource={RelativeSource AncestorType=Page}}"
                                                 CommandParameter="{Binding}" />
-                            <ui:SymbolIcon Symbol="ChevronRight12" FontSize="12" VerticalAlignment="Center" Margin="2,0"
+                            <controls:IconGlyph Symbol="ChevronRight12" FontSize="12" VerticalAlignment="Center" Margin="2,0"
                                            Visibility="{Binding ShowSeparator, Converter={StaticResource BoolToVisibility}}" />
                           </StackPanel>
                         </DataTemplate>
@@ -240,7 +242,7 @@
                                       ToolTip="{Binding CheckTooltip}" ToolTipService.ShowOnDisabled="True" />
                             <StackPanel Grid.Column="1" VerticalAlignment="Center">
                               <StackPanel Orientation="Horizontal">
-                                <ui:SymbolIcon Symbol="Folder20" FontSize="16" Margin="0,0,4,0" VerticalAlignment="Center" />
+                                <controls:IconGlyph Symbol="Folder20" FontSize="16" Margin="0,0,4,0" VerticalAlignment="Center" />
                                 <ui:HyperlinkButton Content="{Binding Name}" Padding="2,0" ToolTip="Open this folder"
                                                     IsEnabled="{Binding CanOpen}"
                                                     Command="{Binding DataContext.OpenFolderCommand, RelativeSource={RelativeSource AncestorType=Page}}"
@@ -258,9 +260,9 @@
                             </Grid>
                             <ui:TextBlock Grid.Column="3" Text="{Binding SizeText}" FontWeight="SemiBold" VerticalAlignment="Center" MinWidth="80" TextAlignment="Right" Margin="12,0,8,0" />
                             <StackPanel Grid.Column="4" Orientation="Horizontal">
-                              <ui:Button Style="{StaticResource RowIconButton}" Icon="{ui:SymbolIcon Open24}" ToolTip="Show in File Explorer"
+                              <ui:Button Style="{StaticResource RowIconButton}" Icon="{ui:SymbolIcon Open24}" AutomationProperties.Name="Show in File Explorer" ToolTip="Show in File Explorer"
                                          Command="{Binding DataContext.ShowInExplorerCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}" />
-                              <ui:Button Style="{StaticResource RowIconButton}" Icon="{ui:SymbolIcon Copy24}" ToolTip="Copy path"
+                              <ui:Button Style="{StaticResource RowIconButton}" Icon="{ui:SymbolIcon Copy24}" AutomationProperties.Name="Copy path" ToolTip="Copy path"
                                          Command="{Binding DataContext.CopyPathCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}" />
                             </StackPanel>
                           </Grid>
@@ -279,7 +281,7 @@
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="76" />
                       </Grid.ColumnDefinitions>
-                      <ui:SymbolIcon Grid.Column="0" Symbol="Document24" FontSize="16" Margin="28,0,6,0" VerticalAlignment="Center" />
+                      <controls:IconGlyph Grid.Column="0" Symbol="Document24" FontSize="16" Margin="28,0,6,0" VerticalAlignment="Center" />
                       <ui:TextBlock Grid.Column="1" Style="{StaticResource Muted}" Text="{Binding LooseFiles.Title}" VerticalAlignment="Center"
                                     ToolTip="The largest of them are listed under Largest files." />
                       <Grid Grid.Column="2" VerticalAlignment="Center" Margin="12,0,0,0">
@@ -287,7 +289,7 @@
                           <ColumnDefinition Width="*" />
                           <ColumnDefinition Width="44" />
                         </Grid.ColumnDefinitions>
-                        <ProgressBar Style="{StaticResource ShareBar}" Value="{Binding LooseFiles.Percent, Mode=OneWay}" Foreground="{StaticResource AccentGreyBrush}" />
+                        <ProgressBar Style="{StaticResource ShareBar}" Value="{Binding LooseFiles.Percent, Mode=OneWay}" Foreground="{DynamicResource AccentGreyBrush}" />
                         <ui:TextBlock Grid.Column="1" Style="{StaticResource Caption}" Text="{Binding LooseFiles.PercentText}" TextAlignment="Right" VerticalAlignment="Center" />
                       </Grid>
                       <ui:TextBlock Grid.Column="3" Text="{Binding LooseFiles.SizeText}" VerticalAlignment="Center" MinWidth="80" TextAlignment="Right" Margin="12,0,8,0" />

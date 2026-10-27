@@ -51,7 +51,9 @@
         <StackPanel Orientation="Horizontal">
           <ui:Button Content="Disk Management" Icon="{ui:SymbolIcon WindowApps24}" Command="{Binding OpenDiskManagementCommand}" Margin="0,0,8,0"
                      ToolTip="Opens the Windows Disk Management console (partitions, drive letters, formatting)." />
-          <ui:Button Content="Refresh" Appearance="Primary" Icon="{ui:SymbolIcon ArrowSync24}" Command="{Binding RefreshCommand}" />
+          <ui:Button Appearance="Primary" Icon="{ui:SymbolIcon ArrowSync24}" Command="{Binding RefreshCommand}">
+            <AccessText Text="_Refresh" />
+          </ui:Button>
         </StackPanel>
       </controls:SectionHeader.Actions>
     </controls:SectionHeader>
@@ -70,7 +72,7 @@
         <!-- Drives -->
         <ui:TextBlock Style="{StaticResource CardTitle}" Text="Your drives" />
         <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding DevicesSummary}" TextWrapping="Wrap" Margin="0,0,0,8" />
-        <ListBox ItemsSource="{Binding Devices}" SelectedItem="{Binding SelectedDevice}" BorderThickness="0" Background="Transparent" Padding="0" Margin="0,0,0,12"
+        <ListBox ItemsSource="{Binding Devices}" AutomationProperties.Name="Drives" SelectedItem="{Binding SelectedDevice}" BorderThickness="0" Background="Transparent" Padding="0" Margin="0,0,0,12"
                  IsEnabled="{Binding IsAnyToolRunning, Converter={StaticResource InverseBool}}"
                  ScrollViewer.HorizontalScrollBarVisibility="Disabled">
           <ListBox.ItemsPanel>
@@ -97,7 +99,7 @@
                   </Grid.ColumnDefinitions>
                   <Border Grid.Column="0" Width="44" Height="44" CornerRadius="10" Margin="0,0,12,0" VerticalAlignment="Top"
                           Background="{Binding Health, Converter={StaticResource HealthStatusToBrush}}" Opacity="0.9">
-                    <ui:SymbolIcon Symbol="HardDrive20" FontSize="24" Foreground="White" />
+                    <controls:IconGlyph Symbol="HardDrive20" FontSize="24" Foreground="{DynamicResource OnAccentIconBrush}" />
                   </Border>
                   <StackPanel Grid.Column="1">
                     <ui:TextBlock FontTypography="BodyStrong" Text="{Binding Model}" TextTrimming="CharacterEllipsis" ToolTip="{Binding Model}" />
@@ -111,12 +113,12 @@
                     <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
                       <Border Style="{StaticResource PillBorder}" Background="{Binding Health, Converter={StaticResource HealthStatusToBrush}}"
                               ToolTip="Health as reported by Windows from the drive's own self-check (SMART).">
-                        <ui:TextBlock FontSize="11" FontWeight="SemiBold" Foreground="White" Text="{Binding HealthText}" />
+                        <ui:TextBlock FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource OnAccentTextBrush}" Text="{Binding HealthText}" />
                       </Border>
-                      <Border Style="{StaticResource PillBorder}" Background="{StaticResource AccentCyanBrush}"
+                      <Border Style="{StaticResource PillBorder}" Background="{DynamicResource AccentCyanBrush}"
                               Visibility="{Binding IsSystemDisk, Converter={StaticResource BoolToVisibility}}"
                               ToolTip="Windows is installed on this drive.">
-                        <ui:TextBlock FontSize="11" FontWeight="SemiBold" Foreground="White" Text="Windows drive" />
+                        <ui:TextBlock FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource OnAccentTextBrush}" Text="Windows drive" />
                       </Border>
                       <Border Style="{StaticResource PillBorder}" Background="{DynamicResource ControlFillColorSecondaryBrush}">
                         <ui:TextBlock FontSize="11" Text="{Binding VolumesText}" />
@@ -205,11 +207,11 @@
                   </StackPanel>
                   <StackPanel>
                     <ui:TextBlock Style="{StaticResource StatLabel}" Text="Unreadable blocks" />
-                    <ui:TextBlock Style="{StaticResource StatValue}" Text="{Binding ScanBadBlocks}" Foreground="{StaticResource AccentRedBrush}" />
+                    <ui:TextBlock Style="{StaticResource StatValue}" Text="{Binding ScanBadBlocks}" Foreground="{DynamicResource AccentRedBrush}" />
                   </StackPanel>
                   <StackPanel>
                     <ui:TextBlock Style="{StaticResource StatLabel}" Text="Slow blocks" />
-                    <ui:TextBlock Style="{StaticResource StatValue}" Text="{Binding ScanSlowBlocks}" Foreground="{StaticResource AccentYellowBrush}" />
+                    <ui:TextBlock Style="{StaticResource StatValue}" Text="{Binding ScanSlowBlocks}" Foreground="{DynamicResource AccentYellowBrush}" />
                   </StackPanel>
                   <StackPanel>
                     <ui:TextBlock Style="{StaticResource StatLabel}" Text="Elapsed" />
@@ -240,7 +242,7 @@
                           <ColumnDefinition Width="Auto" />
                           <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
-                        <ui:SymbolIcon Grid.Column="0" Symbol="ChevronRight20" FontSize="14" Margin="0,2,8,0" VerticalAlignment="Top" />
+                        <controls:IconGlyph Grid.Column="0" Symbol="ChevronRight20" FontSize="14" Margin="0,2,8,0" VerticalAlignment="Top" />
                         <ui:TextBlock Grid.Column="1" Text="{Binding}" TextWrapping="Wrap" />
                       </Grid>
                     </DataTemplate>
@@ -301,10 +303,10 @@
 
               <StackPanel Visibility="{Binding HasBenchmarkResult, Converter={StaticResource BoolToVisibility}}" Margin="0,16,0,0">
                 <controls:AdaptiveGrid MinItemWidth="200" MaxColumns="4">
-                  <controls:StatCard Style="{StaticResource Tile}" Title="Sequential read" Value="{Binding SeqReadText}" Unit="MB/s" Icon="ArrowDownload24" Accent="{StaticResource AccentCyanBrush}" />
-                  <controls:StatCard Style="{StaticResource Tile}" Title="Sequential write" Value="{Binding SeqWriteText}" Unit="MB/s" Icon="ArrowUpload24" Accent="{StaticResource AccentPurpleBrush}" />
-                  <controls:StatCard Style="{StaticResource Tile}" Title="Random 4K read" Value="{Binding Rand4kReadText}" Unit="MB/s" Icon="ArrowShuffle24" Accent="{StaticResource AccentGreenBrush}" Subtitle="{Binding Rand4kReadIopsText}" />
-                  <controls:StatCard Style="{StaticResource Tile}" Title="Random 4K write" Value="{Binding Rand4kWriteText}" Unit="MB/s" Icon="ArrowShuffle24" Accent="{StaticResource AccentOrangeBrush}" Subtitle="{Binding Rand4kWriteIopsText}" />
+                  <controls:StatCard Style="{StaticResource Tile}" Title="Sequential read" Value="{Binding SeqReadText}" Unit="MB/s" Icon="ArrowDownload24" Accent="{DynamicResource AccentCyanBrush}" />
+                  <controls:StatCard Style="{StaticResource Tile}" Title="Sequential write" Value="{Binding SeqWriteText}" Unit="MB/s" Icon="ArrowUpload24" Accent="{DynamicResource AccentPurpleBrush}" />
+                  <controls:StatCard Style="{StaticResource Tile}" Title="Random 4K read" Value="{Binding Rand4kReadText}" Unit="MB/s" Icon="ArrowShuffle24" Accent="{DynamicResource AccentGreenBrush}" Subtitle="{Binding Rand4kReadIopsText}" />
+                  <controls:StatCard Style="{StaticResource Tile}" Title="Random 4K write" Value="{Binding Rand4kWriteText}" Unit="MB/s" Icon="ArrowShuffle24" Accent="{DynamicResource AccentOrangeBrush}" Subtitle="{Binding Rand4kWriteIopsText}" />
                 </controls:AdaptiveGrid>
                 <ui:InfoBar IsOpen="True" IsClosable="False" Severity="Informational" Margin="0,12,0,0" Title="Verdict" Message="{Binding BenchmarkSummary}" />
                 <ui:TextBlock FontTypography="BodyStrong" Margin="0,12,0,4" Text="{Binding BenchmarkExpectedClass, StringFormat='Compared with typical drives (this one is treated as: {0})'}" />
@@ -343,8 +345,8 @@
                           <ui:TextBlock Grid.Column="0" Text="{Binding Metric}" />
                           <ui:TextBlock Grid.Column="1" FontWeight="SemiBold" Text="{Binding MeasuredText, StringFormat='{}{0} MB/s'}" />
                           <StackPanel Grid.Column="2" Orientation="Horizontal">
-                            <ui:SymbolIcon Symbol="CheckmarkCircle20" Foreground="{StaticResource AccentGreenBrush}" Margin="0,0,6,0" Visibility="{Binding IsGood, Converter={StaticResource BoolToVisibility}}" />
-                            <ui:SymbolIcon Symbol="ErrorCircle20" Foreground="{StaticResource AccentRedBrush}" Margin="0,0,6,0" Visibility="{Binding IsBad, Converter={StaticResource BoolToVisibility}}" />
+                            <controls:IconGlyph Symbol="CheckmarkCircle20" Foreground="{DynamicResource AccentGreenBrush}" Margin="0,0,6,0" Visibility="{Binding IsGood, Converter={StaticResource BoolToVisibility}}" />
+                            <controls:IconGlyph Symbol="ErrorCircle20" Foreground="{DynamicResource AccentRedBrush}" Margin="0,0,6,0" Visibility="{Binding IsBad, Converter={StaticResource BoolToVisibility}}" />
                             <ui:TextBlock Text="{Binding Verdict}" />
                           </StackPanel>
                           <ui:TextBlock Grid.Column="3" Style="{StaticResource Muted}" Text="{Binding HddText}" TextAlignment="Right" />

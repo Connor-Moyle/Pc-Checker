@@ -17,34 +17,33 @@
       <Setter Property="Padding" Value="8,2" />
       <Setter Property="HorizontalAlignment" Value="Left" />
       <Setter Property="VerticalAlignment" Value="Center" />
-      <Setter Property="Background" Value="{StaticResource AccentGreyBrush}" />
-      <Setter Property="Opacity" Value="0.9" />
+      <Setter Property="Background" Value="{DynamicResource AccentGreyBrush}" />
     </Style>
     <Style x:Key="PillText" TargetType="TextBlock">
       <Setter Property="FontSize" Value="11" />
       <Setter Property="FontWeight" Value="SemiBold" />
-      <Setter Property="Foreground" Value="White" />
+      <Setter Property="Foreground" Value="{DynamicResource OnAccentTextBrush}" />
     </Style>
     <Style x:Key="ImpactPill" TargetType="Border" BasedOn="{StaticResource Pill}">
       <Style.Triggers>
         <DataTrigger Binding="{Binding Impact}" Value="High">
-          <Setter Property="Background" Value="{StaticResource AccentOrangeBrush}" />
+          <Setter Property="Background" Value="{DynamicResource AccentOrangeBrush}" />
         </DataTrigger>
         <DataTrigger Binding="{Binding Impact}" Value="Medium">
-          <Setter Property="Background" Value="{StaticResource AccentYellowBrush}" />
+          <Setter Property="Background" Value="{DynamicResource AccentYellowBrush}" />
         </DataTrigger>
         <DataTrigger Binding="{Binding Impact}" Value="Low">
-          <Setter Property="Background" Value="{StaticResource AccentGreenBrush}" />
+          <Setter Property="Background" Value="{DynamicResource AccentGreenBrush}" />
         </DataTrigger>
       </Style.Triggers>
     </Style>
     <Style x:Key="ProtectionPill" TargetType="Border" BasedOn="{StaticResource Pill}">
       <Style.Triggers>
         <DataTrigger Binding="{Binding IsProtected}" Value="True">
-          <Setter Property="Background" Value="{StaticResource AccentRedBrush}" />
+          <Setter Property="Background" Value="{DynamicResource AccentRedBrush}" />
         </DataTrigger>
         <DataTrigger Binding="{Binding IsWarn}" Value="True">
-          <Setter Property="Background" Value="{StaticResource AccentYellowBrush}" />
+          <Setter Property="Background" Value="{DynamicResource AccentYellowBrush}" />
         </DataTrigger>
       </Style.Triggers>
     </Style>
@@ -87,12 +86,12 @@
     </DataTemplate>
     <DataTemplate x:Key="ActionsCell">
       <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-        <ui:Button Icon="{ui:SymbolIcon FolderOpen24}" Appearance="Secondary" Padding="8,4" Margin="0,0,6,0"
+        <ui:Button Icon="{ui:SymbolIcon FolderOpen24}" Appearance="Secondary" AutomationProperties.Name="Open file location" Padding="8,4" Margin="0,0,6,0"
                    ToolTip="Open the folder that contains this program"
                    IsEnabled="{Binding FileExists}"
                    Command="{Binding DataContext.OpenFileLocationCommand, RelativeSource={RelativeSource AncestorType=Page}}"
                    CommandParameter="{Binding}" />
-        <ui:Button Icon="{ui:SymbolIcon Delete24}" Appearance="Secondary" Padding="8,4"
+        <ui:Button Icon="{ui:SymbolIcon Delete24}" Appearance="Secondary" AutomationProperties.Name="Remove from startup" Padding="8,4"
                    ToolTip="Remove this entry from startup (a backup copy is kept)"
                    Command="{Binding DataContext.RemoveItemCommand, RelativeSource={RelativeSource AncestorType=Page}}"
                    CommandParameter="{Binding}" />
@@ -137,7 +136,9 @@
               </ContextMenu>
             </ui:DropDownButton.Flyout>
           </ui:DropDownButton>
-          <ui:Button Content="Refresh" Appearance="Primary" Icon="{ui:SymbolIcon ArrowSync24}" Command="{Binding RefreshCommand}" />
+          <ui:Button Appearance="Primary" Icon="{ui:SymbolIcon ArrowSync24}" Command="{Binding RefreshCommand}">
+            <AccessText Text="_Refresh" />
+          </ui:Button>
         </StackPanel>
       </controls:SectionHeader.Actions>
     </controls:SectionHeader>
@@ -180,13 +181,13 @@
         <!-- Summary -->
         <controls:AdaptiveGrid MinItemWidth="200" MaxColumns="4" Margin="0,0,0,12">
           <controls:StatCard Style="{StaticResource Tile}" Title="Apps at sign-in" Value="{Binding EnabledAppCount}" Unit="{Binding TotalAppCount, StringFormat='of {0}'}" Icon="Power24"
-                             Accent="{StaticResource AccentCyanBrush}" Subtitle="Run keys and Startup folders" />
+                             Accent="{DynamicResource AccentCyanBrush}" Subtitle="Run keys and Startup folders" />
           <controls:StatCard Style="{StaticResource Tile}" Title="Heavy at startup" Value="{Binding HighImpactCount}" Icon="Gauge24"
-                             Accent="{StaticResource AccentOrangeBrush}" Subtitle="Known to slow sign-in" />
+                             Accent="{DynamicResource AccentOrangeBrush}" Subtitle="Known to slow sign-in" />
           <controls:StatCard Style="{StaticResource Tile}" Title="Logon tasks" Value="{Binding EnabledTaskCount}" Unit="{Binding TaskCount, StringFormat='of {0}'}" Icon="CalendarClock24"
-                             Accent="{StaticResource AccentPurpleBrush}" Subtitle="Run at sign-in or boot" />
+                             Accent="{DynamicResource AccentPurpleBrush}" Subtitle="Run at sign-in or boot" />
           <controls:StatCard Style="{StaticResource Tile}" Title="Last boot took" Value="{Binding BootDurationText}" Icon="Timer24"
-                             Accent="{StaticResource AccentGreenBrush}" Subtitle="{Binding BootDurationNote}" />
+                             Accent="{DynamicResource AccentGreenBrush}" Subtitle="{Binding BootDurationNote}" />
         </controls:AdaptiveGrid>
 
         <!-- Startup apps -->
@@ -229,7 +230,7 @@
               </Grid>
             </Border>
 
-            <ui:DataGrid Style="{StaticResource StartupGrid}" ItemsSource="{Binding StartupApps}"
+            <ui:DataGrid AutomationProperties.Name="Startup apps" KeyboardNavigation.TabNavigation="Once" Style="{StaticResource StartupGrid}" ItemsSource="{Binding StartupApps}"
                          Visibility="{Binding HasNoApps, Converter={StaticResource InverseBoolToVisibility}}">
               <ui:DataGrid.Columns>
                 <DataGridTemplateColumn Header="On" Width="70" CellTemplate="{StaticResource EnabledCell}" />
@@ -265,7 +266,7 @@
               <ui:ToggleSwitch Grid.Column="1" Content="Show Windows tasks" IsChecked="{Binding ShowWindowsTasks}" VerticalAlignment="Top"
                                ToolTip="Also list tasks published by Microsoft" />
             </Grid>
-            <ui:DataGrid Style="{StaticResource StartupGrid}" ItemsSource="{Binding LogonTasks}"
+            <ui:DataGrid AutomationProperties.Name="Scheduled logon tasks" KeyboardNavigation.TabNavigation="Once" Style="{StaticResource StartupGrid}" ItemsSource="{Binding LogonTasks}"
                          Visibility="{Binding HasNoTasks, Converter={StaticResource InverseBoolToVisibility}}">
               <ui:DataGrid.Columns>
                 <DataGridTemplateColumn Header="On" Width="70" CellTemplate="{StaticResource EnabledCell}" />
@@ -282,7 +283,7 @@
         </ui:Card>
 
         <!-- Winlogon anomalies -->
-        <ui:Card Style="{StaticResource CardSpacing}" BorderBrush="{StaticResource AccentRedBrush}" BorderThickness="1"
+        <ui:Card Style="{StaticResource CardSpacing}" BorderBrush="{DynamicResource AccentRedBrush}" BorderThickness="1"
                  Visibility="{Binding HasWinlogonAnomalies, Converter={StaticResource BoolToVisibility}}">
           <StackPanel>
             <ui:TextBlock Style="{StaticResource CardTitle}" Text="Unusual logon settings (advanced)" />
@@ -316,11 +317,11 @@
                 <ui:TextBlock Style="{StaticResource Muted}" Text="Fast startup, boot menu, Safe Mode and restarting into the firmware." TextWrapping="Wrap" />
               </StackPanel>
               <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,8,0">
-                <Border Style="{StaticResource Pill}" Background="{StaticResource AccentRedBrush}" Margin="0,0,6,0"
+                <Border Style="{StaticResource Pill}" Background="{DynamicResource AccentRedBrush}" Margin="0,0,6,0"
                         Visibility="{Binding SafeModeNextBoot, Converter={StaticResource BoolToVisibility}}">
                   <TextBlock Style="{StaticResource PillText}" Text="SAFE MODE ARMED" />
                 </Border>
-                <Border Style="{StaticResource Pill}" Background="{StaticResource AccentPurpleBrush}"
+                <Border Style="{StaticResource Pill}" Background="{DynamicResource AccentPurpleBrush}"
                         Visibility="{Binding MemoryDiagnosticScheduled, Converter={StaticResource BoolToVisibility}}">
                   <TextBlock Style="{StaticResource PillText}" Text="MEMORY TEST SCHEDULED" />
                 </Border>
@@ -434,7 +435,7 @@
             </StackPanel>
           </ui:CardExpander.Header>
           <StackPanel>
-            <ui:DataGrid Style="{StaticResource StartupGrid}" ItemsSource="{Binding Services}"
+            <ui:DataGrid AutomationProperties.Name="Startup services" KeyboardNavigation.TabNavigation="Once" Style="{StaticResource StartupGrid}" ItemsSource="{Binding Services}"
                          Visibility="{Binding HasNoServices, Converter={StaticResource InverseBoolToVisibility}}">
               <ui:DataGrid.Columns>
                 <DataGridTemplateColumn Header="Service" Width="2*">

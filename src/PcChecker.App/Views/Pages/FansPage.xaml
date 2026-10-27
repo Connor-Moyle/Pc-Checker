@@ -22,8 +22,8 @@
               <ColumnDefinition Width="*" />
               <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
-            <Border Grid.Column="0" Width="36" Height="36" CornerRadius="8" Background="{StaticResource AccentCyanBrush}" Opacity="0.9" Margin="0,0,12,0" VerticalAlignment="Top">
-              <ui:SymbolIcon Symbol="{Binding Icon}" FontSize="20" Foreground="White" />
+            <Border Grid.Column="0" Width="36" Height="36" CornerRadius="8" Background="{DynamicResource AccentCyanBrush}" Opacity="0.9" Margin="0,0,12,0" VerticalAlignment="Top">
+              <controls:IconGlyph Symbol="{Binding Icon}" FontSize="20" Foreground="{DynamicResource OnAccentIconBrush}" />
             </Border>
             <StackPanel Grid.Column="1" VerticalAlignment="Center">
               <ui:TextBlock FontTypography="BodyStrong" Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
@@ -117,7 +117,7 @@
                   <ui:NumberBox Value="{Binding RampStepPercent, Mode=TwoWay}" Minimum="1" Maximum="100" SmallChange="1" ClearButtonEnabled="False" />
                 </StackPanel>
               </Grid>
-              <ui:TextBlock Foreground="{StaticResource AccentOrangeBrush}" Text="{Binding CurveProblem}" TextWrapping="Wrap" Margin="0,6,0,0"
+              <ui:TextBlock Foreground="{DynamicResource AccentOrangeBrush}" Text="{Binding CurveProblem}" TextWrapping="Wrap" Margin="0,6,0,0"
                             Visibility="{Binding CurveProblem, Converter={StaticResource NullToVisibility}}" />
               <ui:Button Content="Apply curve" Appearance="Primary" Icon="{ui:SymbolIcon DataLine24}" Command="{Binding ApplyCurveCommand}" Margin="0,10,0,0" />
             </StackPanel>
@@ -146,7 +146,9 @@
         <StackPanel Orientation="Horizontal">
           <ui:Button Content="Revert all to automatic" Appearance="Caution" Icon="{ui:SymbolIcon ArrowReset24}" Command="{Binding RevertAllCommand}" Margin="0,0,8,0"
                      ToolTip="Hand every fan back to the motherboard or graphics driver." />
-          <ui:Button Content="Detect fans" Appearance="Primary" Icon="{ui:SymbolIcon ArrowSync24}" Command="{Binding DetectCommand}" />
+          <ui:Button Appearance="Primary" Icon="{ui:SymbolIcon ArrowSync24}" Command="{Binding DetectCommand}">
+            <AccessText Text="_Detect fans" />
+          </ui:Button>
         </StackPanel>
       </controls:SectionHeader.Actions>
     </controls:SectionHeader>
@@ -176,7 +178,7 @@
       <StackPanel>
 
         <!-- Alerts strip -->
-        <ui:Card Style="{StaticResource CardSpacing}" BorderBrush="{StaticResource AccentRedBrush}" BorderThickness="1"
+        <ui:Card Style="{StaticResource CardSpacing}" BorderBrush="{DynamicResource AccentRedBrush}" BorderThickness="1"
                  Visibility="{Binding HasAlerts, Converter={StaticResource BoolToVisibility}}">
           <StackPanel>
             <Grid>
@@ -185,7 +187,7 @@
                 <ColumnDefinition Width="Auto" />
               </Grid.ColumnDefinitions>
               <StackPanel Grid.Column="0" Orientation="Horizontal">
-                <ui:SymbolIcon Symbol="Fire24" Foreground="{StaticResource AccentRedBrush}" FontSize="20" Margin="0,0,8,0" />
+                <controls:IconGlyph Symbol="Fire24" Foreground="{DynamicResource AccentRedBrush}" FontSize="20" Margin="0,0,8,0" />
                 <ui:TextBlock Style="{StaticResource CardTitle}" Text="Safety alerts" Margin="0" VerticalAlignment="Center" />
               </StackPanel>
               <ui:Button Grid.Column="1" Content="Clear" Appearance="Secondary" Command="{Binding ClearAlertsCommand}" Padding="10,4" />
@@ -301,7 +303,7 @@
               <ui:TextBlock Style="{StaticResource Muted}" Text="Each hardware control with its identifier, mode and software value." />
             </StackPanel>
           </ui:CardExpander.Header>
-          <ui:DataGrid ItemsSource="{Binding RawControls}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" HeadersVisibility="Column" MaxHeight="320">
+          <ui:DataGrid AutomationProperties.Name="Raw fan controls" KeyboardNavigation.TabNavigation="Once" ItemsSource="{Binding RawControls}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" HeadersVisibility="Column" MaxHeight="320">
             <ui:DataGrid.Columns>
               <DataGridTextColumn Header="Identifier" Binding="{Binding Identifier}" Width="*" />
               <DataGridTextColumn Header="Hardware" Binding="{Binding HardwareName}" Width="180" />

@@ -66,7 +66,7 @@ public class XamlConventionsTests
         Assert.InRange(sections, 1, 14);
     }
 
-    private static string AppDirectory()
+    internal static string AppDirectory()
     {
         var dir = new DirectoryInfo(AppContext.BaseDirectory);
         while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "PcChecker.sln")))
@@ -78,7 +78,7 @@ public class XamlConventionsTests
         return Path.Combine(dir!.FullName, "src", "PcChecker.App");
     }
 
-    private static IEnumerable<string> XamlFiles() =>
+    internal static IEnumerable<string> XamlFiles() =>
         Directory.EnumerateFiles(AppDirectory(), "*.xaml", SearchOption.AllDirectories).Where(NotBuildOutput);
 
     private static IEnumerable<string> SourceFiles() =>

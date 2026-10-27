@@ -41,6 +41,9 @@ public partial class SparklineControl : UserControl
     public SparklineControl()
     {
         InitializeComponent();
+
+        // Follows the theme (light, dark, high contrast) unless the page sets a stroke.
+        SetResourceReference(StrokeProperty, "AccentCyanBrush");
     }
 
     public IEnumerable? ItemsSource { get => (IEnumerable?)GetValue(ItemsSourceProperty); set => SetValue(ItemsSourceProperty, value); }

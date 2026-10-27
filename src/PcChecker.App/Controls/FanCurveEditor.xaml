@@ -5,6 +5,9 @@
              x:Name="Root"
              MinHeight="180"
              Focusable="True"
+             IsTabStop="True"
+             FocusVisualStyle="{DynamicResource DefaultControlFocusVisualStyle}"
+             AutomationProperties.Name="Fan curve"
              ToolTipService.InitialShowDelay="200">
   <Grid>
     <Border x:Name="Frame"

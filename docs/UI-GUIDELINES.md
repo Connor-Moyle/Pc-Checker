@@ -83,8 +83,23 @@ Every page follows the same order, top to bottom:
 - Long operations use `controls:BusyOverlay` with a cancel button where
   possible.
 
+## Accessibility
+
+- Icon-only buttons, images, lists and data grids get
+  `AutomationProperties.Name`; the tooltip keeps the longer explanation.
+- Standalone icons are `controls:IconGlyph`, not `ui:SymbolIcon`.
+- Colours come from the theme through `DynamicResource`: the accent brushes,
+  `OnAccentTextBrush` for badge text, `CaptionTextBrush` for small notes. No
+  hard-coded white or black text.
+- Keep keyboard focus visible (no `FocusVisualStyle="{x:Null}"`), give the
+  page's main action an access key with `<AccessText Text="_Scan" />`, and make
+  read-only data grids one Tab stop (`KeyboardNavigation.TabNavigation="Once"`).
+
+Details and the reasons are in [ACCESSIBILITY.md](ACCESSIBILITY.md).
+
 ## Checks
 
 The test project checks some of these rules automatically
-(`XamlConventionsTests`), for example that templated WPF UI styles are based on
-the library defaults and that broken icon names are not used.
+(`XamlConventionsTests` and `XamlAccessibilityTests`), for example that
+templated WPF UI styles are based on the library defaults, that broken icon
+names are not used, and the accessibility rules above.

@@ -24,7 +24,7 @@
     </Style>
     <Style x:Key="ValueText" TargetType="ui:TextBlock">
       <Setter Property="FontTypography" Value="BodyStrong" />
-      <Setter Property="Foreground" Value="{StaticResource AccentCyanBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource AccentCyanBrush}" />
       <Setter Property="VerticalAlignment" Value="Center" />
       <Setter Property="Margin" Value="12,0,0,0" />
     </Style>
@@ -37,7 +37,7 @@
       <Setter Property="FontSize" Value="20" />
       <Setter Property="Margin" Value="0,0,10,0" />
       <Setter Property="VerticalAlignment" Value="Center" />
-      <Setter Property="Foreground" Value="{StaticResource AccentCyanBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource AccentCyanBrush}" />
     </Style>
     <!-- Card title next to a CardIcon: the CardTitle look, centred on the icon. -->
     <Style x:Key="IconCardTitle" TargetType="ui:TextBlock" BasedOn="{StaticResource CardTitle}">
@@ -48,7 +48,7 @@
       <Setter Property="TextWrapping" Value="Wrap" />
       <Style.Triggers>
         <DataTrigger Binding="{Binding ClickTestPassed}" Value="True">
-          <Setter Property="Foreground" Value="{StaticResource AccentGreenBrush}" />
+          <Setter Property="Foreground" Value="{DynamicResource AccentGreenBrush}" />
         </DataTrigger>
       </Style.Triggers>
     </Style>
@@ -77,8 +77,10 @@
               </ContextMenu>
             </ui:DropDownButton.Flyout>
           </ui:DropDownButton>
-          <ui:Button Content="Refresh" Appearance="Primary" Icon="{ui:SymbolIcon ArrowSync24}" Command="{Binding RefreshNowCommand}"
-                     ToolTip="Re-read the current Windows settings and devices." />
+          <ui:Button Appearance="Primary" Icon="{ui:SymbolIcon ArrowSync24}" Command="{Binding RefreshNowCommand}"
+                     ToolTip="Re-read the current Windows settings and devices.">
+            <AccessText Text="_Refresh" />
+          </ui:Button>
         </StackPanel>
       </controls:SectionHeader.Actions>
     </controls:SectionHeader>
@@ -108,7 +110,7 @@
                     <ColumnDefinition Width="Auto" />
                   </Grid.ColumnDefinitions>
                   <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <ui:SymbolIcon Symbol="CursorClick24" Style="{StaticResource CardIcon}" />
+                    <controls:IconGlyph Symbol="CursorClick24" Style="{StaticResource CardIcon}" />
                     <ui:TextBlock Style="{StaticResource IconCardTitle}" Text="Mouse"
                                   ToolTip="The same settings as the Windows Mouse control panel, explained. Everything can be undone with the Windows default profile." />
                   </StackPanel>
@@ -267,7 +269,7 @@
                     <ColumnDefinition Width="Auto" />
                   </Grid.ColumnDefinitions>
                   <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <ui:SymbolIcon Symbol="Keyboard24" Style="{StaticResource CardIcon}" />
+                    <controls:IconGlyph Symbol="Keyboard24" Style="{StaticResource CardIcon}" />
                     <ui:TextBlock Style="{StaticResource IconCardTitle}" Text="Keyboard" />
                   </StackPanel>
                   <StackPanel Grid.Column="1" Orientation="Horizontal">
@@ -389,7 +391,7 @@
             <ui:Card Style="{StaticResource CardSpacing}">
               <StackPanel>
                 <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
-                  <ui:SymbolIcon Symbol="TopSpeed24" Style="{StaticResource CardIcon}" />
+                  <controls:IconGlyph Symbol="TopSpeed24" Style="{StaticResource CardIcon}" />
                   <ui:TextBlock Style="{StaticResource IconCardTitle}" Text="Mouse polling rate" />
                 </StackPanel>
                 <ui:TextBlock Style="{StaticResource SettingHint}" Margin="0,0,0,10"
@@ -403,7 +405,7 @@
                   <Border Background="{DynamicResource ControlFillColorSecondaryBrush}" CornerRadius="8" Padding="18,10" MinWidth="150" Margin="0,0,16,0">
                     <StackPanel HorizontalAlignment="Center">
                       <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                        <ui:TextBlock FontTypography="TitleLarge" Text="{Binding LiveHz}" Foreground="{StaticResource AccentCyanBrush}" />
+                        <ui:TextBlock FontTypography="TitleLarge" Text="{Binding LiveHz}" Foreground="{DynamicResource AccentCyanBrush}" />
                         <ui:TextBlock FontTypography="Subtitle" Text=" Hz" VerticalAlignment="Bottom" Margin="4,0,0,6" Appearance="Secondary" />
                       </StackPanel>
                       <ui:TextBlock Style="{StaticResource Caption}" Text="live, this second" HorizontalAlignment="Center" />
@@ -458,7 +460,7 @@
             <ui:Card Style="{StaticResource CardSpacing}">
               <StackPanel>
                 <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
-                  <ui:SymbolIcon Symbol="PersonAccounts24" Style="{StaticResource CardIcon}" />
+                  <controls:IconGlyph Symbol="PersonAccounts24" Style="{StaticResource CardIcon}" />
                   <ui:TextBlock Style="{StaticResource IconCardTitle}" Text="Profiles" />
                 </StackPanel>
                 <ui:TextBlock Style="{StaticResource SettingHint}" Margin="0,0,0,8"
@@ -476,13 +478,13 @@
                           <StackPanel Margin="0,0,12,0">
                             <StackPanel Orientation="Horizontal">
                               <ui:TextBlock FontTypography="BodyStrong" Text="{Binding Name}" />
-                              <Border Background="{StaticResource AccentGreenBrush}" CornerRadius="4" Padding="6,1" Margin="8,0,0,0" VerticalAlignment="Center"
+                              <Border Background="{DynamicResource AccentGreenBrush}" CornerRadius="4" Padding="6,1" Margin="8,0,0,0" VerticalAlignment="Center"
                                       Visibility="{Binding IsActive, Converter={StaticResource BoolToVisibility}}">
-                                <TextBlock Text="In use" FontSize="11" Foreground="#101010" />
+                                <TextBlock Text="In use" FontSize="11" Foreground="{DynamicResource OnAccentTextBrush}" />
                               </Border>
-                              <Border Background="{StaticResource AccentPurpleBrush}" CornerRadius="4" Padding="6,1" Margin="8,0,0,0" VerticalAlignment="Center"
+                              <Border Background="{DynamicResource AccentPurpleBrush}" CornerRadius="4" Padding="6,1" Margin="8,0,0,0" VerticalAlignment="Center"
                                       Visibility="{Binding IsCustom, Converter={StaticResource BoolToVisibility}}">
-                                <TextBlock Text="Custom" FontSize="11" Foreground="#101010" />
+                                <TextBlock Text="Custom" FontSize="11" Foreground="{DynamicResource OnAccentTextBrush}" />
                               </Border>
                             </StackPanel>
                             <ui:TextBlock Style="{StaticResource SettingHint}" Text="{Binding Description}" />
@@ -492,7 +494,7 @@
                             <ui:Button Content="Edit" Icon="{ui:SymbolIcon Edit24}" Margin="0,0,6,0"
                                        Command="{Binding DataContext.LoadProfileIntoEditorsCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}"
                                        ToolTip="Load into the editors without applying." />
-                            <ui:Button Icon="{ui:SymbolIcon Delete24}" Appearance="Danger" Margin="0,0,6,0"
+                            <ui:Button Icon="{ui:SymbolIcon Delete24}" Appearance="Danger" Margin="0,0,6,0" AutomationProperties.Name="Delete profile"
                                        Command="{Binding DataContext.DeleteProfileCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}"
                                        Visibility="{Binding IsCustom, Converter={StaticResource BoolToVisibility}}" ToolTip="Delete this custom profile." />
                             <ui:Button Content="Apply" Appearance="Primary" Icon="{ui:SymbolIcon Checkmark24}"
@@ -524,7 +526,7 @@
                     <ColumnDefinition Width="Auto" />
                   </Grid.ColumnDefinitions>
                   <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <ui:SymbolIcon Symbol="UsbPlug24" Style="{StaticResource CardIcon}" />
+                    <controls:IconGlyph Symbol="UsbPlug24" Style="{StaticResource CardIcon}" />
                     <ui:TextBlock Style="{StaticResource IconCardTitle}" Text="Detected keyboards and mice" />
                   </StackPanel>
                   <ui:Button Grid.Column="1" Content="Detect again" Icon="{ui:SymbolIcon ArrowSync24}" Command="{Binding DetectDevicesCommand}" />
@@ -540,8 +542,8 @@
                           <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
                         <Grid Width="32" VerticalAlignment="Top" Margin="0,2,10,0">
-                          <ui:SymbolIcon Symbol="Keyboard24" FontSize="22" Visibility="{Binding IsKeyboard, Converter={StaticResource BoolToVisibility}}" />
-                          <ui:SymbolIcon Symbol="CursorClick24" FontSize="22" Visibility="{Binding IsKeyboard, Converter={StaticResource InverseBoolToVisibility}}" />
+                          <controls:IconGlyph Symbol="Keyboard24" FontSize="22" Visibility="{Binding IsKeyboard, Converter={StaticResource BoolToVisibility}}" />
+                          <controls:IconGlyph Symbol="CursorClick24" FontSize="22" Visibility="{Binding IsKeyboard, Converter={StaticResource InverseBoolToVisibility}}" />
                         </Grid>
                         <StackPanel Grid.Column="1">
                           <ui:TextBlock FontTypography="BodyStrong" Text="{Binding Name}" TextWrapping="Wrap" />
@@ -584,7 +586,7 @@
                   <ColumnDefinition Width="*" />
                   <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
-                <ui:SymbolIcon Symbol="ColorFill24" Style="{StaticResource CardIcon}" Foreground="{StaticResource AccentPurpleBrush}" />
+                <controls:IconGlyph Symbol="ColorFill24" Style="{StaticResource CardIcon}" Foreground="{DynamicResource AccentPurpleBrush}" />
                 <StackPanel Grid.Column="1" Margin="0,0,12,0" VerticalAlignment="Center">
                   <ui:TextBlock FontTypography="BodyStrong" Text="Keyboard and mouse lighting (RGB)" TextWrapping="Wrap" />
                   <ui:TextBlock Style="{StaticResource SettingHint}" Text="Colours and effects are on the Lighting page."

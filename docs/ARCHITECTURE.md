@@ -60,6 +60,7 @@ Every project targets `net8.0-windows10.0.19041.0`. `EnableWindowsTargeting` is 
 | `Latency` | `ILatencyService`, `LatencyReport`, `LatencyRules`, `BcdEditParser`, `PowerCfgQueryParser`, `LatencyActionIds` |
 | `Processes` | `IProcessService`, `ProcessCatalog`, `ProcessRateTracker`, `ProcessMath`, `ProcessSorting`, `CriticalProcessRules`, `ProcessSuspicionRules`, `SignatureCache` |
 | `Startup` | `IStartupService`, `BootConfig`, `StartupEnumerator` (shared with Performance) |
+| `Accessibility` | `ThemeColor` and `ContrastMath` (WCAG contrast), `AccentPalette` (the dark and light status colours, checked against AA by the tests), `AccessibleText` (screen-reader names, access keys) |
 | `Shell` | Quick search (`FuzzyMatcher`, `QuickSearchIndex`, `QuickSearchRanker`, `RecentItems`, the settings, quick action and page keyword catalogs) and `WelcomeRules` for the first-start welcome |
 | `Checkup` | `ICheckupService` and `CheckupService` (runs the other modules' scans and fixes through their interfaces, so one class serves both modes), `CheckupItemMapper`, `CheckupPrioritizer`, `CheckupSelection`, `CheckupBatchPlanner`, `CheckupProgress`, `DashboardGlance` |
 | `Scheduling` | `IScheduledTaskService` (schtasks), `ScheduledJobExecutor`, `IScheduledJobStore`, the `PcChecker.Jobs` pipe, `SchtasksCommandBuilder`, `SchtasksCsvParser`, `ScheduleRules`, `JobResultSummarizer`, tray text and popup placement helpers |

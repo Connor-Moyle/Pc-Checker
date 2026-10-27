@@ -17,23 +17,23 @@
       <Setter Property="CornerRadius" Value="10" />
       <Setter Property="Padding" Value="8,2" />
       <Setter Property="VerticalAlignment" Value="Center" />
-      <Setter Property="Background" Value="{StaticResource AccentGreenBrush}" />
+      <Setter Property="Background" Value="{DynamicResource AccentGreenBrush}" />
       <Style.Triggers>
         <DataTrigger Binding="{Binding Risk}" Value="{x:Static opt:RiskLevel.Moderate}">
-          <Setter Property="Background" Value="{StaticResource AccentYellowBrush}" />
+          <Setter Property="Background" Value="{DynamicResource AccentYellowBrush}" />
         </DataTrigger>
         <DataTrigger Binding="{Binding Risk}" Value="{x:Static opt:RiskLevel.Advanced}">
-          <Setter Property="Background" Value="{StaticResource AccentOrangeBrush}" />
+          <Setter Property="Background" Value="{DynamicResource AccentOrangeBrush}" />
         </DataTrigger>
         <DataTrigger Binding="{Binding IsReportOnly}" Value="True">
-          <Setter Property="Background" Value="{StaticResource AccentGreyBrush}" />
+          <Setter Property="Background" Value="{DynamicResource AccentGreyBrush}" />
         </DataTrigger>
       </Style.Triggers>
     </Style>
     <Style x:Key="RiskBadgeText" TargetType="TextBlock">
       <Setter Property="FontSize" Value="11" />
       <Setter Property="FontWeight" Value="SemiBold" />
-      <Setter Property="Foreground" Value="#111111" />
+      <Setter Property="Foreground" Value="{DynamicResource OnAccentTextBrush}" />
     </Style>
     <Style x:Key="KeyPathText" TargetType="TextBlock">
       <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, Courier New" />
@@ -72,11 +72,13 @@
               </ContextMenu>
             </ui:DropDownButton.Flyout>
           </ui:DropDownButton>
-          <ui:Button Content="Scan"
+          <ui:Button
                      Appearance="Primary"
                      Icon="{ui:SymbolIcon DatabaseSearch24}"
                      Command="{Binding ScanCommand}"
-                     ToolTip="Checks the ticked categories. A scan only reads the registry; nothing is changed." />
+                     ToolTip="Checks the ticked categories. A scan only reads the registry; nothing is changed.">
+            <AccessText Text="_Scan" />
+          </ui:Button>
         </StackPanel>
       </controls:SectionHeader.Actions>
     </controls:SectionHeader>
@@ -108,10 +110,10 @@
 
         <!-- Summary -->
         <controls:AdaptiveGrid MinItemWidth="200" MaxColumns="4" Margin="0,0,0,12">
-          <controls:StatCard Style="{StaticResource Tile}" Title="Leftovers found" Value="{Binding IssueCountText}" Icon="DatabaseSearch24" Accent="{StaticResource AccentCyanBrush}" Subtitle="{Binding LastScanText, StringFormat='Last scan {0}', TargetNullValue='Not scanned yet'}" />
-          <controls:StatCard Style="{StaticResource Tile}" Title="Safe to fix" Value="{Binding SafeToFixText}" Icon="CheckmarkCircle24" Accent="{StaticResource AccentGreenBrush}" Subtitle="{Binding SelectedText}" />
-          <controls:StatCard Style="{StaticResource Tile}" Title="Report only" Value="{Binding ReportOnlyText}" Icon="Info24" Accent="{StaticResource AccentGreyBrush}" Subtitle="Shown, never changed" />
-          <controls:StatCard Style="{StaticResource Tile}" Title="Keys checked" Value="{Binding KeysScannedText}" Icon="Database24" Accent="{StaticResource AccentPurpleBrush}" Subtitle="{Binding ScanDurationText}" />
+          <controls:StatCard Style="{StaticResource Tile}" Title="Leftovers found" Value="{Binding IssueCountText}" Icon="DatabaseSearch24" Accent="{DynamicResource AccentCyanBrush}" Subtitle="{Binding LastScanText, StringFormat='Last scan {0}', TargetNullValue='Not scanned yet'}" />
+          <controls:StatCard Style="{StaticResource Tile}" Title="Safe to fix" Value="{Binding SafeToFixText}" Icon="CheckmarkCircle24" Accent="{DynamicResource AccentGreenBrush}" Subtitle="{Binding SelectedText}" />
+          <controls:StatCard Style="{StaticResource Tile}" Title="Report only" Value="{Binding ReportOnlyText}" Icon="Info24" Accent="{DynamicResource AccentGreyBrush}" Subtitle="Shown, never changed" />
+          <controls:StatCard Style="{StaticResource Tile}" Title="Keys checked" Value="{Binding KeysScannedText}" Icon="Database24" Accent="{DynamicResource AccentPurpleBrush}" Subtitle="{Binding ScanDurationText}" />
         </controls:AdaptiveGrid>
 
         <!-- Not scanned yet -->
@@ -174,7 +176,7 @@
               <ItemsControl.ItemTemplate>
                 <DataTemplate>
                   <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
-                    <ui:SymbolIcon Symbol="Warning24" Foreground="{StaticResource AccentOrangeBrush}" Margin="0,0,8,0" VerticalAlignment="Center" />
+                    <controls:IconGlyph Symbol="Warning24" Foreground="{DynamicResource AccentOrangeBrush}" Margin="0,0,8,0" VerticalAlignment="Center" />
                     <TextBlock Text="{Binding}" TextWrapping="Wrap" VerticalAlignment="Center" />
                   </StackPanel>
                 </DataTemplate>
@@ -242,11 +244,11 @@
                                       VerticalAlignment="Top"
                                       ToolTip="Include this entry when fixing"
                                       Visibility="{Binding CanSelect, Converter={StaticResource BoolToVisibility}}" />
-                            <ui:SymbolIcon Grid.Column="0"
+                            <controls:IconGlyph Grid.Column="0"
                                            Symbol="Info24"
                                            VerticalAlignment="Top"
                                            Margin="2,2,0,0"
-                                           Foreground="{StaticResource AccentGreyBrush}"
+                                           Foreground="{DynamicResource AccentGreyBrush}"
                                            ToolTip="Report only: PC Checker never changes this entry."
                                            Visibility="{Binding IsReportOnly, Converter={StaticResource BoolToVisibility}}" />
 
@@ -258,11 +260,12 @@
                                   <ColumnDefinition Width="*" />
                                   <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
-                                <ui:SymbolIcon Grid.Column="0" Symbol="Key24" FontSize="14" Margin="0,0,6,0" VerticalAlignment="Center" Opacity="0.7" />
+                                <controls:IconGlyph Grid.Column="0" Symbol="Key24" FontSize="14" Margin="0,0,6,0" VerticalAlignment="Center" Opacity="0.7" />
                                 <TextBlock Grid.Column="1" Style="{StaticResource KeyPathText}" Text="{Binding KeyPath}" ToolTip="{Binding KeyPath}" />
                                 <ui:Button Grid.Column="2"
                                            Appearance="Transparent"
                                            Icon="{ui:SymbolIcon Copy24}"
+                                           AutomationProperties.Name="Copy key path"
                                            Padding="6,2"
                                            Margin="6,0,0,0"
                                            ToolTip="Copy the key path"
@@ -274,7 +277,7 @@
                                          Visibility="{Binding HasValueName, Converter={StaticResource BoolToVisibility}}" />
                               <StackPanel Orientation="Horizontal" Margin="0,4,0,0"
                                           Visibility="{Binding HasMissingTarget, Converter={StaticResource BoolToVisibility}}">
-                                <ui:SymbolIcon Symbol="DocumentDismiss24" FontSize="14" Margin="0,0,6,0" VerticalAlignment="Center" Foreground="{StaticResource AccentOrangeBrush}" />
+                                <controls:IconGlyph Symbol="DocumentDismiss24" FontSize="14" Margin="0,0,6,0" VerticalAlignment="Center" Foreground="{DynamicResource AccentOrangeBrush}" />
                                 <TextBlock Text="Missing: " FontSize="12" Opacity="0.85" VerticalAlignment="Center" />
                                 <TextBlock Style="{StaticResource KeyPathText}" Text="{Binding MissingTarget}" ToolTip="{Binding MissingTarget}" MaxWidth="720" />
                               </StackPanel>
@@ -448,6 +451,7 @@
                                    Margin="0,0,8,0" />
                         <ui:Button Appearance="Danger"
                                    Icon="{ui:SymbolIcon Delete24}"
+                                   AutomationProperties.Name="Delete backup"
                                    Command="{Binding DataContext.DeleteBackupCommand, RelativeSource={RelativeSource AncestorType=Page}}"
                                    CommandParameter="{Binding}"
                                    ToolTip="Delete this backup" />

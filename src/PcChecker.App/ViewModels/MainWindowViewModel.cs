@@ -92,6 +92,23 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         }
     }
 
+    /// <summary>
+    /// Opens the next (<paramref name="offset"/> 1) or previous (-1) tab of the current section, wrapping around
+    /// (Ctrl+Tab and Ctrl+Shift+Tab). False when the section has no tabs.
+    /// </summary>
+    public bool SelectAdjacentTab(int offset)
+    {
+        var tabs = Tabs;
+        if (!HasTabs || tabs.Count < 2)
+        {
+            return false;
+        }
+
+        int current = SelectedTab is null ? -1 : tabs.ToList().IndexOf(SelectedTab);
+        SelectedTab = tabs[Core.Accessibility.AccessibleText.Cycle(current, offset, tabs.Count)];
+        return true;
+    }
+
     public bool IsDemoMode => AppOptions.Mode == Core.Common.AppMode.Demo;
 
     partial void OnAdvancedModeEnabledChanged(bool value)

@@ -61,7 +61,7 @@
               <ColumnDefinition Width="*" />
               <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
-            <ui:SymbolIcon Grid.Column="0" Symbol="ShieldCheckmark24" FontSize="28" Foreground="{StaticResource AccentGreenBrush}" Margin="0,0,14,0" VerticalAlignment="Center" />
+            <controls:IconGlyph Grid.Column="0" Symbol="ShieldCheckmark24" FontSize="28" Foreground="{DynamicResource AccentGreenBrush}" Margin="0,0,14,0" VerticalAlignment="Center" />
             <StackPanel Grid.Column="1" VerticalAlignment="Center"
                         ToolTip="Tick the safe tweaks you want and use “Apply all safe recommendations”, or apply them one at a time. Revert puts a setting back the way it was. Every change is confirmed first and recorded in the action journal.">
               <ui:TextBlock FontTypography="BodyStrong" Text="{Binding SummaryText}" />
@@ -115,8 +115,8 @@
                               <ui:TextBlock FontTypography="BodyStrong" Text="{Binding Title}" TextWrapping="Wrap" />
                               <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding Description}" TextWrapping="Wrap" Margin="0,2,0,6" />
                               <StackPanel Orientation="Horizontal">
-                                <Border Style="{StaticResource Pill}" Background="{Binding Risk, Converter={StaticResource RiskToBrush}}" Opacity="0.9">
-                                  <ui:TextBlock FontSize="11" FontWeight="SemiBold" Foreground="White" Text="{Binding RiskText}" />
+                                <Border Style="{StaticResource Pill}" Background="{Binding Risk, Converter={StaticResource RiskToBrush}}">
+                                  <ui:TextBlock FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource OnAccentTextBrush}" Text="{Binding RiskText}" />
                                 </Border>
                                 <Border Style="{StaticResource Pill}" Background="{DynamicResource ControlFillColorSecondaryBrush}" Visibility="{Binding IsReversible, Converter={StaticResource BoolToVisibility}}">
                                   <ui:TextBlock FontSize="11" Text="Reversible" />
@@ -124,8 +124,8 @@
                                 <Border Style="{StaticResource Pill}" Background="{DynamicResource ControlFillColorSecondaryBrush}" Visibility="{Binding IsOnDemand, Converter={StaticResource BoolToVisibility}}">
                                   <ui:TextBlock FontSize="11" Text="One-off tool" />
                                 </Border>
-                                <Border Style="{StaticResource Pill}" Background="{StaticResource AccentOrangeBrush}" Opacity="0.9" Visibility="{Binding RequiresRestart, Converter={StaticResource BoolToVisibility}}">
-                                  <ui:TextBlock FontSize="11" FontWeight="SemiBold" Foreground="White" Text="Restart needed" />
+                                <Border Style="{StaticResource Pill}" Background="{DynamicResource AccentOrangeBrush}" Visibility="{Binding RequiresRestart, Converter={StaticResource BoolToVisibility}}">
+                                  <ui:TextBlock FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource OnAccentTextBrush}" Text="Restart needed" />
                                 </Border>
                               </StackPanel>
                             </StackPanel>
@@ -172,7 +172,7 @@
               </StackPanel>
               <ui:Button Grid.Column="1" Content="Clear" Icon="{ui:SymbolIcon Dismiss24}" Command="{Binding ClearOutputCommand}" />
             </Grid>
-            <ListBox ItemsSource="{Binding OutputLines}" MaxHeight="260" FontFamily="Cascadia Mono, Consolas, Courier New" FontSize="12" BorderThickness="0"
+            <ListBox ItemsSource="{Binding OutputLines}" AutomationProperties.Name="Output" MaxHeight="260" FontFamily="Cascadia Mono, Consolas, Courier New" FontSize="12" BorderThickness="0"
                      ScrollViewer.HorizontalScrollBarVisibility="Auto" />
           </StackPanel>
         </ui:Card>

@@ -17,20 +17,20 @@
       <Setter Property="CornerRadius" Value="10" />
       <Setter Property="Padding" Value="8,2" />
       <Setter Property="VerticalAlignment" Value="Center" />
-      <Setter Property="Background" Value="{StaticResource AccentGreenBrush}" />
+      <Setter Property="Background" Value="{DynamicResource AccentGreenBrush}" />
       <Style.Triggers>
         <DataTrigger Binding="{Binding Risk}" Value="{x:Static opt:RiskLevel.Moderate}">
-          <Setter Property="Background" Value="{StaticResource AccentYellowBrush}" />
+          <Setter Property="Background" Value="{DynamicResource AccentYellowBrush}" />
         </DataTrigger>
         <DataTrigger Binding="{Binding Risk}" Value="{x:Static opt:RiskLevel.Advanced}">
-          <Setter Property="Background" Value="{StaticResource AccentOrangeBrush}" />
+          <Setter Property="Background" Value="{DynamicResource AccentOrangeBrush}" />
         </DataTrigger>
       </Style.Triggers>
     </Style>
     <Style x:Key="RiskBadgeText" TargetType="TextBlock">
       <Setter Property="FontSize" Value="11" />
       <Setter Property="FontWeight" Value="SemiBold" />
-      <Setter Property="Foreground" Value="#111111" />
+      <Setter Property="Foreground" Value="{DynamicResource OnAccentTextBrush}" />
     </Style>
     <Style x:Key="Tile" TargetType="controls:StatCard">
       <Setter Property="Margin" Value="0" />
@@ -64,11 +64,13 @@
               </ContextMenu>
             </ui:DropDownButton.Flyout>
           </ui:DropDownButton>
-          <ui:Button Content="Scan"
+          <ui:Button
                      Appearance="Primary"
                      Icon="{ui:SymbolIcon Search24}"
                      Command="{Binding ScanCommand}"
-                     ToolTip="Measures every category again. Nothing is deleted by a scan." />
+                     ToolTip="Measures every category again. Nothing is deleted by a scan.">
+            <AccessText Text="_Scan" />
+          </ui:Button>
         </StackPanel>
       </controls:SectionHeader.Actions>
     </controls:SectionHeader>
@@ -99,10 +101,10 @@
 
         <!-- Summary -->
         <controls:AdaptiveGrid MinItemWidth="200" MaxColumns="4" Margin="0,0,0,12">
-          <controls:StatCard Style="{StaticResource Tile}" Title="Reclaimable space" Value="{Binding ReclaimableText}" Icon="Broom24" Accent="{StaticResource AccentCyanBrush}" Subtitle="Across every category shown" />
-          <controls:StatCard Style="{StaticResource Tile}" Title="Files found" Value="{Binding TotalFilesText}" Icon="Document24" Accent="{StaticResource AccentPurpleBrush}" Subtitle="Safe to remove by the rules below" />
-          <controls:StatCard Style="{StaticResource Tile}" Title="Categories selected" Value="{Binding SelectedText}" Icon="CheckboxChecked24" Accent="{StaticResource AccentGreenBrush}" Subtitle="{Binding SelectedSizeText}" />
-          <controls:StatCard Style="{StaticResource Tile}" Title="Last scan" Value="{Binding LastScanText, TargetNullValue='Not yet'}" Icon="Clock24" Accent="{StaticResource AccentGreyBrush}" Subtitle="Scan again after closing browsers or games" />
+          <controls:StatCard Style="{StaticResource Tile}" Title="Reclaimable space" Value="{Binding ReclaimableText}" Icon="Broom24" Accent="{DynamicResource AccentCyanBrush}" Subtitle="Across every category shown" />
+          <controls:StatCard Style="{StaticResource Tile}" Title="Files found" Value="{Binding TotalFilesText}" Icon="Document24" Accent="{DynamicResource AccentPurpleBrush}" Subtitle="Safe to remove by the rules below" />
+          <controls:StatCard Style="{StaticResource Tile}" Title="Categories selected" Value="{Binding SelectedText}" Icon="CheckboxChecked24" Accent="{DynamicResource AccentGreenBrush}" Subtitle="{Binding SelectedSizeText}" />
+          <controls:StatCard Style="{StaticResource Tile}" Title="Last scan" Value="{Binding LastScanText, TargetNullValue='Not yet'}" Icon="Clock24" Accent="{DynamicResource AccentGreyBrush}" Subtitle="Scan again after closing browsers or games" />
         </controls:AdaptiveGrid>
 
         <!-- Selection bar: what to remove, and how -->
@@ -176,7 +178,7 @@
                     <ItemsControl.ItemTemplate>
                       <DataTemplate>
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
-                          <ui:SymbolIcon Symbol="Info24" Foreground="{StaticResource AccentCyanBrush}" Margin="0,0,8,0" VerticalAlignment="Center" />
+                          <controls:IconGlyph Symbol="Info24" Foreground="{DynamicResource AccentCyanBrush}" Margin="0,0,8,0" VerticalAlignment="Center" />
                           <TextBlock Text="{Binding}" TextWrapping="Wrap" VerticalAlignment="Center" />
                         </StackPanel>
                       </DataTemplate>
@@ -188,7 +190,7 @@
                     <ItemsControl.ItemTemplate>
                       <DataTemplate>
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
-                          <ui:SymbolIcon Symbol="Warning24" Foreground="{StaticResource AccentOrangeBrush}" Margin="0,0,8,0" VerticalAlignment="Center" />
+                          <controls:IconGlyph Symbol="Warning24" Foreground="{DynamicResource AccentOrangeBrush}" Margin="0,0,8,0" VerticalAlignment="Center" />
                           <TextBlock Text="{Binding}" TextWrapping="Wrap" VerticalAlignment="Center" />
                         </StackPanel>
                       </DataTemplate>
@@ -198,7 +200,7 @@
                   <!-- Largest files -->
                   <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding TopFilesCaption}" Margin="0,0,0,4"
                                 Visibility="{Binding HasTopFiles, Converter={StaticResource BoolToVisibility}}" />
-                  <ListView ItemsSource="{Binding TopFiles}"
+                  <ListView ItemsSource="{Binding TopFiles}" AutomationProperties.Name="Largest files"
                             MaxHeight="320"
                             BorderThickness="0"
                             Background="Transparent"
@@ -304,7 +306,7 @@
               </ItemsControl.Template>
               <ItemsControl.ItemTemplate>
                 <DataTemplate>
-                  <TextBlock Style="{StaticResource PathText}" Foreground="{StaticResource AccentRedBrush}" Text="{Binding}" ToolTip="{Binding}" />
+                  <TextBlock Style="{StaticResource PathText}" Foreground="{DynamicResource AccentRedBrush}" Text="{Binding}" ToolTip="{Binding}" />
                 </DataTemplate>
               </ItemsControl.ItemTemplate>
             </ItemsControl>

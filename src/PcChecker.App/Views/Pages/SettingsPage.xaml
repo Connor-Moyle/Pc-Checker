@@ -75,7 +75,7 @@
         <ui:Card Style="{StaticResource CardSpacing}">
           <StackPanel>
             <StackPanel Style="{StaticResource GroupHeader}">
-              <ui:SymbolIcon Style="{StaticResource GroupIcon}" Symbol="Settings24" />
+              <controls:IconGlyph Style="{StaticResource GroupIcon}" Symbol="Settings24" />
               <ui:TextBlock Style="{StaticResource GroupTitle}" Text="General" />
             </StackPanel>
             <ui:CardControl Style="{StaticResource Row}" Icon="{ui:SymbolIcon Wrench24}">
@@ -173,7 +173,7 @@
         <ui:Card Style="{StaticResource CardSpacing}">
           <StackPanel>
             <StackPanel Style="{StaticResource GroupHeader}">
-              <ui:SymbolIcon Style="{StaticResource GroupIcon}" Symbol="Color24" />
+              <controls:IconGlyph Style="{StaticResource GroupIcon}" Symbol="Color24" />
               <ui:TextBlock Style="{StaticResource GroupTitle}" Text="Appearance" />
             </StackPanel>
             <ui:CardControl Style="{StaticResource Row}" Icon="{ui:SymbolIcon Color24}" Margin="0">
@@ -217,7 +217,7 @@
                 <ColumnDefinition Width="Auto" />
               </Grid.ColumnDefinitions>
               <StackPanel Grid.Column="0" Orientation="Horizontal">
-                <ui:SymbolIcon Style="{StaticResource GroupIcon}" Symbol="Temperature24" />
+                <controls:IconGlyph Style="{StaticResource GroupIcon}" Symbol="Temperature24" />
                 <ui:TextBlock Style="{StaticResource GroupTitle}" Text="Monitoring" />
               </StackPanel>
               <ui:Button Grid.Column="1" Content="Temperatures page" Icon="{ui:SymbolIcon Temperature24}" Command="{Binding OpenSensorsPageCommand}"
@@ -320,7 +320,7 @@
                 <ColumnDefinition Width="Auto" />
               </Grid.ColumnDefinitions>
               <StackPanel Grid.Column="0" Orientation="Horizontal">
-                <ui:SymbolIcon Style="{StaticResource GroupIcon}" Symbol="History24" />
+                <controls:IconGlyph Style="{StaticResource GroupIcon}" Symbol="History24" />
                 <ui:TextBlock Style="{StaticResource GroupTitle}" Text="History" />
               </StackPanel>
               <ui:Button Grid.Column="1" Content="History page" Icon="{ui:SymbolIcon History24}" Command="{Binding OpenHistoryPageCommand}" />
@@ -359,7 +359,7 @@
         <ui:Card Style="{StaticResource CardSpacing}">
           <StackPanel>
             <StackPanel Style="{StaticResource GroupHeader}">
-              <ui:SymbolIcon Style="{StaticResource GroupIcon}" Symbol="PanelRightContract24" />
+              <controls:IconGlyph Style="{StaticResource GroupIcon}" Symbol="PanelRightContract24" />
               <ui:TextBlock Style="{StaticResource GroupTitle}" Text="Tray and startup" />
             </StackPanel>
             <ui:CardControl Style="{StaticResource Row}" Icon="{ui:SymbolIcon Power24}">
@@ -458,7 +458,7 @@
               </Grid.ColumnDefinitions>
               <StackPanel Grid.Column="0" Margin="0,0,12,0">
                 <StackPanel Orientation="Horizontal">
-                  <ui:SymbolIcon Style="{StaticResource GroupIcon}" Symbol="CalendarClock24" />
+                  <controls:IconGlyph Style="{StaticResource GroupIcon}" Symbol="CalendarClock24" />
                   <ui:TextBlock Style="{StaticResource GroupTitle}" Text="Schedules" />
                 </StackPanel>
                 <ui:TextBlock Style="{StaticResource Muted}" Text="Jobs that run by themselves, even while PC Checker is closed." Margin="0,2,0,0" TextWrapping="Wrap" />
@@ -502,7 +502,7 @@
                           <ColumnDefinition Width="*" />
                           <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
-                        <ui:SymbolIcon Symbol="{Binding Symbol}" FontSize="22" Margin="0,2,12,0" VerticalAlignment="Top" />
+                        <controls:IconGlyph Symbol="{Binding Symbol}" FontSize="22" Margin="0,2,12,0" VerticalAlignment="Top" />
                         <StackPanel Grid.Column="1">
                           <ui:TextBlock FontTypography="BodyStrong" Text="{Binding Title}" />
                           <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding Description}" TextWrapping="Wrap" MaxWidth="620" />
@@ -532,7 +532,7 @@
                         <ui:Button Content="Save" Appearance="Primary" Icon="{ui:SymbolIcon Save24}" Command="{Binding SaveCommand}" Margin="0,0,8,6"
                                    Visibility="{Binding IsDirty, Converter={StaticResource BoolToVisibility}}" />
                       </WrapPanel>
-                      <ui:TextBlock Margin="34,0,0,4" Foreground="{StaticResource AccentRedBrush}" FontSize="12" TextWrapping="Wrap" Text="{Binding ValidationError}"
+                      <ui:TextBlock Margin="34,0,0,4" Foreground="{DynamicResource AccentRedBrush}" FontSize="12" TextWrapping="Wrap" Text="{Binding ValidationError}"
                                     Visibility="{Binding ValidationError, Converter={StaticResource NullToVisibility}}" />
 
                       <StackPanel Margin="34,0,0,0">
@@ -592,7 +592,7 @@
               </Grid.ColumnDefinitions>
               <StackPanel Grid.Column="0" Margin="0,0,12,0">
                 <StackPanel Orientation="Horizontal">
-                  <ui:SymbolIcon Style="{StaticResource GroupIcon}" Symbol="ArrowSync24" />
+                  <controls:IconGlyph Style="{StaticResource GroupIcon}" Symbol="ArrowSync24" />
                   <ui:TextBlock Style="{StaticResource GroupTitle}" Text="Updates" />
                   <ui:Badge Appearance="Success" Content="Update available" Margin="12,0,0,0" VerticalAlignment="Center"
                             Visibility="{Binding IsUpdateAvailable, Converter={StaticResource BoolToVisibility}}" />
@@ -679,7 +679,7 @@
               </Grid.ColumnDefinitions>
               <StackPanel Grid.Column="0" Margin="0,0,12,0">
                 <StackPanel Orientation="Horizontal">
-                  <ui:SymbolIcon Style="{StaticResource GroupIcon}" Symbol="Chat24" />
+                  <controls:IconGlyph Style="{StaticResource GroupIcon}" Symbol="Chat24" />
                   <ui:TextBlock Style="{StaticResource GroupTitle}" Text="Assistant" />
                 </StackPanel>
                 <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding ClaudeSummary}" Margin="0,2,0,0" TextWrapping="Wrap" />
@@ -907,7 +907,7 @@
         <ui:Card Style="{StaticResource CardSpacing}">
           <StackPanel>
             <StackPanel Style="{StaticResource GroupHeader}" Margin="0,0,0,2">
-              <ui:SymbolIcon Style="{StaticResource GroupIcon}" Symbol="LockClosed24" />
+              <controls:IconGlyph Style="{StaticResource GroupIcon}" Symbol="LockClosed24" />
               <ui:TextBlock Style="{StaticResource GroupTitle}" Text="Privacy and logs" />
             </StackPanel>
             <ui:TextBlock Style="{StaticResource Muted}" Text="Everything stays on this PC unless you export it or ask the assistant." Margin="0,0,0,10" TextWrapping="Wrap" />
@@ -945,7 +945,7 @@
         <ui:Card Style="{StaticResource CardSpacing}">
           <StackPanel>
             <StackPanel Style="{StaticResource GroupHeader}" Margin="0,0,0,2">
-              <ui:SymbolIcon Style="{StaticResource GroupIcon}" Symbol="Info24" />
+              <controls:IconGlyph Style="{StaticResource GroupIcon}" Symbol="Info24" />
               <ui:TextBlock Style="{StaticResource GroupTitle}" Text="About" />
             </StackPanel>
             <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding AppVersion}" />

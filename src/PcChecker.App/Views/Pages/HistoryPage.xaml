@@ -18,28 +18,28 @@
     <Style x:Key="Chart" TargetType="controls:HistoryChartControl">
       <Setter Property="Height" Value="170" />
       <Setter Property="Margin" Value="0,8,0,0" />
-      <Setter Property="Stroke" Value="{StaticResource AccentCyanBrush}" />
-      <Setter Property="LimitBrush" Value="{StaticResource AccentOrangeBrush}" />
+      <Setter Property="Stroke" Value="{DynamicResource AccentCyanBrush}" />
+      <Setter Property="LimitBrush" Value="{DynamicResource AccentOrangeBrush}" />
       <Setter Property="AxisBrush" Value="{DynamicResource ControlStrokeColorDefaultBrush}" />
       <Setter Property="TextBrush" Value="{DynamicResource TextFillColorSecondaryBrush}" />
       <Setter Property="HoverBackground" Value="{DynamicResource ApplicationBackgroundBrush}" />
       <Setter Property="HoverForeground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
       <Style.Triggers>
         <DataTrigger Binding="{Binding Tone}" Value="temperature">
-          <Setter Property="Stroke" Value="{StaticResource AccentRedBrush}" />
-          <Setter Property="LimitBrush" Value="{StaticResource AccentYellowBrush}" />
+          <Setter Property="Stroke" Value="{DynamicResource AccentRedBrush}" />
+          <Setter Property="LimitBrush" Value="{DynamicResource AccentYellowBrush}" />
         </DataTrigger>
         <DataTrigger Binding="{Binding Tone}" Value="power">
-          <Setter Property="Stroke" Value="{StaticResource AccentOrangeBrush}" />
+          <Setter Property="Stroke" Value="{DynamicResource AccentOrangeBrush}" />
         </DataTrigger>
         <DataTrigger Binding="{Binding Tone}" Value="memory">
-          <Setter Property="Stroke" Value="{StaticResource AccentPurpleBrush}" />
+          <Setter Property="Stroke" Value="{DynamicResource AccentPurpleBrush}" />
         </DataTrigger>
         <DataTrigger Binding="{Binding Tone}" Value="disk">
-          <Setter Property="Stroke" Value="{StaticResource AccentYellowBrush}" />
+          <Setter Property="Stroke" Value="{DynamicResource AccentYellowBrush}" />
         </DataTrigger>
         <DataTrigger Binding="{Binding Tone}" Value="health">
-          <Setter Property="Stroke" Value="{StaticResource AccentGreenBrush}" />
+          <Setter Property="Stroke" Value="{DynamicResource AccentGreenBrush}" />
         </DataTrigger>
       </Style.Triggers>
     </Style>
@@ -68,8 +68,10 @@
               </ContextMenu>
             </ui:DropDownButton.Flyout>
           </ui:DropDownButton>
-          <ui:Button Content="Export CSV" Appearance="Primary" Icon="{ui:SymbolIcon ArrowExportLtr24}" Command="{Binding ExportCsvCommand}"
-                     ToolTip="Saves every recorded value in this period as a spreadsheet file." />
+          <ui:Button Appearance="Primary" Icon="{ui:SymbolIcon ArrowExportLtr24}" Command="{Binding ExportCsvCommand}"
+                     ToolTip="Saves every recorded value in this period as a spreadsheet file.">
+            <AccessText Text="_Export CSV" />
+          </ui:Button>
         </StackPanel>
       </controls:SectionHeader.Actions>
     </controls:SectionHeader>
@@ -97,13 +99,13 @@
         <!-- Summary -->
         <controls:AdaptiveGrid MinItemWidth="200" MaxColumns="4" Margin="0,0,0,12">
           <controls:StatCard Style="{StaticResource Tile}" Title="Hottest CPU" Value="{Binding CpuPeakText}" Unit="°C" Icon="Temperature24"
-                             Accent="{StaticResource AccentRedBrush}" Subtitle="{Binding CpuPeakSubtitle}" />
+                             Accent="{DynamicResource AccentRedBrush}" Subtitle="{Binding CpuPeakSubtitle}" />
           <controls:StatCard Style="{StaticResource Tile}" Title="Hottest GPU" Value="{Binding GpuPeakText}" Unit="°C" Icon="Temperature24"
-                             Accent="{StaticResource AccentOrangeBrush}" Subtitle="{Binding GpuPeakSubtitle}" />
+                             Accent="{DynamicResource AccentOrangeBrush}" Subtitle="{Binding GpuPeakSubtitle}" />
           <controls:StatCard Style="{StaticResource Tile}" Title="Energy used" Value="{Binding EnergyText}" Unit="kWh" Icon="Flash24"
-                             Accent="{StaticResource AccentYellowBrush}" Subtitle="{Binding EnergySubtitle}" />
+                             Accent="{DynamicResource AccentYellowBrush}" Subtitle="{Binding EnergySubtitle}" />
           <controls:StatCard Style="{StaticResource Tile}" Title="Notable events" Value="{Binding EventCountText}" Icon="Alert24"
-                             Accent="{StaticResource AccentCyanBrush}" Subtitle="{Binding EventSubtitle}" />
+                             Accent="{DynamicResource AccentCyanBrush}" Subtitle="{Binding EventSubtitle}" />
         </controls:AdaptiveGrid>
 
         <!-- One chart per metric -->

@@ -25,7 +25,7 @@
     <Style x:Key="BadgeText" TargetType="ui:TextBlock">
       <Setter Property="FontSize" Value="11" />
       <Setter Property="FontWeight" Value="SemiBold" />
-      <Setter Property="Foreground" Value="White" />
+      <Setter Property="Foreground" Value="{DynamicResource OnAccentTextBrush}" />
     </Style>
 
     <!-- One optional feature / capability row -->
@@ -136,7 +136,9 @@
               </ContextMenu>
             </ui:DropDownButton.Flyout>
           </ui:DropDownButton>
-          <ui:Button Content="Refresh" Appearance="Primary" Icon="{ui:SymbolIcon ArrowSync24}" Command="{Binding RefreshListCommand}" />
+          <ui:Button Appearance="Primary" Icon="{ui:SymbolIcon ArrowSync24}" Command="{Binding RefreshListCommand}">
+            <AccessText Text="_Refresh" />
+          </ui:Button>
         </StackPanel>
       </controls:SectionHeader.Actions>
     </controls:SectionHeader>
@@ -178,13 +180,13 @@
       <!-- Summary -->
       <controls:AdaptiveGrid MinItemWidth="200" MaxColumns="4" Margin="0,0,0,12">
         <controls:StatCard Style="{StaticResource Tile}" Title="Optional features on" Value="{Binding EnabledFeatureCount}" Unit="{Binding OptionalFeatureCount, StringFormat='of {0}'}"
-                           Icon="WindowApps24" Accent="{StaticResource AccentCyanBrush}" Subtitle="Hyper-V, .NET 3.5, WSL…" />
+                           Icon="WindowApps24" Accent="{DynamicResource AccentCyanBrush}" Subtitle="Hyper-V, .NET 3.5, WSL…" />
         <controls:StatCard Style="{StaticResource Tile}" Title="Capabilities installed" Value="{Binding InstalledCapabilityCount}" Unit="{Binding CapabilityCount, StringFormat='of {0}'}"
-                           Icon="PuzzlePiece24" Accent="{StaticResource AccentPurpleBrush}" Subtitle="OpenSSH, languages, viewers…" />
-        <controls:StatCard Style="{StaticResource Tile}" Title="Built-in apps" Value="{Binding InboxAppCount}" Icon="Apps24" Accent="{StaticResource AccentGreenBrush}"
+                           Icon="PuzzlePiece24" Accent="{DynamicResource AccentPurpleBrush}" Subtitle="OpenSSH, languages, viewers…" />
+        <controls:StatCard Style="{StaticResource Tile}" Title="Built-in apps" Value="{Binding InboxAppCount}" Icon="Apps24" Accent="{DynamicResource AccentGreenBrush}"
                            Subtitle="{Binding RemovableAppCount, StringFormat='{}{0} can be removed'}" />
         <controls:StatCard Style="{StaticResource Tile}" Title="Restore point first" Value="{Binding RestorePointPolicyText}"
-                           Icon="History24" Accent="{StaticResource AccentYellowBrush}" Subtitle="Change this in Settings → Restore points" />
+                           Icon="History24" Accent="{DynamicResource AccentYellowBrush}" Subtitle="Change this in Settings → Restore points" />
       </controls:AdaptiveGrid>
 
       <!-- Search + advanced hint -->
@@ -206,7 +208,7 @@
     <TabControl Grid.Row="2" SelectedIndex="{Binding SelectedTabIndex}" Background="Transparent" BorderThickness="0" Padding="0">
       <TabItem Header="{Binding OptionalFeaturesHeader}">
         <Grid Margin="0,8,0,0">
-          <ui:ListView ItemsSource="{Binding OptionalFeatures}" ItemTemplate="{StaticResource FeatureRowTemplate}"
+          <ui:ListView ItemsSource="{Binding OptionalFeatures}" AutomationProperties.Name="Optional features" ItemTemplate="{StaticResource FeatureRowTemplate}"
                        SelectionMode="Single" ScrollViewer.VerticalScrollBarVisibility="Auto" HorizontalContentAlignment="Stretch"
                        VirtualizingPanel.IsVirtualizing="True">
             <ui:ListView.ItemContainerStyle>
@@ -222,7 +224,7 @@
       </TabItem>
       <TabItem Header="{Binding CapabilitiesHeader}">
         <Grid Margin="0,8,0,0">
-          <ui:ListView ItemsSource="{Binding Capabilities}" ItemTemplate="{StaticResource FeatureRowTemplate}"
+          <ui:ListView ItemsSource="{Binding Capabilities}" AutomationProperties.Name="Capabilities" ItemTemplate="{StaticResource FeatureRowTemplate}"
                        SelectionMode="Single" ScrollViewer.VerticalScrollBarVisibility="Auto" HorizontalContentAlignment="Stretch"
                        VirtualizingPanel.IsVirtualizing="True">
             <ui:ListView.ItemContainerStyle>

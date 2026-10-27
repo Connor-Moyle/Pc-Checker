@@ -22,7 +22,7 @@
     <Style x:Key="ChipText" TargetType="ui:TextBlock">
       <Setter Property="FontSize" Value="11" />
       <Setter Property="FontWeight" Value="SemiBold" />
-      <Setter Property="Foreground" Value="White" />
+      <Setter Property="Foreground" Value="{DynamicResource OnAccentTextBrush}" />
     </Style>
     <Style x:Key="Tile" TargetType="controls:StatCard">
       <Setter Property="Margin" Value="0" />
@@ -43,8 +43,8 @@
           <Border Grid.Column="0" Width="40" Height="40" CornerRadius="10" Margin="0,0,12,0" VerticalAlignment="Top"
                   Background="{DynamicResource ControlFillColorSecondaryBrush}">
             <Grid>
-              <ui:SymbolIcon Symbol="Speaker224" FontSize="22" Visibility="{Binding IsOutput, Converter={StaticResource BoolToVisibility}}" />
-              <ui:SymbolIcon Symbol="Mic24" FontSize="22" Visibility="{Binding IsOutput, Converter={StaticResource InverseBoolToVisibility}}" />
+              <controls:IconGlyph Symbol="Speaker224" FontSize="22" Visibility="{Binding IsOutput, Converter={StaticResource BoolToVisibility}}" />
+              <controls:IconGlyph Symbol="Mic24" FontSize="22" Visibility="{Binding IsOutput, Converter={StaticResource InverseBoolToVisibility}}" />
             </Grid>
           </Border>
 
@@ -57,17 +57,17 @@
               </Grid.ColumnDefinitions>
               <ui:TextBlock Grid.Column="0" FontTypography="BodyStrong" Text="{Binding Name}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
               <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="8,0,0,0">
-                <Border Style="{StaticResource Chip}" Background="{StaticResource AccentCyanBrush}"
+                <Border Style="{StaticResource Chip}" Background="{DynamicResource AccentCyanBrush}"
                         Visibility="{Binding IsDefault, Converter={StaticResource BoolToVisibility}}"
                         ToolTip="Windows plays or records through this device unless an app picks another one.">
                   <ui:TextBlock Style="{StaticResource ChipText}" Text="Default" />
                 </Border>
-                <Border Style="{StaticResource Chip}" Background="{StaticResource AccentPurpleBrush}"
+                <Border Style="{StaticResource Chip}" Background="{DynamicResource AccentPurpleBrush}"
                         Visibility="{Binding IsDefaultCommunications, Converter={StaticResource BoolToVisibility}}"
                         ToolTip="Calls and chat apps (Teams, Discord, Zoom) use this device.">
                   <ui:TextBlock Style="{StaticResource ChipText}" Text="Calls" />
                 </Border>
-                <Border Style="{StaticResource Chip}" Background="{StaticResource AccentGreyBrush}"
+                <Border Style="{StaticResource Chip}" Background="{DynamicResource AccentGreyBrush}"
                         Visibility="{Binding IsActive, Converter={StaticResource InverseBoolToVisibility}}"
                         ToolTip="The device is not ready: it is unplugged, disabled in Windows or missing.">
                   <ui:TextBlock Style="{StaticResource ChipText}" Text="{Binding State}" />
@@ -109,7 +109,7 @@
               <ui:TextBlock Grid.Column="0" Style="{StaticResource Caption}" Text="Level" Width="40" VerticalAlignment="Center"
                             ToolTip="What is actually coming out of (or into) this device right now." />
               <ProgressBar Grid.Column="1" Height="6" Minimum="0" Maximum="100" VerticalAlignment="Center"
-                           Value="{Binding PeakPercent, Mode=OneWay}" Foreground="{StaticResource AccentGreenBrush}" />
+                           Value="{Binding PeakPercent, Mode=OneWay}" Foreground="{DynamicResource AccentGreenBrush}" />
             </Grid>
 
             <!-- Actions -->
@@ -168,12 +168,14 @@
           <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,12,0"
                       Visibility="{Binding IsLiveMetering, Converter={StaticResource BoolToVisibility}}"
                       ToolTip="The green bars show the real sound level while this page is open; polling stops as soon as you leave the page.">
-            <Ellipse Width="8" Height="8" Fill="{StaticResource AccentGreenBrush}" VerticalAlignment="Center" Margin="0,0,6,0" />
+            <Ellipse Width="8" Height="8" Fill="{DynamicResource AccentGreenBrush}" VerticalAlignment="Center" Margin="0,0,6,0" />
             <ui:TextBlock Style="{StaticResource Caption}" Text="Live levels" VerticalAlignment="Center" />
           </StackPanel>
           <ui:Button Content="Sound settings" Icon="{ui:SymbolIcon Settings24}" Command="{Binding OpenSoundSettingsCommand}" Margin="0,0,8,0"
                      ToolTip="Opens Windows Settings → System → Sound (spatial audio, mono audio, app defaults)." />
-          <ui:Button Content="Refresh" Appearance="Primary" Icon="{ui:SymbolIcon ArrowSync24}" Command="{Binding RefreshCommand}" />
+          <ui:Button Appearance="Primary" Icon="{ui:SymbolIcon ArrowSync24}" Command="{Binding RefreshCommand}">
+            <AccessText Text="_Refresh" />
+          </ui:Button>
         </StackPanel>
       </controls:SectionHeader.Actions>
     </controls:SectionHeader>
@@ -191,11 +193,11 @@
 
         <!-- Summary -->
         <controls:AdaptiveGrid MinItemWidth="200" MaxColumns="3" Margin="0,0,0,12">
-          <controls:StatCard Style="{StaticResource Tile}" Title="Default output" Icon="Speaker224" Accent="{StaticResource AccentCyanBrush}"
+          <controls:StatCard Style="{StaticResource Tile}" Title="Default output" Icon="Speaker224" Accent="{DynamicResource AccentCyanBrush}"
                              Value="{Binding DefaultOutputName}" Subtitle="{Binding DefaultOutputDetail}" />
-          <controls:StatCard Style="{StaticResource Tile}" Title="Default microphone" Icon="Mic24" Accent="{StaticResource AccentPurpleBrush}"
+          <controls:StatCard Style="{StaticResource Tile}" Title="Default microphone" Icon="Mic24" Accent="{DynamicResource AccentPurpleBrush}"
                              Value="{Binding DefaultInputName}" Subtitle="{Binding DefaultInputDetail}" />
-          <controls:StatCard Style="{StaticResource Tile}" Title="Apps playing sound" Icon="AppsList24" Accent="{StaticResource AccentGreenBrush}"
+          <controls:StatCard Style="{StaticResource Tile}" Title="Apps playing sound" Icon="AppsList24" Accent="{DynamicResource AccentGreenBrush}"
                              Value="{Binding SessionCount}" Subtitle="{Binding SessionSummary}" />
         </controls:AdaptiveGrid>
 

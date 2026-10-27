@@ -1,4 +1,5 @@
 using System.Globalization;
+using PcChecker.Core.Accessibility;
 
 namespace PcChecker.Core.Localization;
 
@@ -45,6 +46,17 @@ public sealed class Translator
                 _strings.TryGetValue(english[..^suffix.Length], out var stem) && !string.IsNullOrWhiteSpace(stem))
             {
                 return stem + suffix;
+            }
+        }
+
+        // A button label with an access key ("_Scan") is translated without the marker, which then goes in front of
+        // the same letter in the translation, or its first letter.
+        if (AccessibleText.TrySplitAccessKey(english, out var plain, out var key))
+        {
+            var translatedPlain = T(plain);
+            if (!string.Equals(translatedPlain, plain, StringComparison.Ordinal))
+            {
+                return AccessibleText.ApplyAccessKey(translatedPlain, key);
             }
         }
 

@@ -56,8 +56,10 @@
         <StackPanel Orientation="Horizontal">
           <ui:Button Content="Open log folder" Icon="{ui:SymbolIcon FolderOpen24}" Command="{Binding OpenLogFolderCommand}" Margin="0,0,8,0"
                      ToolTip="Opens the folder that holds the log files in File Explorer." />
-          <ui:Button Content="Export diagnostics" Icon="{ui:SymbolIcon ArrowDownload24}" Appearance="Primary" Command="{Binding ExportDiagnosticsCommand}"
-                     ToolTip="Saves a zip with the log files, the action journal, the in-app log buffer and your settings (API key removed). Attach it to a bug report." />
+          <ui:Button Icon="{ui:SymbolIcon ArrowDownload24}" Appearance="Primary" Command="{Binding ExportDiagnosticsCommand}"
+                     ToolTip="Saves a zip with the log files, the action journal, the in-app log buffer and your settings (API key removed). Attach it to a bug report.">
+            <AccessText Text="_Export diagnostics" />
+          </ui:Button>
         </StackPanel>
       </controls:SectionHeader.Actions>
     </controls:SectionHeader>
@@ -76,7 +78,7 @@
       <TabItem>
         <TabItem.Header>
           <StackPanel Orientation="Horizontal">
-            <ui:SymbolIcon Symbol="DocumentText24" Margin="0,0,8,0" />
+            <controls:IconGlyph Symbol="DocumentText24" Margin="0,0,8,0" />
             <TextBlock Text="Live log" />
           </StackPanel>
         </TabItem.Header>
@@ -139,13 +141,13 @@
             <ui:TextBlock Style="{StaticResource Muted}" Text="Current file: " VerticalAlignment="Center" />
             <ui:HyperlinkButton Content="{Binding CurrentFileText}" Command="{Binding OpenCurrentFileCommand}" Padding="2,0" FontSize="12"
                                 ToolTip="{Binding CurrentFilePath}" />
-            <Border Background="{StaticResource AccentYellowBrush}" CornerRadius="4" Padding="8,2" Margin="8,0,0,0"
+            <Border Background="{DynamicResource AccentYellowBrush}" CornerRadius="4" Padding="8,2" Margin="8,0,0,0"
                     Visibility="{Binding IsPaused, Converter={StaticResource BoolToVisibility}}">
               <StackPanel Orientation="Horizontal">
-                <TextBlock Text="Paused" FontWeight="SemiBold" Foreground="#1F2937" FontSize="12" />
-                <TextBlock Text=" · " Foreground="#1F2937" FontSize="12" />
-                <TextBlock Text="{Binding PendingWhilePaused}" Foreground="#1F2937" FontSize="12" />
-                <TextBlock Text=" new lines waiting" Foreground="#1F2937" FontSize="12" />
+                <TextBlock Text="Paused" FontWeight="SemiBold" Foreground="{DynamicResource OnAccentTextBrush}" FontSize="12" />
+                <TextBlock Text=" · " Foreground="{DynamicResource OnAccentTextBrush}" FontSize="12" />
+                <TextBlock Text="{Binding PendingWhilePaused}" Foreground="{DynamicResource OnAccentTextBrush}" FontSize="12" />
+                <TextBlock Text=" new lines waiting" Foreground="{DynamicResource OnAccentTextBrush}" FontSize="12" />
               </StackPanel>
             </Border>
           </WrapPanel>
@@ -153,7 +155,7 @@
           <!-- Entries -->
           <Border Grid.Row="2" BorderThickness="1" BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}" CornerRadius="6" Background="{DynamicResource ControlFillColorDefaultBrush}">
             <Grid>
-              <ListView ItemsSource="{Binding Entries}"
+              <ListView ItemsSource="{Binding Entries}" AutomationProperties.Name="Log entries"
                         SelectedItem="{Binding SelectedEntry}"
                         HorizontalContentAlignment="Stretch"
                         helpers:AutoScrollBehavior.AutoScroll="{Binding AutoScroll}"
@@ -182,8 +184,8 @@
                       </Border>
                       <TextBlock Grid.Column="2" Text="{Binding Category}" FontSize="12" Opacity="0.8" VerticalAlignment="Center" Margin="0,0,12,0" />
                       <TextBlock Grid.Column="3" Text="{Binding FirstLine}" FontSize="13" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" ToolTip="{Binding Message}" />
-                      <ui:SymbolIcon Grid.Column="4" Symbol="ErrorCircle24" FontSize="14" Margin="8,0,0,0" VerticalAlignment="Center"
-                                     Foreground="{StaticResource AccentRedBrush}"
+                      <controls:IconGlyph Grid.Column="4" Symbol="ErrorCircle24" FontSize="14" Margin="8,0,0,0" VerticalAlignment="Center"
+                                     Foreground="{DynamicResource AccentRedBrush}"
                                      Visibility="{Binding HasException, Converter={StaticResource BoolToVisibility}}"
                                      ToolTip="This line has an exception. Select it to read the details." />
                     </Grid>
@@ -221,7 +223,7 @@
       <TabItem>
         <TabItem.Header>
           <StackPanel Orientation="Horizontal">
-            <ui:SymbolIcon Symbol="History24" Margin="0,0,8,0" />
+            <controls:IconGlyph Symbol="History24" Margin="0,0,8,0" />
             <TextBlock Text="Action journal" />
           </StackPanel>
         </TabItem.Header>
@@ -257,7 +259,7 @@
 
           <Border Grid.Row="1" BorderThickness="1" BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}" CornerRadius="6" Background="{DynamicResource ControlFillColorDefaultBrush}">
             <Grid>
-              <ListView ItemsSource="{Binding JournalRecords}"
+              <ListView ItemsSource="{Binding JournalRecords}" AutomationProperties.Name="Action journal"
                         SelectedItem="{Binding SelectedRecord}"
                         HorizontalContentAlignment="Stretch"
                         Grid.IsSharedSizeScope="True"
@@ -289,11 +291,11 @@
                                    Foreground="{Binding Outcome, Converter={StaticResource OutcomeToBrush}}" ToolTip="{Binding Outcome}" />
                       </Border>
                       <StackPanel Grid.Column="5" Orientation="Horizontal" Margin="12,0,0,0" VerticalAlignment="Center" ToolTip="System Restore point created before this change">
-                        <ui:SymbolIcon Symbol="ShieldCheckmark24" FontSize="14" Margin="0,0,4,0" Visibility="{Binding HasRestorePoint, Converter={StaticResource BoolToVisibility}}" />
+                        <controls:IconGlyph Symbol="ShieldCheckmark24" FontSize="14" Margin="0,0,4,0" Visibility="{Binding HasRestorePoint, Converter={StaticResource BoolToVisibility}}" />
                         <TextBlock Text="{Binding RestorePointText}" FontSize="12" Opacity="0.8" />
                       </StackPanel>
                       <StackPanel Grid.Column="6" Orientation="Horizontal" Margin="12,0,0,0" VerticalAlignment="Center" ToolTip="Whether the app can undo this change">
-                        <ui:SymbolIcon Symbol="ArrowUndo24" FontSize="14" Margin="0,0,4,0" Visibility="{Binding Reversible, Converter={StaticResource BoolToVisibility}}" />
+                        <controls:IconGlyph Symbol="ArrowUndo24" FontSize="14" Margin="0,0,4,0" Visibility="{Binding Reversible, Converter={StaticResource BoolToVisibility}}" />
                         <TextBlock Text="{Binding ReversibleText}" FontSize="12" Opacity="0.8" />
                       </StackPanel>
                     </Grid>
@@ -336,7 +338,7 @@
       <TabItem>
         <TabItem.Header>
           <StackPanel Orientation="Horizontal">
-            <ui:SymbolIcon Symbol="Settings24" Margin="0,0,8,0" />
+            <controls:IconGlyph Symbol="Settings24" Margin="0,0,8,0" />
             <TextBlock Text="Logging settings" />
           </StackPanel>
         </TabItem.Header>

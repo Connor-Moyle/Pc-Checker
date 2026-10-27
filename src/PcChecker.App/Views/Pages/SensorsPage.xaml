@@ -49,7 +49,7 @@
     <DataTemplate x:Key="HardwareGroup" DataType="{x:Type sensors:SensorGroupViewModel}">
       <ui:CardExpander Margin="0,0,0,12" IsExpanded="{Binding IsExpanded, Mode=TwoWay}" ContentPadding="16,8,16,12">
         <ui:CardExpander.Icon>
-          <ui:SymbolIcon Symbol="{Binding Icon}" FontSize="22" />
+          <controls:IconGlyph Symbol="{Binding Icon}" FontSize="22" />
         </ui:CardExpander.Icon>
         <ui:CardExpander.Header>
           <Grid>
@@ -173,7 +173,7 @@
             </Grid>
             <ItemsControl ItemsSource="{Binding Alerts}" ItemTemplate="{StaticResource AlertRow}" />
             <StackPanel Orientation="Horizontal" Visibility="{Binding HasAlerts, Converter={StaticResource InverseBoolToVisibility}}">
-              <ui:SymbolIcon Symbol="CheckmarkCircle24" Foreground="{StaticResource AccentGreenBrush}" Margin="0,0,8,0" />
+              <controls:IconGlyph Symbol="CheckmarkCircle24" Foreground="{DynamicResource AccentGreenBrush}" Margin="0,0,8,0" />
               <ui:TextBlock Appearance="Secondary" Text="No alerts. Every temperature has stayed within its limits." VerticalAlignment="Center" />
             </StackPanel>
           </StackPanel>
@@ -190,7 +190,7 @@
           </ui:CardExpander.Header>
           <StackPanel>
             <ui:TextBox PlaceholderText="Search sensors (name, part or type)…" Icon="{ui:SymbolIcon Search24}" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" MaxWidth="420" HorizontalAlignment="Left" Margin="0,0,0,8" />
-            <ui:DataGrid ItemsSource="{Binding AllSensorsView}" AutoGenerateColumns="False" IsReadOnly="True" CanUserSortColumns="True"
+            <ui:DataGrid AutomationProperties.Name="All sensors" KeyboardNavigation.TabNavigation="Once" ItemsSource="{Binding AllSensorsView}" AutoGenerateColumns="False" IsReadOnly="True" CanUserSortColumns="True"
                          CanUserReorderColumns="False" HeadersVisibility="Column" GridLinesVisibility="Horizontal" MaxHeight="520"
                          SelectionMode="Single" ScrollViewer.CanContentScroll="True">
               <ui:DataGrid.Columns>

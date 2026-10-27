@@ -4,6 +4,8 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using PcChecker.App.Localization;
 using PcChecker.Core.Common;
 using PcChecker.Core.DiskSpace;
+using PcChecker.App.Services;
+using PcChecker.Core.Accessibility;
 
 namespace PcChecker.App.ViewModels;
 
@@ -231,30 +233,23 @@ public sealed record DiskBreadcrumb(FolderNode Node, bool IsLast)
     public bool ShowSeparator => !IsLast;
 }
 
-/// <summary>Bar colours for the Disk space page, frozen so they can be shared by every row.</summary>
+/// <summary>Bar colours for the Disk space page, in the current theme's shades (shared, frozen brushes).</summary>
 public static class DiskSpaceBrushes
 {
-    public static Brush Normal { get; } = Make(0x4C, 0xC2, 0xFF);
+    public static Brush Normal => ThemeColors.Accent(AccentRole.Cyan);
 
-    public static Brush Warning { get; } = Make(0xF9, 0x73, 0x16);
+    public static Brush Warning => ThemeColors.Accent(AccentRole.Orange);
 
-    private static readonly Dictionary<FileTypeCategory, Brush> ByCategory = new()
+    private static readonly Dictionary<FileTypeCategory, AccentRole> ByCategory = new()
     {
-        [FileTypeCategory.Video] = Make(0xA7, 0x8B, 0xFA),
-        [FileTypeCategory.Images] = Make(0x4C, 0xC2, 0xFF),
-        [FileTypeCategory.Games] = Make(0x22, 0xC5, 0x5E),
-        [FileTypeCategory.Archives] = Make(0xFA, 0xCC, 0x15),
-        [FileTypeCategory.Installers] = Make(0xF9, 0x73, 0x16),
-        [FileTypeCategory.System] = Make(0x60, 0xA5, 0xFA),
-        [FileTypeCategory.Other] = Make(0x9C, 0xA3, 0xAF),
+        [FileTypeCategory.Video] = AccentRole.Purple,
+        [FileTypeCategory.Images] = AccentRole.Cyan,
+        [FileTypeCategory.Games] = AccentRole.Green,
+        [FileTypeCategory.Archives] = AccentRole.Yellow,
+        [FileTypeCategory.Installers] = AccentRole.Orange,
+        [FileTypeCategory.System] = AccentRole.Blue,
+        [FileTypeCategory.Other] = AccentRole.Grey,
     };
 
-    public static Brush For(FileTypeCategory category) => ByCategory.TryGetValue(category, out var brush) ? brush : Normal;
-
-    private static Brush Make(byte r, byte g, byte b)
-    {
-        var brush = new SolidColorBrush(Color.FromRgb(r, g, b));
-        brush.Freeze();
-        return brush;
-    }
+    public static Brush For(FileTypeCategory category) => ByCategory.TryGetValue(category, out var role) ? ThemeColors.Accent(role) : Normal;
 }

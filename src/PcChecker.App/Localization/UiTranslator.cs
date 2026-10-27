@@ -12,9 +12,9 @@ namespace PcChecker.App.Localization;
 /// <summary>
 /// Translates the fixed English text written into the XAML, without changing any page. Each window's rendered tree is
 /// walked when it loads and again shortly after its layout changes, so pages, expanders, lists, pop-ups and menus that
-/// appear later are covered. Text properties are translated when their value is plain text from the XAML (set
-/// directly, by a style or by a template); bound values from view models are left alone, as is text with no
-/// translation.
+/// appear later are covered. Text properties (and the screen-reader name and help text) are translated when their
+/// value is plain text from the XAML (set directly, by a style or by a template); bound values from view models are
+/// left alone, as is text with no translation.
 /// </summary>
 public static class UiTranslator
 {
@@ -257,6 +257,13 @@ public static class UiTranslator
         if (typeof(FrameworkElement).IsAssignableFrom(t) && !found.Contains(FrameworkElement.ToolTipProperty))
         {
             found.Add(FrameworkElement.ToolTipProperty);
+        }
+
+        // Screen-reader names and help written in the XAML (AutomationProperties.Name="Search").
+        if (typeof(FrameworkElement).IsAssignableFrom(t))
+        {
+            found.Add(System.Windows.Automation.AutomationProperties.NameProperty);
+            found.Add(System.Windows.Automation.AutomationProperties.HelpTextProperty);
         }
 
         return found.Distinct().ToArray();
