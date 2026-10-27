@@ -10,6 +10,16 @@
         <ui:ControlsDictionary />
         <ResourceDictionary Source="pack://application:,,,/Resources/Styles.xaml" />
       </ResourceDictionary.MergedDictionaries>
+
+      <!-- A closed InfoBar hides only its template content and would still take its margin, leaving gaps under page
+           headers. Collapse the whole control while it is closed. -->
+      <Style TargetType="ui:InfoBar" BasedOn="{StaticResource {x:Type ui:InfoBar}}">
+        <Style.Triggers>
+          <Trigger Property="IsOpen" Value="False">
+            <Setter Property="Visibility" Value="Collapsed" />
+          </Trigger>
+        </Style.Triggers>
+      </Style>
     </ResourceDictionary>
   </Application.Resources>
 </Application>
