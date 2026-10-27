@@ -521,26 +521,72 @@ RGB control through [OpenRGB](https://openrgb.org), one open-source service
 that speaks to hundreds of motherboards, RAM kits, GPUs, keyboards, mice,
 coolers and strips.
 
-- **Status card**: connection state and OpenRGB version, *Connect* /
-  *Reconnect*, *Launch OpenRGB server* (starts OpenRGB with the SDK server),
+- **Status card**: connection state, server address and OpenRGB version or
+  what is wrong in plain words (not installed, installed but not running,
+  open with its SDK server off, not answering at the address), *Connect* /
+  *Reconnect*, *Start OpenRGB* (runs it minimized with `--server`, only from
+  Program Files), an optional *Install OpenRGB* (winget package
+  `CalcProgrammer1.OpenRGB`, for all users, after a confirmation, journaled),
   *Download OpenRGB*, a *Why OpenRGB?* note and the vendor suites as
   alternatives (ASUS Armoury Crate, MSI Center, Gigabyte Control Center,
   ASRock Polychrome, Corsair iCUE, Razer Synapse, Logitech G HUB, SteelSeries
-  GG, NZXT CAM).
+  GG, NZXT CAM). While OpenRGB is away, PC Checker retries in the background
+  with growing pauses, so starting OpenRGB by hand connects the page too.
+- **All RGB devices**: one list of every device, controllable or only found,
+  with an icon, brand, type, where it was found, a coloured status (*Ready*,
+  *Ready once a zone size is set*, *Found, control needs OpenRGB*, *Found, but
+  iCUE is using it*, *May have lighting*) and one line saying why and what to
+  do next. *Rescan* (F5) runs the detection again; it changes nothing.
+- **Detection without OpenRGB**: every present USB, HID and PCI device is
+  matched against the IDs of the more than 1,100 USB lighting controllers and nearly 900
+  graphics cards OpenRGB supports (ASUS Aura, MSI Mystic Light, Gigabyte RGB
+  Fusion, Corsair, NZXT, Razer, Logitech, SteelSeries, HyperX, Cooler Master,
+  Lian Li, Thermaltake, ASRock and many more). HID interfaces without IDs in
+  their path are asked with `HidD_GetAttributes`, and Windows Dynamic
+  Lighting (LampArray) devices are recognised by their HID usage. Memory kits
+  are recognised by part number (G.Skill Trident Z RGB/Neo/Z5 RGB, Corsair
+  Vengeance RGB and Dominator Platinum RGB, Kingston FURY RGB, HyperX RGB);
+  ASUS, ASRock, Gigabyte and MSI boards without a USB lighting controller get
+  a "may have lighting" hint, because their lighting sits on the SMBus or a
+  Super I/O chip that only OpenRGB reaches. IDs from chip makers that other
+  products share are marked *likely*, not certain.
+- **Apps that can block lighting control**: running iCUE, Armoury Crate (its
+  LightingService), MSI Center / Mystic Light, Gigabyte Control Center / RGB
+  Fusion, SignalRGB, NZXT CAM, Razer Synapse, Logitech G HUB, SteelSeries GG,
+  Lian Li L-Connect and TT RGB Plus are found by process and service name,
+  with what they hold. *Close for this session* asks first (and says when
+  the app also drives fans or a pump), stops its services and ends its
+  processes until the next restart; nothing is uninstalled and start-up
+  settings are not changed.
 - **Top controls**: *Sync all* colour picker, *Apply to all*, brightness for
   all, *Turn off all*, profile picker with *Apply*, *Save* and *Delete*.
 - **Device cards**: type icon, name, vendor, LED count and zones; a mode
   picker; a colour swatch and picker; speed and brightness sliders when the
-  mode supports them; a per-zone expander with zone colours. Changes apply
-  immediately with a short debounce.
+  mode supports them; a per-zone expander with zone colours. Addressable
+  headers and strips (resizable zones, which start at 0 LEDs) get an LED
+  count box and *Set size*. Changes apply immediately with a short debounce.
+- **Reading OpenRGB defensively**: zones keep their minimum and maximum LED
+  counts and their position, the LED count falls back to the zones when the
+  LED list is empty, and when the SDK client cannot read a device the others
+  are read one by one and the odd one is read by PC Checker's own reader for
+  protocol versions 0 to 5 (length-checked, newer fields ignored) and listed
+  as "details unreadable" instead of hiding the whole list.
+- **If a device is missing**: a collapsed section with the usual fixes:
+  start the SDK server, close the maker's app, Armoury Crate's
+  LightingService, PawnIO and administrator rights for RAM and motherboard
+  lighting on the SMBus, sizing addressable headers, graphics cards, and
+  unsupported models.
 - **Peripherals** section groups keyboards, mice and headsets.
 - **Profiles**: *Gaming (blue/cyan)*, *Work (warm white, 40 %)*, *Night
   (off)*, *Rainbow* built in, plus your own.
 
-Limitations: the page does nothing without OpenRGB running with its SDK
-server enabled (Settings → SDK Server in OpenRGB). Devices OpenRGB does not
-support cannot be controlled; use the vendor's suite. Lighting changes are
-cosmetic, so they are journaled but do not create restore points.
+Limitations: colours and effects need OpenRGB running with its SDK server
+enabled; without it the page lists and explains devices but cannot change
+them. Windows does not expose the devices on the SMBus (RAM and many
+motherboard and graphics card lighting chips), so those are recognised by part
+number, brand or card ID, and only OpenRGB can confirm them. Devices OpenRGB
+does not support cannot be controlled; use the vendor's suite. Lighting
+changes are cosmetic, so they are journaled but do not create restore points.
 
 ---
 

@@ -7,6 +7,20 @@ All notable changes to PC Checker are recorded here. The format follows
 ## [Unreleased]
 
 ### Added
+- **Lighting finds every RGB device**: the page now lists the RGB hardware
+  it can see even when OpenRGB is not installed or its server is off, from
+  USB/HID and graphics card IDs (more than 1,100 lighting controllers and nearly 900 cards
+  OpenRGB supports), RGB memory part numbers, the motherboard brand and
+  Windows Dynamic Lighting devices. One combined list shows what is ready to
+  control and what is only found, each with a plain status and the next
+  step. Vendor apps that hold devices (iCUE, Armoury Crate, MSI Center, RGB
+  Fusion, SignalRGB, NZXT CAM, Synapse, G HUB, SteelSeries GG, L-Connect,
+  TT RGB Plus) are named, and can be closed for the session after a
+  confirmation. *Rescan* (F5), *Start OpenRGB* (only from Program Files),
+  an optional *Install OpenRGB* through winget, background reconnects,
+  addressable headers that start at 0 LEDs can be sized, and devices the SDK
+  client cannot read no longer hide the others. A collapsed *If a device is
+  missing* section covers PawnIO for RAM, Armoury Crate and the rest.
 - **PawnIO from inside the app**: the welcome has a ticked *Install PawnIO*
   choice, later starts ask once when the sensor driver is missing (*Install*,
   *Not now* for a week, or *Don't ask again*), and Settings → Monitoring has
