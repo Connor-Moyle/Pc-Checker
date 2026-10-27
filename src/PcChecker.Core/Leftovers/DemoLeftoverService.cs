@@ -15,6 +15,7 @@ public sealed class DemoLeftoverService : ILeftoverService
     private const string Local = User + @"\AppData\Local";
     private const string Pf = @"C:\Program Files";
     private const string Pf86 = @"C:\Program Files (x86)";
+    private static readonly string[] DemoRoots = [Pf, Pf86, @"C:\ProgramData", Local, Roaming, User + @"\AppData\LocalLow"];
     private const string CommonStart = @"C:\ProgramData\Microsoft\Windows\Start Menu\Programs";
     private const string UserStart = Roaming + @"\Microsoft\Windows\Start Menu\Programs";
 
@@ -70,7 +71,7 @@ public sealed class DemoLeftoverService : ILeftoverService
 
             items = SampleItems().Concat(_focusItems)
                 .Where(i => !_removed.Contains(i.Id))
-                .Select(i => focus is not null && LeftoverRules.MatchesFocus(i.Name, i.Kind is LeftoverKind.Folder or LeftoverKind.EmptyFolder ? i.Location : null, focus)
+                .Select(i => focus is not null && LeftoverRules.MatchesFocus(i.Name, i.Kind is LeftoverKind.Folder or LeftoverKind.EmptyFolder ? i.Location : null, focus, DemoRoots)
                     ? i with { MatchesFocus = true, Confidence = LeftoverConfidence.High }
                     : i)
                 .ToList();
@@ -175,9 +176,9 @@ public sealed class DemoLeftoverService : ILeftoverService
     {
         var name = focus.ProgramName.Trim();
         var vendor = string.IsNullOrWhiteSpace(focus.Publisher) ? name : focus.Publisher.Trim().Split(',')[0];
-        var folder = string.IsNullOrWhiteSpace(focus.InstallLocation) || !DiskSpace.DiskSpacePaths.IsLocalAbsolute(focus.InstallLocation)
-            ? Pf + "\\" + name
-            : DiskSpace.DiskSpacePaths.Normalize(focus.InstallLocation);
+        var folder = LeftoverProgramIndex.IsSpecificLocation(focus.InstallLocation, DemoRoots)
+            ? DiskSpace.DiskSpacePaths.Normalize(focus.InstallLocation!.Trim().Trim('"'))
+            : Pf + "\\" + name;
         var evidence = new LeftoverEvidence(LeftoverKind.Folder, MatchesFocus: true);
         yield return Make(LeftoverKind.Folder, name, folder, evidence, 3_400_000, note: null, focus: name, ageDays: 0);
         yield return Make(LeftoverKind.Folder, name + " settings", Roaming + "\\" + name, evidence with { InUserData = true }, 1_850_000, null, name, 0);
@@ -201,7 +202,7 @@ public sealed class DemoLeftoverService : ILeftoverService
         yield return Make(LeftoverKind.Folder, "Opera Software", Roaming + @"\Opera Software",
             new LeftoverEvidence(LeftoverKind.Folder, InUserData: true, SinceLastChange: TimeSpan.FromDays(198)), 412_700_000, ageDays: 198);
         yield return Make(LeftoverKind.Folder, "Razer", Local + @"\Razer",
-            new LeftoverEvidence(LeftoverKind.Folder, InUserData: false, SinceLastChange: TimeSpan.FromDays(121)), 311_900_000, ageDays: 121);
+            new LeftoverEvidence(LeftoverKind.Folder, InUserData: true, SinceLastChange: TimeSpan.FromDays(121)), 311_900_000, ageDays: 121);
         yield return Make(LeftoverKind.Folder, "uTorrent", Roaming + @"\uTorrent",
             new LeftoverEvidence(LeftoverKind.Folder, ContainsPrograms: true, InUserData: true, SinceLastChange: TimeSpan.FromDays(12)), 9_800_000, ageDays: 12);
         yield return Make(LeftoverKind.Folder, "Advanced SystemCare", Pf86 + @"\IObit\Advanced SystemCare",

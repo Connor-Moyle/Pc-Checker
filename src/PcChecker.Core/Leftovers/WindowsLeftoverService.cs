@@ -79,6 +79,12 @@ public sealed partial class WindowsLeftoverService : ILeftoverService
                 warnings.Add(note);
             }
 
+            // "%LOCALAPPDATA%\Vendor\App" as recorded by the uninstall entry: expanded so the folder can be recognised.
+            if (focus?.InstallLocation is { } recorded && !string.IsNullOrWhiteSpace(recorded))
+            {
+                focus = focus with { InstallLocation = RegistryPathTools.Expand(recorded.Trim().Trim('"'), _environment) };
+            }
+
             var context = new ScanContext(focus, Roots(), new LeftoverProgramIndex(programs, _environment, Roots().Select(r => r.Path)),
                 PathProbe.CreateSystem(), DateTimeOffset.Now);
             var items = await Task.Run(() => ScanAll(context, warnings, progress, cancellationToken), cancellationToken).ConfigureAwait(false);
@@ -98,7 +104,11 @@ public sealed partial class WindowsLeftoverService : ILeftoverService
     }
 
     /// <summary>Everything one scan needs: the focus program, the roots, what is installed and the file-system probe.</summary>
-    private sealed record ScanContext(LeftoverFocus? Focus, IReadOnlyList<LeftoverRootFolder> Roots, LeftoverProgramIndex Index, PathProbe Probe, DateTimeOffset Now);
+    private sealed record ScanContext(LeftoverFocus? Focus, IReadOnlyList<LeftoverRootFolder> Roots, LeftoverProgramIndex Index, PathProbe Probe, DateTimeOffset Now)
+    {
+        /// <summary>See <see cref="LeftoverRules.MatchesFocus"/>; an install folder that is a scanned root (or holds one) is ignored.</summary>
+        public bool MatchesFocus(string? name, string? path) => LeftoverRules.MatchesFocus(name, path, Focus, Roots.Select(r => r.Path));
+    }
 
     private List<LeftoverItem> ScanAll(ScanContext context, List<string> warnings, IProgress<ProgressUpdate>? progress, CancellationToken ct)
     {

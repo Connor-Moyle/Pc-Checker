@@ -26,7 +26,23 @@ public static class CommandRunner
 {
     public static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(60);
 
-    public static async Task<CommandOutput> RunAsync(string fileName, string arguments, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
+    public static Task<CommandOutput> RunAsync(string fileName, string arguments, TimeSpan? timeout = null, CancellationToken cancellationToken = default) =>
+        RunCoreAsync(fileName, psi => psi.Arguments = arguments, timeout, cancellationToken);
+
+    /// <summary>Runs a tool with its arguments passed one by one, so Windows quotes each (names with quotes or spaces stay intact).</summary>
+    public static Task<CommandOutput> RunAsync(string fileName, IReadOnlyList<string> arguments, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(arguments);
+        return RunCoreAsync(fileName, psi =>
+        {
+            foreach (var argument in arguments)
+            {
+                psi.ArgumentList.Add(argument);
+            }
+        }, timeout, cancellationToken);
+    }
+
+    private static async Task<CommandOutput> RunCoreAsync(string fileName, Action<ProcessStartInfo> setArguments, TimeSpan? timeout, CancellationToken cancellationToken)
     {
         if (!PlatformGuard.IsWindows)
         {
@@ -36,7 +52,6 @@ public static class CommandRunner
         var psi = new ProcessStartInfo
         {
             FileName = fileName,
-            Arguments = arguments,
             UseShellExecute = false,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
@@ -45,6 +60,7 @@ public static class CommandRunner
             StandardOutputEncoding = StorageCommandRunner.OemEncoding(),
             StandardErrorEncoding = StorageCommandRunner.OemEncoding(),
         };
+        setArguments(psi);
 
         using var process = new Process { StartInfo = psi };
         var stdout = new StringBuilder();

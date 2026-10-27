@@ -8,7 +8,16 @@ namespace PcChecker.Core.Leftovers;
 /// <param name="Commands">The program of every Exec action, as written (may hold %variables% or quotes).</param>
 /// <param name="HasOtherActions">True when the task also has COM handler, e-mail or message actions.</param>
 /// <param name="Author">The Author element, when present.</param>
-public sealed record LeftoverTaskActions(IReadOnlyList<string> Commands, bool HasOtherActions, string? Author);
+/// <param name="UserId">The account the task runs as (Principal/UserId: a SID, DOMAIN\user or user), when present.</param>
+/// <param name="LogonType">Principal/LogonType ("InteractiveToken", "Password", "S4U"…), when present.</param>
+public sealed record LeftoverTaskActions(IReadOnlyList<string> Commands, bool HasOtherActions, string? Author, string? UserId = null, string? LogonType = null)
+{
+    /// <summary>
+    /// True when the task runs "whether the user is signed in or not" with a stored password: Task Scheduler needs that
+    /// password again to register it, so it cannot be put back from its XML alone.
+    /// </summary>
+    public bool NeedsPassword => string.Equals(LogonType, "Password", StringComparison.OrdinalIgnoreCase);
+}
 
 /// <summary>
 /// Reads the actions of a Task Scheduler definition (the XML files Windows keeps under System32\Tasks, which is also
@@ -67,7 +76,15 @@ public static class LeftoverTaskXml
 
         var author = doc.Root.Elements().FirstOrDefault(e => e.Name.LocalName == "RegistrationInfo")?
             .Elements().FirstOrDefault(e => e.Name.LocalName == "Author")?.Value.Trim();
-        return new LeftoverTaskActions(commands, other, string.IsNullOrWhiteSpace(author) ? null : author);
+
+        // The principal the actions run under: the one the Actions element names in its Context, else the first.
+        var principals = doc.Root.Elements().FirstOrDefault(e => e.Name.LocalName == "Principals")?
+            .Elements().Where(e => e.Name.LocalName == "Principal").ToList() ?? [];
+        var context = actions?.Attribute("Context")?.Value;
+        var principal = principals.FirstOrDefault(p => context is not null && string.Equals(p.Attribute("id")?.Value, context, StringComparison.Ordinal))
+                        ?? principals.FirstOrDefault();
+        string? Child(string name) => principal?.Elements().FirstOrDefault(e => e.Name.LocalName == name)?.Value.Trim() is { Length: > 0 } v ? v : null;
+        return new LeftoverTaskActions(commands, other, string.IsNullOrWhiteSpace(author) ? null : author, Child("UserId"), Child("LogonType"));
     }
 
     /// <summary>The text of a task file, whatever byte-order mark it has (Windows writes UTF-16).</summary>

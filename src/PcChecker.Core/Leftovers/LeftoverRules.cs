@@ -16,17 +16,19 @@ public static class LeftoverRules
     /// <summary>
     /// True when a folder or key named <paramref name="name"/> at <paramref name="path"/> belongs to the focus program:
     /// it is (or holds, or sits in) the recorded install folder, or its name closely matches the program or its maker.
+    /// The install folder only counts when it is specific (see <see cref="LeftoverProgramIndex.IsSpecificLocation"/>):
+    /// a program that recorded "C:\" or one of the scanned <paramref name="roots"/> does not claim everything in it.
     /// </summary>
-    public static bool MatchesFocus(string? name, string? path, LeftoverFocus? focus)
+    public static bool MatchesFocus(string? name, string? path, LeftoverFocus? focus, IEnumerable<string>? roots = null)
     {
         if (focus is null)
         {
             return false;
         }
 
-        if (!string.IsNullOrWhiteSpace(path) && !string.IsNullOrWhiteSpace(focus.InstallLocation) &&
-            DiskSpacePaths.IsLocalAbsolute(path) && DiskSpacePaths.IsLocalAbsolute(focus.InstallLocation) &&
-            (DiskSpacePaths.IsSameOrInside(path, focus.InstallLocation) || DiskSpacePaths.IsSameOrInside(focus.InstallLocation, path)))
+        if (!string.IsNullOrWhiteSpace(path) && DiskSpacePaths.IsLocalAbsolute(path) &&
+            LeftoverProgramIndex.IsSpecificLocation(focus.InstallLocation, roots) &&
+            (DiskSpacePaths.IsSameOrInside(path, focus.InstallLocation!.Trim().Trim('"')) || DiskSpacePaths.IsSameOrInside(focus.InstallLocation.Trim().Trim('"'), path)))
         {
             return true;
         }
@@ -68,10 +70,110 @@ public static class LeftoverRules
         return first;
     }
 
+    /// <summary>
+    /// True for the roots that hold settings and saved games rather than programs (AppData\Local, Roaming and
+    /// LocalLow): games and portable programs with no uninstall entry keep their data there, so a folder in them is
+    /// never rated High on its age alone.
+    /// </summary>
+    public static bool IsUserDataRoot(LeftoverRoot root) =>
+        root is LeftoverRoot.LocalAppData or LeftoverRoot.RoamingAppData or LeftoverRoot.LocalLowAppData;
+
+    /// <summary>Variables that expand to a different folder for every account.</summary>
+    private static readonly string[] PerUserVariables =
+        ["%LOCALAPPDATA%", "%APPDATA%", "%USERPROFILE%", "%HOMEPATH%", "%HOMEDRIVE%", "%HOMESHARE%", "%TEMP%", "%TMP%", "%ONEDRIVE%", "%USERNAME%"];
+
+    /// <summary>True when a command uses a per-user variable such as %LOCALAPPDATA%.</summary>
+    public static bool UsesPerUserVariables(string? command) =>
+        !string.IsNullOrWhiteSpace(command) && PerUserVariables.Any(v => command.Contains(v, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>
+    /// True when a task principal is the account PC Checker runs as: the same SID, the same DOMAIN\user, or the same
+    /// user name without a domain. A missing principal, a group or another account is not.
+    /// </summary>
+    public static bool IsCurrentAccount(string? principalUserId, string? currentUser, string? currentSid)
+    {
+        if (string.IsNullOrWhiteSpace(principalUserId))
+        {
+            return false;
+        }
+
+        var id = principalUserId.Trim();
+        if (!string.IsNullOrWhiteSpace(currentSid) && id.Equals(currentSid.Trim(), StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (string.IsNullOrWhiteSpace(currentUser) || id.StartsWith("S-1-", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var user = currentUser.Trim();
+        if (id.Equals(user, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        // "alex" against "PC\alex": only a bare name may match the name part.
+        int slash = user.LastIndexOf('\\');
+        return !id.Contains('\\') && slash >= 0 && id.Equals(user[(slash + 1)..], StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// True when a task's programs cannot be checked from this account: a command uses a per-user variable and the task
+    /// runs as another account (or a group, or SYSTEM). Expanding it with PC Checker's own profile would make a file in
+    /// that account's profile look missing, so such a task is never reported.
+    /// </summary>
+    public static bool TaskBelongsToAnotherProfile(LeftoverTaskActions? actions, string? currentUser, string? currentSid) =>
+        actions is not null && actions.Commands.Any(UsesPerUserVariables) && !IsCurrentAccount(actions.UserId, currentUser, currentSid);
+
     /// <summary>True for a service program inside the Windows folder: those belong to Windows and are never reported.</summary>
     public static bool IsWindowsImage(string? imagePath, string windowsDirectory) =>
         !string.IsNullOrWhiteSpace(imagePath) && !string.IsNullOrWhiteSpace(windowsDirectory) &&
         DiskSpacePaths.IsLocalAbsolute(imagePath) && DiskSpacePaths.IsSameOrInside(imagePath, windowsDirectory);
+
+    /// <summary>
+    /// True for a program inside a folder whose name starts with "Microsoft" or "Windows" (Windows Media Player,
+    /// Microsoft\EdgeUpdate, ProgramData\Microsoft\Windows Defender Advanced Threat Protection…): those belong to
+    /// Windows features or Microsoft products, which come and go with Windows, and are never reported.
+    /// </summary>
+    public static bool IsMicrosoftImage(string? imagePath)
+    {
+        if (string.IsNullOrWhiteSpace(imagePath) || !DiskSpacePaths.IsLocalAbsolute(imagePath))
+        {
+            return false;
+        }
+
+        var segments = DiskSpacePaths.Normalize(imagePath).Split('\\', StringSplitOptions.RemoveEmptyEntries);
+        return segments.Skip(1).SkipLast(1).Any(s =>
+            s.StartsWith("Microsoft", StringComparison.OrdinalIgnoreCase) || s.StartsWith("Windows", StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>True for a folder named like a version ("120.0.6099.71", "v2.1", "app-1.4.2") that self-updating programs install into.</summary>
+    public static bool IsVersionFolderName(string? name) =>
+        !string.IsNullOrWhiteSpace(name) && System.Text.RegularExpressions.Regex.IsMatch(name.Trim(), @"^(app-)?v?\d+(\.\d+){1,3}$",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+
+    /// <summary>
+    /// The folder of the program a file belongs to: its parent folder, skipping version folders, so
+    /// <c>…\Google\Chrome\Application\120.0.6099.71\elevation_service.exe</c> gives <c>…\Google\Chrome\Application</c>.
+    /// A missing version folder means an update, not a removed program. Null when the path has no parent.
+    /// </summary>
+    public static string? ProgramFolderOf(string? filePath)
+    {
+        if (string.IsNullOrWhiteSpace(filePath))
+        {
+            return null;
+        }
+
+        var folder = DiskSpacePaths.ParentOf(filePath);
+        while (folder is not null && IsVersionFolderName(folder[(folder.LastIndexOfAny(['\\', '/']) + 1)..]) && DiskSpacePaths.ParentOf(folder) is { } up && !DiskSpacePaths.IsDriveRoot(up))
+        {
+            folder = up;
+        }
+
+        return folder;
+    }
 
     /// <summary>A service may be deleted only when its program is missing and it is stopped.</summary>
     public static bool CanDeleteService(bool imageMissing, string? state) =>

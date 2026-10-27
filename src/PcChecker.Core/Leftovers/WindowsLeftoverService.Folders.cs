@@ -90,9 +90,9 @@ public sealed partial class WindowsLeftoverService
         var kind = stats.Files == 0 ? LeftoverKind.EmptyFolder : LeftoverKind.Folder;
         DateTime? lastWrite = stats.LastWriteUtc ?? SafeLastWrite(dir);
         TimeSpan? age = lastWrite is { } utc ? context.Now.UtcDateTime - utc : null;
-        bool focus = LeftoverRules.MatchesFocus(dir.Name, path, context.Focus);
+        bool focus = context.MatchesFocus(dir.Name, path);
         var evidence = new LeftoverEvidence(kind, focus, underVendor, stats.ContainsPrograms, age,
-            InUserData: root.Root is LeftoverRoot.RoamingAppData or LeftoverRoot.LocalLowAppData);
+            InUserData: LeftoverRules.IsUserDataRoot(root.Root));
         string? note = stats.Truncated ? "Very large: the size shown is what was counted before the scan stopped counting." : null;
         string name = underVendor && dir.Parent is { } parent ? $"{dir.Name} ({parent.Name})" : dir.Name;
         items.Add(Create(kind, name, path, evidence, stats.Bytes, canRemove: true, target: null, note, context.Focus?.ProgramName,
@@ -162,7 +162,7 @@ public sealed partial class WindowsLeftoverService
     private void ScanShortcuts(ScanContext context, List<LeftoverItem> items, CancellationToken ct)
     {
         var folders = StartMenuFolders();
-        var resolver = ShortcutResolver.TryCreate();
+        using var resolver = ShortcutResolver.TryCreate();
         if (resolver is null)
         {
             _logger.LogInformation("Shortcuts cannot be read on this PC (Windows Script Host is unavailable); the Start menu is skipped.");
@@ -187,10 +187,10 @@ public sealed partial class WindowsLeftoverService
                     continue;
                 }
 
-                var parent = DiskSpacePaths.ParentOf(RegistryPathTools.Expand(target, _environment));
+                var parent = LeftoverRules.ProgramFolderOf(RegistryPathTools.Expand(target, _environment));
                 bool folderMissing = parent is not null && !context.Probe.DirectoryExists(parent);
                 string name = Path.GetFileNameWithoutExtension(file.Name);
-                bool focus = LeftoverRules.MatchesFocus(name, target, context.Focus);
+                bool focus = context.MatchesFocus(name, target);
                 var evidence = new LeftoverEvidence(LeftoverKind.Shortcut, focus, TargetFolderMissing: folderMissing);
                 items.Add(Create(LeftoverKind.Shortcut, name, path, evidence, SafeLength(file), canRemove: true, target, null,
                     context.Focus?.ProgramName, new DateTimeOffset(file.LastWriteTimeUtc, TimeSpan.Zero)));
@@ -282,12 +282,24 @@ public sealed partial class WindowsLeftoverService
         }
     }
 
-    /// <summary>Reads .lnk targets through the Windows Script Host shell object (late bound, one instance per scan).</summary>
-    private sealed class ShortcutResolver
+    /// <summary>
+    /// Reads .lnk targets through the Windows Script Host shell object (late bound, one instance per scan). The shell
+    /// object and every shortcut object are released as soon as they are done with, not left to the finalizer.
+    /// </summary>
+    private sealed class ShortcutResolver : IDisposable
     {
-        private readonly dynamic _shell;
+        private dynamic? _shell;
 
         private ShortcutResolver(object shell) => _shell = shell;
+
+        public void Dispose()
+        {
+            if (_shell is object shell)
+            {
+                _shell = null;
+                Release(shell);
+            }
+        }
 
         public static ShortcutResolver? TryCreate()
         {
@@ -310,15 +322,44 @@ public sealed partial class WindowsLeftoverService
         /// <summary>The target file of a shortcut; null for advertised (installer) shortcuts, URLs and unreadable files.</summary>
         public string? Target(string path)
         {
+            if (_shell is null)
+            {
+                return null;
+            }
+
+            object? created = null;
             try
             {
-                dynamic link = _shell.CreateShortcut(path);
+                created = _shell.CreateShortcut(path);
+                dynamic link = created!;
                 string target = (string?)link.TargetPath ?? string.Empty;
                 return string.IsNullOrWhiteSpace(target) || target.Contains("://", StringComparison.Ordinal) ? null : target.Trim();
             }
             catch (Exception)
             {
                 return null;
+            }
+            finally
+            {
+                if (created is not null)
+                {
+                    Release(created);
+                }
+            }
+        }
+
+        private static void Release(object comObject)
+        {
+            try
+            {
+                if (OperatingSystem.IsWindows() && System.Runtime.InteropServices.Marshal.IsComObject(comObject))
+                {
+                    System.Runtime.InteropServices.Marshal.ReleaseComObject(comObject);
+                }
+            }
+            catch (Exception ex) when (ex is ArgumentException or System.Runtime.InteropServices.InvalidComObjectException)
+            {
+                // Already released.
             }
         }
     }

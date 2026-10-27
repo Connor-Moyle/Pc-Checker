@@ -38,7 +38,7 @@ public static class LeftoverAllowList
     private static readonly Dictionary<LeftoverRoot, HashSet<string>> PerRoot = new()
     {
         [LeftoverRoot.ProgramData] = new(StringComparer.OrdinalIgnoreCase) { "Windows Defender", "WindowsHolographicDevices", "dbg", "Setup" },
-        [LeftoverRoot.LocalAppData] = new(StringComparer.OrdinalIgnoreCase) { "Downloaded Installations", "Low", "assembly" },
+        [LeftoverRoot.LocalAppData] = new(StringComparer.OrdinalIgnoreCase) { "Downloaded Installations", "Low", "assembly", "Deployment", "Apps" },
         [LeftoverRoot.RoamingAppData] = new(StringComparer.OrdinalIgnoreCase) { "Adobe", "Mozilla" },
         [LeftoverRoot.LocalLowAppData] = new(StringComparer.OrdinalIgnoreCase) { "Mozilla", "Adobe" },
     };

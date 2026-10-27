@@ -60,6 +60,28 @@ public sealed class LeftoverProgramIndex
     public bool ContainsInstall(string path) =>
         _locations.Any(l => DiskSpacePaths.IsSameOrInside(l, path) && !DiskSpacePaths.Normalize(l).Equals(DiskSpacePaths.Normalize(path), StringComparison.OrdinalIgnoreCase));
 
+    /// <summary>
+    /// True when a recorded install folder is specific enough to claim the folders in and around it: a local absolute
+    /// path without "." or ".." that is not a drive root, not one of <paramref name="roots"/> and does not contain one.
+    /// "C:\", "C:\Program Files (x86)" or a user's profile folder recorded as an install location are not.
+    /// </summary>
+    public static bool IsSpecificLocation(string? path, IEnumerable<string>? roots)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return false;
+        }
+
+        var trimmed = path.Trim().Trim('"');
+        if (!DiskSpacePaths.IsLocalAbsolute(trimmed) || DiskSpacePaths.HasRelativeSegments(trimmed) || DiskSpacePaths.IsDriveRoot(trimmed))
+        {
+            return false;
+        }
+
+        var normalized = DiskSpacePaths.Normalize(trimmed);
+        return roots is null || !roots.Any(r => !string.IsNullOrWhiteSpace(r) && DiskSpacePaths.IsSameOrInside(DiskSpacePaths.Normalize(r), normalized));
+    }
+
     private void AddName(string? name)
     {
         if (string.IsNullOrWhiteSpace(name))
@@ -98,17 +120,12 @@ public sealed class LeftoverProgramIndex
         }
 
         var expanded = RegistryPathTools.Expand(location.Trim().Trim('"'), environment);
-        if (!DiskSpacePaths.IsLocalAbsolute(expanded) || DiskSpacePaths.HasRelativeSegments(expanded) || DiskSpacePaths.IsDriveRoot(expanded))
+        if (!IsSpecificLocation(expanded, _roots))
         {
             return;
         }
 
         var normalized = DiskSpacePaths.Normalize(expanded);
-        if (_roots.Any(r => DiskSpacePaths.IsSameOrInside(r, normalized)))
-        {
-            return;
-        }
-
         if (!_locations.Contains(normalized, StringComparer.OrdinalIgnoreCase))
         {
             _locations.Add(normalized);

@@ -93,7 +93,7 @@ public sealed partial class WindowsLeftoverService
             return;
         }
 
-        bool focus = LeftoverRules.MatchesFocus(name, null, context.Focus);
+        bool focus = context.MatchesFocus(name, null);
         var evidence = new LeftoverEvidence(LeftoverKind.RegistryKey, focus, underVendor, KeyIsEmpty: empty);
         string location = RegistryPathTools.NormalizeHive(hive) + "\\" + keyPath;
         items.Add(Create(LeftoverKind.RegistryKey, name, location, evidence, EstimateKeySize(access, hive, keyPath), canRemove: true, null, null,
@@ -179,7 +179,16 @@ public sealed partial class WindowsLeftoverService
                 start = RegistryAccess.DWord(key, "Start");
             }
 
-            if (image is null || LeftoverRules.IsWindowsImage(image, WindowsDirectory) || RegistryPathTools.Evaluate(image, context.Probe) != TargetState.Missing)
+            if (image is null || LeftoverRules.IsWindowsImage(image, WindowsDirectory) || LeftoverRules.IsMicrosoftImage(image) ||
+                RegistryPathTools.Evaluate(image, context.Probe) != TargetState.Missing)
+            {
+                continue;
+            }
+
+            // A program that is still installed (its folder, or the folder above a version folder, belongs to it) is
+            // being updated or repaired, not gone: its service is left alone.
+            var parent = LeftoverRules.ProgramFolderOf(image);
+            if (parent is not null && context.Index.OwnsPath(parent))
             {
                 continue;
             }
@@ -192,9 +201,8 @@ public sealed partial class WindowsLeftoverService
                 display = name;
             }
 
-            var parent = DiskSpacePaths.ParentOf(image);
             bool folderMissing = parent is not null && !context.Probe.DirectoryExists(parent);
-            bool focus = LeftoverRules.MatchesFocus(display, image, context.Focus) || LeftoverRules.MatchesFocus(name, null, context.Focus);
+            bool focus = context.MatchesFocus(display, image) || context.MatchesFocus(name, null);
             var evidence = new LeftoverEvidence(LeftoverKind.Service, focus, TargetFolderMissing: folderMissing);
             string note = state is null
                 ? "Windows did not report its state, so it is only reported."
@@ -262,6 +270,24 @@ public sealed partial class WindowsLeftoverService
         _ => "other",
     };
 
+    /// <summary>Shown on tasks that ran with a stored password.</summary>
+    private const string PasswordTaskNote =
+        "It ran with a saved password, so putting it back needs that password: import the exported XML in Task Scheduler.";
+
+    /// <summary>The account PC Checker runs as (DOMAIN\user and SID), for telling whose profile a task's %LOCALAPPDATA% means.</summary>
+    private static readonly Lazy<(string? Name, string? Sid)> CurrentAccount = new(() =>
+    {
+        try
+        {
+            using var identity = System.Security.Principal.WindowsIdentity.GetCurrent();
+            return (identity.Name, identity.User?.Value);
+        }
+        catch (Exception ex) when (ex is System.Security.SecurityException or UnauthorizedAccessException or PlatformNotSupportedException)
+        {
+            return (Environment.UserDomainName + "\\" + Environment.UserName, null);
+        }
+    });
+
     private void ScanTasks(ScanContext context, List<LeftoverItem> items, CancellationToken ct)
     {
         string tasksFolder = Path.Combine(WindowsDirectory, "System32", "Tasks");
@@ -280,22 +306,41 @@ public sealed partial class WindowsLeftoverService
             }
 
             var actions = ReadTask(file);
+            if (LeftoverRules.TaskBelongsToAnotherProfile(actions, CurrentAccount.Value.Name, CurrentAccount.Value.Sid))
+            {
+                // %LOCALAPPDATA% of another account (or of SYSTEM) cannot be checked with this account's profile.
+                continue;
+            }
+
             var target = LeftoverRules.MissingTaskTarget(actions, c => RegistryPathTools.ExtractPath(c, _environment),
-                p => LeftoverRules.IsWindowsImage(RegistryPathTools.Expand(p, _environment), WindowsDirectory) ? TargetState.Present : RegistryPathTools.Evaluate(p, context.Probe));
+                p => LeftoverRules.IsWindowsImage(RegistryPathTools.Expand(p, _environment), WindowsDirectory) ||
+                     LeftoverRules.IsMicrosoftImage(RegistryPathTools.Expand(p, _environment))
+                    ? TargetState.Present
+                    : RegistryPathTools.Evaluate(p, context.Probe));
             if (target is null)
             {
                 continue;
             }
 
             var expanded = RegistryPathTools.Expand(target, _environment);
-            var parent = DiskSpacePaths.ParentOf(expanded);
+            var parent = LeftoverRules.ProgramFolderOf(expanded);
+            if (parent is not null && context.Index.OwnsPath(parent))
+            {
+                continue;
+            }
+
             bool folderMissing = parent is not null && !context.Probe.DirectoryExists(parent);
             string name = LeftoverBackupNaming.LeafName(taskPath);
-            bool focus = LeftoverRules.MatchesFocus(name, expanded, context.Focus);
+            bool focus = context.MatchesFocus(name, expanded);
             var evidence = new LeftoverEvidence(LeftoverKind.ScheduledTask, focus, TargetFolderMissing: folderMissing);
-            items.Add(Create(LeftoverKind.ScheduledTask, name, taskPath!, evidence, null, canRemove: true, expanded,
-                actions?.Author is { } author ? "Created by " + author + "." : null, context.Focus?.ProgramName,
-                new DateTimeOffset(file.LastWriteTimeUtc, TimeSpan.Zero)));
+            string? note = actions?.Author is { } author ? "Created by " + author + "." : null;
+            if (actions?.NeedsPassword == true)
+            {
+                note = (note is null ? string.Empty : note + " ") + PasswordTaskNote;
+            }
+
+            items.Add(Create(LeftoverKind.ScheduledTask, name, taskPath!, evidence, null, canRemove: true, expanded, note, context.Focus?.ProgramName,
+                new DateTimeOffset(file.LastWriteTimeUtc, TimeSpan.Zero)) with { NeedsPasswordToRestore = actions?.NeedsPassword == true });
         }
     }
 

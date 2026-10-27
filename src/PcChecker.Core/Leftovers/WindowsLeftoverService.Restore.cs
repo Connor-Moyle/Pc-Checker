@@ -68,13 +68,14 @@ public sealed partial class WindowsLeftoverService
 
         // The backup sits in the user's profile and the import runs elevated: only a backup that still matches the seal
         // recorded in HKLM when it was saved, for this very task name, is registered.
-        if (!LeftoverBackupNaming.SealMatches(xml, entry.Location, LeftoverBackupSeals.Read(entry.BackupId)) ||
-            LeftoverTaskXml.ReadActions(LeftoverTaskXml.Decode(xml)) is null)
+        var actions = LeftoverTaskXml.ReadActions(LeftoverTaskXml.Decode(xml));
+        if (!LeftoverBackupNaming.SealMatches(xml, entry.Location, LeftoverBackupSeals.Read(entry.BackupId)) || actions is null)
         {
             _logger.LogWarning("Task backup {Id} was not imported: it does not match the seal recorded when it was saved.", entry.BackupId);
             return OperationResult.Fail("This backup was not imported because PC Checker cannot confirm it is unchanged since it was saved.");
         }
 
+        bool needsPassword = actions.NeedsPassword;
         string existing = Path.Combine(WindowsDirectory, "System32", "Tasks", entry.Location.TrimStart('\\'));
         if (File.Exists(existing))
         {
@@ -103,7 +104,10 @@ public sealed partial class WindowsLeftoverService
 
             if (output.ExitCode != 0)
             {
-                return OperationResult.Fail($"Task Scheduler could not import the task ({Describe(output)}).");
+                return OperationResult.Fail(needsPassword
+                    ? $"Task Scheduler could not import the task ({Describe(output)}). It ran with a saved password, which a backup cannot hold: " +
+                      $"open Task Scheduler, choose Import Task, pick {BackupFileOf(entry)} and type the account's password."
+                    : $"Task Scheduler could not import the task ({Describe(output)}).");
             }
 
             _logger.LogInformation("Leftover task {Task} restored from {Id}.", entry.Location, entry.BackupId);

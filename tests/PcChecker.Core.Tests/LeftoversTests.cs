@@ -422,6 +422,129 @@ public class LeftoversTests
         Assert.False(LeftoverRules.MatchesFocus("Free Media Converter", null, null));
     }
 
+    [Theory]
+    [InlineData(@"C:\")]
+    [InlineData(@"C:")]
+    [InlineData(Pf86)]
+    [InlineData(Pf86 + @"\")]
+    [InlineData(Local)]
+    [InlineData(@"C:\Users\Alex")]
+    [InlineData(@"C:\Users")]
+    [InlineData("%LOCALAPPDATA%")]
+    [InlineData(@"C:\Program Files\..\Windows")]
+    public void A_vague_install_folder_does_not_claim_everything_around_it(string installLocation)
+    {
+        var roots = Roots.Select(r => r.Path).ToList();
+        Assert.False(LeftoverProgramIndex.IsSpecificLocation(installLocation, roots));
+
+        var focus = new LeftoverFocus("Free Media Converter", "SoftStack Ltd", installLocation);
+        Assert.False(LeftoverRules.MatchesFocus("Zoom", Roaming + @"\Zoom", focus, roots));
+        Assert.False(LeftoverRules.MatchesFocus("Origin", Pf86 + @"\Origin", focus, roots));
+        Assert.False(LeftoverRules.MatchesFocus("Razer", Local + @"\Razer", focus, roots));
+
+        // The name still counts.
+        Assert.True(LeftoverRules.MatchesFocus("Free Media Converter", Pf86 + @"\Free Media Converter", focus, roots));
+    }
+
+    [Fact]
+    public void A_specific_install_folder_claims_what_is_in_and_around_it()
+    {
+        var roots = Roots.Select(r => r.Path).ToList();
+        Assert.True(LeftoverProgramIndex.IsSpecificLocation(Pf86 + @"\SoftStack\Free Media Converter", roots));
+        Assert.True(LeftoverProgramIndex.IsSpecificLocation(@"D:\Games\Old Game", roots));
+        var focus = new LeftoverFocus("Converter", null, Pf86 + @"\SoftStack\Converter Suite");
+        Assert.True(LeftoverRules.MatchesFocus("SoftStack", Pf86 + @"\SoftStack", focus, roots));
+        Assert.True(LeftoverRules.MatchesFocus("Bin", Pf86 + @"\SoftStack\Converter Suite\Bin", focus, roots));
+
+        // Without roots a drive root is still refused.
+        Assert.False(LeftoverRules.MatchesFocus("Origin", Pf86 + @"\Origin", new LeftoverFocus("X", null, @"C:\")));
+    }
+
+    [Fact]
+    public void Tasks_of_other_accounts_that_use_per_user_folders_are_not_checked()
+    {
+        const string xml = """
+            <?xml version="1.0" encoding="UTF-16"?>
+            <Task xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
+              <Principals>
+                <Principal id="Author">
+                  <UserId>S-1-5-21-1-2-3-1001</UserId>
+                  <LogonType>InteractiveToken</LogonType>
+                </Principal>
+              </Principals>
+              <Actions Context="Author">
+                <Exec><Command>%localappdata%\Microsoft\OneDrive\OneDriveStandaloneUpdater.exe</Command></Exec>
+              </Actions>
+            </Task>
+            """;
+        var actions = LeftoverTaskXml.ReadActions(xml)!;
+        Assert.Equal("S-1-5-21-1-2-3-1001", actions.UserId);
+        Assert.False(actions.NeedsPassword);
+
+        Assert.True(LeftoverRules.TaskBelongsToAnotherProfile(actions, @"PC\admin", "S-1-5-21-1-2-3-500"));
+        Assert.False(LeftoverRules.TaskBelongsToAnotherProfile(actions, @"PC\alex", "S-1-5-21-1-2-3-1001"));
+        Assert.True(LeftoverRules.TaskBelongsToAnotherProfile(actions with { UserId = null }, @"PC\alex", "S-1-5-21-1-2-3-1001"));
+        Assert.False(LeftoverRules.TaskBelongsToAnotherProfile(actions with { Commands = [@"C:\Gone\a.exe"] }, @"PC\admin", "S-1-5-21-1-2-3-500"));
+
+        Assert.True(LeftoverRules.IsCurrentAccount("alex", @"PC\alex", null));
+        Assert.True(LeftoverRules.IsCurrentAccount(@"pc\ALEX", @"PC\alex", null));
+        Assert.False(LeftoverRules.IsCurrentAccount(@"OTHER\alex", @"PC\alex", null));
+        Assert.False(LeftoverRules.IsCurrentAccount("S-1-5-18", @"PC\alex", "S-1-5-21-1"));
+        Assert.True(LeftoverRules.UsesPerUserVariables(@"""%APPDATA%\Vendor\up.exe"" /silent"));
+        Assert.False(LeftoverRules.UsesPerUserVariables(@"%ProgramFiles%\Vendor\up.exe"));
+    }
+
+    [Fact]
+    public void Tasks_with_a_saved_password_are_recognised()
+    {
+        const string xml = """
+            <Task><Principals><Principal id="A"><UserId>PC\alex</UserId><LogonType>Password</LogonType></Principal></Principals>
+            <Actions Context="A"><Exec><Command>C:\Gone\backup.exe</Command></Exec></Actions></Task>
+            """;
+        var actions = LeftoverTaskXml.ReadActions(xml)!;
+        Assert.True(actions.NeedsPassword);
+        Assert.Equal(@"PC\alex", actions.UserId);
+    }
+
+    [Fact]
+    public void Microsoft_programs_and_version_folders_are_recognised()
+    {
+        Assert.True(LeftoverRules.IsMicrosoftImage(@"C:\Program Files\Windows Media Player\wmpnetwk.exe"));
+        Assert.True(LeftoverRules.IsMicrosoftImage(@"C:\ProgramData\Microsoft\Windows Defender Advanced Threat Protection\MsSense.exe"));
+        Assert.True(LeftoverRules.IsMicrosoftImage(@"C:\Program Files (x86)\Microsoft\Edge\Application\120.0.2210.91\elevation_service.exe"));
+        Assert.False(LeftoverRules.IsMicrosoftImage(@"C:\Program Files\TeamViewer\TeamViewer_Service.exe"));
+        Assert.False(LeftoverRules.IsMicrosoftImage(@"C:\Program Files\Vendor\WindowsHelper.exe"));
+
+        Assert.True(LeftoverRules.IsVersionFolderName("120.0.6099.71"));
+        Assert.True(LeftoverRules.IsVersionFolderName("app-1.4.2"));
+        Assert.False(LeftoverRules.IsVersionFolderName("Application"));
+        Assert.False(LeftoverRules.IsVersionFolderName("2024"));
+        Assert.Equal(@"C:\Program Files\Google\Chrome\Application",
+            LeftoverRules.ProgramFolderOf(@"C:\Program Files\Google\Chrome\Application\120.0.6099.71\elevation_service.exe"));
+        Assert.Equal(@"C:\Program Files\TeamViewer", LeftoverRules.ProgramFolderOf(@"C:\Program Files\TeamViewer\TeamViewer_Service.exe"));
+    }
+
+    [Fact]
+    public void Local_app_data_counts_as_user_data_and_keeps_ClickOnce_folders()
+    {
+        Assert.True(LeftoverRules.IsUserDataRoot(LeftoverRoot.LocalAppData));
+        Assert.False(LeftoverRules.IsUserDataRoot(LeftoverRoot.ProgramFiles));
+        var oldSaves = new LeftoverEvidence(LeftoverKind.Folder, SinceLastChange: TimeSpan.FromDays(400), InUserData: LeftoverRules.IsUserDataRoot(LeftoverRoot.LocalAppData));
+        Assert.Equal(LeftoverConfidence.Medium, LeftoverScoring.Score(oldSaves));
+        Assert.True(LeftoverAllowList.IsAllowedFolder(LeftoverRoot.LocalAppData, "Deployment"));
+        Assert.True(LeftoverAllowList.IsAllowedFolder(LeftoverRoot.LocalAppData, "Apps"));
+    }
+
+    [Fact]
+    public void A_registry_export_must_be_of_the_key_requested()
+    {
+        const string text = "Windows Registry Editor Version 5.00\r\n\r\n[HKEY_CURRENT_USER\\Software\\Piriform]\r\n\"a\"=\"b\"\r\n\r\n[HKEY_CURRENT_USER\\Software\\Piriform\\CCleaner]\r\n";
+        Assert.True(RegExportBuilder.IsExportOf(text, @"HKEY_CURRENT_USER\Software\Piriform"));
+        Assert.False(RegExportBuilder.IsExportOf(text, @"HKEY_CURRENT_USER\Software\Piriform\CCleaner"));
+        Assert.False(RegExportBuilder.IsExportOf(text, @"HKEY_CURRENT_USER\Software\Piri"));
+        Assert.False(RegExportBuilder.IsExportOf("", @"HKEY_CURRENT_USER\Software\Piriform"));
+    }
+
     [Fact]
     public void Summaries_and_split_keys_read_naturally()
     {

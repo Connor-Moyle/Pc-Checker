@@ -134,6 +134,10 @@ public sealed partial class WindowsLeftoverService
         }
 
         var keys = items.Where(i => i.Kind == LeftoverKind.RegistryKey).ToList();
+        var recycle = items.Where(i => i.Kind is LeftoverKind.Folder or LeftoverKind.EmptyFolder or LeftoverKind.Shortcut).ToList();
+
+        // A program may have been installed (again) since the scan: read the list fresh so its folders and keys are kept.
+        var installed = keys.Count > 0 || recycle.Any(i => i.Kind != LeftoverKind.Shortcut) ? await FreshIndexAsync(roots, ct).ConfigureAwait(false) : null;
         if (keys.Count > 0)
         {
             foreach (var key in keys)
@@ -141,7 +145,7 @@ public sealed partial class WindowsLeftoverService
                 Report(key);
             }
 
-            var (keyOutcomes, keyEntry) = ct.IsCancellationRequested ? (keys.Select(Stopped).ToList(), null) : await RemoveKeysAsync(keys, ct).ConfigureAwait(false);
+            var (keyOutcomes, keyEntry) = ct.IsCancellationRequested ? (keys.Select(Stopped).ToList(), null) : await RemoveKeysAsync(keys, installed, ct).ConfigureAwait(false);
             outcomes.AddRange(keyOutcomes);
             if (keyEntry is not null)
             {
@@ -149,10 +153,9 @@ public sealed partial class WindowsLeftoverService
             }
         }
 
-        var recycle = items.Where(i => i.Kind is LeftoverKind.Folder or LeftoverKind.EmptyFolder or LeftoverKind.Shortcut).ToList();
         if (recycle.Count > 0)
         {
-            outcomes.AddRange(await RunOnStaThread(() => RecycleItems(recycle, roots, startMenu, probe, ownerWindow, Report, ct)).ConfigureAwait(false));
+            outcomes.AddRange(await RunOnStaThread(() => RecycleItems(recycle, roots, startMenu, installed, probe, ownerWindow, Report, ct)).ConfigureAwait(false));
         }
 
         if (entries.Count > 0)
@@ -168,6 +171,38 @@ public sealed partial class WindowsLeftoverService
         progress?.Report(new ProgressUpdate("Done", 100));
         var result = new LeftoverRemovalResult(outcomes, entries);
         return new OperationResult<LeftoverRemovalResult>(result.Removed > 0, LeftoverRules.DescribeResult(result), result);
+    }
+
+    /// <summary>The installed programs read again just before removal, or null when the list cannot be read.</summary>
+    private async Task<LeftoverProgramIndex?> FreshIndexAsync(IReadOnlyList<LeftoverRootFolder> roots, CancellationToken ct)
+    {
+        try
+        {
+            var inventory = await _inventory.ScanAsync(null, ct).ConfigureAwait(false);
+            return inventory.Programs.Count == 0 ? null : new LeftoverProgramIndex(inventory.Programs, _environment, roots.Select(r => r.Path));
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Installed programs could not be read again before removing leftovers.");
+            return null;
+        }
+    }
+
+    /// <summary>Why a folder or key must be kept because an installed program now uses it, or null.</summary>
+    private static string? WhyInstalledNow(LeftoverProgramIndex? installed, string name, string? folder)
+    {
+        if (installed is null)
+        {
+            return "Kept: the list of installed programs could not be read again, so PC Checker cannot confirm nothing uses it.";
+        }
+
+        return (folder is not null && installed.OwnsPath(DiskSpacePaths.Normalize(folder))) || installed.MatchName(name) is not null
+            ? "Kept: an installed program uses it now (it may have been installed again since the scan)."
+            : null;
     }
 
     private static LeftoverItemOutcome Stopped(LeftoverItem item) => new(item, false, "Not removed: stopped before this item.");
@@ -196,8 +231,10 @@ public sealed partial class WindowsLeftoverService
             return (new LeftoverItemOutcome(item, false, "Kept: the task could not be read (" + ex.Message + ")."), null);
         }
 
-        var target = LeftoverRules.MissingTaskTarget(LeftoverTaskXml.ReadActions(LeftoverTaskXml.Decode(xml)), c => RegistryPathTools.ExtractPath(c, _environment),
-            p => RegistryPathTools.Evaluate(p, probe));
+        var actions = LeftoverTaskXml.ReadActions(LeftoverTaskXml.Decode(xml));
+        var target = LeftoverRules.TaskBelongsToAnotherProfile(actions, CurrentAccount.Value.Name, CurrentAccount.Value.Sid)
+            ? null
+            : LeftoverRules.MissingTaskTarget(actions, c => RegistryPathTools.ExtractPath(c, _environment), p => RegistryPathTools.Evaluate(p, probe));
         if (target is null)
         {
             return (new LeftoverItemOutcome(item, false, "Kept: the task changed since the scan and no longer points only at missing files."), null);
@@ -243,7 +280,9 @@ public sealed partial class WindowsLeftoverService
 
         _logger.LogInformation("Leftover task {Task} deleted; exported to {File}.", item.Location, backupFile);
         var entry = new LeftoverRestoreEntry(Guid.NewGuid().ToString("N"), LeftoverRestoreKind.ScheduledTask, created, item.Name, item.Location, id);
-        return (new LeftoverItemOutcome(item, true, $"Exported to {Path.GetFileName(backupFile)} and deleted. It can be put back from the restore list."), entry);
+        return (new LeftoverItemOutcome(item, true, actions?.NeedsPassword == true
+            ? $"Exported to {Path.GetFileName(backupFile)} and deleted. It ran with a saved password, so putting it back needs that password in Task Scheduler."
+            : $"Exported to {Path.GetFileName(backupFile)} and deleted. It can be put back from the restore list."), entry);
     }
 
     private async Task<LeftoverItemOutcome> RemoveServiceAsync(LeftoverItem item, PathProbe probe, CancellationToken ct)
@@ -287,7 +326,8 @@ public sealed partial class WindowsLeftoverService
             : $"Not removed: Windows refused ({Describe(output)}).");
     }
 
-    private async Task<(List<LeftoverItemOutcome> Outcomes, LeftoverRestoreEntry? Entry)> RemoveKeysAsync(IReadOnlyList<LeftoverItem> keys, CancellationToken ct)
+    private async Task<(List<LeftoverItemOutcome> Outcomes, LeftoverRestoreEntry? Entry)> RemoveKeysAsync(IReadOnlyList<LeftoverItem> keys,
+        LeftoverProgramIndex? installed, CancellationToken ct)
     {
         var access = new RegistryAccess();
         var outcomes = new List<LeftoverItemOutcome>();
@@ -306,6 +346,12 @@ public sealed partial class WindowsLeftoverService
             if (!access.KeyExists(key.Hive, key.Path))
             {
                 outcomes.Add(new LeftoverItemOutcome(item, false, "Not removed: the key no longer exists."));
+                continue;
+            }
+
+            if (WhyInstalledNow(installed, key.Path[(key.Path.LastIndexOf('\\') + 1)..], null) is { } inUse)
+            {
+                outcomes.Add(new LeftoverItemOutcome(item, false, inUse));
                 continue;
             }
 
@@ -386,46 +432,59 @@ public sealed partial class WindowsLeftoverService
     }
 
     private List<LeftoverItemOutcome> RecycleItems(IReadOnlyList<LeftoverItem> items, IReadOnlyList<LeftoverRootFolder> roots, IReadOnlyList<string> startMenu,
-        PathProbe probe, nint ownerWindow, Action<LeftoverItem> report, CancellationToken ct)
+        LeftoverProgramIndex? installed, PathProbe probe, nint ownerWindow, Action<LeftoverItem> report, CancellationToken ct)
     {
         var outcomes = new List<LeftoverItemOutcome>();
         ShortcutResolver? resolver = null;
-        foreach (var item in items)
+        try
         {
-            report(item);
-            if (ct.IsCancellationRequested)
+            foreach (var item in items)
             {
-                outcomes.Add(Stopped(item));
-                continue;
-            }
+                report(item);
+                if (ct.IsCancellationRequested)
+                {
+                    outcomes.Add(Stopped(item));
+                    continue;
+                }
 
-            string? refusal = item.Kind == LeftoverKind.Shortcut
-                ? CheckShortcut(item, startMenu, probe, resolver ??= ShortcutResolver.TryCreate())
-                : CheckFolder(item, roots, ct);
-            if (refusal is not null)
-            {
-                outcomes.Add(new LeftoverItemOutcome(item, false, refusal));
-                continue;
-            }
+                string? refusal = item.Kind == LeftoverKind.Shortcut
+                    ? CheckShortcut(item, startMenu, probe, resolver ??= ShortcutResolver.TryCreate())
+                    : CheckFolder(item, roots, installed, ct);
+                if (refusal is not null)
+                {
+                    outcomes.Add(new LeftoverItemOutcome(item, false, refusal));
+                    continue;
+                }
 
-            var result = DiskSpaceNativeMethods.MoveToRecycleBin(item.Location, ownerWindow);
-            bool gone = !Directory.Exists(item.Location) && !File.Exists(item.Location);
-            outcomes.Add(result.Success && gone
-                ? new LeftoverItemOutcome(item, true, "Moved to the Recycle Bin.")
-                : new LeftoverItemOutcome(item, false, "Not moved: " + (result.Success ? "Windows reported success but it is still there." : result.Message)));
+                var result = DiskSpaceNativeMethods.MoveToRecycleBin(item.Location, ownerWindow);
+                bool gone = !Directory.Exists(item.Location) && !File.Exists(item.Location);
+                outcomes.Add(result.Success && gone
+                    ? new LeftoverItemOutcome(item, true, "Moved to the Recycle Bin.")
+                    : new LeftoverItemOutcome(item, false, "Not moved: " + (result.Success ? "Windows reported success but it is still there." : result.Message)));
+            }
+        }
+        finally
+        {
+            resolver?.Dispose();
         }
 
         return outcomes;
     }
 
     /// <summary>Why a folder must be kept now (it may have changed since the scan), or null.</summary>
-    private string? CheckFolder(LeftoverItem item, IReadOnlyList<LeftoverRootFolder> roots, CancellationToken ct)
+    private string? CheckFolder(LeftoverItem item, IReadOnlyList<LeftoverRootFolder> roots, LeftoverProgramIndex? installed, CancellationToken ct)
     {
         var path = item.Location;
         var why = LeftoverPathRules.WhyFolderRefused(path, roots);
         if (why is not null)
         {
             return "Kept: " + why;
+        }
+
+        var inUse = WhyInstalledNow(installed, path[(path.TrimEnd('\\').LastIndexOf('\\') + 1)..].TrimEnd('\\'), path);
+        if (inUse is not null)
+        {
+            return inUse;
         }
 
         try

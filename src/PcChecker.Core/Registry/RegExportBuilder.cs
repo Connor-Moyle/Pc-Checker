@@ -150,6 +150,19 @@ public static class RegExportBuilder
             .ToList();
     }
 
+    /// <summary>
+    /// True when a .reg document is an export of <paramref name="fullKeyName"/> (HKEY_CURRENT_USER\Software\Vendor):
+    /// it holds that key, and nothing outside it. A backup of some other key must never stand in for the one removed.
+    /// </summary>
+    public static bool IsExportOf(string? regText, string fullKeyName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(fullKeyName);
+        var keys = KeyNames(regText ?? string.Empty);
+        var target = fullKeyName.Trim().TrimEnd('\\');
+        return keys.Any(k => k.Equals(target, StringComparison.OrdinalIgnoreCase)) &&
+               keys.All(k => k.Equals(target, StringComparison.OrdinalIgnoreCase) || k.StartsWith(target + "\\", StringComparison.OrdinalIgnoreCase));
+    }
+
     private static string Hex(string prefix, byte[] bytes)
     {
         var sb = new StringBuilder(prefix);

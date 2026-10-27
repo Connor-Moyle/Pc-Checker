@@ -146,9 +146,15 @@ public sealed partial class LeftoversViewModel : ViewModelBase
             return;
         }
 
+        // The request may already have been taken (by InitializeAsync or a scan that started meanwhile).
+        if (_queue.Take() is not { } focus)
+        {
+            return;
+        }
+
         try
         {
-            await RunScanAsync(_queue.Take(), CancellationToken.None);
+            await RunScanAsync(focus, CancellationToken.None);
         }
         catch (Exception ex)
         {
@@ -331,8 +337,7 @@ public sealed partial class LeftoversViewModel : ViewModelBase
             : focusCount == 0
                 ? Loc.F("Nothing that belongs to {0} was found: its uninstaller cleaned up after itself. Other leftovers are listed below.", result.Focus.ProgramName)
                 : Loc.F("{0} of these belong to {1}, which you just uninstalled. They are marked and ticked.", focusCount, result.Focus.ProgramName);
-        Subtitle = Loc.F("Checked {0}.", result.Captured.ToString("t", CultureInfo.CurrentCulture)) + " " +
-                   Loc.T("Folders, settings, services, tasks and shortcuts that removed programs left behind.");
+        Subtitle = Loc.F("Checked {0}. Traces that removed programs left behind.", result.Captured.ToString("t", CultureInfo.CurrentCulture));
         HasScanned = true;
         UpdateSelection();
     }
@@ -372,6 +377,12 @@ public sealed partial class LeftoversViewModel : ViewModelBase
         Line(selected.Where(i => i.Kind == LeftoverKind.Service), Loc.T("delete {0} (only if still stopped and their program is still missing)"));
 
         text.Append('\n').Append(Loc.T("A restore point is created first. Each item is checked again right before it is removed, and anything that changed is kept. Registry keys and tasks can be put back from the restore list."));
+        int password = selected.Count(i => i.Kind == LeftoverKind.ScheduledTask && i.NeedsPasswordToRestore);
+        if (password > 0)
+        {
+            text.Append("\n\n").Append(Loc.F("{0} of the tasks ran with a saved password. The restore list cannot put them back; you would import the exported XML in Task Scheduler and type the password.", password));
+        }
+
         int notHigh = selected.Count(i => i.Confidence != LeftoverConfidence.High);
         if (notHigh > 0)
         {

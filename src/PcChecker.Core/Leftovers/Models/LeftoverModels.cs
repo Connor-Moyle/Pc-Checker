@@ -46,6 +46,8 @@ public enum LeftoverRoot
 /// folder or shortcut path, a short registry key (<c>HKCU\Software\Vendor</c>), a service name or a task path
 /// (<c>\Vendor\Task</c>). <paramref name="Target"/> is the missing file a service, task or shortcut points at.
 /// <paramref name="CanRemove"/> is false for findings that are only reported (a service that is still running).
+/// <paramref name="NeedsPasswordToRestore"/> marks a scheduled task that ran with a saved password: the restore list
+/// cannot put it back without that password.
 /// </summary>
 public sealed record LeftoverItem(
     string Id,
@@ -59,7 +61,8 @@ public sealed record LeftoverItem(
     string? Target = null,
     string? Note = null,
     bool MatchesFocus = false,
-    DateTimeOffset? LastChanged = null)
+    DateTimeOffset? LastChanged = null,
+    bool NeedsPasswordToRestore = false)
 {
     /// <summary>Only removable findings the scan is sure about are ticked before the user chooses.</summary>
     public bool IsPreselected => CanRemove && Confidence == LeftoverConfidence.High;

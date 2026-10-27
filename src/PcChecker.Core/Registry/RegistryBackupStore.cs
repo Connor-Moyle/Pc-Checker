@@ -26,12 +26,12 @@ internal static class RegistryBackupStore
             var exported = await ProtectedTaskFile.UseFolderAsync("PcChecker-reg-", "registry export", async (folder, ct) =>
             {
                 string target = Path.Combine(folder, "export.reg");
-                var output = await CommandRunner.RunAsync(RegExe(), $"export \"{hive}\\{keyPath}\" \"{target}\" /y /reg:64",
+                var output = await CommandRunner.RunAsync(RegExe(), ["export", hive + "\\" + keyPath, target, "/y", "/reg:64"],
                     TimeSpan.FromMinutes(1), ct).ConfigureAwait(false);
                 if (output.Success && File.Exists(target))
                 {
                     var text = await File.ReadAllTextAsync(target, ct).ConfigureAwait(false);
-                    if (RegExportBuilder.KeyNames(text).Count > 0)
+                    if (RegExportBuilder.IsExportOf(text, fullName))
                     {
                         return text;
                     }
