@@ -106,6 +106,20 @@ public class LatencyRulesTests
         Assert.All(findings, f => Assert.False(f.AdvancedOnly));
     }
 
+    [Theory]
+    [InlineData("Ausbalanciert", "381b4222-f694-41f0-9685-ff5bb260df2e", true)]
+    [InlineData("Économie d'énergie", "a1841308-3541-4fab-bc81-f71556f20b4a", true)]
+    [InlineData("Höchstleistung", "8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c", false)]
+    public void Translated_power_plans_are_judged_by_their_guid(string name, string id, bool flagged)
+    {
+        var findings = LatencyRules.BuildFindings(Healthy() with { PowerPlan = name, PowerPlanId = Guid.Parse(id) });
+        Assert.Equal(flagged, findings.Any(f => f.Id == "latency.powerplan.balanced"));
+        if (flagged)
+        {
+            Assert.Contains(findings, f => f.Title.Contains(name, StringComparison.Ordinal));
+        }
+    }
+
     [Fact]
     public void Network_loss_jitter_and_no_reply_are_flagged()
     {
@@ -315,6 +329,22 @@ public class LatencyParserTests
                 Index du paramètre d'alimentation sur batterie actuel : 0x0000000a
             """;
         Assert.Equal((100, 10), PowerCfgQueryParser.ParseIndexes(french));
+
+        // Real powercfg output for a range setting prints the possible minimum, maximum and increment as 0x values
+        // before the current indexes; those must not be read as AC and DC.
+        const string germanRange = """
+            Energieschema-GUID: 381b4222-f694-41f0-9685-ff5bb260df2e  (Ausbalanciert)
+              Untergruppen-GUID: 54533251-82be-4824-96c1-47b60b740d00  (Prozessorenergieverwaltung)
+                Energieeinstellungs-GUID: 0cc5b647-c1df-4637-891a-dec35c318583  (Minimale Anzahl von Kernen)
+                  GUID-Alias: CPMINCORES
+                  Minimale mögliche Einstellung: 0x00000000
+                  Maximale mögliche Einstellung: 0x00000064
+                  Mögliche Einstellungsschritte: 0x00000001
+                  Mögliche Einstellungseinheiten: %
+                Aktueller Index der Netzstromeinstellung: 0x0000000a
+                Aktueller Index der Akkustromeinstellung: 0x00000005
+            """;
+        Assert.Equal((10, 5), PowerCfgQueryParser.ParseIndexes(germanRange));
 
         // Only one hex value: not enough to tell AC from DC, so nothing is guessed.
         Assert.Equal((null, null), PowerCfgQueryParser.ParseIndexes("Irgendwas: 0x00000001"));

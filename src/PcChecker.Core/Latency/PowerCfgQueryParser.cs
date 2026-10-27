@@ -6,7 +6,9 @@ namespace PcChecker.Core.Latency;
 /// <summary>
 /// Parses <c>powercfg /q</c> output for the current AC and DC setting indexes. Pure. powercfg prints localized labels
 /// ("Current AC Power Setting Index", "Aktueller Index der Netzstromeinstellung", …), so the parser goes by shape: the
-/// current indexes are the only lines whose value is an eight-digit hex number, printed AC first, then DC.
+/// current indexes are the last two lines whose value is an eight-digit hex number, printed AC first, then DC. Range
+/// settings (core parking, for example) print their "Minimum/Maximum Possible Setting" and "Possible Settings increment"
+/// as eight-digit hex values too, but always before the current indexes.
 /// </summary>
 public static partial class PowerCfgQueryParser
 {
@@ -46,8 +48,9 @@ public static partial class PowerCfgQueryParser
 
         if (ac is null && dc is null && hexValues.Count >= 2)
         {
-            ac = hexValues[0];
-            dc = hexValues[1];
+            // The current AC and DC indexes always come last; earlier hex lines are the possible minimum, maximum and increment.
+            ac = hexValues[^2];
+            dc = hexValues[^1];
         }
 
         return (ac, dc);
