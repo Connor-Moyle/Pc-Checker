@@ -1810,6 +1810,7 @@
  "Windows Features": "Recursos do Windows",
  "Windows has not written a blue screen dump on this PC.": "O Windows não gravou nenhum despejo de tela azul neste PC.",
  "Windows is installed on this drive.": "O Windows está instalado neste disco.",
+ "Windows language": "Idioma do Windows",
  "Windows logs an event whenever a drive, cable or controller misbehaves. The same message repeating for one drive is the thing to watch for.": "O Windows registra um evento sempre que um disco, cabo ou controlador apresenta mau funcionamento. A mesma mensagem se repetindo para um disco é o que se deve observar.",
  "Windows Memory Diagnostic": "Diagnóstico de Memória do Windows",
  "Windows Memory Diagnostic checks your RAM before Windows loads. Schedule it, and run quicker in-Windows tests, on the Memory page.": "O Diagnóstico de Memória do Windows verifica sua RAM antes de o Windows carregar. Agende-o, e execute testes mais rápidos dentro do Windows, na página Memória.",

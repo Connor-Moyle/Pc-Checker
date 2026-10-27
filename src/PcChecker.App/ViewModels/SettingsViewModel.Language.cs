@@ -10,7 +10,9 @@ namespace PcChecker.App.ViewModels;
 /// <summary>Settings: interface language. A change is saved at once and takes effect when PC Checker restarts.</summary>
 public sealed partial class SettingsViewModel
 {
-    public IReadOnlyList<AppLanguage> Languages { get; } = LanguageCatalog.All;
+    public IReadOnlyList<AppLanguage> Languages { get; } = LanguageCatalog.All
+        .Select(l => l.Code == LanguageCatalog.System ? l with { NativeName = Localization.Loc.T("Windows language") } : l)
+        .ToList();
 
     [ObservableProperty]
     private AppLanguage? _selectedLanguage;

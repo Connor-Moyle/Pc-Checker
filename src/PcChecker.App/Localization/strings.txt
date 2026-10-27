@@ -1809,6 +1809,7 @@ Windows drive
 Windows Features
 Windows has not written a blue screen dump on this PC.
 Windows is installed on this drive.
+Windows language
 Windows logs an event whenever a drive, cable or controller misbehaves. The same message repeating for one drive is the thing to watch for.
 Windows Memory Diagnostic
 Windows Memory Diagnostic checks your RAM before Windows loads. Schedule it, and run quicker in-Windows tests, on the Memory page.

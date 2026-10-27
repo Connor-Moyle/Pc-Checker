@@ -1810,6 +1810,7 @@
  "Windows Features": "Windows-Features",
  "Windows has not written a blue screen dump on this PC.": "Windows hat auf diesem PC kein Bluescreen-Speicherabbild geschrieben.",
  "Windows is installed on this drive.": "Windows ist auf diesem Laufwerk installiert.",
+ "Windows language": "Windows-Sprache",
  "Windows logs an event whenever a drive, cable or controller misbehaves. The same message repeating for one drive is the thing to watch for.": "Windows protokolliert ein Ereignis, wenn sich ein Laufwerk, Kabel oder Controller fehlerhaft verhält. Achten Sie auf dieselbe Meldung, die sich für ein Laufwerk wiederholt.",
  "Windows Memory Diagnostic": "Windows-Speicherdiagnose",
  "Windows Memory Diagnostic checks your RAM before Windows loads. Schedule it, and run quicker in-Windows tests, on the Memory page.": "Die Windows-Speicherdiagnose prüft Ihren RAM, bevor Windows geladen wird. Planen Sie sie auf der Seite „Arbeitsspeicher“ ein und führen Sie dort schnellere Tests unter Windows aus.",
