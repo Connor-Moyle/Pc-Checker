@@ -47,7 +47,7 @@ public sealed partial class HostsEntryRow : ObservableObject
 
     public string LineText => (LineIndex + 1).ToString(CultureInfo.CurrentCulture);
 
-    public string AccessibleName => Loc.F("{0} {1}, {2}", Address, NamesText, IsEnabled ? Loc.T("On") : Loc.T("Off"));
+    public string AccessibleName => $"{Address} {NamesText}, {(IsEnabled ? Loc.T("On") : Loc.T("Off"))}";
 
     partial void OnIsEnabledChanged(bool value) => _enabledChanged(this, value);
 }
