@@ -210,8 +210,8 @@ public sealed partial class TrayIconService : ITrayActions, IDisposable
         var hottest = TrayText.Hottest(readings.CpuTempC, readings.GpuTempC);
         var text = TrayText.IconText(hottest);
         var level = (HealthStatus)Math.Max(
-            (int)TrayText.Level(readings.CpuTempC, monitoring.CpuWarnC, monitoring.CpuCritC),
-            (int)TrayText.Level(readings.GpuTempC, monitoring.GpuWarnC, monitoring.GpuCritC));
+            (int)TrayText.LevelFor(OverlayMetricIds.CpuTemp, readings.CpuTempC, monitoring, readings.CpuName),
+            (int)TrayText.LevelFor(OverlayMetricIds.GpuTemp, readings.GpuTempC, monitoring, readings.CpuName));
         if (text == _iconText && level == _iconLevel)
         {
             return;

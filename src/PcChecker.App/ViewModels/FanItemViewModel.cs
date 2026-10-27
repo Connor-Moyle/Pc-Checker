@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using PcChecker.App.Localization;
 using PcChecker.Core.Fans;
 using PcChecker.Core.Sensors;
 using Wpf.Ui.Controls;
@@ -28,6 +29,7 @@ public sealed partial class FanItemViewModel : ObservableObject
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ModeText))]
+    [NotifyPropertyChangedFor(nameof(ModeHint))]
     [NotifyPropertyChangedFor(nameof(IsSoftwareControlled))]
     private FanMode _mode;
 
@@ -113,16 +115,16 @@ public sealed partial class FanItemViewModel : ObservableObject
 
     public string ModeText => Mode switch
     {
-        FanMode.Manual => "Manual",
-        FanMode.Curve => "Curve",
-        _ => Controllable ? "Automatic" : "Read-only",
+        FanMode.Manual => Loc.T("Manual"),
+        FanMode.Curve => Loc.T("Curve"),
+        _ => Controllable ? Loc.T("Automatic") : Loc.T("Read-only"),
     };
 
     public string ModeHint => Mode switch
     {
-        FanMode.Manual => "PC Checker holds this fan at a fixed speed.",
-        FanMode.Curve => "PC Checker adjusts this fan every second from the temperature you chose.",
-        _ => Controllable ? "The motherboard or graphics driver decides the speed." : "This fan's speed can be read but not changed on this PC.",
+        FanMode.Manual => Loc.T("PC Checker holds this fan at a fixed speed."),
+        FanMode.Curve => Loc.T("PC Checker adjusts this fan every second from the temperature you chose."),
+        _ => Controllable ? Loc.T("The motherboard or graphics driver decides the speed.") : Loc.T("This fan's speed can be read but not changed on this PC."),
     };
 
     public bool IsAutoSelected

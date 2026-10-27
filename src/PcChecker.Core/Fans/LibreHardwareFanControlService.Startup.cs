@@ -104,6 +104,9 @@ public sealed partial class LibreHardwareFanControlService
     /// </summary>
     public async Task<IReadOnlyList<string>> RunStartupAsync(CancellationToken cancellationToken)
     {
+        // Detect the fans once in the background, whatever else happens below: the dashboard, the tray menu and game
+        // profiles only use fan control once IsAvailable says the fans were found.
+        await DiscoverAsync(cancellationToken).ConfigureAwait(false);
         var notices = new List<string>();
         string? reappliedProfile = null;
         var session = FanSessionStore.TryRead(SessionFilePath);
@@ -226,6 +229,9 @@ public sealed partial class LibreHardwareFanControlService
                 new ChangeOptions(false, false, ModuleName, "fans left by the last session", true, "Restart the PC to hand motherboard fans back to the BIOS"),
                 _ => Task.Run(() => UnderControlGate(() =>
                 {
+                    // Re-resolved under the control gate, so a discovery that ran meanwhile cannot leave these writes on replaced entries.
+                    others = others.Select(e => Find(e.Id) ?? e).ToList();
+                    motherboard = motherboard.Select(e => Find(e.Id) ?? e).ToList();
                     foreach (var entry in others)
                     {
                         if (ApplyDefault(entry).Success)

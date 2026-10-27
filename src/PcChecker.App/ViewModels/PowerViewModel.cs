@@ -3,6 +3,7 @@ using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
+using PcChecker.App.Localization;
 using PcChecker.App.Services;
 using PcChecker.App.ViewModels.Power;
 using PcChecker.Core.Power;
@@ -34,7 +35,7 @@ public sealed partial class PowerViewModel : ViewModelBase
     private string _totalText = "—";
 
     [ObservableProperty]
-    private string _totalSubtitle = "Waiting for readings";
+    private string _totalSubtitle = Loc.T("Waiting for readings");
 
     [ObservableProperty]
     private string _cpuText = "—";
@@ -82,7 +83,7 @@ public sealed partial class PowerViewModel : ViewModelBase
     private double _batteryPercent;
 
     [ObservableProperty]
-    private string _batteryStatusText = "No battery detected — this looks like a desktop PC.";
+    private string _batteryStatusText = Loc.T("No battery detected — this looks like a desktop PC.");
 
     [ObservableProperty]
     private string _batteryDetailText = string.Empty;
@@ -142,7 +143,7 @@ public sealed partial class PowerViewModel : ViewModelBase
             _sensors.Start();
             await LoadPlansAsync(ct);
             await WaitForSnapshotAsync(TimeSpan.FromSeconds(5), ct);
-        }, "Reading power information…");
+        }, Loc.T("Reading power information…"));
     }
 
     public override Task RefreshAsync(CancellationToken cancellationToken) => RunBusyAsync(async ct =>
@@ -152,7 +153,7 @@ public sealed partial class PowerViewModel : ViewModelBase
         {
             Apply(latest);
         }
-    }, "Refreshing…");
+    }, Loc.T("Refreshing…"));
 
     [RelayCommand]
     private Task RefreshPlansAsync() => RefreshAsync(CancellationToken.None);
@@ -166,9 +167,10 @@ public sealed partial class PowerViewModel : ViewModelBase
         }
 
         bool ok = await _dialogs.ConfirmAsync(
-            "Switch power plan?",
-            $"Windows will switch to the \"{plan.Name}\" power plan.\n\n{PowerPlanParser.Explain(plan.Id)}\n\nYou can switch back at any time from this page.\n{RestorePointPolicyText.Note(Settings.Current.RestorePoints.CreateBeforeChanges)}",
-            "Switch plan");
+            Loc.T("Switch power plan?"),
+            Loc.F("Windows will switch to the \"{0}\" power plan.", plan.Name) + "\n\n" + PowerPlanParser.Explain(plan.Id) + "\n\n"
+            + Loc.T("You can switch back at any time from this page.") + "\n" + RestorePointPolicyText.Note(Settings.Current.RestorePoints.CreateBeforeChanges),
+            Loc.T("Switch plan"));
         if (!ok)
         {
             return;
@@ -201,16 +203,16 @@ public sealed partial class PowerViewModel : ViewModelBase
                     plan.Name);
             if (result.Success)
             {
-                _notifications.Success("Power plan changed", result.Message);
+                _notifications.Success(Loc.T("Power plan changed"), result.Message);
             }
             else
             {
-                _notifications.Error("Power plan not changed", result.Message);
+                _notifications.Error(Loc.T("Power plan not changed"), result.Message);
                 ErrorMessage = result.Message;
             }
 
             await LoadPlansAsync(ct);
-        }, "Switching power plan…");
+        }, Loc.T("Switching power plan…"));
     }
 
     private bool CanApplyPlan() => SelectedPlan is { IsActive: false };
@@ -220,7 +222,7 @@ public sealed partial class PowerViewModel : ViewModelBase
     {
         if (PricePerKwh < 0 || double.IsNaN(PricePerKwh))
         {
-            ErrorMessage = "The electricity price cannot be negative.";
+            ErrorMessage = Loc.T("The electricity price cannot be negative.");
             return;
         }
 
@@ -230,7 +232,7 @@ public sealed partial class PowerViewModel : ViewModelBase
         {
             await Settings.SaveAsync();
             CurrencySymbol = Settings.Current.General.CurrencySymbol;
-            _notifications.Success("Price saved", $"Costs are now calculated at {CurrencySymbol}{PricePerKwh:0.###} per kWh.");
+            _notifications.Success(Loc.T("Price saved"), Loc.F("Costs are now calculated at {0}{1:0.###} per kWh.", CurrencySymbol, PricePerKwh));
             if (_power.Latest is { } latest)
             {
                 Apply(latest);
@@ -239,7 +241,7 @@ public sealed partial class PowerViewModel : ViewModelBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Saving the electricity price failed.");
-            ErrorMessage = "The price could not be saved: " + ex.Message;
+            ErrorMessage = Loc.T("The price could not be saved:") + " " + ex.Message;
         }
     }
 
@@ -252,7 +254,7 @@ public sealed partial class PowerViewModel : ViewModelBase
             Apply(latest);
         }
 
-        _notifications.Info("Session reset", "Energy and cost counters start again from zero.");
+        _notifications.Info(Loc.T("Session reset"), Loc.T("Energy and cost counters start again from zero."));
     }
 
     partial void OnSelectedPlanChanged(PowerPlanInfo? value) =>
@@ -285,7 +287,7 @@ public sealed partial class PowerViewModel : ViewModelBase
 
         PlansUnavailable = plans.Count == 0;
         var active = plans.FirstOrDefault(p => p.IsActive);
-        ActivePlanName = active?.Name ?? "Unknown";
+        ActivePlanName = active?.Name ?? Loc.T("Unknown");
         SelectedPlan = active ?? plans.FirstOrDefault();
         ApplyPlanCommand.NotifyCanExecuteChanged();
     }
@@ -305,8 +307,9 @@ public sealed partial class PowerViewModel : ViewModelBase
         }
 
         StatusText = _sensors.IsAvailable
-            ? "No power readings yet."
-            : "Hardware sensors are not available: " + (_sensors.UnavailableReason ?? "unknown reason") + " Battery readings still work when a battery is present.";
+            ? Loc.T("No power readings yet.")
+            : Loc.T("Hardware sensors are not available:") + " " + (_sensors.UnavailableReason ?? Loc.T("unknown reason")) + " "
+                + Loc.T("Battery readings still work when a battery is present.");
     }
 
     private void OnPowerUpdated(object? sender, PowerSnapshot snapshot)
@@ -348,15 +351,15 @@ public sealed partial class PowerViewModel : ViewModelBase
         HasPowerData = snapshot.EstimatedTotalW is not null;
         TotalText = Watts(snapshot.EstimatedTotalW);
         TotalSubtitle = snapshot.EstimatedTotalW is null
-            ? "No power sensors found on this PC"
-            : IsEstimate ? "Estimated from component sensors" : "Measured by the power supply";
+            ? Loc.T("No power sensors found on this PC")
+            : IsEstimate ? Loc.T("Estimated from component sensors") : Loc.T("Measured by the power supply");
         CpuText = Watts(snapshot.CpuPackageW);
         GpuText = Watts(snapshot.GpuW);
         OtherText = Watts(snapshot.OtherW);
 
         EnergyText = snapshot.SessionEnergyWh < 10 ? snapshot.SessionEnergyWh.ToString("0.00", culture) : snapshot.SessionEnergyWh.ToString("0.0", culture);
         var since = extras?.SessionStarted ?? DateTimeOffset.MinValue;
-        EnergySubtitle = since == DateTimeOffset.MinValue ? "since the app started" : $"since {since.ToLocalTime():HH:mm}";
+        EnergySubtitle = since == DateTimeOffset.MinValue ? Loc.T("since the app started") : Loc.F("since {0}", since.ToLocalTime().ToString("HH:mm", culture));
         CostHourText = Money(PowerMath.CostPerHour(snapshot.EstimatedTotalW, price), symbol);
         CostDayText = Money(PowerMath.CostPerDay(snapshot.EstimatedTotalW, price), symbol);
         SessionCostText = Money(PowerMath.SessionCost(snapshot.SessionEnergyWh, price), symbol);
@@ -364,7 +367,7 @@ public sealed partial class PowerViewModel : ViewModelBase
         ApplyBattery(snapshot, battery);
         ApplyComponents(breakdown, snapshot.EstimatedTotalW);
         ApplyHistory();
-        StatusText = $"Updated {snapshot.Timestamp.ToLocalTime():HH:mm:ss}";
+        StatusText = Loc.F("Updated {0}", snapshot.Timestamp.ToLocalTime().ToString("HH:mm:ss", culture));
     }
 
     private void ApplyBattery(PowerSnapshot snapshot, BatteryReading battery)
@@ -373,9 +376,9 @@ public sealed partial class PowerViewModel : ViewModelBase
         if (!battery.Present)
         {
             BatteryText = "—";
-            BatterySubtitle = "No battery";
+            BatterySubtitle = Loc.T("No battery");
             BatteryPercent = 0;
-            BatteryStatusText = "No battery detected — this looks like a desktop PC.";
+            BatteryStatusText = Loc.T("No battery detected — this looks like a desktop PC.");
             BatteryDetailText = battery.Note ?? string.Empty;
             return;
         }
@@ -384,19 +387,20 @@ public sealed partial class PowerViewModel : ViewModelBase
         if (battery.OnBattery)
         {
             BatteryText = Watts(battery.DischargeW);
-            BatterySubtitle = "Discharging";
-            BatteryStatusText = $"Running on battery · {battery.Percent?.ToString(CultureInfo.CurrentCulture) ?? "?"}%";
+            BatterySubtitle = Loc.T("Discharging");
+            BatteryStatusText = Loc.F("Running on battery · {0}%", battery.Percent?.ToString(CultureInfo.CurrentCulture) ?? "?");
             BatteryDetailText = battery.EstimatedRemaining is { } left
-                ? $"About {Duration(left)} remaining at the current rate."
-                : "Time remaining is not known yet.";
+                ? Loc.F("About {0} remaining at the current rate.", Duration(left))
+                : Loc.T("Time remaining is not known yet.");
         }
         else
         {
             BatteryText = battery.Charging ? Watts(battery.ChargeW) : "0";
-            BatterySubtitle = battery.Charging ? "Charging" : "Plugged in";
-            BatteryStatusText = $"Plugged in · {battery.Percent?.ToString(CultureInfo.CurrentCulture) ?? "?"}%" + (battery.Charging ? " · charging" : string.Empty);
+            BatterySubtitle = battery.Charging ? Loc.T("Charging") : Loc.T("Plugged in");
+            string percent = battery.Percent?.ToString(CultureInfo.CurrentCulture) ?? "?";
+            BatteryStatusText = battery.Charging ? Loc.F("Plugged in · {0}% · charging", percent) : Loc.F("Plugged in · {0}%", percent);
             BatteryDetailText = battery.FullChargeCapacityMwh is { } full && battery.RemainingCapacityMwh is { } remaining
-                ? $"{remaining / 1000.0:0.0} Wh of {full / 1000.0:0.0} Wh stored."
+                ? Loc.F("{0:0.0} Wh of {1:0.0} Wh stored.", remaining / 1000.0, full / 1000.0)
                 : string.Empty;
         }
     }
@@ -435,8 +439,8 @@ public sealed partial class PowerViewModel : ViewModelBase
         History = SensorMath.Downsample(values, SparklinePoints);
         var stats = SensorMath.Summarize(values);
         HistorySummary = stats is null
-            ? "Collecting history…"
-            : $"Average {stats.Average:0} W · peak {stats.Max:0} W · low {stats.Min:0} W over the last {Settings.Current.Monitoring.HistoryMinutes} min";
+            ? Loc.T("Collecting history…")
+            : Loc.F("Average {0:0} W · peak {1:0} W · low {2:0} W over the last {3} min", stats.Average, stats.Max, stats.Min, Settings.Current.Monitoring.HistoryMinutes);
     }
 
     private static string Watts(double? value) => value is { } w && !double.IsNaN(w)

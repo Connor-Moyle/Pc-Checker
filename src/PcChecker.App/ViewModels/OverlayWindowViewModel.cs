@@ -7,6 +7,7 @@ using PcChecker.App.Services;
 using PcChecker.Core.Common;
 using PcChecker.Core.Gaming;
 using PcChecker.Core.Power;
+using PcChecker.Core.Scheduling;
 using PcChecker.Core.Sensors;
 using PcChecker.Core.Settings;
 
@@ -79,6 +80,7 @@ public sealed partial class OverlayWindowViewModel : ObservableObject, IDisposab
     private readonly OverlayMetricResolver _resolver;
     private readonly DispatcherTimer _timer;
     private MonitoringSettings _thresholds = new();
+    private string? _cpuName;
     private int _consumers;
     private bool _sensorsStarted;
 
@@ -232,6 +234,7 @@ public sealed partial class OverlayWindowViewModel : ObservableObject, IDisposab
         try
         {
             var values = _resolver.ResolveAll(Items.Where(i => !i.IsClock).Select(i => i.Id));
+            _cpuName = _sensors.Latest is { } latest ? TemperatureRoles.CpuNameOf(latest.Readings) : null;
             foreach (var item in Items)
             {
                 if (item.IsClock)
@@ -267,14 +270,8 @@ public sealed partial class OverlayWindowViewModel : ObservableObject, IDisposab
             return AccentBrush;
         }
 
-        var (warn, crit) = item.Id switch
-        {
-            OverlayMetricIds.CpuTemp => (_thresholds.CpuWarnC, _thresholds.CpuCritC),
-            OverlayMetricIds.GpuTemp => (_thresholds.GpuWarnC, _thresholds.GpuCritC),
-            OverlayMetricIds.GpuHotspot => (_thresholds.GpuWarnC + 10, _thresholds.GpuCritC + 10),
-            OverlayMetricIds.DiskTemp => (_thresholds.DiskWarnC, _thresholds.DiskCritC),
-            _ => (double.MaxValue, double.MaxValue),
-        };
+        // The same limits as the alerts and the Temperatures page (CPU limits by model, the hot spot's own limits).
+        var (warn, crit) = TrayText.LimitsFor(item.Id, _thresholds, _cpuName) ?? (double.MaxValue, double.MaxValue);
 
         if (value >= crit)
         {

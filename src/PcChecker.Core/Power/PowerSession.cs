@@ -39,6 +39,12 @@ public sealed class PowerSession
 
     public IReadOnlyList<(DateTimeOffset Time, double Value)> History(TimeSpan span, DateTimeOffset now) => _history.Window(span, now);
 
+    /// <summary>How many samples the history keeps.</summary>
+    public int HistoryCapacity => _history.Capacity;
+
+    /// <summary>Changes how many samples the history keeps (the newest are kept), after a history length or poll interval change.</summary>
+    public void ResizeHistory(int capacity) => _history.Resize(capacity);
+
     /// <summary>Starts the energy counter again (history is kept).</summary>
     public void Reset(DateTimeOffset now)
     {

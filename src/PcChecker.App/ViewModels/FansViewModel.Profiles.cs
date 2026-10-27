@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.Input;
+using PcChecker.App.Localization;
 using PcChecker.Core.Fans;
 
 namespace PcChecker.App.ViewModels;
@@ -58,7 +59,7 @@ public sealed partial class FansViewModel
 
                 SoftwareControlledCount = Fans.Count(f => f.IsSoftwareControlled);
             }
-        }, $"Applying profile \"{item.Name}\"…");
+        }, Loc.F("Applying profile \"{0}\"…", item.Name));
     }
 
     [RelayCommand]
@@ -67,7 +68,7 @@ public sealed partial class FansViewModel
         var name = (NewProfileName ?? string.Empty).Trim();
         if (name.Length == 0)
         {
-            ErrorMessage = "Type a name for the profile first (for example \"Quiet night\").";
+            ErrorMessage = Loc.T("Type a name for the profile first (for example \"Quiet night\").");
             return;
         }
 
@@ -87,7 +88,8 @@ public sealed partial class FansViewModel
         var existing = list.FindIndex(p => p.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
         if (existing >= 0)
         {
-            bool replace = await _dialogs.ConfirmAsync("Replace this profile?", $"A profile called \"{name}\" already exists. Replace it with the current fan settings?", "Replace");
+            bool replace = await _dialogs.ConfirmAsync(Loc.T("Replace this profile?"),
+                Loc.F("A profile called \"{0}\" already exists. Replace it with the current fan settings?", name), Loc.T("Replace"));
             if (!replace)
             {
                 return;
@@ -104,7 +106,7 @@ public sealed partial class FansViewModel
         RefreshProfiles();
         SelectedProfile = Profiles.FirstOrDefault(p => p.Name == name);
         NewProfileName = null;
-        _notifications.Success("Profile saved", $"\"{name}\" remembers the mode, speed and curve of every controllable fan.");
+        _notifications.Success(Loc.T("Profile saved"), Loc.F("\"{0}\" remembers the mode, speed and curve of every controllable fan.", name));
     }
 
     [RelayCommand]
@@ -115,7 +117,8 @@ public sealed partial class FansViewModel
             return;
         }
 
-        bool ok = await _dialogs.ConfirmAsync("Delete this profile?", $"\"{item.Name}\" will be removed. Fans keep running as they are now.", "Delete", isDanger: true);
+        bool ok = await _dialogs.ConfirmAsync(Loc.T("Delete this profile?"),
+            Loc.F("\"{0}\" will be removed. Fans keep running as they are now.", item.Name), Loc.T("Delete"), isDanger: true);
         if (!ok)
         {
             return;
@@ -135,8 +138,8 @@ public sealed partial class FansViewModel
     [RelayCommand]
     private async Task RevertAllAsync()
     {
-        bool ok = await _dialogs.ConfirmAsync("Return all fans to automatic?",
-            "Every fan goes back to the speed the motherboard or graphics driver chooses. Your saved profiles are kept.", "Revert all");
+        bool ok = await _dialogs.ConfirmAsync(Loc.T("Return all fans to automatic?"),
+            Loc.T("Every fan goes back to the speed the motherboard or graphics driver chooses. Your saved profiles are kept."), Loc.T("Revert all"));
         if (!ok)
         {
             return;
@@ -160,7 +163,7 @@ public sealed partial class FansViewModel
 
                 SoftwareControlledCount = 0;
             }
-        }, "Returning fans to automatic…");
+        }, Loc.T("Returning fans to automatic…"));
     }
 
 }

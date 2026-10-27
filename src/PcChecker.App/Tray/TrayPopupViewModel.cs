@@ -73,7 +73,7 @@ public sealed partial class TrayPopupViewModel : ObservableObject
         var monitoring = _settings.Current.Monitoring;
         var readings = TrayReadings.From(_sensors.Latest);
         CpuTemp = TrayText.Temperature(readings.CpuTempC);
-        CpuLevel = TrayText.Level(readings.CpuTempC, monitoring.CpuWarnC, monitoring.CpuCritC);
+        CpuLevel = TrayText.LevelFor(OverlayMetricIds.CpuTemp, readings.CpuTempC, monitoring, readings.CpuName);
         GpuTemp = TrayText.Temperature(readings.GpuTempC);
         GpuLevel = TrayText.Level(readings.GpuTempC, monitoring.GpuWarnC, monitoring.GpuCritC);
         DriveTemp = TrayText.Temperature(readings.DriveTempC);

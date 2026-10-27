@@ -179,6 +179,14 @@ public sealed class WindowsPowerService : IPowerService, IPowerServiceExtras, ID
                     isEstimate = false;
                 }
 
+                // Follows the history length and poll interval settings, as the sensor graphs do.
+                var monitoring = _settings.Current.Monitoring;
+                int capacity = SensorRingBuffer.CapacityFor(monitoring.HistoryMinutes, monitoring.PollIntervalMs);
+                if (capacity != _session.HistoryCapacity)
+                {
+                    _session.ResizeHistory(capacity);
+                }
+
                 _session.Record(now, total);
                 Breakdown = breakdown;
                 IsEstimate = isEstimate;

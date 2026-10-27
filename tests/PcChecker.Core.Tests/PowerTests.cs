@@ -139,6 +139,32 @@ public class PowerMathTests
     }
 
     [Fact]
+    public void Power_history_follows_a_new_history_length()
+    {
+        var session = new PowerSession(SensorRingBuffer.CapacityFor(1, 1000), DateTimeOffset.UnixEpoch);
+        var t = DateTimeOffset.UnixEpoch;
+        for (int i = 0; i < 120; i++)
+        {
+            session.Record(t.AddSeconds(i), i);
+        }
+
+        // One minute at one sample a second keeps 60 samples; a longer history keeps the newest and then grows.
+        Assert.Equal(60, session.HistoryCapacity);
+        Assert.Equal(60, session.History(TimeSpan.FromHours(1), t.AddSeconds(119)).Count);
+        session.ResizeHistory(SensorRingBuffer.CapacityFor(5, 1000));
+        Assert.Equal(300, session.HistoryCapacity);
+        var kept = session.History(TimeSpan.FromHours(1), t.AddSeconds(119));
+        Assert.Equal(60, kept.Count);
+        Assert.Equal(119, kept[^1].Value);
+        for (int i = 120; i < 300; i++)
+        {
+            session.Record(t.AddSeconds(i), i);
+        }
+
+        Assert.Equal(240, session.History(TimeSpan.FromHours(1), t.AddSeconds(299)).Count);
+    }
+
+    [Fact]
     public void Costs_follow_price_and_draw()
     {
         Assert.Equal(0.09, PowerMath.CostPerHour(300, 0.30), 6);
