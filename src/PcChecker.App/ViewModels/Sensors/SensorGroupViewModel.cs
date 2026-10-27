@@ -4,6 +4,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using PcChecker.App.Converters;
 using PcChecker.Core.Common;
 using PcChecker.Core.Sensors;
+using PcChecker.Core.Storage;
 using Wpf.Ui.Controls;
 
 namespace PcChecker.App.ViewModels.Sensors;
@@ -52,6 +53,13 @@ public sealed partial class SensorGroupViewModel : ObservableObject
             {
                 hottest = row;
             }
+        }
+
+        // A drive's header shows the drive temperature, not a hotter controller sensor.
+        if (Kind == HardwareKind.Storage
+            && Rows.FirstOrDefault(r => r.Value is { } v && !double.IsNaN(v) && DriveTemperatureRules.Classify(r.Name).Role == DriveSensorRole.Drive) is { } drive)
+        {
+            hottest = drive;
         }
 
         if (hottest is null)

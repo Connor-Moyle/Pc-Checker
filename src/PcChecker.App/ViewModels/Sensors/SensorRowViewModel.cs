@@ -1,7 +1,9 @@
 using System.Windows.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using PcChecker.App.Converters;
+using PcChecker.App.Localization;
 using PcChecker.Core.Sensors;
+using PcChecker.Core.Storage;
 
 namespace PcChecker.App.ViewModels.Sensors;
 
@@ -48,7 +50,23 @@ public sealed partial class SensorRowViewModel : ObservableObject
         Unit = reading.Unit;
         KindText = SensorMapping.DisplayName(reading.Kind);
         HardwareText = SensorMapping.DisplayName(reading.Hardware);
+        if (DriveTemperatureRules.IsExtraDriveSensor(reading))
+        {
+            Note = Loc.F("Extra sensor on the drive. It runs hotter than the drive, so its limits are {0} °C higher.",
+                DriveTemperatureRules.ExtraSensorMarginC);
+            Tag = Loc.T("extra sensor");
+        }
+        else if (DriveTemperatureRules.IsDriveTemperature(reading))
+        {
+            Note = Loc.T("The drive's own temperature (NVMe composite or SMART). This is the value PC Checker reports for the drive.");
+        }
     }
+
+    /// <summary>One-line explanation shown as the row tooltip (drive sensors only), or null.</summary>
+    public string? Note { get; }
+
+    /// <summary>Short tag after the name for extra drive sensors, or null.</summary>
+    public string? Tag { get; }
 
     public string Id { get; }
 

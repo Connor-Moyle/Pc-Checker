@@ -9,6 +9,7 @@ using PcChecker.App.ViewModels.Sensors;
 using PcChecker.Core.Common;
 using PcChecker.Core.Sensors;
 using PcChecker.Core.Settings;
+using PcChecker.Core.Storage;
 
 namespace PcChecker.App.ViewModels;
 
@@ -417,7 +418,7 @@ public sealed partial class SensorsViewModel : ViewModelBase
         foreach (var reading in snapshot.Readings)
         {
             bool isTemperature = reading.Kind == SensorKind.Temperature;
-            var thresholds = isTemperature ? SensorMath.ThresholdsFor(reading.Hardware, monitoring) : null;
+            var thresholds = isTemperature ? SensorMath.ThresholdsFor(reading, monitoring) : null;
 
             if (!_rows.TryGetValue(reading.Id, out var row))
             {
@@ -498,7 +499,8 @@ public sealed partial class SensorsViewModel : ViewModelBase
         GpuTemp = gpu?.Value ?? double.NaN;
         GpuLabel = gpu is null ? "GPU" : "GPU · " + gpu.Name;
 
-        var drive = temps.Where(r => r.Hardware == HardwareKind.Storage).OrderByDescending(r => r.Value).FirstOrDefault();
+        // The drive gauge uses each drive's own temperature, never a controller sensor or a reported threshold.
+        var drive = DriveTemperatureRules.HottestDrive(temps);
         HasDriveTemp = drive is not null;
         DriveTemp = drive?.Value ?? double.NaN;
         DriveLabel = drive is null ? "Hottest drive" : Shorten(drive.HardwareName);
