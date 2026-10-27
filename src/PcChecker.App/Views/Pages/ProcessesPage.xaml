@@ -11,7 +11,8 @@
       xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
       mc:Ignorable="d"
       Title="Processes"
-      ScrollViewer.CanContentScroll="False">
+      ScrollViewer.CanContentScroll="False"
+      PreviewKeyDown="OnPagePreviewKeyDown">
   <Page.Resources>
     <conv:SymbolToIconConverter x:Key="SymbolToIcon" />
     <Style x:Key="ProcessGrid" TargetType="ui:DataGrid" BasedOn="{StaticResource DefaultUiDataGridStyle}">
@@ -20,13 +21,13 @@
       <Setter Property="CanUserAddRows" Value="False" />
       <Setter Property="CanUserDeleteRows" Value="False" />
       <Setter Property="CanUserResizeRows" Value="False" />
-      <Setter Property="CanUserReorderColumns" Value="False" />
+      <Setter Property="CanUserReorderColumns" Value="True" />
       <Setter Property="CanUserSortColumns" Value="True" />
       <Setter Property="HeadersVisibility" Value="Column" />
       <Setter Property="GridLinesVisibility" Value="None" />
       <Setter Property="SelectionMode" Value="Single" />
       <Setter Property="SelectionUnit" Value="FullRow" />
-      <Setter Property="MaxHeight" Value="560" />
+      <Setter Property="MaxHeight" Value="620" />
       <Setter Property="RowHeight" Value="42" />
       <Setter Property="ScrollViewer.CanContentScroll" Value="True" />
       <Setter Property="VirtualizingPanel.IsVirtualizing" Value="True" />
@@ -43,13 +44,12 @@
       <Setter Property="VerticalAlignment" Value="Center" />
       <Setter Property="TextTrimming" Value="CharacterEllipsis" />
     </Style>
-    <Style x:Key="BusyNumberCell" TargetType="TextBlock" BasedOn="{StaticResource NumberCell}">
-      <Style.Triggers>
-        <DataTrigger Binding="{Binding IsBusyProcess}" Value="True">
-          <Setter Property="Foreground" Value="{DynamicResource AccentOrangeBrush}" />
-          <Setter Property="FontWeight" Value="SemiBold" />
-        </DataTrigger>
-      </Style.Triggers>
+    <!-- Heat-map tint behind a number: the theme's orange at an opacity chosen by Core.ProcessHeatMap (readable in both themes). -->
+    <Style x:Key="HeatTint" TargetType="Border">
+      <Setter Property="Background" Value="{DynamicResource AccentOrangeBrush}" />
+      <Setter Property="CornerRadius" Value="3" />
+      <Setter Property="MinHeight" Value="32" />
+      <Setter Property="IsHitTestVisible" Value="False" />
     </Style>
     <Style x:Key="Tile" TargetType="controls:StatCard">
       <Setter Property="Margin" Value="0" />
@@ -75,11 +75,12 @@
         </Grid.ColumnDefinitions>
         <ui:Button Grid.Column="0" Appearance="Transparent" Padding="4,2" Margin="0,0,4,0" BorderThickness="0" AutomationProperties.Name="Show or hide processes"
                    Icon="{Binding ExpandIcon, Converter={StaticResource SymbolToIcon}}"
-                   ToolTip="Show or hide the processes of this program"
+                   ToolTip="Show or hide the processes of this program (Right and Left arrow keys)"
                    Visibility="{Binding IsGroup, Converter={StaticResource BoolToVisibility}}"
                    Command="{Binding DataContext.ToggleGroupCommand, RelativeSource={RelativeSource AncestorType=Page}}"
                    CommandParameter="{Binding}" />
-        <Grid Grid.Column="1" Width="20" Height="20" Margin="2,0,10,0" VerticalAlignment="Center">
+        <Grid Grid.Column="1" Width="20" Height="20" Margin="2,0,10,0" VerticalAlignment="Center"
+              Visibility="{Binding ShowIconSlot, Converter={StaticResource BoolToVisibility}}">
           <Image Source="{Binding Icon}" Width="16" Height="16" AutomationProperties.Name="{Binding Name}" RenderOptions.BitmapScalingMode="HighQuality"
                  Visibility="{Binding HasIcon, Converter={StaticResource BoolToVisibility}}" />
           <controls:IconGlyph Symbol="WindowApps24" FontSize="16" Opacity="0.7"
@@ -87,11 +88,77 @@
         </Grid>
         <StackPanel Grid.Column="2" VerticalAlignment="Center">
           <ui:TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
-          <ui:TextBlock Text="{Binding WhatIsThis}" Style="{StaticResource Caption}" TextTrimming="CharacterEllipsis" />
+          <ui:TextBlock Text="{Binding Subtitle}" Style="{StaticResource Caption}" TextTrimming="CharacterEllipsis" />
         </StackPanel>
         <controls:IconGlyph Grid.Column="3" Symbol="Warning24" FontSize="16" Margin="6,0,4,0" Foreground="{DynamicResource AccentOrangeBrush}"
                        ToolTip="{Binding FlagText}"
                        Visibility="{Binding IsFlagged, Converter={StaticResource BoolToVisibility}}" />
+      </Grid>
+    </DataTemplate>
+
+    <DataTemplate x:Key="StatusCell">
+      <StackPanel Orientation="Horizontal" VerticalAlignment="Center" ToolTip="{Binding StatusToolTip}">
+        <controls:IconGlyph Symbol="LeafOne24" FontSize="14" Margin="0,0,6,0" Foreground="{DynamicResource AccentGreenBrush}"
+                            Visibility="{Binding IsEfficiency, Converter={StaticResource BoolToVisibility}}" />
+        <controls:IconGlyph Symbol="PauseCircle24" FontSize="14" Margin="0,0,6,0" Foreground="{DynamicResource AccentBlueBrush}"
+                            Visibility="{Binding IsSuspended, Converter={StaticResource BoolToVisibility}}" />
+        <controls:IconGlyph Symbol="ErrorCircle24" FontSize="14" Margin="0,0,6,0" Foreground="{DynamicResource AccentRedBrush}"
+                            Visibility="{Binding IsNotResponding, Converter={StaticResource BoolToVisibility}}" />
+        <TextBlock Text="{Binding StatusText}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis">
+          <TextBlock.Style>
+            <Style TargetType="TextBlock">
+              <Style.Triggers>
+                <DataTrigger Binding="{Binding IsNotResponding}" Value="True">
+                  <Setter Property="Foreground" Value="{DynamicResource AccentRedBrush}" />
+                  <Setter Property="FontWeight" Value="SemiBold" />
+                </DataTrigger>
+              </Style.Triggers>
+            </Style>
+          </TextBlock.Style>
+        </TextBlock>
+      </StackPanel>
+    </DataTemplate>
+
+    <DataTemplate x:Key="CpuCell">
+      <Grid VerticalAlignment="Center">
+        <Border Style="{StaticResource HeatTint}" Opacity="{Binding CpuHeat}" />
+        <TextBlock Style="{StaticResource NumberCell}" Text="{Binding CpuText}" />
+      </Grid>
+    </DataTemplate>
+    <DataTemplate x:Key="MemoryCell">
+      <Grid VerticalAlignment="Center">
+        <Border Style="{StaticResource HeatTint}" Opacity="{Binding MemoryHeat}" />
+        <TextBlock Style="{StaticResource NumberCell}" Text="{Binding MemoryText}" />
+      </Grid>
+    </DataTemplate>
+    <DataTemplate x:Key="DiskCell">
+      <Grid VerticalAlignment="Center">
+        <Border Style="{StaticResource HeatTint}" Opacity="{Binding DiskHeat}" />
+        <TextBlock Style="{StaticResource NumberCell}" Text="{Binding DiskText}" />
+      </Grid>
+    </DataTemplate>
+    <DataTemplate x:Key="NetworkCell">
+      <Grid VerticalAlignment="Center">
+        <Border Style="{StaticResource HeatTint}" Opacity="{Binding NetworkHeat}" />
+        <TextBlock Style="{StaticResource NumberCell}" Text="{Binding NetworkText}" />
+      </Grid>
+    </DataTemplate>
+    <DataTemplate x:Key="GpuCell">
+      <Grid VerticalAlignment="Center">
+        <Border Style="{StaticResource HeatTint}" Opacity="{Binding GpuHeat}" />
+        <TextBlock Style="{StaticResource NumberCell}" Text="{Binding GpuText}" />
+      </Grid>
+    </DataTemplate>
+    <DataTemplate x:Key="PowerCell">
+      <Grid VerticalAlignment="Center">
+        <Border Style="{StaticResource HeatTint}" Opacity="{Binding PowerHeat}" />
+        <TextBlock Style="{StaticResource TextCell}" Margin="8,0" Text="{Binding PowerText}" />
+      </Grid>
+    </DataTemplate>
+    <DataTemplate x:Key="PowerTrendCell">
+      <Grid VerticalAlignment="Center">
+        <Border Style="{StaticResource HeatTint}" Opacity="{Binding PowerTrendHeat}" />
+        <TextBlock Style="{StaticResource TextCell}" Margin="8,0" Text="{Binding PowerTrendText}" />
       </Grid>
     </DataTemplate>
 
@@ -111,6 +178,10 @@
       <TextBlock Style="{StaticResource TextCell}" Text="{Binding StartedText}" ToolTip="{Binding StartedToolTip}" />
     </DataTemplate>
 
+    <DataTemplate x:Key="CommandLineCell">
+      <TextBlock Style="{StaticResource TextCell}" Text="{Binding CommandLineText}" ToolTip="{Binding CommandLineText}" />
+    </DataTemplate>
+
     <DataTemplate x:Key="PathCell">
       <TextBlock Style="{StaticResource TextCell}" Text="{Binding PathText}" ToolTip="{Binding PathText}" />
     </DataTemplate>
@@ -118,13 +189,46 @@
     <!-- The same actions in the header's More menu and the list's right-click menu. -->
     <ContextMenu x:Key="ProcessActions" x:Shared="False"
                  DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
-      <MenuItem Header="End task" Command="{Binding EndTaskCommand}" InputGestureText="Del">
+      <MenuItem Header="Switch to" Command="{Binding SwitchToCommand}" InputGestureText="Enter"
+                ToolTip="Bring the program's window to the front">
+        <MenuItem.Icon>
+          <controls:IconGlyph Symbol="Window24" />
+        </MenuItem.Icon>
+      </MenuItem>
+      <MenuItem Header="Window">
+        <MenuItem Header="Minimize" Command="{Binding MinimizeCommand}" />
+        <MenuItem Header="Maximize" Command="{Binding MaximizeCommand}" />
+      </MenuItem>
+      <MenuItem Header="End task" Command="{Binding EndTaskCommand}" InputGestureText="Del"
+                ToolTip="Ask the program to close; if it does not, end it (you confirm first)">
         <MenuItem.Icon>
           <controls:IconGlyph Symbol="DismissCircle24" />
         </MenuItem.Icon>
       </MenuItem>
       <MenuItem Header="End process tree" Command="{Binding EndTreeCommand}"
                 ToolTip="End this program and every program it started" />
+      <MenuItem Header="Restart" Command="{Binding RestartCommand}"
+                ToolTip="Close the program and start it again the same way">
+        <MenuItem.Icon>
+          <controls:IconGlyph Symbol="ArrowClockwise24" />
+        </MenuItem.Icon>
+      </MenuItem>
+      <Separator />
+      <MenuItem Header="Suspend" Command="{Binding SuspendCommand}"
+                ToolTip="Pause the program so it uses no processor time">
+        <MenuItem.Icon>
+          <controls:IconGlyph Symbol="PauseCircle24" />
+        </MenuItem.Icon>
+      </MenuItem>
+      <MenuItem Header="Resume" Command="{Binding ResumeCommand}"
+                ToolTip="Let a suspended program run again">
+        <MenuItem.Icon>
+          <controls:IconGlyph Symbol="PlayCircle24" />
+        </MenuItem.Icon>
+      </MenuItem>
+      <MenuItem Header="Efficiency mode" Command="{Binding ToggleEfficiencyModeCommand}"
+                IsChecked="{Binding SelectedRow.IsEfficiency, Mode=OneWay, FallbackValue=False}"
+                ToolTip="Give the program less power and Low priority, as Task Manager does" />
       <MenuItem Header="Set priority" IsEnabled="{Binding SelectedRow.CanEnd, FallbackValue=False}"
                 ToolTip="Which program gets the processor first when the PC is busy. Resets when the program restarts.">
         <MenuItem Header="Low" Command="{Binding SetPriorityCommand}" CommandParameter="{x:Static processes:ProcessPriority.Idle}" />
@@ -136,18 +240,32 @@
                   Visibility="{Binding IsAdvancedMode, Converter={StaticResource BoolToVisibility}}"
                   ToolTip="Can freeze the whole PC while the program is busy" />
       </MenuItem>
+      <MenuItem Header="Set affinity…" Command="{Binding SetAffinityCommand}"
+                ToolTip="Choose which processor cores the program may use" />
       <Separator />
+      <MenuItem Header="Create memory dump file" Command="{Binding CreateDumpCommand}"
+                ToolTip="Save a copy of the program's memory for a developer or support team">
+        <MenuItem.Icon>
+          <controls:IconGlyph Symbol="DocumentSave24" />
+        </MenuItem.Icon>
+      </MenuItem>
       <MenuItem Header="Open file location" Command="{Binding OpenFileLocationCommand}">
         <MenuItem.Icon>
           <controls:IconGlyph Symbol="FolderOpen24" />
         </MenuItem.Icon>
       </MenuItem>
-      <MenuItem Header="Search the name online" Command="{Binding SearchOnlineCommand}">
+      <MenuItem Header="Search online" Command="{Binding SearchOnlineCommand}">
         <MenuItem.Icon>
           <controls:IconGlyph Symbol="GlobeSearch24" />
         </MenuItem.Icon>
       </MenuItem>
-      <MenuItem Header="Copy details" Command="{Binding CopyDetailsCommand}">
+      <MenuItem Header="Properties" Command="{Binding ShowPropertiesCommand}"
+                ToolTip="Windows' file properties: version, signature, compatibility">
+        <MenuItem.Icon>
+          <controls:IconGlyph Symbol="Info24" />
+        </MenuItem.Icon>
+      </MenuItem>
+      <MenuItem Header="Copy details" Command="{Binding CopyDetailsCommand}" InputGestureText="Ctrl+C">
         <MenuItem.Icon>
           <controls:IconGlyph Symbol="Copy24" />
         </MenuItem.Icon>
@@ -167,12 +285,14 @@
         <StackPanel Orientation="Horizontal">
           <ui:DropDownButton Content="More" Icon="{ui:SymbolIcon MoreHorizontal24}" Margin="0,0,8,0"
                              Flyout="{StaticResource ProcessActions}" />
-          <ui:Button Content="{Binding PauseText}" Icon="{Binding PauseIcon, Converter={StaticResource SymbolToIcon}}" Margin="0,0,8,0"
-                     Command="{Binding TogglePauseCommand}"
-                     ToolTip="Stop or restart the live updates. The list keeps its last values while paused." />
+          <ui:Button Icon="{ui:SymbolIcon Run24}" Margin="0,0,8,0"
+                     Command="{Binding RunNewTaskCommand}"
+                     ToolTip="Open a program, folder, document or web address, with or without administrator rights">
+            <AccessText Text="_Run new task" />
+          </ui:Button>
           <ui:Button Content="End task" Appearance="Danger" Icon="{ui:SymbolIcon DismissCircle24}"
                      Command="{Binding EndTaskCommand}"
-                     ToolTip="Close the selected program straight away (you confirm first)" />
+                     ToolTip="Close the selected program (Delete key). You confirm first." />
         </StackPanel>
       </controls:SectionHeader.Actions>
     </controls:SectionHeader>
@@ -188,6 +308,12 @@
                   Title="Not everything could be read"
                   Message="{Binding WarningText}"
                   IsOpen="{Binding HasWarning, Mode=OneWay}"
+                  IsClosable="True"
+                  Margin="0,0,0,12" />
+      <ui:InfoBar Severity="Warning"
+                  Title="A program is not responding"
+                  Message="{Binding NotRespondingText}"
+                  IsOpen="{Binding HasNotResponding, Mode=OneWay}"
                   IsClosable="True"
                   Margin="0,0,0,12" />
     </StackPanel>
@@ -226,40 +352,64 @@
               <StackPanel Grid.Column="0" Margin="0,0,12,0">
                 <ui:TextBlock Style="{StaticResource CardTitle}" Text="Running programs" Margin="0,0,0,4" />
                 <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap"
-                              Text="Click a column to sort. Right-click a program for more actions."
-                              ToolTip="Memory is the private working set, the same figure Task Manager shows. Disk columns are bytes read and written per second." />
+                              Text="Click a column to sort, right-click a program for actions, right-click a column title to pick columns."
+                              ToolTip="Keys: Enter switches to the program, Delete ends it, Ctrl+F searches, the arrow keys open and close groups." />
               </StackPanel>
-              <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top">
-                <ui:ToggleSwitch Content="Only flagged" IsChecked="{Binding ShowFlaggedOnly}" Margin="0,0,16,0" VerticalAlignment="Center"
-                                 Visibility="{Binding ShowFlaggedToggle, Converter={StaticResource BoolToVisibility}}"
-                                 ToolTip="Show only the processes marked as worth a closer look" />
-                <ui:ToggleSwitch Content="Group by app" IsChecked="{Binding GroupByApp}" Margin="0,0,16,0" VerticalAlignment="Center"
-                                 ToolTip="Put all processes of the same program under one line with their totals" />
-                <ui:TextBox Width="240" PlaceholderText="Search name, PID, publisher or folder" Icon="{ui:SymbolIcon Search24}"
-                            Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" ClearButtonEnabled="True" />
-              </StackPanel>
+              <ui:TextBox x:Name="SearchBox" Grid.Column="1" Width="260" VerticalAlignment="Top"
+                          PlaceholderText="Search name, PID or publisher (Ctrl+F)" Icon="{ui:SymbolIcon Search24}"
+                          AutomationProperties.Name="Search running programs"
+                          Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" ClearButtonEnabled="True" />
             </Grid>
 
+            <WrapPanel Margin="0,0,0,8">
+              <ui:ToggleSwitch Content="Details view" IsChecked="{Binding IsDetailsView}" Margin="0,0,16,8" VerticalAlignment="Center"
+                               ToolTip="One flat list of every process with PID, user and more, like Task Manager's Details tab" />
+              <ui:ToggleSwitch Content="Only flagged" IsChecked="{Binding ShowFlaggedOnly}" Margin="0,0,16,8" VerticalAlignment="Center"
+                               Visibility="{Binding ShowFlaggedToggle, Converter={StaticResource BoolToVisibility}}"
+                               ToolTip="Show only the processes marked as worth a closer look" />
+              <ui:DropDownButton x:Name="ColumnsButton" Content="Columns" Icon="{ui:SymbolIcon ColumnTriple24}" Margin="0,0,8,8"
+                                 ToolTip="Choose which columns the list shows. Saved for each view." />
+              <ui:DropDownButton x:Name="SpeedButton" Content="Update speed" Icon="{ui:SymbolIcon Timer24}" Margin="0,0,8,8"
+                                 ToolTip="How often the list refreshes, or pause it to read in peace" />
+              <ui:Button Content="{Binding PauseText}" Icon="{Binding PauseIcon, Converter={StaticResource SymbolToIcon}}" Margin="0,0,8,8"
+                         Command="{Binding TogglePauseCommand}"
+                         ToolTip="Stop or restart the live updates. The list keeps its last values while paused." />
+            </WrapPanel>
+
             <ui:DataGrid AutomationProperties.Name="Running programs" x:Name="ProcessGrid" Style="{StaticResource ProcessGrid}" ItemsSource="{Binding Rows}"
+                         IsReadOnly="True" KeyboardNavigation.TabNavigation="Once"
                          SelectedItem="{Binding SelectedRow, Mode=TwoWay}"
                          ContextMenu="{StaticResource ProcessActions}"
+                         ContextMenuOpening="OnGridContextMenuOpening"
                          Sorting="OnGridSorting"
                          PreviewMouseRightButtonDown="OnGridRightButtonDown"
+                         MouseDoubleClick="OnGridDoubleClick"
                          Visibility="{Binding HasNoRows, Converter={StaticResource InverseBoolToVisibility}}">
-              <ui:DataGrid.InputBindings>
-                <KeyBinding Key="Delete" Command="{Binding EndTaskCommand}" />
-              </ui:DataGrid.InputBindings>
               <ui:DataGrid.Columns>
                 <DataGridTemplateColumn Header="Name" Width="2.4*" MinWidth="260" SortMemberPath="Name" CanUserSort="True" CellTemplate="{StaticResource NameCell}" />
+                <DataGridTemplateColumn Header="Status" Width="130" SortMemberPath="Status" CanUserSort="True" CellTemplate="{StaticResource StatusCell}" />
                 <DataGridTextColumn Header="PID" Width="70" SortMemberPath="Pid" Binding="{Binding PidText}" ElementStyle="{StaticResource NumberCell}" />
-                <DataGridTextColumn Header="CPU" Width="70" SortMemberPath="Cpu" SortDirection="Descending" Binding="{Binding CpuText}" ElementStyle="{StaticResource BusyNumberCell}" />
-                <DataGridTextColumn Header="Memory" Width="90" SortMemberPath="Memory" Binding="{Binding MemoryText}" ElementStyle="{StaticResource NumberCell}" />
+                <DataGridTemplateColumn Header="CPU" Width="72" SortMemberPath="Cpu" SortDirection="Descending" CanUserSort="True" CellTemplate="{StaticResource CpuCell}" />
+                <DataGridTemplateColumn Header="Memory" Width="96" SortMemberPath="Memory" CanUserSort="True" CellTemplate="{StaticResource MemoryCell}" />
+                <DataGridTemplateColumn Header="Disk" Width="90" SortMemberPath="Disk" CanUserSort="True" CellTemplate="{StaticResource DiskCell}" />
                 <DataGridTextColumn Header="Disk read" Width="90" SortMemberPath="DiskRead" Binding="{Binding ReadText}" ElementStyle="{StaticResource NumberCell}" />
                 <DataGridTextColumn Header="Disk write" Width="90" SortMemberPath="DiskWrite" Binding="{Binding WriteText}" ElementStyle="{StaticResource NumberCell}" />
-                <DataGridTextColumn Header="GPU" Width="64" SortMemberPath="Gpu" Binding="{Binding GpuText}" ElementStyle="{StaticResource BusyNumberCell}" />
+                <DataGridTemplateColumn Header="Network" Width="120" SortMemberPath="Network" CanUserSort="True" CellTemplate="{StaticResource NetworkCell}" />
+                <DataGridTemplateColumn Header="GPU" Width="68" SortMemberPath="Gpu" CanUserSort="True" CellTemplate="{StaticResource GpuCell}" />
+                <DataGridTextColumn Header="GPU engine" Width="150" SortMemberPath="GpuEngine" Binding="{Binding GpuEngineText}" ElementStyle="{StaticResource TextCell}" />
+                <DataGridTemplateColumn Header="Power usage" Width="110" SortMemberPath="Power" CanUserSort="True" CellTemplate="{StaticResource PowerCell}" />
+                <DataGridTemplateColumn Header="Power usage trend" Width="130" SortMemberPath="PowerTrend" CanUserSort="True" CellTemplate="{StaticResource PowerTrendCell}" />
                 <DataGridTemplateColumn Header="Publisher" Width="1.3*" MinWidth="150" SortMemberPath="Publisher" CanUserSort="True" CellTemplate="{StaticResource PublisherCell}" />
-                <DataGridTextColumn Header="User" Width="110" SortMemberPath="User" Binding="{Binding UserText}" ElementStyle="{StaticResource TextCell}" />
+                <DataGridTextColumn Header="User name" Width="110" SortMemberPath="User" Binding="{Binding UserText}" ElementStyle="{StaticResource TextCell}" />
+                <DataGridTextColumn Header="Session" Width="70" SortMemberPath="Session" Binding="{Binding SessionText}" ElementStyle="{StaticResource NumberCell}" />
+                <DataGridTextColumn Header="Architecture" Width="96" SortMemberPath="Architecture" Binding="{Binding ArchitectureText}" ElementStyle="{StaticResource TextCell}" />
+                <DataGridTextColumn Header="Elevated" Width="80" SortMemberPath="Elevated" Binding="{Binding ElevatedText}" ElementStyle="{StaticResource TextCell}" />
+                <DataGridTextColumn Header="Priority" Width="100" SortMemberPath="Priority" Binding="{Binding PriorityText}" ElementStyle="{StaticResource TextCell}" />
+                <DataGridTextColumn Header="Handles" Width="80" SortMemberPath="Handles" Binding="{Binding HandlesText}" ElementStyle="{StaticResource NumberCell}" />
+                <DataGridTextColumn Header="Threads" Width="76" SortMemberPath="Threads" Binding="{Binding ThreadsText}" ElementStyle="{StaticResource NumberCell}" />
                 <DataGridTemplateColumn Header="Started" Width="84" SortMemberPath="StartTime" CanUserSort="True" CellTemplate="{StaticResource StartedCell}" />
+                <DataGridTextColumn Header="Description" Width="1.2*" MinWidth="140" SortMemberPath="Description" Binding="{Binding DescriptionText}" ElementStyle="{StaticResource TextCell}" />
+                <DataGridTemplateColumn Header="Command line" Width="2*" MinWidth="200" SortMemberPath="CommandLine" CanUserSort="True" CellTemplate="{StaticResource CommandLineCell}" />
                 <DataGridTemplateColumn Header="File" Width="1.6*" MinWidth="180" SortMemberPath="Path" CanUserSort="True" CellTemplate="{StaticResource PathCell}" />
               </ui:DataGrid.Columns>
             </ui:DataGrid>
@@ -287,7 +437,7 @@
                 <ui:TextBlock Text="{Binding SelectedRow.ProtectionReason}" TextWrapping="Wrap" MaxWidth="900" />
               </StackPanel>
             </Border>
-            <Grid>
+            <Grid Margin="0,0,0,10">
               <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
@@ -295,6 +445,8 @@
                 <ColumnDefinition Width="*" />
               </Grid.ColumnDefinitions>
               <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
@@ -311,7 +463,26 @@
               <ui:TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding SelectedRow.PriorityText}" Margin="0,2,24,2" />
               <ui:TextBlock Grid.Row="2" Grid.Column="2" Style="{StaticResource Muted}" Text="Started by PID" Margin="0,2,12,2" />
               <ui:TextBlock Grid.Row="2" Grid.Column="3" Text="{Binding SelectedRow.ParentText}" Margin="0,2,0,2" />
+              <ui:TextBlock Grid.Row="3" Grid.Column="0" Style="{StaticResource Muted}" Text="Architecture" Margin="0,2,12,2" />
+              <ui:TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding SelectedRow.ArchitectureText}" Margin="0,2,24,2" />
+              <ui:TextBlock Grid.Row="3" Grid.Column="2" Style="{StaticResource Muted}" Text="Administrator rights" Margin="0,2,12,2" />
+              <ui:TextBlock Grid.Row="3" Grid.Column="3" Text="{Binding SelectedRow.ElevatedText}" Margin="0,2,0,2" />
+              <ui:TextBlock Grid.Row="4" Grid.Column="0" Style="{StaticResource Muted}" Text="Command line" Margin="0,2,12,2" />
+              <ui:TextBlock Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="3" Text="{Binding SelectedRow.CommandLineText}" TextWrapping="Wrap" Margin="0,2,0,2" />
             </Grid>
+            <WrapPanel>
+              <ui:Button Content="Switch to" Icon="{ui:SymbolIcon Window24}" Margin="0,0,8,0" Command="{Binding SwitchToCommand}"
+                         ToolTip="Bring the program's window to the front (Enter)" />
+              <ui:Button Content="Restart" Icon="{ui:SymbolIcon ArrowClockwise24}" Margin="0,0,8,0" Command="{Binding RestartCommand}"
+                         ToolTip="Close the program and start it again the same way" />
+              <ui:Button Content="Suspend" Icon="{ui:SymbolIcon PauseCircle24}" Margin="0,0,8,0" Command="{Binding SuspendCommand}"
+                         ToolTip="Pause the program so it uses no processor time" />
+              <ui:Button Content="Resume" Icon="{ui:SymbolIcon PlayCircle24}" Margin="0,0,8,0" Command="{Binding ResumeCommand}"
+                         ToolTip="Let a suspended program run again" />
+              <ui:Button Content="Efficiency mode" Icon="{ui:SymbolIcon LeafOne24}" Margin="0,0,8,0" Command="{Binding ToggleEfficiencyModeCommand}"
+                         ToolTip="Turn efficiency mode on or off for this program" />
+              <ui:Button Content="Open file location" Icon="{ui:SymbolIcon FolderOpen24}" Command="{Binding OpenFileLocationCommand}" />
+            </WrapPanel>
           </StackPanel>
         </ui:Card>
 
@@ -320,18 +491,22 @@
           <ui:CardExpander.Header>
             <StackPanel>
               <ui:TextBlock FontTypography="BodyStrong" Text="About this list" />
-              <ui:TextBlock Style="{StaticResource Muted}" Text="What the columns mean, what PC Checker will not end and how flags work." TextWrapping="Wrap" />
+              <ui:TextBlock Style="{StaticResource Muted}" Text="What the columns and groups mean, what PC Checker will not touch and how flags work." TextWrapping="Wrap" />
             </StackPanel>
           </ui:CardExpander.Header>
           <StackPanel>
             <ui:TextBlock TextWrapping="Wrap" Margin="0,0,0,8"
-                          Text="CPU is a share of the whole processor. Memory is the private working set (what Task Manager shows). GPU adds up every graphics engine a program uses; it is empty when the graphics driver does not report it." />
+                          Text="Apps have a window on the taskbar; the helpers they started are listed under them. Background processes run without a window. Windows processes are part of Windows itself." />
             <ui:TextBlock TextWrapping="Wrap" Margin="0,0,0,8"
-                          Text="Windows' own core processes (System, Registry, Memory Compression, smss, csrss, wininit, winlogon, services, lsass) and PC Checker itself cannot be ended or re-prioritised here, because that would crash or restart the PC." />
+                          Text="CPU is a share of the whole processor. Memory is the private working set (what Task Manager shows). GPU is the busiest graphics engine. Network counts open connections: Windows does not report how much data each program sends without a trace, so this is not a speed. Power usage is an estimate from processor, graphics and disk use. Stronger shading means busier." />
+            <ui:TextBlock TextWrapping="Wrap" Margin="0,0,0,8"
+                          Text="End task first asks a program with a window to close, so it can save; it is only forced after you agree. Suspend pauses a program until you resume it. Efficiency mode gives a program less power and Low priority." />
+            <ui:TextBlock TextWrapping="Wrap" Margin="0,0,0,8"
+                          Text="Windows' own core processes (System, Registry, Memory Compression, smss, csrss, wininit, winlogon, services, lsass) and PC Checker itself cannot be ended, paused or changed here, because that would crash or restart the PC. Windows processes cannot be suspended or put in efficiency mode." />
             <ui:TextBlock TextWrapping="Wrap" Margin="0,0,0,8"
                           Text="A warning sign means: it runs from a Temp or AppData folder without a valid signature, it uses a lot of the PC without being a known or signed program, or it has a Windows name but runs from another folder. It is a hint, not proof, and PC Checker never acts on it by itself." />
             <ui:TextBlock TextWrapping="Wrap"
-                          Text="Ending a program or changing its priority is recorded in the Action Journal. Realtime priority is only offered in Advanced mode because it can freeze the PC." />
+                          Text="Every change (end, restart, suspend, priority, affinity, efficiency mode, dump files, Run new task) is recorded in the Action Journal. Realtime priority is only offered in Advanced mode because it can freeze the PC." />
           </StackPanel>
         </ui:CardExpander>
       </StackPanel>

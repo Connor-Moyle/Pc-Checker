@@ -9,7 +9,7 @@ namespace PcChecker.Core.Processes;
 /// outcome value instead of throwing. Processes are opened with limited query rights only (which also works for most
 /// protected processes); terminate and set-information rights are requested only for the action itself.
 /// </summary>
-internal static class ProcessNative
+internal static partial class ProcessNative
 {
     private const uint ProcessTerminate = 0x0001;
     private const uint ProcessSetInformation = 0x0200;
@@ -28,7 +28,11 @@ internal static class ProcessNative
     internal readonly record struct ProcessEntry(int Pid, int ParentPid, string Name);
 
     /// <summary>Cumulative counters of one process; <see cref="Ok"/> is false when the process could not be opened.</summary>
-    internal readonly record struct Reading(bool Ok, long CreationFileTime, long CpuTicks, long ReadBytes, long WriteBytes, long PrivateBytes, uint PriorityClass);
+    internal readonly record struct Reading(bool Ok, long CreationFileTime, long CpuTicks, long ReadBytes, long WriteBytes, long PrivateBytes, uint PriorityClass)
+    {
+        /// <summary>True when Windows throttles the process with EcoQoS (efficiency mode).</summary>
+        public bool Efficiency { get; init; }
+    }
 
     internal enum EndOutcome
     {
@@ -125,7 +129,7 @@ internal static class ProcessNative
             }
 
             uint priority = GetPriorityClass(handle);
-            return new Reading(true, created, cpu, read, write, privateBytes, priority);
+            return new Reading(true, created, cpu, read, write, privateBytes, priority) { Efficiency = ReadEfficiency(handle) };
         }
         catch
         {

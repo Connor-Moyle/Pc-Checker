@@ -183,6 +183,8 @@ public sealed class JsonSettingsService : ISettingsService
         s.Gaming.Profiles ??= [];
         Scheduling.ScheduleRules.EnsureSettings(s);
         s.DriverSources ??= new Drivers.Sources.DriverSourceSettings();
+        s.Processes ??= new Processes.ProcessesSettings();
+        s.Processes.RecentRunCommands ??= [];
         return s;
     }
 }

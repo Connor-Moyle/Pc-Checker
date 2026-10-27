@@ -68,6 +68,76 @@ public static class ProcessMath
         return sums;
     }
 
+    /// <summary>
+    /// GPU use per process id the way Task Manager shows it: the busiest engine's utilisation (not the sum of all
+    /// engines), with that engine's name, "GPU 0 - 3D". Graphics adapters are numbered in the order of their LUIDs
+    /// (idle ones included, so the numbers do not change between samples). Instances without a process id and idle
+    /// engines are otherwise ignored.
+    /// </summary>
+    public static IReadOnlyDictionary<int, (double Percent, string Engine)> BusiestGpuEngineByPid(IEnumerable<KeyValuePair<string, double>> engineValues)
+    {
+        ArgumentNullException.ThrowIfNull(engineValues);
+        var parsed = new List<(int Pid, string Luid, string Type, double Value)>();
+        var luids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (instance, value) in engineValues)
+        {
+            if (!ProcessMetrics.TryParseGpuEnginePid(instance, out int pid))
+            {
+                continue;
+            }
+
+            // Every adapter counts for the numbering, idle or not, so "GPU 1" stays "GPU 1" while "GPU 0" rests.
+            string luid = Part(instance, "_luid_", "_phys_") ?? string.Empty;
+            luids.Add(luid);
+            if (double.IsNaN(value) || value <= 0)
+            {
+                continue;
+            }
+
+            parsed.Add((pid, luid, Part(instance, "_engtype_", null) ?? "Engine", value));
+        }
+
+        var adapters = luids.Order(StringComparer.OrdinalIgnoreCase)
+            .Select((luid, index) => (luid, index)).ToDictionary(x => x.luid, x => x.index, StringComparer.OrdinalIgnoreCase);
+        var result = new Dictionary<int, (double Percent, string Engine)>();
+        foreach (var item in parsed)
+        {
+            if (!result.TryGetValue(item.Pid, out var current) || item.Value > current.Percent)
+            {
+                string engine = string.Create(CultureInfo.InvariantCulture, $"GPU {adapters[item.Luid]} - {item.Type}");
+                result[item.Pid] = (Math.Min(100, item.Value), engine);
+            }
+        }
+
+        return result;
+    }
+
+    /// <summary>"0 MB/s", "0.1 MB/s", "12.4 MB/s": disk traffic as Task Manager writes it.</summary>
+    public static string FormatMegabytesPerSecond(double bytesPerSecond)
+    {
+        double mb = double.IsFinite(bytesPerSecond) ? Math.Max(0, bytesPerSecond) / (1024.0 * 1024.0) : 0;
+        if (mb < 0.05)
+        {
+            return "0 MB/s";
+        }
+
+        return mb.ToString(mb < 100 ? "0.0" : "0", CultureInfo.InvariantCulture) + " MB/s";
+    }
+
+    private static string? Part(string instance, string start, string? end)
+    {
+        int index = instance.IndexOf(start, StringComparison.OrdinalIgnoreCase);
+        if (index < 0)
+        {
+            return null;
+        }
+
+        int from = index + start.Length;
+        int to = end is null ? -1 : instance.IndexOf(end, from, StringComparison.OrdinalIgnoreCase);
+        string value = to < 0 ? instance[from..] : instance[from..to];
+        return value.Length == 0 ? null : value;
+    }
+
     /// <summary>"0 B/s", "512 KB/s", "12.4 MB/s".</summary>
     public static string FormatRate(double bytesPerSecond)
     {

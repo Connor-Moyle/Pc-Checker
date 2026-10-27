@@ -119,6 +119,20 @@ All notable changes to PC Checker are recorded here. The format follows
   be hidden. Debloat adds AMD & NVIDIA software tweaks (offered only when that
   software is installed), and the AMD and NVIDIA installer-folder cleanup also
   waits for versioned driver self-extractors started from a download folder.
+- **Task manager → Processes** now does what Task Manager's Processes and
+  Details tabs do: Apps (with the helpers they started under them),
+  Background processes and Windows processes, or a flat *Details view*;
+  Status (Not responding, Suspended, Efficiency mode), Disk, Network
+  connections, GPU and GPU engine, Power usage and its trend, user, session,
+  architecture, elevation, handles, threads, description and command line,
+  with heat-map shading and a column chooser that is remembered per view.
+  New actions: *End task* asks a program to close first and only forces it
+  after you agree, *Restart*, *Suspend* / *Resume*, *Efficiency mode*, *Set
+  affinity*, *Switch to*, *Minimize* / *Maximize*, *Properties*, *Create
+  memory dump file* and *Run new task* (with or without administrator rights).
+  Update speed High, Normal, Low or Paused; Enter, Delete, Ctrl+F and the
+  arrow keys work like in Task Manager. Windows' own processes are never
+  suspended or throttled, and every change is confirmed and journaled.
 
 ### Fixed
 - **Debloat tweaks that did not seem to apply.** Batches that need a restore

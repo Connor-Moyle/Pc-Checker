@@ -82,6 +82,114 @@ public sealed record ProcessInfo(
 {
     /// <summary>Identity of this run of the program (Windows reuses process ids).</summary>
     public string Key => ProcessKey.For(Pid, StartTime);
+
+    /// <summary>Windows session: 0 for services, 1 and up for signed-in users. Null when unknown.</summary>
+    public int? SessionId { get; init; }
+
+    /// <summary>Number of threads, or null when unknown.</summary>
+    public int? ThreadCount { get; init; }
+
+    /// <summary>Number of open handles (files, registry keys, events…), or null when unknown.</summary>
+    public int? HandleCount { get; init; }
+
+    /// <summary>Processor architecture the program was built for.</summary>
+    public ProcessArchitecture Architecture { get; init; }
+
+    /// <summary>True when the program runs with administrator rights; null when Windows does not tell.</summary>
+    public bool? IsElevated { get; init; }
+
+    /// <summary>The full command line, or null when it cannot be read (protected processes).</summary>
+    public string? CommandLine { get; init; }
+
+    /// <summary>File description from the program's version information ("Google Chrome").</summary>
+    public string? Description { get; init; }
+
+    /// <summary>Running, suspended or not responding.</summary>
+    public ProcessRunState State { get; init; }
+
+    /// <summary>True when Windows runs the program in efficiency mode (EcoQoS).</summary>
+    public bool EfficiencyMode { get; init; }
+
+    /// <summary>Open network connections, or null when they could not be counted.</summary>
+    public int? ConnectionCount { get; init; }
+
+    /// <summary>Busiest graphics engine, for example "GPU 0 - 3D", or null when the GPU is idle or not reported.</summary>
+    public string? GpuEngine { get; init; }
+
+    /// <summary>Handle of the program's main visible window, 0 when it has none.</summary>
+    public long WindowHandle { get; init; }
+
+    /// <summary>Title of the main window.</summary>
+    public string? WindowTitle { get; init; }
+
+    /// <summary>True when the program shows a window on the taskbar (Task Manager lists it under Apps).</summary>
+    public bool HasWindow => WindowHandle != 0;
+
+    /// <summary>Disk read and write together, bytes per second.</summary>
+    public double DiskBytesPerSecond => ReadBytesPerSecond + WriteBytesPerSecond;
+}
+
+/// <summary>Processor architecture of a process.</summary>
+public enum ProcessArchitecture
+{
+    Unknown,
+    X86,
+    X64,
+    Arm64,
+    Arm,
+}
+
+/// <summary>What Task Manager's Status column says.</summary>
+public enum ProcessRunState
+{
+    /// <summary>Running normally (the Status column stays empty).</summary>
+    Running,
+
+    /// <summary>Every thread is paused, by Windows (Store apps in the background) or by a user.</summary>
+    Suspended,
+
+    /// <summary>The program's window has not reacted to Windows for at least five seconds.</summary>
+    NotResponding,
+}
+
+/// <summary>The three lists of Task Manager's Processes tab.</summary>
+public enum ProcessCategory
+{
+    /// <summary>Programs with a window on the taskbar.</summary>
+    App,
+
+    /// <summary>Programs without a window: helpers, updaters, drivers' tools and third-party services.</summary>
+    Background,
+
+    /// <summary>Parts of Windows itself.</summary>
+    Windows,
+}
+
+/// <summary>Task Manager's "Power usage" scale.</summary>
+public enum PowerUsage
+{
+    VeryLow,
+    Low,
+    Moderate,
+    High,
+    VeryHigh,
+}
+
+/// <summary>How often the list refreshes (Task Manager's "Real time update speed").</summary>
+public enum ProcessUpdateSpeed
+{
+    High,
+    Normal,
+    Low,
+    Paused,
+}
+
+/// <summary>What to do with a program's window.</summary>
+public enum WindowCommand
+{
+    SwitchTo,
+    Minimize,
+    Maximize,
 }
 
 /// <summary>Everything one refresh of the Processes page shows.</summary>
@@ -95,6 +203,9 @@ public sealed record ProcessSnapshot(
     IReadOnlyList<string> Warnings)
 {
     public static ProcessSnapshot Empty { get; } = new(DateTimeOffset.MinValue, [], 0, 0, 0, false, []);
+
+    /// <summary>True when network connections could be counted per program.</summary>
+    public bool ConnectionsAvailable { get; init; }
 }
 
 /// <summary>A well-known program: a friendly name and a plain-English explanation of what it does.</summary>

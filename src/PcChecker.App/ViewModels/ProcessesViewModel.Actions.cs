@@ -2,12 +2,13 @@ using System.Windows;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using PcChecker.App.Localization;
+using PcChecker.App.Services;
 using PcChecker.Core.Common;
 using PcChecker.Core.Processes;
 
 namespace PcChecker.App.ViewModels;
 
-/// <summary>Actions on the selected process: each system change is confirmed first and reported afterwards.</summary>
+/// <summary>End task, end process tree, priority, file location, web search and copy: each system change is confirmed first and reported afterwards.</summary>
 public sealed partial class ProcessesViewModel
 {
     private static string JournalNote => Loc.T("It is recorded in the Action Journal (Logs page). No restore point is needed because nothing in Windows' settings changes.");
@@ -20,33 +21,79 @@ public sealed partial class ProcessesViewModel
 
     private bool HasFile() => SelectedRow?.PathText is { Length: > 0 };
 
-    private bool HasProcess() => SelectedRow?.Process is not null;
+    private bool HasProcess() => SelectedRow is { IsSection: false, Process: not null };
 
     [RelayCommand(CanExecute = nameof(CanEndSelected))]
     private async Task EndTaskAsync()
     {
-        if (IsBusy || SelectedRow is not { Process: { } process } row || !row.CanEnd)
+        if (IsBusy || SelectedRow is not { Process: { } lead } row || !row.CanEnd)
         {
             return;
         }
 
-        if (row.Group is { } group)
-        {
-            await EndGroupAsync(row, group);
-            return;
-        }
-
-        string message = Loc.F("{0} closes straight away. Anything unsaved in it is lost.", process.Name)
-                         + "\n\n" + row.WhatIsThis
-                         + WindowsComponentWarning(row)
+        var members = row.Members.Where(m => !CriticalProcessRules.IsCritical(m.Name, m.Pid, _processes.OwnProcessId)).ToList();
+        string title = row.Group?.Title ?? ProcessSorting.TitleOf(lead);
+        var state = row.Group?.State ?? lead.State;
+        var plan = ProcessStatusRules.PlanEndTask(lead.HasWindow, state);
+        string first = plan == EndTaskPlan.CloseWindowsFirst
+            ? Loc.F("{0} is asked to close, as if you clicked its X, so it can save your work. If it is still open after a few seconds, PC Checker asks before forcing it.", title)
+            : state == ProcessRunState.NotResponding
+                ? Loc.F("{0} is not responding, so it is ended straight away. Anything unsaved in it is lost.", title)
+                : row.IsGroup
+                    ? Loc.F("All {0} processes of {1} close straight away. Anything unsaved in them is lost.", members.Count, title)
+                    : Loc.F("{0} closes straight away. Anything unsaved in it is lost.", title);
+        string message = first + "\n\n" + row.WhatIsThis + WindowsComponentWarning(row)
                          + "\n\n" + Loc.T("This cannot be undone; start the program again to get it back.") + " " + JournalNote;
-        if (!await _dialogs.ConfirmAsync(Loc.F("End {0}?", process.Name), message, Loc.T("End task"), isDanger: true))
+        if (!await _dialogs.ConfirmAsync(Loc.F("End {0}?", title), message, Loc.T("End task"), isDanger: true))
         {
             return;
         }
 
-        await RunActionAsync(ct => _processes.EndProcessAsync(process, includeChildren: false, ct),
-            Loc.T("Program ended"), Loc.F("Could not end {0}", process.Name), Loc.F("Ending {0}\u2026", process.Name));
+        if (plan == EndTaskPlan.CloseWindowsFirst)
+        {
+            OperationResult<bool>? closed = null;
+            await RunBusyAsync(async ct => closed = await _processes.CloseWindowsAsync(lead, ct), Loc.F("Asking {0} to close…", title));
+            if (closed is null)
+            {
+                return;
+            }
+
+            if (!closed.Success)
+            {
+                _notifications.Error(Loc.F("Could not close {0}", title), closed.Message);
+                return;
+            }
+
+            if (closed.Value)
+            {
+                _notifications.Success(Loc.T("Program closed"), closed.Message);
+                await SampleNowAsync();
+                return;
+            }
+
+            var choice = await _dialogs.ChooseAsync(Loc.F("{0} is still open", title),
+                Loc.T("It may be waiting for you to save something. Switch to it to check, or end it now; anything unsaved is lost."),
+                Loc.T("End now"), lead.HasWindow ? Loc.T("Switch to it") : null);
+            if (choice == DialogChoice.Secondary)
+            {
+                Report(_processes.ShowWindow(lead, WindowCommand.SwitchTo), Loc.T("Could not switch to the program"));
+                return;
+            }
+
+            if (choice != DialogChoice.Primary)
+            {
+                return;
+            }
+        }
+
+        if (row.IsGroup)
+        {
+            await EndMembersAsync(title, members);
+            return;
+        }
+
+        await RunActionAsync(ct => _processes.EndProcessAsync(lead, includeChildren: false, ct),
+            Loc.T("Program ended"), Loc.F("Could not end {0}", title), Loc.F("Ending {0}…", title));
     }
 
     [RelayCommand(CanExecute = nameof(CanEndTree))]
@@ -78,7 +125,7 @@ public sealed partial class ProcessesViewModel
         }
 
         await RunActionAsync(ct => _processes.EndProcessAsync(process, includeChildren: true, ct),
-            Loc.T("Process tree ended"), Loc.F("Could not end {0}", process.Name), Loc.F("Ending {0} and the programs it started\u2026", process.Name));
+            Loc.T("Process tree ended"), Loc.F("Could not end {0}", process.Name), Loc.F("Ending {0} and the programs it started…", process.Name));
     }
 
     [RelayCommand(CanExecute = nameof(CanSetPriority))]
@@ -107,7 +154,7 @@ public sealed partial class ProcessesViewModel
         }
 
         await RunActionAsync(ct => _processes.SetPriorityAsync(process, priority, IsAdvancedMode, ct),
-            Loc.T("Priority changed"), Loc.F("Could not change the priority of {0}", process.Name), Loc.T("Changing the priority\u2026"));
+            Loc.T("Priority changed"), Loc.F("Could not change the priority of {0}", process.Name), Loc.T("Changing the priority…"));
     }
 
     [RelayCommand(CanExecute = nameof(HasFile))]
@@ -151,18 +198,9 @@ public sealed partial class ProcessesViewModel
         }
     }
 
-    private async Task EndGroupAsync(RunningProcessRow row, ProcessGroup group)
+    /// <summary>Ends several processes one by one (newest first) behind the busy overlay and reports the outcome once.</summary>
+    private async Task EndMembersAsync(string title, IReadOnlyList<ProcessInfo> members)
     {
-        var members = group.Members.Where(m => !CriticalProcessRules.IsCritical(m.Name, m.Pid, _processes.OwnProcessId)).ToList();
-        string message = Loc.F("All {0} processes of {1} close straight away. Anything unsaved in them is lost.", members.Count, group.Title)
-                         + "\n\n" + row.WhatIsThis
-                         + WindowsComponentWarning(row)
-                         + "\n\n" + Loc.T("This cannot be undone; start the program again to get it back.") + " " + JournalNote;
-        if (!await _dialogs.ConfirmAsync(Loc.F("End {0}?", group.Title), message, Loc.T("End task"), isDanger: true))
-        {
-            return;
-        }
-
         await RunBusyAsync(async ct =>
         {
             int ended = 0;
@@ -183,13 +221,13 @@ public sealed partial class ProcessesViewModel
 
             if (failures.Count == 0)
             {
-                _notifications.Success(Loc.T("Program ended"), Loc.F("{0}: {1} process(es) ended.", group.Title, ended));
+                _notifications.Success(Loc.T("Program ended"), Loc.F("{0}: {1} process(es) ended.", title, ended));
             }
             else
             {
-                _notifications.Warning(Loc.F("Could not end {0}", group.Title), string.Join(" ", failures.Distinct()));
+                _notifications.Warning(Loc.F("Could not end {0}", title), string.Join(" ", failures.Distinct()));
             }
-        }, Loc.F("Ending {0}\u2026", group.Title));
+        }, Loc.F("Ending {0}…", title));
         await SampleNowAsync();
     }
 
@@ -204,13 +242,17 @@ public sealed partial class ProcessesViewModel
             try
             {
                 var result = await action(ct);
-                if (result.Success)
+                if (!result.Success)
                 {
-                    _notifications.Success(successTitle, result.Message);
+                    _notifications.Error(failureTitle, result.Message);
+                }
+                else if (result.Message.Contains("(demo)", StringComparison.Ordinal))
+                {
+                    _notifications.Info(Loc.T("Demo mode"), result.Message);
                 }
                 else
                 {
-                    _notifications.Error(failureTitle, result.Message);
+                    _notifications.Success(successTitle, result.Message);
                 }
             }
             catch (OperationCanceledException)
@@ -225,6 +267,18 @@ public sealed partial class ProcessesViewModel
         }, busyText);
 
         await SampleNowAsync();
+    }
+
+    /// <summary>Re-evaluates every command after the selection or the selected row's values changed.</summary>
+    private void RefreshSelectionState()
+    {
+        EndTaskCommand.NotifyCanExecuteChanged();
+        EndTreeCommand.NotifyCanExecuteChanged();
+        SetPriorityCommand.NotifyCanExecuteChanged();
+        OpenFileLocationCommand.NotifyCanExecuteChanged();
+        SearchOnlineCommand.NotifyCanExecuteChanged();
+        CopyDetailsCommand.NotifyCanExecuteChanged();
+        RefreshTaskActionState();
     }
 
     /// <summary>Translatable priority name (literal strings so the extractor collects them).</summary>

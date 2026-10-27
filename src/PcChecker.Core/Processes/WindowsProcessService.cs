@@ -8,24 +8,29 @@ namespace PcChecker.Core.Processes;
 
 /// <summary>
 /// Windows implementation of <see cref="IProcessService"/>: a Toolhelp snapshot for the list, limited-rights process
-/// handles for CPU time, I/O and the private working set, the "GPU Engine" performance counters for GPU use, and
-/// cached Authenticode checks for publishers. Ending a process and changing its priority run through
-/// <see cref="IChangeGuard"/> (journaled, no restore point: neither touches the system configuration).
+/// handles for CPU time, I/O, the private working set and efficiency mode, one NtQuerySystemInformation call for
+/// threads, handles, sessions and suspended processes, the window list for Apps and "Not responding", the TCP and UDP
+/// tables for connections, the "GPU Engine" performance counters for GPU use, and cached Authenticode checks for
+/// publishers. Every action runs through <see cref="IChangeGuard"/> (journaled, no restore point: none of them touches
+/// the system configuration).
 /// </summary>
 public sealed partial class WindowsProcessService : IProcessService, IDisposable
 {
     private const string Module = "Processes";
     private const string NotOnWindows = "The process list is only available on Windows.";
     private const int SignatureChecksPerBatch = 40;
+    private const int DescriptionsPerSample = 40;
     private const int MaxGpuFailures = 3;
 
     private readonly IChangeGuard _guard;
     private readonly ILogger<WindowsProcessService> _logger;
     private readonly SemaphoreSlim _sampleGate = new(1, 1);
     private readonly ProcessRateTracker _rates = new();
+    private readonly HungWindowTracker _hung = new();
     private readonly SignatureCache _signatures = new(AuthenticodeVerifier.Verify);
-    private readonly Dictionary<string, (string? Path, string? User)> _identities = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, Identity> _identities = new(StringComparer.Ordinal);
     private readonly Dictionary<string, string?> _accounts = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, string?> _descriptions = new(StringComparer.OrdinalIgnoreCase);
     private readonly CancellationTokenSource _disposed = new();
     private Dictionary<string, CounterSample> _gpuPrevious = new(StringComparer.Ordinal);
     private PerformanceCounterCategory? _gpuCategory;
@@ -42,6 +47,8 @@ public sealed partial class WindowsProcessService : IProcessService, IDisposable
     }
 
     public int OwnProcessId { get; } = Environment.ProcessId;
+
+    public int LogicalProcessorCount { get; } = Environment.ProcessorCount;
 
     public void ResetRates() => Interlocked.Exchange(ref _resetRequested, 1);
 
@@ -80,8 +87,12 @@ public sealed partial class WindowsProcessService : IProcessService, IDisposable
             warnings.Add("Windows did not return the list of running processes. Try again in a moment.");
         }
 
+        var system = ProcessNative.ReadSystemDetails();
+        var windows = ProcessWindows.Enumerate();
+        var connections = ProcessConnections.Count();
         var now = DateTimeOffset.Now;
         var counters = new List<ProcessCounters>(entries.Count);
+        var efficiency = new Dictionary<string, bool>(StringComparer.Ordinal);
         var liveKeys = new HashSet<string>(StringComparer.Ordinal);
         foreach (var entry in entries)
         {
@@ -95,8 +106,9 @@ public sealed partial class WindowsProcessService : IProcessService, IDisposable
             var start = reading.Ok ? ProcessNative.FromFileTime(reading.CreationFileTime) : null;
             string key = ProcessKey.For(entry.Pid, start);
             liveKeys.Add(key);
-            var (path, user) = Identity(key, entry.Pid);
-            counters.Add(new ProcessCounters(entry.Pid, entry.ParentPid, entry.Name, path, user, start,
+            efficiency[key] = reading.Efficiency;
+            var identity = IdentityOf(key, entry.Pid);
+            counters.Add(new ProcessCounters(entry.Pid, entry.ParentPid, entry.Name, identity.Path, identity.User, start,
                 TimeSpan.FromTicks(reading.CpuTicks), reading.PrivateBytes, reading.ReadBytes, reading.WriteBytes,
                 reading.Ok ? PriorityRules.FromPriorityClass(reading.PriorityClass) : null));
         }
@@ -116,20 +128,49 @@ public sealed partial class WindowsProcessService : IProcessService, IDisposable
             used = Math.Max(0, totalBytes - availableBytes);
         }
 
+        var hungReadings = counters.Where(c => windows.TryGetValue(c.Pid, out var w) && w.MarkedHung)
+            .ToDictionary(c => c.Key, c => windows[c.Pid].PingTimedOut, StringComparer.Ordinal);
+        var confirmedHung = _hung.Update(hungReadings);
+        int descriptionBudget = DescriptionsPerSample;
+
         var processes = counters.Select(c =>
         {
             var r = rates.GetValueOrDefault(c.Key);
-            double? gpuPercent = gpu is null ? null : gpu.GetValueOrDefault(c.Pid);
+            var identity = _identities.GetValueOrDefault(c.Key);
+            var details = system.GetValueOrDefault(c.Pid);
+            bool hasDetails = system.ContainsKey(c.Pid);
+            var window = windows.GetValueOrDefault(c.Pid);
+            (double Percent, string Engine)? engine = gpu is not null && gpu.TryGetValue(c.Pid, out var e) ? e : null;
+            double? gpuPercent = gpu is null ? null : Math.Round(engine?.Percent ?? 0, 1);
+            var state = ProcessStatusRules.Decide(hasDetails && details.Suspended, window.MarkedHung, window.PingTimedOut, confirmedHung.Contains(c.Key));
             return new ProcessInfo(c.Pid, c.ParentPid, c.Name, c.Path, c.User, c.StartTime, Math.Round(r.CpuPercent, 1), c.PrivateBytes,
-                r.ReadBytesPerSecond, r.WriteBytesPerSecond, gpuPercent is null ? null : Math.Round(gpuPercent.Value, 1), c.Priority, _signatures.Get(c.Path));
+                r.ReadBytesPerSecond, r.WriteBytesPerSecond, gpuPercent, c.Priority, _signatures.Get(c.Path))
+            {
+                SessionId = hasDetails ? details.Session : null,
+                ThreadCount = hasDetails ? details.Threads : null,
+                HandleCount = hasDetails ? details.Handles : null,
+                Architecture = identity?.Static.Architecture ?? ProcessArchitecture.Unknown,
+                IsElevated = identity?.Static.Elevated,
+                CommandLine = identity?.Static.CommandLine,
+                Description = DescriptionOf(c.Path, ref descriptionBudget),
+                State = state,
+                EfficiencyMode = efficiency.GetValueOrDefault(c.Key),
+                ConnectionCount = connections is null ? null : connections.GetValueOrDefault(c.Pid),
+                GpuEngine = engine?.Engine,
+                WindowHandle = window.Handle,
+                WindowTitle = window.Handle == 0 ? null : window.Title,
+            };
         }).ToList();
 
         QueueSignatureChecks(processes);
-        return new ProcessSnapshot(now, processes, Math.Round(totalCpu, 1), used, total, gpu is not null, warnings);
+        return new ProcessSnapshot(now, processes, Math.Round(totalCpu, 1), used, total, gpu is not null, warnings)
+        {
+            ConnectionsAvailable = connections is not null,
+        };
     }
 
-    /// <summary>Path and account of one run of a program; read once per process and cached.</summary>
-    private (string? Path, string? User) Identity(string key, int pid)
+    /// <summary>Path, account, architecture, elevation and command line of one run of a program; read once per process and cached.</summary>
+    private Identity IdentityOf(string key, int pid)
     {
         if (_identities.TryGetValue(key, out var known))
         {
@@ -144,9 +185,43 @@ public sealed partial class WindowsProcessService : IProcessService, IDisposable
             _accounts[sid] = user;
         }
 
-        var identity = (path, user);
+        var identity = new Identity(path, user, ProcessNative.ReadStaticDetails(pid));
         _identities[key] = identity;
         return identity;
+    }
+
+    /// <summary>The file description from the version information, read for a few new files per refresh and cached.</summary>
+    private string? DescriptionOf(string? path, ref int budget)
+    {
+        if (!ProcessSuspicionRules.IsFullPath(path))
+        {
+            return null;
+        }
+
+        if (_descriptions.TryGetValue(path, out var known))
+        {
+            return known;
+        }
+
+        if (budget <= 0)
+        {
+            return null;
+        }
+
+        budget--;
+        string? description = null;
+        try
+        {
+            description = FileVersionInfo.GetVersionInfo(path).FileDescription?.Trim();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Could not read the version information of {Path}.", path);
+        }
+
+        description = string.IsNullOrWhiteSpace(description) ? null : description;
+        _descriptions[path] = description;
+        return description;
     }
 
     /// <summary>Checks signatures of new program files in the background, busiest processes first.</summary>
@@ -178,8 +253,8 @@ public sealed partial class WindowsProcessService : IProcessService, IDisposable
         }, token);
     }
 
-    /// <summary>GPU use per process id, or null when the GPU Engine counters are not available.</summary>
-    private IReadOnlyDictionary<int, double>? ReadGpu()
+    /// <summary>Busiest GPU engine per process id, or null when the GPU Engine counters are not available.</summary>
+    private IReadOnlyDictionary<int, (double Percent, string Engine)>? ReadGpu()
     {
         if (_gpuUnavailable)
         {
@@ -207,7 +282,7 @@ public sealed partial class WindowsProcessService : IProcessService, IDisposable
 
             _gpuPrevious = current;
             _gpuFailures = 0;
-            return ProcessMath.SumGpuByPid(values);
+            return ProcessMath.BusiestGpuEngineByPid(values);
         }
         catch (Exception ex)
         {
@@ -240,4 +315,6 @@ public sealed partial class WindowsProcessService : IProcessService, IDisposable
         _disposed.Dispose();
         _sampleGate.Dispose();
     }
+
+    private sealed record Identity(string? Path, string? User, ProcessNative.StaticDetails Static);
 }
