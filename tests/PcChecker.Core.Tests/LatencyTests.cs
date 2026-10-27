@@ -433,6 +433,20 @@ public class NicPowerRulesTests
         Assert.Null(NicPowerRules.Interpret("Wi-Fi 6E", "24", null, null, null).FlowControl);
     }
 
+    [Theory]
+    [InlineData(null, 0x08)]
+    [InlineData(0, 0x08)]
+    [InlineData(0x08, 0x08)]
+    [InlineData(0x18, 0x18)]
+    [InlineData(0x20, 0x28)]
+    public void Turning_power_saving_off_keeps_the_wake_bits(int? current, int expected)
+    {
+        int caps = NicPowerRules.PowerOffCapabilities(current);
+        Assert.Equal(expected, caps);
+        Assert.Equal(current is { } c && (c & NicPowerRules.PnpDisableWake) != 0, (caps & NicPowerRules.PnpDisableWake) != 0);
+        Assert.False(NicPowerRules.Interpret("Intel I225-V", caps.ToString(), null, null, null).PowerManagementAllowed);
+    }
+
     [Fact]
     public void Tcp_interface_counts_as_active_only_with_a_real_address()
     {

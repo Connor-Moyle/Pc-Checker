@@ -378,6 +378,8 @@ public sealed class LatencyActionsProvider : IOptimizationActionProvider
                     }
                 }
 
+                // Marks a capture made by a version that no longer runs Disable-NetAdapterPowerManagement (see SetNicPowerSavingAsync).
+                map[NicCmdletMarker] = NicCmdletUnchanged;
                 break;
 
             case LatencyActionIds.PointerPrecisionOff:
@@ -527,6 +529,9 @@ public sealed class LatencyActionsProvider : IOptimizationActionProvider
 
     private static readonly string[] NicPowerSavingStringValues = ["*EEE", "EnableGreenEthernet"];
 
+    private const string NicCmdletMarker = "NetAdapterPowerManagement";
+    private const string NicCmdletUnchanged = "unchanged";
+
     private static async Task<OperationResult> SetNicPowerSavingAsync(bool apply, IReadOnlyDictionary<string, string?>? previous, CancellationToken ct)
     {
         var adapters = LatencyProbes.ReadNetworkAdapters();
@@ -539,10 +544,12 @@ public sealed class LatencyActionsProvider : IOptimizationActionProvider
         int adaptersChanged = 0;
         foreach (var (subKey, state) in adapters)
         {
+            // Only the "turn off this device" bit is set; the wake bits stay as they were, so Wake-on-LAN keeps its setting.
             var writes = new List<OperationResult>
             {
                 apply
-                    ? LatencyProbes.WriteDword(RegistryHive.LocalMachine, subKey, "PnPCapabilities", NicPowerRules.PnpCapabilitiesPowerOff)
+                    ? LatencyProbes.WriteDword(RegistryHive.LocalMachine, subKey, "PnPCapabilities",
+                        NicPowerRules.PowerOffCapabilities(LatencyProbes.ReadDword(RegistryHive.LocalMachine, subKey, "PnPCapabilities")))
                     : RestoreDword(RegistryHive.LocalMachine, subKey, "PnPCapabilities", previous, $"{subKey}|PnPCapabilities", null),
             };
 
@@ -576,13 +583,18 @@ public sealed class LatencyActionsProvider : IOptimizationActionProvider
             return OperationResult.Fail("None of the adapters could be changed (administrator rights are needed): " + string.Join("; ", errors));
         }
 
-        // Also flip the "Allow the computer to turn off this device" checkbox through the NetAdapter cmdlets when available.
-        string cmdlet = apply ? "Disable-NetAdapterPowerManagement" : "Enable-NetAdapterPowerManagement";
-        var ps = await PowerShellRunner.RunAsync($"Get-NetAdapter -Physical -ErrorAction SilentlyContinue | {cmdlet} -NoRestart -ErrorAction SilentlyContinue", TimeSpan.FromSeconds(60), ct).ConfigureAwait(false);
+        // PnPCapabilities above is what the "Allow the computer to turn off this device" checkbox stores. Earlier versions
+        // also ran Disable-NetAdapterPowerManagement, which turns off every power feature including Wake-on-LAN and
+        // wake on pattern match, without recording them. Apply no longer does that; only an Undo of such an older
+        // change (a capture without the marker) still runs Enable-NetAdapterPowerManagement, as that change expects.
         var warnings = new List<string>(errors);
-        if (!ps.Success && !string.IsNullOrWhiteSpace(ps.StdErr))
+        if (!apply && previous is not null && !WasCaptured(previous, NicCmdletMarker))
         {
-            warnings.Add("PowerShell: " + ps.StdErr.Trim());
+            var ps = await PowerShellRunner.RunAsync("Get-NetAdapter -Physical -ErrorAction SilentlyContinue | Enable-NetAdapterPowerManagement -NoRestart -ErrorAction SilentlyContinue", TimeSpan.FromSeconds(60), ct).ConfigureAwait(false);
+            if (!ps.Success && !string.IsNullOrWhiteSpace(ps.StdErr))
+            {
+                warnings.Add("PowerShell: " + ps.StdErr.Trim());
+            }
         }
 
         return OperationResult.Ok(warnings.Count == 0

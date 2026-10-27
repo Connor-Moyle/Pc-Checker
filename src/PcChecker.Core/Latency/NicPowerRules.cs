@@ -50,8 +50,11 @@ public static class NicPowerRules
     /// <summary>The PnPCapabilities bit that stops the device waking the computer.</summary>
     public const int PnpDisableWake = 0x10;
 
-    /// <summary>PnPCapabilities = 24 disables both power management and wake, the common "latency" setting.</summary>
-    public const int PnpCapabilitiesPowerOff = PnpDisablePowerManagement | PnpDisableWake;
+    /// <summary>
+    /// PnPCapabilities that stop Windows turning the adapter off while keeping every other bit (including whether the
+    /// adapter may wake the PC) as it was. Missing means 0, the driver default.
+    /// </summary>
+    public static int PowerOffCapabilities(int? current) => (current ?? 0) | PnpDisablePowerManagement;
 
     /// <summary>Names that mark virtual adapters we should leave alone.</summary>
     private static readonly string[] VirtualMarkers =
