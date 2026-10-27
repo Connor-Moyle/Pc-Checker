@@ -19,6 +19,7 @@ re-implemented; none of their code is used):
 | [Optimizer](https://github.com/hellzerg/optimizer) | Privacy, services and UI toggles |
 | [AtlasOS](https://atlasos.net) and [ReviOS](https://revi.cc) playbooks | Only their user-reversible ideas; component removal is not offered |
 | [Windows-Optimize-Harden-Debloat](https://github.com/simeononsecurity/Windows-Optimize-Harden-Debloat) | Policy-based privacy hardening |
+| Vendor app setting | The same switch exists in AMD Software: Adrenalin Edition or NVIDIA's app / control panel |
 
 ## How it works
 
@@ -130,6 +131,11 @@ Notepad AI). Names without an equivalent (such as `WPFTweaksServices` or
 | Block Microsoft servers in the hosts file | Breaks Windows Update, activation, the Store and Defender updates. |
 | Turn off CPU security mitigations | A small speed gain for real, exploitable security holes. |
 | Turn off SmartScreen | Removes the warning before known-malicious downloads and phishing sites. |
+| Disable AMD External Events Utility | It handles FreeSync, display hotkeys and display events for the Radeon driver; FreeSync stops working without it. |
+| Disable the AMD 3D V-Cache Performance Optimizer (amd3dvcacheSvc) | Dual-CCD Ryzen 9 X3D chips need it to keep games on the V-Cache cores; games lose frames without it. |
+| Disable the AMD graphics driver services (amdkmdag, amdwddmg) or the AMD PSP / PPM platform drivers | The display driver or the CPU's power management stops working. |
+| Remove Xbox Game Bar on a Ryzen 9 X3D | Still offered on the Apps list, but with a warning: AMD's driver uses Game Bar's game detection to park the second CCD. The Optimize action that turns Game Bar off also warns. |
+| Remove AMD Noise Suppression from startup | Its Run-key name differs between AMD Software versions, so it is left to the Startup page, where you can disable it like any other startup entry. |
 
 ## Report only
 
@@ -278,6 +284,26 @@ Windows builds: 22000 = Windows 11 21H2, 22621 = 22H2, 22631 = 23H2,
 | **Disable Windows Search indexing**<br>`svc.searchindex` | Stops the background indexer. Same change as the Optimize page's search indexing action. (uses the Optimize action `search.indexing.disable`) | WinUtil, Optimizer, AtlasOS | Advanced (Advanced mode) | Yes |
 | **Disable SysMain (Superfetch)**<br>`svc.sysmain` | Stops the service that preloads apps into memory. Same change as the Optimize page's SysMain action. (uses the Optimize action `sysmain.disable`) | WinUtil, Optimizer, AtlasOS, ReviOS | Advanced (Advanced mode) | Yes |
 
+### AMD & NVIDIA software
+
+Shown only when AMD Software: Adrenalin Edition or NVIDIA's driver software is
+installed. Scheduled tasks and services that do not exist on a PC (they vary
+between driver versions) show *Not present* and are left alone.
+
+| Tweak | What it does | Offered by | Risk | Reversible |
+|---|---|---|---|---|
+| **Leave the AMD User Experience Program**<br>`amd.uep` | Stops the AMD User Experience Program launcher service that sends anonymous usage data to AMD. Also untick it under AMD Software → Settings → Preferences.<br>`Set service AUEPLauncher to Disabled` | Vendor app setting | Safe | Yes |
+| **Stop AMD Software checking for updates at sign-in**<br>`amd.updatecheck` | Disables AMD's update-check task; AMD Software still checks when you open it.<br>`Disable scheduled task \AMDInstallLauncher` | Vendor app setting | Safe | Yes |
+| **Stop AMD Link update tasks**<br>`amd.link` | Disables the AMD Link update tasks.<br>`Disable scheduled task \AMDLinkUpdate`<br>`Disable scheduled task \ModifyLinkUpdate` | Vendor app setting | Safe | Yes |
+| **Don't start AMD recording (Instant Replay) at sign-in**<br>`amd.dvr` | Disables the task that starts AMD's recording component at sign-in. Instant Replay and recording hotkeys stop until you open AMD Software.<br>`Disable scheduled task \StartDVR` | Vendor app setting | Moderate | Yes |
+| **Don't start AMD Software at sign-in**<br>`amd.autostart` | Disables the task that starts the AMD Software tray and overlay. The driver, FreeSync and game settings keep working; Alt+R and the tray icon are gone until you open AMD Software.<br>`Disable scheduled task \StartCN` | Vendor app setting | Moderate | Yes |
+| **Set AMD Crash Defender to manual**<br>`amd.crashdefender` | Stops the Crash Defender service starting with Windows; driver crash reports are lost.<br>`Set service amdfendrmgr to Manual` | Vendor app setting | Advanced (Advanced mode) | Yes |
+| **Turn off NVIDIA telemetry**<br>`nvidia.telemetry` | Opts out of NVIDIA usage data in the driver and control panel and disables the old telemetry container where it still exists.<br>`Set HKLM\SOFTWARE\NVIDIA Corporation\NvControlPanel2\Client\OptInOrOutPreference = 0`<br>`Set HKLM\SOFTWARE\NVIDIA Corporation\Global\FTS\EnableRID44231 = 0`<br>`Set HKLM\SOFTWARE\NVIDIA Corporation\Global\FTS\EnableRID64640 = 0`<br>… and 2 more | Optimizer, Vendor app setting | Safe | Yes |
+
+None of these is part of a preset. The catalog test keeps FreeSync (AMD
+External Events Utility), the X3D service, the graphics drivers and the AMD
+platform drivers on a never-touch list.
+
 ### Apps
 
 | Tweak | What it does | Offered by | Risk | Reversible |
@@ -322,4 +348,4 @@ Windows builds: 22000 = Windows 11 21H2, 22621 = 22H2, 22631 = 23H2,
 | **Remove Snipping Tool**<br>`apps.snippingtool` | A useful built-in app. Remove it only on purpose; reinstall it from the Microsoft Store.<br>`Remove the Snipping Tool app (Microsoft.ScreenSketch)` | WinUtil, Win11Debloat, Sophia Script, BloatyNosy, Debloat-Windows-10, Optimizer | Moderate | No (one-way) |
 | **Remove Windows Terminal**<br>`apps.terminal` | A useful built-in app. Remove it only on purpose; reinstall it from the Microsoft Store.<br>`Remove the Windows Terminal app (Microsoft.WindowsTerminal)` | WinUtil, Win11Debloat, Sophia Script, BloatyNosy, Debloat-Windows-10, Optimizer | Moderate | No (one-way) |
 | **Remove Xbox app**<br>`apps.xbox` | A useful built-in app. Remove it only on purpose; reinstall it from the Microsoft Store.<br>`Remove the Xbox app app (Microsoft.GamingApp)` | WinUtil, Win11Debloat, Sophia Script, BloatyNosy, Debloat-Windows-10, Optimizer | Moderate | No (one-way) |
-| **Remove Xbox Game Bar**<br>`apps.gamebar` | A useful built-in app. Remove it only on purpose; reinstall it from the Microsoft Store.<br>`Remove the Xbox Game Bar app (Microsoft.XboxGamingOverlay)` | WinUtil, Win11Debloat, Sophia Script, BloatyNosy, Debloat-Windows-10, Optimizer | Moderate | No (one-way) |
+| **Remove Xbox Game Bar**<br>`apps.gamebar` | A useful built-in app. Remove it only on purpose; reinstall it from the Microsoft Store. On a Ryzen 9 X3D the confirmation warns first: AMD's driver needs Game Bar to keep games on the V-Cache cores.<br>`Remove the Xbox Game Bar app (Microsoft.XboxGamingOverlay)` | WinUtil, Win11Debloat, Sophia Script, BloatyNosy, Debloat-Windows-10, Optimizer | Moderate | No (one-way) |

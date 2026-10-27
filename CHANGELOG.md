@@ -15,6 +15,17 @@ All notable changes to PC Checker are recorded here. The format follows
   is available* chooses between asking, downloading first and then asking to
   restart, or just telling you. The Dashboard banner has an *Update now*
   button.
+- **AMD support**: the discrete GPU is used everywhere instead of the
+  integrated Radeon of Ryzen 7000/9000; Ryzen-aware temperature limits
+  (95 °C by design, Tdie over Tctl, separate GPU hot spot and memory limits);
+  dual-CCD X3D advice that keeps Balanced, core parking and Game Bar; Health
+  checks for AMD Chipset Software, the 3D V-Cache optimizer, WHEA hardware
+  errors and graphics driver timeouts; EXPO detection from part numbers with
+  Infinity Fabric guidance; Radeon undervolt, presets and Overdrive8 fan
+  curve on the Overclock page; ryzenadj only on laptops and APUs; Windows
+  Update driver offers that would replace AMD Software are unticked and can
+  be hidden. Debloat adds AMD & NVIDIA software tweaks and Cleanup adds the
+  AMD and NVIDIA installer folders.
 
 ## [0.4.0] - 2026-10-27
 

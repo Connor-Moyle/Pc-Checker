@@ -600,7 +600,10 @@ Win11Debloat, O&O ShutUp10++, Sophia Script and others; full list and table in
   Remove consumer apps and Custom. A preset only ticks boxes.
 - **Categories**: Privacy & telemetry, Ads & suggestions, AI & Copilot,
   Taskbar & Start, File Explorer, Edge & OneDrive, Gaming & Xbox, and
-  (**Advanced**) Windows Update and Background services, plus Apps. Each row
+  (**Advanced**) Windows Update and Background services, plus AMD & NVIDIA
+  software (only when AMD Software or NVIDIA's driver tools are installed:
+  AMD User Experience Program, update and AMD Link tasks, Instant Replay and
+  tray autostart, Crash Defender, NVIDIA telemetry) and Apps. Each row
   shows its state (*Applied*, *Not applied*, *Partly applied*, *Not
   available* with the reason), a risk badge, *One-way* / *Explorer restart* /
   *Windows 11* badges, a warning when something stops working, and which other
@@ -621,8 +624,10 @@ Win11Debloat, O&O ShutUp10++, Sophia Script and others; full list and table in
 - **Scan** by category: your temp files, Windows temp, Windows Update
   downloads, Delivery Optimization, prefetch, thumbnails, icon cache, Recycle
   Bin, Chrome, Edge and Firefox caches, crash dumps, error reports, Windows
-  logs, DirectX and NVIDIA shader caches, font cache, Internet temporary
-  files and (**Advanced**) the previous Windows installation.
+  logs, DirectX, NVIDIA, AMD and Intel shader caches, AMD and NVIDIA driver
+  installer files (`C:\AMD`, `C:\NVIDIA`), NVIDIA app downloads (Moderate),
+  AMD Software logs, font cache, Internet temporary files and (**Advanced**)
+  the previous Windows installation.
 - Each category is a card with a checkbox, a risk badge, size and file count
   after the scan, and an expander with the largest files and *Open folder*.
 - **Dry run** shows exactly what would be removed. **Clean selected** then
@@ -633,7 +638,9 @@ Win11Debloat, O&O ShutUp10++, Sophia Script and others; full list and table in
 
 Safety rules: never outside the category roots, never through junctions or
 symbolic links, never files modified in the last 60 minutes (configurable),
-never `desktop.ini`, and browser caches are skipped while the browser runs.
+never `desktop.ini`, and browser caches are skipped while the browser runs;
+the AMD and NVIDIA installer folders are skipped while an installer runs, and
+AMD Software logs while AMD Software is open.
 
 ### Disk space
 
@@ -871,14 +878,26 @@ this PC, and the safety features.
     temperature limits where the driver API exposes them (the page notes when
     it does not).
   - **AMD**: through ADL/Overdrive8, marked **experimental**. Every value is
-    validated against the driver's own minimum and maximum. If any call
-    fails the page falls back to *Open AMD Software: Adrenalin Edition*.
+    validated against the driver's own minimum, maximum and capability mask
+    and read back after it is sent. RX 7000/9000 add a **voltage offset**
+    (undervolt) slider and Radeon presets (*Undervolt -50 mV*, *Undervolt
+    -80 mV + power -10 %*, *Quiet*); the core control is called *Max
+    frequency* and the minimum clock is kept 100 MHz below a lowered maximum.
+    The GPU fan goes through an Overdrive8 fan curve (RX 5000 and newer
+    ignore the hardware monitor's fan commands). *Reset* only touches what
+    PC Checker manages and retries one setting at a time. If any call fails
+    the page falls back to *Open AMD Software: Adrenalin Edition*.
   - **Intel Arc**: through IGCL, marked **experimental**; integrated Intel
     graphics are monitor only. Fallback: *Open Intel Graphics Software*.
 - **CPU**: Intel XTU CLI when installed (lists the tunables it recognises and
-  refuses to guess when a name does not match); AMD Ryzen Master launch, and
-  `ryzenadj` power limits when the tool is present (mobile and APU focus).
-  Otherwise plain BIOS guidance and a download link.
+  refuses to guess when a name does not match); AMD Ryzen Master launch
+  (found through its uninstall entry; notes on laptops and Virtualization-Based
+  Security), and `ryzenadj` power limits on Ryzen laptops, handhelds and APUs
+  only (5 W and up, short boost 25 % above the sustained limit, re-applied
+  every 45 seconds, a blocked WinRing0 driver is explained). Otherwise BIOS
+  guidance that follows the Ryzen model (5000X3D locked, 7000X3D PBO and
+  Curve Optimizer only, where each board maker hides the menu) and a download
+  link.
 - **Memory**: XMP/EXPO state and a link to the Memory page.
 - **Stress test**: target (CPU, GPU, both), duration, abort temperatures,
   live readouts (elapsed time, GPU work rate, errors, temperatures and
@@ -917,6 +936,40 @@ this PC, and the safety features.
   Settings maximum (still validated), and the session file.
 
 ---
+
+### AMD platform support
+
+AMD-specific behaviour across the app (CPU traits come from the processor
+name: Zen generation, socket, desktop/laptop/APU, X3D, Tjmax):
+
+- **The right GPU**: the integrated Radeon of every Ryzen 7000/9000 desktop
+  is never taken for "the GPU" on the Dashboard, overlay, Overclock page,
+  fan profiles, power total or watchdog; the discrete card is. One rule
+  recognises current Radeon APUs (760M, 780M, 890M, 8060S, Vega 3–11).
+- **Temperatures**: Tdie is shown instead of the offset Tctl on Ryzen
+  1000/2000 X and Threadripper. With the stock thresholds, Ryzen 7000/9000
+  (which run at 95 °C by design) use 90/98 °C and the stress test stops at
+  Tjmax + 3 °C; GPU hot spot (100/110 °C) and memory (95/105 °C) have their
+  own limits. Integrated GPU power is not added to the CPU package twice.
+- **X3D**: on dual-CCD Ryzen 9 X3D, nothing recommends High performance or
+  turning core parking off, actions that would undo AMD's CCD parking (and
+  game profiles that switch plans, removing Game Bar) warn first, and the
+  Latency page checks Balanced, Game Mode, Game Bar and the V-Cache service.
+- **Health**: AMD Chipset Software, PPM provisioning, platform devices on
+  generic drivers and the 3D V-Cache optimizer; WHEA hardware errors with
+  Ryzen advice (Curve Optimizer core, FCLK, PCIe, memory, BugCheck 0x124);
+  graphics driver timeouts (Display 4101, LiveKernelEvent 141/117).
+- **Memory**: EXPO is judged against the part-number rating as well, a JEDEC
+  speed is "check the BIOS" rather than "on", and the Infinity Fabric 1:1
+  sweet spot (AM5 DDR5-6000, AM4 DDR4-3600) and the AM5 training pause are
+  explained.
+- **Drivers**: older Adrenalin packages count as superseded, AMD chipset
+  components are not "old", Windows Update display and chipset offers that
+  would replace AMD Software are unticked with a warning and can be hidden,
+  and the chipset link names your socket.
+- **Latency**: AMD BIOS guidance (CPPC, Global C-states, AM4 Power Supply
+  Idle Control) and the legacy *AMD Ryzen Balanced* plan.
+- **Overlay**: a note that AMD Fluid Motion Frames are not counted.
 
 ## Assistant
 
