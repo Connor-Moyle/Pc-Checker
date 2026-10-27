@@ -5,6 +5,12 @@ using PcChecker.Core.Optimization;
 
 namespace PcChecker.App.ViewModels;
 
+/// <summary>One entry of the group filter on the Cleanup page (null group = every category).</summary>
+public sealed record CleanupGroupFilter(CleanupGroup? Group, string Label)
+{
+    public override string ToString() => Label;
+}
+
 /// <summary>One row in the "largest files" list of a cleanup category.</summary>
 public sealed record CleanupFileItem(string Path, string Directory, string Name, long SizeBytes, string SizeText, string ModifiedText)
 {
@@ -59,6 +65,19 @@ public sealed partial class CleanupCategoryItem : ObservableObject
     [ObservableProperty]
     private string? _folder;
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(StatusText))]
+    private bool _sizeKnown = true;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(StatusText))]
+    [NotifyPropertyChangedFor(nameof(IsBlocked))]
+    private string? _blockedReason;
+
+    /// <summary>Allowed by the current mode (Advanced categories only in advanced mode), whatever the group filter says.</summary>
+    [ObservableProperty]
+    private bool _isAvailable = true;
+
     public CleanupCategoryItem(CleanupCategory category, bool isSelected, Action<CleanupCategoryItem> selectionChanged)
     {
         Category = category;
@@ -94,10 +113,30 @@ public sealed partial class CleanupCategoryItem : ObservableObject
 
     public bool IsAdvanced => Category.Risk == RiskLevel.Advanced;
 
+    public CleanupGroup Group => Category.Group;
+
+    public string GroupText => CleanupCatalog.GroupName(Category.Group);
+
+    /// <summary>A side effect or tip shown inside the card.</summary>
+    public string? Hint => Category.Hint;
+
+    public bool HasHint => !string.IsNullOrWhiteSpace(Category.Hint);
+
     /// <summary>True for categories PC Checker measures but hands to a Windows tool for removal.</summary>
     public bool IsReportOnly => CleanupRules.IsReportOnly(Category.Id);
 
+    /// <summary>True when a Windows tool (DISM, Disk Cleanup, vssadmin) does the cleaning.</summary>
+    public bool IsCommand => Category.Kind == CleanupKind.Command;
+
+    /// <summary>Restore point storage: offer Windows' System Protection settings to lower the maximum.</summary>
+    public bool IsRestorePoints => Category.Command == CleanupCommand.RestorePointsKeepNewest;
+
+    /// <summary>Icon and thumbnail caches: File Explorer holds them open.</summary>
+    public bool IsExplorerCache => Category.Id is "icon.cache" or "thumbnails";
+
     public bool IsRecycleBin => CleanupRules.IsRecycleBin(Category.Id);
+
+    public bool IsBlocked => !string.IsNullOrEmpty(BlockedReason);
 
     public bool HasFolder => !string.IsNullOrEmpty(Folder);
 
@@ -105,9 +144,15 @@ public sealed partial class CleanupCategoryItem : ObservableObject
 
     public string StatusText => !IsScanned
         ? "Not scanned yet"
-        : FileCount == 0 && TotalBytes == 0
-            ? "Nothing to clean"
-            : $"{SizeText} · {FileCount:N0} {(FileCount == 1 ? "file" : "files")}";
+        : IsBlocked && TotalBytes == 0
+            ? "Skipped for now"
+            : !SizeKnown && TotalBytes == 0
+                ? "Size known after cleaning"
+                : FileCount == 0 && TotalBytes == 0
+                    ? "Nothing to clean"
+                    : FileCount == 0
+                        ? "About " + SizeText
+                        : $"{SizeText} · {FileCount:N0} {(FileCount == 1 ? "file" : "files")}";
 
     public bool HasTopFiles => TopFiles.Count > 0;
 
@@ -127,6 +172,8 @@ public sealed partial class CleanupCategoryItem : ObservableObject
         TopFiles = CleanupRules.Largest(result.Files, TopFileCount).Select(CleanupFileItem.From).ToList();
         Notes = result.Errors.Where(CleanupRules.IsNote).Select(CleanupRules.NoteText).ToList();
         Errors = result.Errors.Where(e => !CleanupRules.IsNote(e)).ToList();
+        SizeKnown = result.SizeKnown;
+        BlockedReason = result.BlockedReason;
         if (TopFiles.Count > 0)
         {
             Folder = TopFiles[0].Directory;
@@ -143,6 +190,8 @@ public sealed partial class CleanupCategoryItem : ObservableObject
         TopFiles = [];
         Notes = [];
         Errors = [];
+        SizeKnown = true;
+        BlockedReason = null;
         IsScanned = false;
     }
 

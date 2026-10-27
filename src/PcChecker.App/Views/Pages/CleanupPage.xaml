@@ -61,6 +61,17 @@
                           ToolTip="Storage Sense can clean temporary files on a schedule." />
                 <MenuItem Header="Run Windows Disk Cleanup" Command="{Binding OpenDiskCleanupCommand}"
                           ToolTip="Opens the classic Disk Cleanup tool (cleanmgr) for system items." />
+                <MenuItem Header="Cleanup recommendations" Command="{Binding OpenStorageRecommendationsCommand}"
+                          ToolTip="Windows suggests large or unused files, OneDrive files to keep online only and apps you do not use." />
+                <Separator />
+                <MenuItem Header="Old driver packages" Command="{Binding GoToOldDriversCommand}"
+                          ToolTip="The Drivers page removes old driver packages with a backup, instead of Disk Cleanup's Device Driver Packages." />
+                <MenuItem Header="Hibernation file" Command="{Binding GoToOptimizeCommand}"
+                          ToolTip="Turning hibernation off (which deletes hiberfil.sys) is on the Optimize page." />
+                <MenuItem Header="System Protection settings" Command="{Binding OpenSystemProtectionCommand}"
+                          ToolTip="Lower how much space restore points may use." />
+                <MenuItem Header="Delete diagnostic data" Command="{Binding OpenDiagnosticDataSettingsCommand}"
+                          ToolTip="Windows' own button for deleting the diagnostic data it collected." />
               </ContextMenu>
             </ui:DropDownButton.Flyout>
           </ui:DropDownButton>
@@ -92,6 +103,25 @@
                   IsOpen="{Binding HasScanNote, Mode=OneWay}"
                   IsClosable="False"
                   Margin="0,0,0,12" />
+      <ui:Card Margin="0,0,0,12" Visibility="{Binding IsRestartExplorerSuggested, Converter={StaticResource BoolToVisibility}}">
+        <Grid>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
+          </Grid.ColumnDefinitions>
+          <ui:SymbolIcon Grid.Column="0" Symbol="ArrowClockwise24" FontSize="22" Margin="0,0,12,0" VerticalAlignment="Center" Foreground="{StaticResource AccentCyanBrush}" />
+          <StackPanel Grid.Column="1" VerticalAlignment="Center">
+            <ui:TextBlock FontTypography="BodyStrong" Text="File Explorer kept some cache files open" />
+            <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap"
+                          Text="Restart File Explorer, then clean again to remove more of the icon and thumbnail caches." />
+          </StackPanel>
+          <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+            <ui:Button Content="Later" Command="{Binding DismissRestartExplorerCommand}" Margin="0,0,8,0" />
+            <ui:Button Appearance="Primary" Content="Restart Explorer" Icon="{ui:SymbolIcon ArrowClockwise24}" Command="{Binding RestartExplorerCommand}" />
+          </StackPanel>
+        </Grid>
+      </ui:Card>
     </StackPanel>
 
     <ScrollViewer Grid.Row="2" Style="{StaticResource PageScroll}">
@@ -116,6 +146,13 @@
             <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap"
                           Text="Tick what to remove. Files changed in the last hour are always kept."
                           ToolTip="Safe items are recreated automatically. Moderate items have a small side effect. Advanced items only appear in advanced mode." />
+            <ComboBox ItemsSource="{Binding GroupFilters}"
+                      SelectedItem="{Binding SelectedGroupFilter, Mode=TwoWay}"
+                      DisplayMemberPath="Label"
+                      HorizontalAlignment="Left"
+                      MinWidth="240"
+                      Margin="0,8,0,0"
+                      ToolTip="Show one group of categories. Scans always cover every group." />
           </StackPanel>
           <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
             <ui:Button Content="Select recommended" Icon="{ui:SymbolIcon CheckboxChecked24}" Command="{Binding SelectRecommendedCommand}" Margin="0,0,8,0" />
@@ -156,6 +193,7 @@
                     <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,12,0">
                       <ui:TextBlock FontTypography="BodyStrong" Text="{Binding Name}" />
                       <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding Description}" TextWrapping="Wrap" />
+                      <TextBlock Style="{StaticResource PathText}" Text="{Binding GroupText}" Margin="0,2,0,0" />
                     </StackPanel>
                     <Border Grid.Column="2" Style="{StaticResource RiskBadge}" Margin="0,0,16,0" ToolTip="{Binding RiskHint}">
                       <TextBlock Style="{StaticResource RiskBadgeText}" Text="{Binding RiskText}" />
@@ -171,6 +209,12 @@
                 </ui:CardExpander.Header>
 
                 <StackPanel>
+                  <!-- Side effect or tip for this category -->
+                  <StackPanel Orientation="Horizontal" Margin="0,0,0,8" Visibility="{Binding HasHint, Converter={StaticResource BoolToVisibility}}">
+                    <ui:SymbolIcon Symbol="Lightbulb24" Foreground="{StaticResource AccentYellowBrush}" Margin="0,0,8,0" VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding Hint}" TextWrapping="Wrap" VerticalAlignment="Center" />
+                  </StackPanel>
+
                   <!-- Notes (informational) -->
                   <ItemsControl ItemsSource="{Binding Notes}" Visibility="{Binding HasNotes, Converter={StaticResource BoolToVisibility}}" Margin="0,0,0,8">
                     <ItemsControl.ItemTemplate>
@@ -256,7 +300,19 @@
                                Icon="{ui:SymbolIcon Broom24}"
                                Command="{Binding DataContext.OpenDiskCleanupCommand, RelativeSource={RelativeSource AncestorType=Page}}"
                                ToolTip="Opens the classic Disk Cleanup tool (cleanmgr)."
-                               Visibility="{Binding IsReportOnly, Converter={StaticResource BoolToVisibility}}" />
+                               Visibility="{Binding IsReportOnly, Converter={StaticResource BoolToVisibility}}"
+                               Margin="0,0,8,0" />
+                    <ui:Button Content="System Protection settings"
+                               Icon="{ui:SymbolIcon ShieldCheckmark24}"
+                               Command="{Binding DataContext.OpenSystemProtectionCommand, RelativeSource={RelativeSource AncestorType=Page}}"
+                               ToolTip="Lower how much space restore points may use."
+                               Visibility="{Binding IsRestorePoints, Converter={StaticResource BoolToVisibility}}"
+                               Margin="0,0,8,0" />
+                    <ui:Button Content="Restart Explorer"
+                               Icon="{ui:SymbolIcon ArrowClockwise24}"
+                               Command="{Binding DataContext.RestartExplorerCommand, RelativeSource={RelativeSource AncestorType=Page}}"
+                               ToolTip="Releases most of the cache files File Explorer keeps open. Clean again afterwards."
+                               Visibility="{Binding IsExplorerCache, Converter={StaticResource BoolToVisibility}}" />
                   </StackPanel>
                 </StackPanel>
               </ui:CardExpander>
