@@ -12,6 +12,12 @@ public static class CleanupCatalog
     private static readonly string[] AllFiles = ["*"];
 
     /// <summary>Browser cache sub-folders shared by Chromium-based browsers, relative to a profile folder.</summary>
+    /// <summary>
+    /// Where the Delivery Optimization service (DoSvc, running as NetworkService) keeps its cache on current Windows 10
+    /// and 11. The two older folders stay in the list for PCs that still use them.
+    /// </summary>
+    private const string DeliveryOptimizationCache = @"%WINDIR%\ServiceProfiles\NetworkService\AppData\Local\Microsoft\Windows\DeliveryOptimization\Cache";
+
     private static readonly string[] ChromiumCacheFolders = [@"Cache\Cache_Data", "Code Cache", "GPUCache"];
 
     public static IReadOnlyList<CleanupCategory> All { get; } =
@@ -23,7 +29,7 @@ public static class CleanupCatalog
         new("windows.update.cache", "Windows Update downloads", "Installer files Windows Update has already used. The update service is paused briefly while they are removed.",
             RiskLevel.Safe, [@"%WINDIR%\SoftwareDistribution\Download"], AllFiles, true, true),
         new("delivery.optimization", "Delivery Optimization cache", "Update files cached for sharing with other PCs.",
-            RiskLevel.Safe, [@"%WINDIR%\SoftwareDistribution\DeliveryOptimization", @"%PROGRAMDATA%\Microsoft\Windows\DeliveryOptimization\Cache"], AllFiles, true, true),
+            RiskLevel.Safe, [DeliveryOptimizationCache, @"%WINDIR%\SoftwareDistribution\DeliveryOptimization", @"%PROGRAMDATA%\Microsoft\Windows\DeliveryOptimization\Cache"], AllFiles, true, true),
         new("prefetch", "Prefetch data", "Files Windows uses to start programs faster. Safe, but the first launches after cleaning are slower.",
             RiskLevel.Moderate, [@"%WINDIR%\Prefetch"], ["*.pf"], false, false),
         new("thumbnails", "Thumbnail cache", "Cached picture previews shown in File Explorer. Windows rebuilds them when needed.",

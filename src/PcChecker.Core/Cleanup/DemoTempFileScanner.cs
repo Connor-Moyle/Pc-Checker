@@ -20,7 +20,7 @@ public sealed class DemoTempFileScanner : ITempFileScanner
         ["windows.update.cache"] = new(38, 2_900_000_000, @"C:\Windows\SoftwareDistribution\Download",
             ["{0:x8}\\windows11.0-kb5044284-x64.cab", "{0:x8}\\Windows11.0-KB5043080-x64.psf", "{0:x8}\\defender-dpl-update.exe", "SharedFileCache\\{0:x8}.psf"],
             []),
-        ["delivery.optimization"] = new(12, 1_100_000_000, @"C:\Windows\SoftwareDistribution\DeliveryOptimization\Cache",
+        ["delivery.optimization"] = new(12, 1_100_000_000, @"C:\Windows\ServiceProfiles\NetworkService\AppData\Local\Microsoft\Windows\DeliveryOptimization\Cache",
             ["{0:x8}-{0:x4}.do", "{0:x8}.cache"],
             []),
         ["thumbnails"] = new(9, 310_000_000, User + @"\AppData\Local\Microsoft\Windows\Explorer",

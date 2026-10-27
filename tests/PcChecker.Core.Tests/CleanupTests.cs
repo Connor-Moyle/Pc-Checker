@@ -109,6 +109,13 @@ public class CleanupCatalogTests
     }
 
     [Fact]
+    public void Delivery_optimization_covers_the_current_cache_folder()
+    {
+        var roots = CleanupCatalog.ExpandRoots(CleanupCatalog.Find("delivery.optimization")!, Env);
+        Assert.Contains(@"C:\Windows\ServiceProfiles\NetworkService\AppData\Local\Microsoft\Windows\DeliveryOptimization\Cache", roots);
+    }
+
+    [Fact]
     public void Unknown_variables_are_left_in_place()
     {
         Assert.Equal(@"%NOPE%\x", CleanupCatalog.ExpandTemplate(@"%NOPE%\x", Env));
