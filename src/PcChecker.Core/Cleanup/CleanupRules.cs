@@ -17,6 +17,13 @@ public static class CleanupRules
     public const string WindowsUpdateCacheId = "windows.update.cache";
     public const string DeliveryOptimizationId = "delivery.optimization";
 
+    /// <summary>
+    /// Shown with the Windows.old measurement: removing the folder in any way (Storage settings, Storage Sense, Disk
+    /// Cleanup) ends the option to go back to the previous Windows version.
+    /// </summary>
+    public const string WindowsOldNote =
+        "Measured only. Removing it (with Storage settings, Storage Sense or Disk Cleanup) ends the option to go back to the previous version of Windows. Windows Update → Roll back shows how many days are left.";
+
     /// <summary>Process names (without .exe) per browser cache category.</summary>
     public static readonly IReadOnlyDictionary<string, (string Browser, string[] Processes)> BrowserProcesses =
         new Dictionary<string, (string, string[])>(StringComparer.OrdinalIgnoreCase)

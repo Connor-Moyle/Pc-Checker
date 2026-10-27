@@ -14,6 +14,7 @@ public sealed class DemoWindowsUpdateService : IWindowsUpdateService
     private readonly object _gate = new();
     private readonly List<PendingUpdate> _pending;
     private readonly List<UpdateHistoryRecord> _history;
+    private readonly HashSet<string> _hiddenIds = new(StringComparer.OrdinalIgnoreCase);
     private UpdatePauseState _pause = UpdatePauseState.NotPaused;
     private ActiveHours _activeHours = new(8, 23, false);
     private DateTimeOffset _lastCheck = DateTimeOffset.UtcNow.AddHours(-3).AddMinutes(-12);
@@ -51,7 +52,7 @@ public sealed class DemoWindowsUpdateService : IWindowsUpdateService
         lock (_gate)
         {
             _lastCheck = DateTimeOffset.UtcNow;
-            return new PendingUpdateScan(_pending.ToList(), [], DateTimeOffset.Now);
+            return new PendingUpdateScan(_pending.Where(p => !_hiddenIds.Contains(p.Id)).ToList(), [], DateTimeOffset.Now);
         }
     }
 
@@ -110,6 +111,25 @@ public sealed class DemoWindowsUpdateService : IWindowsUpdateService
         }
 
         return new OperationResult<UpdateInstallResult>(result.Installed > 0, UpdateInstallSummary.Summarize(result), result, null, result.RebootRequired);
+    }
+
+    /// <summary>
+    /// Hides or shows a waiting update in the next check, as Windows Update does for hidden updates. Called by
+    /// <see cref="DemoUpdateRollbackService"/> so the demo's two halves agree.
+    /// </summary>
+    public void SetHidden(string updateId, bool hidden)
+    {
+        lock (_gate)
+        {
+            if (hidden)
+            {
+                _hiddenIds.Add(updateId);
+            }
+            else
+            {
+                _hiddenIds.Remove(updateId);
+            }
+        }
     }
 
     public async Task<OperationResult> PauseAsync(int weeks, CancellationToken cancellationToken)

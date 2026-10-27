@@ -98,6 +98,7 @@ public static class ServiceRegistration
         Add<IDriverCleanupService, WindowsDriverCleanupService, DemoDriverCleanupService>(services, demo);
         Add<IDriverSourceService, WindowsDriverSourceService, DemoDriverSourceService>(services, demo);
         Add<IWindowsUpdateService, WindowsUpdateService, DemoWindowsUpdateService>(services, demo);
+        Add<IUpdateRollbackService, WindowsUpdateRollbackService, DemoUpdateRollbackService>(services, demo);
         Add<ISoftwareInventoryService, WindowsSoftwareInventoryService, DemoSoftwareInventoryService>(services, demo);
         Add<IUninstallService, WindowsUninstallService, DemoUninstallService>(services, demo);
         Add<ILeftoverService, WindowsLeftoverService, DemoLeftoverService>(services, demo);

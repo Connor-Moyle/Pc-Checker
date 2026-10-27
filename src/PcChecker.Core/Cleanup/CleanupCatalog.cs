@@ -60,7 +60,7 @@ public static class CleanupCatalog
             RiskLevel.Safe, [@"%LOCALAPPDATA%\AMD\DxCache", @"%LOCALAPPDATA%\AMD\DxcCache", @"%LOCALAPPDATA%\AMD\GLCache", @"%LOCALAPPDATA%\AMD\VkCache"], AllFiles, true, true),
         new("intel.shader.cache", "Intel shader cache", "Compiled graphics shaders from the Intel driver. Games rebuild them on next launch.",
             RiskLevel.Safe, [@"%LOCALAPPDATA%\Intel\ShaderCache"], AllFiles, true, true),
-        new("windows.old", "Previous Windows installation", "The Windows.old folder from a major upgrade. You cannot go back to the old version after removing it. PC Checker only measures it; remove it with Storage settings or Disk Cleanup.",
+        new("windows.old", "Previous Windows installation", "The Windows.old folder from a major upgrade. Removing it, including by Storage Sense or Disk Cleanup, ends the option to go back to the previous version of Windows (see Windows Update → Roll back). PC Checker only measures it; remove it with Storage settings or Disk Cleanup.",
             RiskLevel.Advanced, [@"%SYSTEMDRIVE%\Windows.old"], AllFiles, false, true),
         new("font.cache", "Font cache", "Cached font data. Windows rebuilds it when needed.",
             RiskLevel.Safe, [@"%LOCALAPPDATA%\Microsoft\Windows\Fonts\Cache", @"%WINDIR%\ServiceProfiles\LocalService\AppData\Local\FontCache"], ["*.dat", "*.tmp"], false, false),

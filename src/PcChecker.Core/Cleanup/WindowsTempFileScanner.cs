@@ -101,7 +101,7 @@ public sealed class WindowsTempFileScanner : ITempFileScanner
 
         if (CleanupRules.IsReportOnly(category.Id))
         {
-            notes.Add(CleanupRules.Note("Measured only. Remove it with Storage settings or Windows Disk Cleanup."));
+            notes.Add(CleanupRules.Note(CleanupRules.WindowsOldNote));
         }
 
         var files = new List<CleanupFile>();

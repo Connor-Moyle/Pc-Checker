@@ -57,6 +57,8 @@
                           ToolTip="Opens Settings → Windows Update → Update history, where installed updates can also be uninstalled." />
                 <MenuItem Header="Advanced options in Settings" Command="{Binding OpenAdvancedOptionsCommand}"
                           ToolTip="Opens Settings → Windows Update → Advanced options: optional updates, delivery and restart settings." />
+                <MenuItem Header="Recovery in Settings" Command="{Binding OpenRecoverySettingsCommand}"
+                          ToolTip="Opens Settings → System → Recovery, where Windows offers to go back to the previous version after a feature update." />
                 <MenuItem Header="Refresh status" Command="{Binding RefreshStatusCommand}"
                           ToolTip="Reads the status and the history again. Does not check for new updates." />
               </ContextMenu>
@@ -84,6 +86,10 @@
                                  Message="Windows needs a restart to finish installing updates. Save your work first."
                                  Reason="to finish installing updates"
                                  DismissCommand="{Binding DismissRestartCommand}" />
+      <controls:RestartPromptBar IsOpen="{Binding RollbackRestartPending}"
+                                 Message="{Binding RollbackRestartMessage}"
+                                 Reason="{Binding RollbackRestartReason}"
+                                 DismissCommand="{Binding DismissRollbackRestartCommand}" />
       <ui:InfoBar Severity="Success" Title="Done" Message="{Binding ResultMessage}"
                   IsOpen="{Binding ShowSuccessResult, Mode=OneWay}" IsClosable="True" Margin="0,0,0,12" />
       <ui:InfoBar Severity="Warning" Title="That did not fully work" Message="{Binding ResultMessage}"
@@ -102,7 +108,7 @@
                          Accent="{DynamicResource AccentOrangeBrush}" Subtitle="{Binding PauseSubtitle}" />
     </controls:AdaptiveGrid>
 
-    <TabControl Grid.Row="3" Padding="0,8,0,0">
+    <TabControl Grid.Row="3" Padding="0,8,0,0" SelectedIndex="{Binding SelectedTabIndex, Mode=TwoWay}">
 
       <!-- Tab 1: pending updates -->
       <TabItem Header="{Binding UpdatesTabHeader}">
@@ -171,6 +177,10 @@
                     <ui:TextBlock Style="{StaticResource Caption}" Margin="0,2,0,0" Text="{Binding ReleasedText}" />
                     <ui:HyperlinkButton Content="Microsoft's article about this update" NavigateUri="{Binding SupportUrl}" Padding="0" Margin="0,4,0,0"
                                         Visibility="{Binding HasSupportUrl, Converter={StaticResource BoolToVisibility}}" />
+                    <ui:Button Content="Hide this update" Icon="{ui:SymbolIcon EyeOff24}" Margin="0,8,0,0" HorizontalAlignment="Left"
+                               Command="{Binding DataContext.HidePendingCommand, RelativeSource={RelativeSource AncestorType=Page}}"
+                               CommandParameter="{Binding}"
+                               ToolTip="Stops Windows Update from offering or installing this update until you show it again on the Roll back tab, like Microsoft's 'Show or hide updates' tool." />
                   </StackPanel>
                 </DataTemplate>
               </ui:DataGrid.RowDetailsTemplate>
@@ -354,6 +364,175 @@
                 </StackPanel>
               </ui:Card>
             </controls:AdaptiveGrid>
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+      <!-- Tab 4: uninstall, hide and go back -->
+      <TabItem Header="Roll back">
+        <ScrollViewer Style="{StaticResource PageScroll}" Margin="0,8,0,0">
+          <StackPanel>
+            <ui:InfoBar Severity="Warning" Title="Some information is missing" Message="{Binding RollbackWarnings}"
+                        IsOpen="{Binding HasRollbackWarnings, Mode=OneWay}" IsClosable="True" Margin="0,0,0,12" />
+
+            <ui:Card Padding="16" Visibility="{Binding ShowRollbackNotLoaded, Converter={StaticResource BoolToVisibility}}">
+              <controls:EmptyState Icon="History24" Title="Undo an update"
+                                   Message="Read the installed updates to remove one, hide updates Windows should not install, or go back to the previous version of Windows.">
+                <controls:EmptyState.Action>
+                  <ui:Button Content="Read installed updates" Appearance="Primary" Icon="{ui:SymbolIcon ArrowSync24}" Command="{Binding LoadRollbackCommand}" />
+                </controls:EmptyState.Action>
+              </controls:EmptyState>
+            </ui:Card>
+
+            <StackPanel Visibility="{Binding RollbackLoaded, Converter={StaticResource BoolToVisibility}}">
+
+              <!-- Installed updates -->
+              <ui:Card Padding="16" Margin="0,0,0,12">
+                <StackPanel>
+                  <Grid Margin="0,0,0,8">
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="*" />
+                      <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0">
+                      <ui:TextBlock Style="{StaticResource CardTitle}" Text="Installed updates" />
+                      <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Text="{Binding InstalledSummary}"
+                                    ToolTip="Read from Get-HotFix, the Windows Update history and DISM. Select an update to see how it would be removed." />
+                    </StackPanel>
+                    <ui:Button Grid.Column="1" Content="Refresh" Icon="{ui:SymbolIcon ArrowSync24}" Command="{Binding LoadRollbackCommand}" VerticalAlignment="Top"
+                               ToolTip="Reads the installed updates, the hidden updates and the window to go back again." />
+                  </Grid>
+                  <ui:TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,0,0,8"
+                                Text="Remove an update only when it causes a problem. Windows Update may install it again unless you hide it." />
+                  <ui:DataGrid AutomationProperties.Name="Installed updates" ItemsSource="{Binding InstalledUpdates}"
+                               MaxHeight="360"
+                               AutoGenerateColumns="False"
+                               CanUserAddRows="False"
+                               CanUserDeleteRows="False"
+                               SelectionMode="Single"
+                               GridLinesVisibility="Horizontal"
+                               HeadersVisibility="Column"
+                               RowDetailsVisibilityMode="VisibleWhenSelected"
+                               Visibility="{Binding HasInstalledUpdates, Converter={StaticResource BoolToVisibility}}">
+                    <ui:DataGrid.Columns>
+                      <DataGridTextColumn Header="KB" Binding="{Binding Kb}" Width="90" IsReadOnly="True" />
+                      <DataGridTextColumn Header="Update" Binding="{Binding Title}" Width="*" IsReadOnly="True" />
+                      <DataGridTextColumn Header="Type" Binding="{Binding TypeText}" Width="120" IsReadOnly="True" />
+                      <DataGridTextColumn Header="Installed" Binding="{Binding DateText}" Width="100" IsReadOnly="True" SortMemberPath="SortDate" />
+                      <DataGridTextColumn Header="Removed with" Binding="{Binding HowText}" Width="130" IsReadOnly="True" />
+                      <DataGridTemplateColumn Width="120" CanUserSort="False">
+                        <DataGridTemplateColumn.CellTemplate>
+                          <DataTemplate>
+                            <ui:Button Content="Uninstall" Appearance="Danger" Padding="10,4" Margin="4,2" HorizontalAlignment="Left"
+                                       Command="{Binding DataContext.UninstallUpdateCommand, RelativeSource={RelativeSource AncestorType=Page}}"
+                                       CommandParameter="{Binding}"
+                                       IsEnabled="{Binding CanUninstall}"
+                                       ToolTip="{Binding Explanation}" ToolTipService.ShowOnDisabled="True" />
+                          </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                      </DataGridTemplateColumn>
+                    </ui:DataGrid.Columns>
+                    <ui:DataGrid.RowDetailsTemplate>
+                      <DataTemplate>
+                        <StackPanel Margin="16,8,16,12">
+                          <ui:TextBlock Text="{Binding Explanation}" TextWrapping="Wrap" />
+                          <ui:TextBlock Style="{StaticResource Caption}" Margin="0,4,0,0" TextWrapping="Wrap"
+                                        Visibility="{Binding HasPackageName, Converter={StaticResource BoolToVisibility}}">
+                            <Run Text="Package: " /><Run Text="{Binding PackageName, Mode=OneWay}" />
+                          </ui:TextBlock>
+                          <ui:Button Content="Hide this update" Icon="{ui:SymbolIcon EyeOff24}" Margin="0,8,0,0" HorizontalAlignment="Left"
+                                     Command="{Binding DataContext.HideInstalledCommand, RelativeSource={RelativeSource AncestorType=Page}}"
+                                     CommandParameter="{Binding}"
+                                     Visibility="{Binding CanHide, Converter={StaticResource BoolToVisibility}}"
+                                     ToolTip="Stops Windows Update from installing this update again after you remove it, until you show it again." />
+                        </StackPanel>
+                      </DataTemplate>
+                    </ui:DataGrid.RowDetailsTemplate>
+                  </ui:DataGrid>
+                  <ui:TextBlock Style="{StaticResource Muted}" Text="No installed updates were found."
+                                Visibility="{Binding HasInstalledUpdates, Converter={StaticResource InverseBoolToVisibility}}" />
+                </StackPanel>
+              </ui:Card>
+
+              <!-- Hidden updates -->
+              <ui:Card Padding="16" Margin="0,0,0,12">
+                <StackPanel>
+                  <ui:TextBlock Style="{StaticResource CardTitle}" Text="Hidden updates" />
+                  <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,8" Text="{Binding HiddenTabText}"
+                                ToolTip="Windows Update does not offer or install hidden updates. To hide one, select it on the Updates tab or after removing it here." />
+                  <ItemsControl AutomationProperties.Name="Hidden updates" ItemsSource="{Binding HiddenUpdates}"
+                                Visibility="{Binding HasHiddenUpdates, Converter={StaticResource BoolToVisibility}}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate>
+                        <Grid Margin="0,0,0,8">
+                          <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                          </Grid.ColumnDefinitions>
+                          <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                            <ui:TextBlock Text="{Binding Title}" TextWrapping="Wrap" />
+                            <ui:TextBlock Style="{StaticResource Caption}">
+                              <Run Text="{Binding TypeText, Mode=OneWay}" /><Run Text=" · " /><Run Text="{Binding KbText, Mode=OneWay}" />
+                            </ui:TextBlock>
+                          </StackPanel>
+                          <ui:Button Grid.Column="1" Content="Show again" Icon="{ui:SymbolIcon Eye24}" Margin="12,0,0,0" VerticalAlignment="Center"
+                                     Command="{Binding DataContext.UnhideCommand, RelativeSource={RelativeSource AncestorType=Page}}"
+                                     CommandParameter="{Binding}"
+                                     ToolTip="Lets Windows Update offer and install this update again." />
+                        </Grid>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </StackPanel>
+              </ui:Card>
+
+              <!-- Go back to the previous version of Windows -->
+              <ui:Card Padding="16" Margin="0,0,0,12">
+                <StackPanel>
+                  <ui:TextBlock Style="{StaticResource CardTitle}" Text="Go back to the previous version of Windows" />
+                  <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,12"
+                                Text="For a short time after a feature update, Windows can return to the version it had before." />
+                  <controls:AdaptiveGrid MinItemWidth="200" MaxColumns="2" Margin="0,0,0,12">
+                    <controls:StatCard Style="{StaticResource Tile}" Title="Go back" Value="{Binding RollbackDaysText}" Icon="CalendarClock24"
+                                       Accent="{DynamicResource AccentOrangeBrush}" Subtitle="{Binding RollbackDeadlineText}" />
+                    <StackPanel VerticalAlignment="Center">
+                      <ui:TextBlock FontTypography="BodyStrong" Text="{Binding RollbackTitle}" TextWrapping="Wrap" />
+                      <ui:TextBlock Text="{Binding RollbackMessage}" TextWrapping="Wrap" Margin="0,2,0,0" />
+                    </StackPanel>
+                  </controls:AdaptiveGrid>
+                  <WrapPanel Visibility="{Binding ShowGoBackControls, Converter={StaticResource BoolToVisibility}}">
+                    <ui:Button Content="Go back…" Appearance="Danger" Icon="{ui:SymbolIcon ArrowUndo24}" Command="{Binding GoBackCommand}" Margin="0,0,16,8"
+                               ToolTip="Returns this PC to the previous version of Windows after two confirmations. The PC restarts; back up your files first." />
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8" Visibility="{Binding CanExtendWindow, Converter={StaticResource BoolToVisibility}}">
+                      <ui:TextBlock Text="Keep the option for" VerticalAlignment="Center" Margin="0,0,8,0" />
+                      <ComboBox ItemsSource="{Binding WindowOptions}" SelectedItem="{Binding SelectedWindowOption}" DisplayMemberPath="Label" MinWidth="110"
+                                AutomationProperties.Name="Days to keep the option to go back" Margin="0,0,8,0" />
+                      <ui:Button Content="Extend" Icon="{ui:SymbolIcon CalendarAdd24}" Command="{Binding ExtendWindowCommand}"
+                                 ToolTip="Sets how many days after the upgrade going back stays possible (up to 60), after you confirm." />
+                    </StackPanel>
+                  </WrapPanel>
+                  <ui:TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,4,0,0"
+                                Text="The previous version is kept in the Windows.old folder. Storage Sense, Disk Cleanup or deleting Windows.old ends the option to go back." />
+                  <ui:Button Content="Recovery in Settings" Appearance="Transparent" Icon="{ui:SymbolIcon Open24}" Command="{Binding OpenRecoverySettingsCommand}"
+                             Padding="8,4" Margin="-8,8,0,0" />
+                </StackPanel>
+              </ui:Card>
+
+              <!-- Drivers -->
+              <ui:Card Padding="16" Margin="0,0,0,12">
+                <Grid>
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                  </Grid.ColumnDefinitions>
+                  <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                    <ui:TextBlock FontTypography="BodyStrong" Text="A driver update caused the problem?" />
+                    <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap"
+                                  Text="Drivers are rolled back on the Drivers page: select the device, then use Device Manager's Roll Back Driver." />
+                  </StackPanel>
+                  <ui:Button Grid.Column="1" Content="Open Drivers" Icon="{ui:SymbolIcon Wrench24}" Command="{Binding OpenDriversCommand}" Margin="12,0,0,0" />
+                </Grid>
+              </ui:Card>
+            </StackPanel>
           </StackPanel>
         </ScrollViewer>
       </TabItem>

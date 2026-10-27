@@ -10,7 +10,7 @@ namespace PcChecker.Core.WindowsUpdate;
 /// wrapper in <c>Drivers/WindowsUpdateAgent</c> and sharing its helpers and result codes. Every call runs on a
 /// thread-pool (MTA) thread and turns COM failures into warnings or per-update results.
 /// </summary>
-internal sealed class WindowsUpdateClient
+internal sealed partial class WindowsUpdateClient
 {
     private const string Criteria = "IsInstalled=0 and Type='Software' and IsHidden=0";
     private const string CriteriaWithoutHidden = "IsInstalled=0 and Type='Software'";

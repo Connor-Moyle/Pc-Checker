@@ -678,12 +678,68 @@ updates; driver updates stay on the Drivers page.
     result also says to check Settings.
   - Every change is confirmed and recorded in the Action Journal with the
     previous value; pause and active hours do not create restore points.
-- **Links**: Windows Update, Update history, Advanced options and Active
-  hours in the Settings app.
+- **Roll back** tab (going back after an update). The lists are read the
+  first time the tab opens (DISM takes a moment); *Refresh* reads them again.
+  - *Installed updates*: every update `Get-HotFix` (`Win32_QuickFixEngineering`)
+    lists, with its KB, title and type from the Windows Update history and
+    the install date, plus the cumulative update's package from
+    `DISM /Online /Get-Packages`. Each row says how it would be removed:
+    - standalone updates (.NET, ordinary and security updates) with
+      `wusa.exe /uninstall /kb:<n> /quiet /norestart`;
+    - the monthly Windows cumulative update with
+      `DISM /Online /Remove-Package /PackageName:<Package_for_RollupFix…> /Quiet /NoRestart`,
+      because wusa cannot remove the combined servicing stack and cumulative
+      updates Windows 10 and 11 ship. The package is the installed RollupFix
+      whose version matches the build in the update's title (for example
+      `(26100.4061)`), or the newest installed one when the title has no
+      build. Cumulative updates that a newer one replaced cannot be removed;
+    - servicing stack updates are refused with the reason: Windows marks them
+      permanent and needs them for every later update.
+    *Uninstall* explains what is lost, creates a restore point (the removal
+    does not start if it fails), runs the tool from the system folder and
+    reports the result. It never restarts; a restart bar offers *Restart now*
+    when Windows needs one to finish. Afterwards it offers to hide the update
+    so Windows Update does not reinstall it.
+  - *Hide this update* (on a pending update's row in the Updates tab, or on an
+    installed one) sets `IUpdate.IsHidden`, the flag Microsoft's "Show or
+    hide updates" troubleshooter uses: Windows Update no longer offers or
+    installs it. *Hidden updates* lists them with *Show again*. An update is
+    found by its Windows Update id (from the check or the install history),
+    or by KB among the updates that are not installed; required updates
+    cannot be hidden.
+  - *Go back to the previous version of Windows*: after a feature update,
+    `DISM /Online /Get-OSUninstallWindow` gives the window (10 days by
+    default), counted from the upgrade date (`InstallDate`, or when
+    `Windows.old` was created) to show how many days are left. *Go back…*
+    asks twice (back up your files; apps installed since may need
+    reinstalling; you need the old password; it cannot be undone here), then
+    runs `DISM /Online /Initiate-OSUninstall /Quiet /NoRestart` and offers
+    the restart that carries it out. *Keep the option for* sets
+    `DISM /Online /Set-OSUninstallWindow /Value:<14–60>`. Without
+    `C:\Windows.old`, or when DISM says the option has gone, the card says
+    there is nothing to go back to. Storage Sense, Disk Cleanup or deleting
+    Windows.old ends the option; the Cleanup page's Windows.old category says
+    the same.
+  - *Open Drivers*: driver updates are rolled back on the Drivers page.
+  - wusa and DISM print translated text, so results are decided from their
+    exit codes only (0, 3010 and 1641 restart needed, 2359303 and 0x80070490
+    not installed, 0x80240017 not applicable, 0x800F0825 permanent, 0x800F0806
+    restart first, 5 and 740 access denied, 1618 another install running, and
+    so on), each with a plain-English message. DISM runs with `/English` and
+    its package list is parsed by the package identities, which are never
+    translated.
+  - Uninstall, hide, show again, go back and the window change are recorded
+    in the Action Journal; only *Uninstall* creates a restore point (going
+    back replaces Windows together with its restore points).
+- **Links**: Windows Update, Update history, Advanced options, Active hours
+  and Recovery in the Settings app.
 
 Limitations: the history is what the Windows Update Agent recorded (updates
 installed by other tools such as DISM or a standalone installer are not in
-it); restarts are left to you or to Windows outside active hours.
+it); restarts are left to you or to Windows outside active hours. Going back
+is only possible within Windows' own window and while Windows.old exists; an
+update Windows Update no longer lists cannot be hidden until it is offered
+again.
 
 ### Software
 
@@ -833,7 +889,9 @@ Win11Debloat, O&O ShutUp10++, Sophia Script and others; full list and table in
   deletes file by file and reports what was freed, skipped (locked or in use)
   and failed.
 - Shortcuts: *Open Storage settings* and *Run Windows Disk Cleanup* for
-  Windows.old.
+  Windows.old. Its card warns that removing it, including through Storage
+  Sense or Disk Cleanup, ends the option to go back to the previous version of
+  Windows (Windows Update → Roll back shows the days left).
 
 Safety rules: never outside the category roots, never through junctions or
 symbolic links, never files modified in the last 60 minutes (configurable),

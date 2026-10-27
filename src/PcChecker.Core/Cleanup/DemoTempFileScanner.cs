@@ -59,7 +59,7 @@ public sealed class DemoTempFileScanner : ITempFileScanner
         ["intel.shader.cache"] = new(0, 0, User + @"\AppData\Local\Intel\ShaderCache", [], []),
         ["windows.old"] = new(41_212, 8_100_000_000, @"C:\Windows.old",
             [],
-            ["Measured only. Remove it with Storage settings or Windows Disk Cleanup."]),
+            [CleanupRules.WindowsOldNote]),
         ["font.cache"] = new(4, 61_000_000, User + @"\AppData\Local\Microsoft\Windows\Fonts\Cache",
             ["FontCache-S-1-5-21-{0}.dat", "FontCache-System.dat", "~FontCache-{0}.tmp"],
             []),

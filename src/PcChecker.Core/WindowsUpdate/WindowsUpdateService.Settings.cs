@@ -248,7 +248,10 @@ public sealed partial class WindowsUpdateService
         }
     }
 
-    private UpdatePolicyValues ReadPolicyValues()
+    private UpdatePolicyValues ReadPolicyValues() => ReadPolicyValues(_logger);
+
+    /// <summary>The Windows Update policy values (Group Policy and device management), or empty when unreadable.</summary>
+    internal static UpdatePolicyValues ReadPolicyValues(ILogger logger)
     {
         try
         {
@@ -258,7 +261,7 @@ public sealed partial class WindowsUpdateService
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Windows Update policies could not be read.");
+            logger.LogWarning(ex, "Windows Update policies could not be read.");
             return UpdatePolicyValues.Empty;
         }
     }

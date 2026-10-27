@@ -7,6 +7,18 @@ All notable changes to PC Checker are recorded here. The format follows
 ## [Unreleased]
 
 ### Added
+- **Windows Update → Roll back**: lists installed updates (KB, title, date,
+  type) and removes the one you pick behind a restore point, with wusa or,
+  for the combined servicing stack and cumulative update, DISM and its
+  RollupFix package; servicing stack updates are refused with the reason.
+  *Hide this update* keeps a pending or removed update from being offered or
+  reinstalled (the same flag as Microsoft's "Show or hide updates" tool), and
+  *Hidden updates* shows them again. After a feature update, *Go back* returns
+  to the previous version of Windows while the window lasts (days left shown,
+  two confirmations, restart offered) and *Keep the option for* extends the
+  window up to 60 days. Results come from exit codes, so they read the same
+  on every Windows language. The Cleanup page's Windows.old entry now warns
+  that removing it, including through Storage Sense, ends going back.
 - **Update prompt**: when GitHub has a newer release, PC Checker asks with
   *Update now*, *Later* or *Skip this version* and shows what is new. *Update
   now* downloads the new PcChecker.exe, checks its SHA-256 and restarts into

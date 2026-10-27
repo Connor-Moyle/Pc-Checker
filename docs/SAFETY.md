@@ -80,7 +80,9 @@ follows, so you know what to expect and contributors know what to build.
 - Categories are labelled Safe, Moderate or Advanced. Moderate and Advanced
   ones (prefetch, crash dumps, Windows logs, Windows.old) explain the
   trade-off. Windows.old is only reported; removing it goes through Windows'
-  own Storage settings or Disk Cleanup.
+  own Storage settings or Disk Cleanup, and the category warns that removing
+  it (including through Storage Sense) ends the option to go back to the
+  previous version of Windows.
 
 ## Disk space rules
 
@@ -297,6 +299,29 @@ damage hardware. PC Checker reduces the risk; it cannot remove it.
   deleted. The app never adds `/force` or `/uninstall`, so Windows refuses to
   remove a driver that is still in use. If the app cannot tell which devices
   use which driver, every package is kept.
+
+## Update rollback rules
+
+- Every removal, hide, show again, go back and window change is confirmed
+  first and runs through the change guard, which records it in the Action
+  Journal. Removing an update creates a restore point first and does not
+  start if that fails.
+- Servicing stack updates are never removed: Windows marks them permanent and
+  needs them for every later update. A cumulative update that a newer one
+  replaced is not offered for removal either.
+- wusa and DISM are run from the Windows system folder with fixed arguments;
+  the KB must be digits and the DISM package must have the shape of a package
+  identity, so nothing else reaches the command line. Both run with
+  `/quiet`/`/Quiet` and `/norestart`/`/NoRestart`: PC Checker never restarts
+  without the restart confirmation, and a removal is not cancelled half-way.
+- Outcomes are decided from exit codes, not the tools' translated text.
+- *Go back* asks twice (back up first; apps installed since the upgrade may
+  need reinstalling; it cannot be undone from PC Checker). It creates no
+  restore point because going back replaces Windows and its restore points.
+  The window can only be set to 2–60 days and never to less than the days
+  already gone, which would end the option at once.
+- Hiding only sets Windows Update's own hidden flag; Windows Update refuses it
+  for required updates, and *Show again* undoes it.
 
 ## Lighting rules
 

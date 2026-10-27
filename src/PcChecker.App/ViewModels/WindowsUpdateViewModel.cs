@@ -10,19 +10,23 @@ using PcChecker.App.Services;
 using PcChecker.Core.Common;
 using PcChecker.Core.Settings;
 using PcChecker.Core.WindowsUpdate;
+using Wpf.Ui;
 
 namespace PcChecker.App.ViewModels;
 
 /// <summary>
 /// Windows Update page: status (last check and install, restart, pause, policy), pending software updates with
-/// install through the change guard, the install history with failures explained, and the pause and active hours
-/// controls. Driver updates stay on the Drivers page.
+/// install through the change guard, the install history with failures explained, the pause and active hours
+/// controls, and the Roll back tab (uninstall, hide, go back to the previous Windows version). Driver updates stay on
+/// the Drivers page.
 /// </summary>
 public sealed partial class WindowsUpdateViewModel : ViewModelBase
 {
     private const string DefaultSubtitle = "Windows and Microsoft updates for this PC, their history, and when they may install.";
 
     private readonly IWindowsUpdateService _updates;
+    private readonly IUpdateRollbackService _rollback;
+    private readonly INavigationService _navigation;
     private readonly IDialogService _dialogs;
     private readonly INotificationService _notifications;
     private readonly ILogger<WindowsUpdateViewModel> _logger;
@@ -99,11 +103,13 @@ public sealed partial class WindowsUpdateViewModel : ViewModelBase
     [NotifyPropertyChangedFor(nameof(ShowFailureResult))]
     private bool _resultSuccess;
 
-    public WindowsUpdateViewModel(ISettingsService settings, IWindowsUpdateService updates, IDialogService dialogs,
-        INotificationService notifications, ILogger<WindowsUpdateViewModel> logger)
+    public WindowsUpdateViewModel(ISettingsService settings, IWindowsUpdateService updates, IUpdateRollbackService rollback, IDialogService dialogs,
+        INotificationService notifications, INavigationService navigation, ILogger<WindowsUpdateViewModel> logger)
         : base(settings)
     {
         _updates = updates;
+        _rollback = rollback;
+        _navigation = navigation;
         _dialogs = dialogs;
         _notifications = notifications;
         _logger = logger;
@@ -144,7 +150,8 @@ public sealed partial class WindowsUpdateViewModel : ViewModelBase
 
     /// <summary>
     /// Reads the status and history (both quick and read-only). The check for updates waits for the button in normal
-    /// mode because it can take a minute; demo mode checks so the page has content.
+    /// mode because it can take a minute, and the Roll back tab reads its lists when it is first opened (DISM is slow);
+    /// demo mode does both so the page has content.
     /// </summary>
     public override Task InitializeAsync(CancellationToken cancellationToken) => RunBusyAsync(async busyToken =>
     {
@@ -153,6 +160,7 @@ public sealed partial class WindowsUpdateViewModel : ViewModelBase
         if (AppOptions.Current.IsDemo)
         {
             await CheckCoreAsync(linked.Token);
+            await LoadRollbackCoreAsync(linked.Token);
         }
     }, "Reading Windows Update status…");
 
@@ -160,6 +168,10 @@ public sealed partial class WindowsUpdateViewModel : ViewModelBase
     {
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(busyToken, cancellationToken);
         await LoadStatusAndHistoryAsync(linked.Token);
+        if (RollbackLoaded)
+        {
+            await LoadRollbackCoreAsync(linked.Token);
+        }
     }, "Reading Windows Update status…");
 
     protected override void OnBusyError(Exception exception) => _logger.LogError(exception, "Windows Update page operation failed.");
