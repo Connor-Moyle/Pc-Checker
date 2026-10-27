@@ -137,6 +137,9 @@
       <RowDefinition Height="*" />
     </Grid.RowDefinitions>
 
+    <!-- Subtitle is the live status line on purpose (UI guidelines allow it): fan counts after
+         detection, the last operation result otherwise. The fallback shows only while fan
+         control is unavailable (StatusText is null). -->
     <controls:SectionHeader Grid.Row="0" Title="Fans"
                             Subtitle="{Binding StatusText, TargetNullValue='Fan speeds, curves and profiles for quiet or cool running.'}">
       <controls:SectionHeader.Actions>
