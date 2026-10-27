@@ -46,7 +46,14 @@ public sealed class MemoryActionsProvider : IOptimizationActionProvider
             return new ActionState(id, null, null);
         }
 
-        return id.ToLowerInvariant() switch
+        string lower = id.ToLowerInvariant();
+        if (!overview.MemoryCompressionKnown && lower is CompressionOn or CompressionOff)
+        {
+            // Get-MMAgent failed (for example while SysMain is disabled): do not guess.
+            return new ActionState(id, null, "Unknown");
+        }
+
+        return lower switch
         {
             CompressionOn => new ActionState(id, overview.MemoryCompressionEnabled, overview.MemoryCompressionEnabled ? "On" : "Off"),
             CompressionOff => new ActionState(id, !overview.MemoryCompressionEnabled, overview.MemoryCompressionEnabled ? "On" : "Off"),

@@ -51,7 +51,9 @@ public sealed class WindowsMemoryService : IMemoryService, IMemoryTuning
         bool? compression = await ReadMemoryCompressionAsync(cancellationToken).ConfigureAwait(false);
         if (compression is null)
         {
-            warnings.Add("Memory compression state could not be read (Get-MMAgent failed).");
+            warnings.Add(facts.SysMainDisabled
+                ? "Memory compression state could not be read because SysMain (Superfetch) is disabled; Windows reads and changes it through that service."
+                : "Memory compression state could not be read (Get-MMAgent failed).");
         }
 
         var diagnostic = await ReadLastDiagnosticAsync(cancellationToken).ConfigureAwait(false);
@@ -70,7 +72,8 @@ public sealed class WindowsMemoryService : IMemoryService, IMemoryTuning
         var allWarnings = ruleWarnings.Concat(warnings).ToList();
         Last = new MemoryOverview(facts.TotalBytes, facts.AvailableBytes, facts.CommitTotalBytes, facts.CommitLimitBytes, facts.CachedBytes,
             facts.StandbyBytes, compression ?? true, facts.SysMainEnabled, facts.AutomaticPageFile, facts.PageFiles, xmp.State, xmp.ConfiguredMhz,
-            xmp.RatedMhz, modules, diagnosticText, facts.Slots, modules.Count, channels.DualChannelLikely, allWarnings);
+            xmp.RatedMhz, modules, diagnosticText, facts.Slots, modules.Count, channels.DualChannelLikely, allWarnings,
+            MemoryCompressionKnown: compression is not null);
         _logger.LogInformation("Memory overview: {Total} total, {Available} available, {Modules} module(s), XMP {Xmp}, {Warnings} warning(s).",
             ByteSize.Format(facts.TotalBytes), ByteSize.Format(facts.AvailableBytes), modules.Count, xmp.State, allWarnings.Count);
         return Last;
@@ -120,11 +123,18 @@ public sealed class WindowsMemoryService : IMemoryService, IMemoryTuning
                 var failures = new List<string>();
                 bool reboot = false;
 
-                var compression = await SetMemoryCompressionCoreAsync(profile.MemoryCompression, ct).ConfigureAwait(false);
-                Collect(compression, steps, failures, ref reboot);
-
-                var sysMain = await SetSysMainCoreAsync(profile.SysMain, ct).ConfigureAwait(false);
-                Collect(sysMain, steps, failures, ref reboot);
+                // Memory compression is read and changed through SysMain (Get-/Enable-/Disable-MMAgent fail while it
+                // is disabled), so a profile that turns SysMain on does that first and one that turns it off does it last.
+                if (profile.SysMain)
+                {
+                    Collect(await SetSysMainCoreAsync(true, ct).ConfigureAwait(false), steps, failures, ref reboot);
+                    Collect(await SetMemoryCompressionCoreAsync(profile.MemoryCompression, ct).ConfigureAwait(false), steps, failures, ref reboot);
+                }
+                else
+                {
+                    Collect(await SetMemoryCompressionCoreAsync(profile.MemoryCompression, ct).ConfigureAwait(false), steps, failures, ref reboot);
+                    Collect(await SetSysMainCoreAsync(false, ct).ConfigureAwait(false), steps, failures, ref reboot);
+                }
 
                 long total = Last?.TotalBytes ?? (MemoryNative.TryGetMemoryStatus(out long t, out _) ? t : 0);
                 var size = PageFileRules.SizeForProfile(profile, total);
@@ -190,6 +200,11 @@ public sealed class WindowsMemoryService : IMemoryService, IMemoryTuning
 
     private static async Task<OperationResult> SetMemoryCompressionCoreAsync(bool enabled, CancellationToken cancellationToken)
     {
+        if (await Task.Run(IsSysMainDisabled, cancellationToken).ConfigureAwait(false))
+        {
+            return OperationResult.Fail("Memory compression can only be changed while SysMain (Superfetch) is allowed to run, because Windows manages it through that service. Turn SysMain on first, then change memory compression.");
+        }
+
         // Print the state before and after so the result only asks for a restart when something changed.
         string command = enabled
             ? "$b = (Get-MMAgent).MemoryCompression; if ($b -ne $true) { Enable-MMAgent -MemoryCompression }; \"$b\"; (Get-MMAgent).MemoryCompression"
@@ -232,6 +247,18 @@ public sealed class WindowsMemoryService : IMemoryService, IMemoryTuning
         return stop.Success || stop.StdOut.Contains("1062", StringComparison.Ordinal)
             ? OperationResult.Ok("SysMain (Superfetch) is stopped and disabled.")
             : OperationResult.Ok("SysMain is disabled and will not start again; it stops fully after the next restart.", rebootRequired: true);
+    }
+
+    private static bool IsSysMainDisabled()
+    {
+        try
+        {
+            return MemoryWmi.GetService(SysMainService) is { } s && s.StartMode.Equals("Disabled", StringComparison.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private static OperationResult SetFixedPageFile(string drive, int initialMb, int maximumMb)
@@ -296,12 +323,13 @@ public sealed class WindowsMemoryService : IMemoryService, IMemoryTuning
         bool automatic = MemoryWmi.GetAutomaticPageFile() ?? pageFiles.Count == 0;
         var sysMain = MemoryWmi.GetService(SysMainService);
         bool sysMainEnabled = sysMain is { } s && s.State.Equals("Running", StringComparison.OrdinalIgnoreCase);
+        bool sysMainDisabled = sysMain is { } d && d.StartMode.Equals("Disabled", StringComparison.OrdinalIgnoreCase);
         if (sysMain is null)
         {
             warnings.Add("The SysMain service could not be queried.");
         }
 
-        return new SystemFacts(total, available, commitTotal, commitLimit, cache, standby, modules, slots, pageFiles, automatic, sysMainEnabled, MemoryWmi.GetCpuVendor());
+        return new SystemFacts(total, available, commitTotal, commitLimit, cache, standby, modules, slots, pageFiles, automatic, sysMainEnabled, sysMainDisabled, MemoryWmi.GetCpuVendor());
     }
 
     private long ReadStandbyBytes()
@@ -376,7 +404,7 @@ public sealed class WindowsMemoryService : IMemoryService, IMemoryTuning
     }
 
     private sealed record SystemFacts(long TotalBytes, long AvailableBytes, long CommitTotalBytes, long CommitLimitBytes, long CachedBytes, long StandbyBytes,
-        IReadOnlyList<MemoryModuleInfo> Modules, int Slots, IReadOnlyList<PageFileInfo> PageFiles, bool AutomaticPageFile, bool SysMainEnabled, string? CpuVendor);
+        IReadOnlyList<MemoryModuleInfo> Modules, int Slots, IReadOnlyList<PageFileInfo> PageFiles, bool AutomaticPageFile, bool SysMainEnabled, bool SysMainDisabled, string? CpuVendor);
 
     private sealed class DiagnosticRow
     {

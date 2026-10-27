@@ -156,7 +156,7 @@ public sealed partial class MemoryViewModel : ViewModelBase
         StandbyText = ByteSize.Format(o.StandbyBytes);
         MemoryCompressionEnabled = o.MemoryCompressionEnabled;
         SysMainEnabled = o.SysMainEnabled;
-        CompressionText = o.MemoryCompressionEnabled ? "On" : "Off";
+        CompressionText = !o.MemoryCompressionKnown ? "Unknown" : o.MemoryCompressionEnabled ? "On" : "Off";
         SysMainText = o.SysMainEnabled ? "Running" : "Stopped";
         KitSummary = MemoryRules.DescribeKit(o.Modules);
         SlotsText = o.Slots > 0 ? $"{o.SlotsUsed} of {o.Slots} slots used" : $"{o.SlotsUsed} module(s)";

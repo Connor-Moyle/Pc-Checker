@@ -23,7 +23,8 @@ public sealed record MemoryOverview(
     int Slots,
     int SlotsUsed,
     bool DualChannelLikely,
-    IReadOnlyList<string> Warnings)
+    IReadOnlyList<string> Warnings,
+    bool MemoryCompressionKnown = true)
 {
     public long UsedBytes => Math.Max(0, TotalBytes - AvailableBytes);
     public double UsedPercent => TotalBytes <= 0 ? 0 : 100.0 * UsedBytes / TotalBytes;

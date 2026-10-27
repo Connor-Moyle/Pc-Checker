@@ -33,7 +33,7 @@ public static class MemoryProfileCatalog
     {
         ArgumentNullException.ThrowIfNull(profile);
         ArgumentNullException.ThrowIfNull(overview);
-        if (profile.MemoryCompression != overview.MemoryCompressionEnabled || profile.SysMain != overview.SysMainEnabled)
+        if (!overview.MemoryCompressionKnown || profile.MemoryCompression != overview.MemoryCompressionEnabled || profile.SysMain != overview.SysMainEnabled)
         {
             return false;
         }

@@ -289,6 +289,8 @@ public class MemoryProfileCatalogTests
         Assert.True(MemoryProfileCatalog.Matches(gaming, fixedFile));
         Assert.False(MemoryProfileCatalog.Matches(balanced, fixedFile));
         Assert.False(MemoryProfileCatalog.Matches(balanced, auto with { SysMainEnabled = false }));
+        // Compression could not be read (Get-MMAgent fails while SysMain is disabled): never claim a match.
+        Assert.False(MemoryProfileCatalog.Matches(balanced, auto with { MemoryCompressionKnown = false }));
     }
 }
 
@@ -335,6 +337,44 @@ public class MemoryActionsProviderTests
 
         Assert.False((await provider.ApplyAsync("memory.unknown", CancellationToken.None)).Success);
         Assert.Null((await provider.GetStateAsync("memory.standby.clear", CancellationToken.None)).IsApplied);
+    }
+
+    [Fact]
+    public async Task Provider_reports_unknown_compression_instead_of_guessing()
+    {
+        var overview = MemoryOverview.Empty() with { MemoryCompressionEnabled = true, MemoryCompressionKnown = false, SysMainEnabled = false };
+        var provider = new MemoryActionsProvider(new FixedMemoryService(overview));
+        var on = await provider.GetStateAsync("memory.compression.on", CancellationToken.None);
+        var off = await provider.GetStateAsync("memory.compression.off", CancellationToken.None);
+        Assert.Null(on.IsApplied);
+        Assert.Null(off.IsApplied);
+        Assert.Equal("Unknown", on.CurrentValue);
+        Assert.False((await provider.GetStateAsync("memory.sysmain.on", CancellationToken.None)).IsApplied);
+        Assert.True(MemoryOverview.Empty().MemoryCompressionKnown);
+    }
+
+    /// <summary>Returns one fixed overview; changes are not supported.</summary>
+    private sealed class FixedMemoryService(MemoryOverview overview) : IMemoryService
+    {
+        public IReadOnlyList<MemoryProfile> Profiles => MemoryProfileCatalog.All;
+
+        public MemoryOverview? Last => overview;
+
+        public Task<MemoryOverview> GetOverviewAsync(CancellationToken cancellationToken) => Task.FromResult(overview);
+
+        public Task<MemoryTestResult> RunMemoryTestAsync(int percentOfAvailable, int passes, IProgress<ProgressUpdate>? progress, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<OperationResult> ScheduleWindowsMemoryDiagnosticAsync(CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task<OperationResult> ApplyProfileAsync(MemoryProfile profile, CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task<OperationResult> ClearStandbyListAsync(CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task<OperationResult> SetPageFileAsync(string drive, bool systemManaged, int? initialMb, int? maxMb, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<OperationResult> SetMemoryCompressionAsync(bool enabled, CancellationToken cancellationToken) => throw new NotSupportedException();
     }
 
     [Fact]
