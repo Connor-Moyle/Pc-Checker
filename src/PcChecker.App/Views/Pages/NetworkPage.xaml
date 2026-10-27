@@ -11,6 +11,9 @@
       Title="Network"
       ScrollViewer.CanContentScroll="False">
   <Page.Resources>
+    <Style x:Key="Tile" TargetType="controls:StatCard">
+      <Setter Property="Margin" Value="0" />
+    </Style>
     <Style x:Key="Badge" TargetType="Border">
       <Setter Property="CornerRadius" Value="4" />
       <Setter Property="Padding" Value="6,1" />
@@ -58,11 +61,20 @@
       <RowDefinition Height="*" />
     </Grid.RowDefinitions>
 
-    <controls:SectionHeader Grid.Row="0" Title="Network" Subtitle="Test your Wi-Fi, internet speed and packet loss, see what slows the connection down, and tune Wi-Fi settings safely.">
+    <controls:SectionHeader Grid.Row="0" Title="Network" Subtitle="Test your Wi-Fi, speed and packet loss, and tune Wi-Fi settings safely.">
       <controls:SectionHeader.Actions>
         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-          <ui:Button Content="Refresh" Icon="{ui:SymbolIcon ArrowSync24}" Command="{Binding RefreshAllCommand}" IsEnabled="{Binding IsIdle}" Margin="0,0,8,0"
-                     ToolTip="Read the adapters, the Wi-Fi connection and the tuning settings again." />
+          <ui:DropDownButton Content="More" Icon="{ui:SymbolIcon MoreHorizontal24}" Margin="0,0,8,0">
+            <ui:DropDownButton.Flyout>
+              <ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+                <MenuItem Header="Refresh" Command="{Binding RefreshAllCommand}" IsEnabled="{Binding IsIdle}"
+                          ToolTip="Read the adapters, the Wi-Fi connection and the tuning settings again." />
+                <MenuItem Header="Reload tuning settings" Command="{Binding ReloadTuningCommand}" IsEnabled="{Binding IsIdle}" />
+                <MenuItem Header="Open Wi-Fi settings" Command="{Binding OpenWifiSettingsCommand}" />
+                <MenuItem Header="Open network settings" Command="{Binding OpenNetworkSettingsCommand}" />
+              </ContextMenu>
+            </ui:DropDownButton.Flyout>
+          </ui:DropDownButton>
           <ui:Button Content="Quick improve Wi-Fi" Icon="{ui:SymbolIcon Sparkle24}" Command="{Binding OpenQuickImproveCommand}" IsEnabled="{Binding IsIdle}" Margin="0,0,8,0"
                      ToolTip="Lists the recommended changes that differ from your current settings. Nothing changes until you confirm." />
           <ui:Button Appearance="Primary" Content="Run all tests" Icon="{ui:SymbolIcon PlayCircle24}" Command="{Binding RunAllTestsCommand}" IsEnabled="{Binding IsIdle}"
@@ -77,38 +89,39 @@
                                  Message="A network change you made finishes after Windows restarts. Save your work and restart when convenient."
                                  Reason="to finish the network changes you made"
                                  DismissCommand="{Binding DismissRestartCommand}" />
+      <ui:InfoBar Severity="Warning" Title="Windows needs Location permission to list Wi-Fi networks"
+                  Message="Turn on Location for desktop apps so Windows shows nearby networks. PC Checker does not use your location."
+                  IsOpen="{Binding NeedsLocationPermission, Mode=OneWay}" IsClosable="False" Margin="0,0,0,12"
+                  ToolTip="Windows 11 only lets apps see nearby Wi-Fi networks (and sometimes your own network's name) when Location is on for desktop apps.">
+        <StackPanel Orientation="Horizontal" Margin="0,8,0,4">
+          <ui:Button Content="Open Location settings" Icon="{ui:SymbolIcon Location24}" Appearance="Primary" Command="{Binding OpenLocationSettingsCommand}" Margin="0,0,8,0" />
+          <ui:Button Content="Analyze again" Icon="{ui:SymbolIcon ArrowSync24}" Command="{Binding AnalyzeWifiCommand}" IsEnabled="{Binding IsIdle}" />
+        </StackPanel>
+      </ui:InfoBar>
+      <ui:InfoBar Severity="Warning" Title="Packet errors" Message="{Binding AdapterErrorsText}" IsOpen="{Binding HasAdapterErrors, Mode=OneWay}" IsClosable="False" Margin="0,0,0,12" />
     </StackPanel>
 
     <ScrollViewer Grid.Row="2" Style="{StaticResource PageScroll}">
       <StackPanel>
 
-        <ui:InfoBar Severity="Warning" Title="Windows needs Location permission to list Wi-Fi networks"
-                    Message="Windows 11 only lets apps see nearby Wi-Fi networks (and sometimes your own network's name) when Location is on for desktop apps. PC Checker does not use your location."
-                    IsOpen="{Binding NeedsLocationPermission, Mode=OneWay}" IsClosable="False" Margin="0,0,0,12">
-          <StackPanel Orientation="Horizontal" Margin="0,8,0,4">
-            <ui:Button Content="Open Location settings" Icon="{ui:SymbolIcon Location24}" Appearance="Primary" Command="{Binding OpenLocationSettingsCommand}" Margin="0,0,8,0" />
-            <ui:Button Content="Analyze again" Icon="{ui:SymbolIcon ArrowSync24}" Command="{Binding AnalyzeWifiCommand}" IsEnabled="{Binding IsIdle}" />
-          </StackPanel>
-        </ui:InfoBar>
-
         <!-- 1. Connection summary -->
-        <WrapPanel Margin="0,0,0,4">
-          <controls:StatCard Title="Connection" Value="{Binding AdapterText}" Icon="PlugConnected24" Accent="{StaticResource AccentCyanBrush}"
-                             Subtitle="{Binding AdapterSubtitle}" Margin="0,0,12,12"
+        <controls:AdaptiveGrid MinItemWidth="200" MaxColumns="5" Margin="0,0,0,12">
+          <controls:StatCard Style="{StaticResource Tile}" Title="Connection" Value="{Binding AdapterText}" Icon="PlugConnected24" Accent="{StaticResource AccentCyanBrush}"
+                             Subtitle="{Binding AdapterSubtitle}"
                              ToolTip="The adapter this PC uses to reach the internet right now." />
-          <controls:StatCard Title="IP address" Value="{Binding IpText}" Icon="Desktop24" Accent="{StaticResource AccentPurpleBrush}"
-                             Subtitle="{Binding IpSubtitle}" Margin="0,0,12,12"
+          <controls:StatCard Style="{StaticResource Tile}" Title="IP address" Value="{Binding IpText}" Icon="Desktop24" Accent="{StaticResource AccentPurpleBrush}"
+                             Subtitle="{Binding IpSubtitle}"
                              ToolTip="The address your router gave this PC on your home network (not your public internet address)." />
-          <controls:StatCard Title="Router" Value="{Binding GatewayText}" Icon="Router24" Accent="{StaticResource AccentGreyBrush}"
-                             Subtitle="{Binding GatewaySubtitle}" Margin="0,0,12,12"
+          <controls:StatCard Style="{StaticResource Tile}" Title="Router" Value="{Binding GatewayText}" Icon="Router24" Accent="{StaticResource AccentGreyBrush}"
+                             Subtitle="{Binding GatewaySubtitle}"
                              ToolTip="The default gateway: the router every packet to the internet goes through. DNS servers turn web addresses into IP addresses." />
-          <controls:StatCard Title="Link speed" Value="{Binding LinkSpeedText}" Unit="{Binding LinkSpeedUnit}" Icon="TopSpeed24" Accent="{StaticResource AccentGreenBrush}"
-                             Subtitle="Between this PC and the router" Margin="0,0,12,12"
+          <controls:StatCard Style="{StaticResource Tile}" Title="Link speed" Value="{Binding LinkSpeedText}" Unit="{Binding LinkSpeedUnit}" Icon="TopSpeed24" Accent="{StaticResource AccentGreenBrush}"
+                             Subtitle="Between this PC and the router"
                              ToolTip="How fast the adapter talks to the router. Your internet speed can be lower: it is limited by your plan and the provider." />
-          <controls:StatCard Title="Wi-Fi signal" Value="{Binding SignalText}" Unit="%" Icon="Wifi124" Accent="{StaticResource AccentYellowBrush}"
-                             Subtitle="{Binding SignalSubtitle}" Margin="0,0,12,12"
+          <controls:StatCard Style="{StaticResource Tile}" Title="Wi-Fi signal" Value="{Binding SignalText}" Unit="%" Icon="Wifi124" Accent="{StaticResource AccentYellowBrush}"
+                             Subtitle="{Binding SignalSubtitle}"
                              ToolTip="Signal quality as Windows reports it. dBm is the radio power: -50 is excellent, -67 is good for calls and games, below -75 is weak." />
-        </WrapPanel>
+        </controls:AdaptiveGrid>
 
         <!-- Quick improve checklist -->
         <ui:Card Style="{StaticResource CardSpacing}" Visibility="{Binding IsQuickImproveOpen, Converter={StaticResource BoolToVisibility}}">
@@ -214,8 +227,8 @@
                   </DataTemplate>
                 </ItemsControl.ItemTemplate>
               </ItemsControl>
-              <ui:TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,6,0,0"
-                            Text="Speeds vary from minute to minute; differences under 3 % count as the same. For a fair comparison, run both tests at a quiet time with nothing else downloading." />
+              <ui:TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,6,0,0" Text="Differences under 3 % count as the same."
+                            ToolTip="Speeds vary from minute to minute; differences under 3 % count as the same. For a fair comparison, run both tests at a quiet time with nothing else downloading." />
             </StackPanel>
           </StackPanel>
         </ui:Card>
@@ -330,8 +343,8 @@
         <ui:Card Style="{StaticResource CardSpacing}" Visibility="{Binding HasNearby, Converter={StaticResource BoolToVisibility}}">
           <StackPanel>
             <ui:TextBlock Style="{StaticResource CardTitle}" Text="Nearby networks" />
-            <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,8"
-                          Text="Every access point this PC can hear, from Windows' latest scan. Many routers show up twice: once on 2.4 GHz and once on 5 GHz." />
+            <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,8" Text="Every access point this PC can hear, from Windows' latest scan."
+                          ToolTip="Many routers show up twice: once on 2.4 GHz and once on 5 GHz." />
             <ui:DataGrid ItemsSource="{Binding Nearby}" AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False" CanUserReorderColumns="False"
                          IsReadOnly="True" SelectionMode="Single" GridLinesVisibility="Horizontal" HeadersVisibility="Column" MaxHeight="360">
               <ui:DataGrid.Columns>
@@ -369,7 +382,7 @@
             </ui:DataGrid>
 
             <ui:TextBlock FontTypography="BodyStrong" Text="How crowded each channel is" Margin="0,16,0,4"
-                          ToolTip="Wi-Fi networks on the same channel take turns to talk. The more networks share yours, the slower and laggier it gets." />
+                          ToolTip="Wi-Fi networks on the same channel take turns to talk. The more networks share yours, the slower and laggier it gets. The channel is set on the router, not on this PC. 'best' marks the least crowded of the non-overlapping 2.4 GHz channels (1, 6, 11) as seen from here." />
             <ItemsControl ItemsSource="{Binding ChannelGroups}">
               <ItemsControl.ItemTemplate>
                 <DataTemplate>
@@ -401,8 +414,7 @@
                 </DataTemplate>
               </ItemsControl.ItemTemplate>
             </ItemsControl>
-            <ui:TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap"
-                          Text="The channel is set on the router, not on this PC. 'best' marks the least crowded of the non-overlapping 2.4 GHz channels (1, 6, 11) as seen from here." />
+            <ui:TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Text="The channel is set on the router, not on this PC." />
           </StackPanel>
         </ui:Card>
 
@@ -443,18 +455,18 @@
                           Text="Not run yet. The test measures download and upload speed and how much your ping rises while the line is busy (bufferbloat)." />
 
             <StackPanel Visibility="{Binding HasSpeedResult, Converter={StaticResource BoolToVisibility}}">
-              <WrapPanel>
-                <controls:StatCard Title="Download" Value="{Binding DownloadText}" Unit="Mbps" Icon="ArrowDownload24" Accent="{StaticResource AccentCyanBrush}" Margin="0,0,12,12"
+              <controls:AdaptiveGrid MinItemWidth="200" MaxColumns="5" Margin="0,0,0,12">
+                <controls:StatCard Style="{StaticResource Tile}" Title="Download" Value="{Binding DownloadText}" Unit="Mbps" Icon="ArrowDownload24" Accent="{StaticResource AccentCyanBrush}"
                                    Subtitle="Megabits per second" ToolTip="How fast data comes in: streaming, downloads, web pages. 8 Mbps = 1 megabyte per second." />
-                <controls:StatCard Title="Upload" Value="{Binding UploadText}" Unit="Mbps" Icon="ArrowUpload24" Accent="{StaticResource AccentPurpleBrush}" Margin="0,0,12,12"
+                <controls:StatCard Style="{StaticResource Tile}" Title="Upload" Value="{Binding UploadText}" Unit="Mbps" Icon="ArrowUpload24" Accent="{StaticResource AccentPurpleBrush}"
                                    Subtitle="Megabits per second" ToolTip="How fast data goes out: video calls, cloud backups, streaming your games." />
-                <controls:StatCard Title="Ping (idle)" Value="{Binding IdlePingText}" Icon="Timer24" Accent="{StaticResource AccentGreenBrush}" Margin="0,0,12,12"
+                <controls:StatCard Style="{StaticResource Tile}" Title="Ping (idle)" Value="{Binding IdlePingText}" Icon="Timer24" Accent="{StaticResource AccentGreenBrush}"
                                    Subtitle="Round trip to the test server" ToolTip="Ping: the time a tiny request takes to reach the server and come back while nothing else is happening." />
-                <controls:StatCard Title="Ping under load" Value="{Binding LoadedPingText}" Icon="Pulse24" Accent="{StaticResource AccentOrangeBrush}" Margin="0,0,12,12"
+                <controls:StatCard Style="{StaticResource Tile}" Title="Ping under load" Value="{Binding LoadedPingText}" Icon="Pulse24" Accent="{StaticResource AccentOrangeBrush}"
                                    Subtitle="While downloading and uploading" ToolTip="The same ping measured while the line is full. A big rise means bufferbloat: lag whenever someone downloads." />
-                <controls:StatCard Title="Jitter" Value="{Binding SpeedJitterText}" Icon="DataBarHorizontal24" Accent="{StaticResource AccentGreyBrush}" Margin="0,0,12,12"
+                <controls:StatCard Style="{StaticResource Tile}" Title="Jitter" Value="{Binding SpeedJitterText}" Icon="DataBarHorizontal24" Accent="{StaticResource AccentGreyBrush}"
                                    Subtitle="How much ping varies" ToolTip="Jitter: how much the ping changes from one request to the next. Under 5 ms is smooth; above 30 ms calls and games stutter." />
-              </WrapPanel>
+              </controls:AdaptiveGrid>
               <Grid Margin="0,0,0,8">
                 <Grid.ColumnDefinitions>
                   <ColumnDefinition Width="Auto" />
@@ -473,8 +485,8 @@
               </Grid>
               <ui:InfoBar Severity="Warning" Title="About this result" Message="{Binding SpeedWarningsText}" IsOpen="{Binding HasSpeedWarnings, Mode=OneWay}" IsClosable="False" Margin="0,0,0,8" />
             </StackPanel>
-            <ui:TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap"
-                          Text="Results depend on the test server, the time of day and everything else using your connection. Wi-Fi results are usually lower than with a cable. Compare against your plan's speed at a quiet time." />
+            <ui:TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Text="Compare against your plan's speed at a quiet time."
+                          ToolTip="Results depend on the test server, the time of day and everything else using your connection. Wi-Fi results are usually lower than with a cable." />
           </StackPanel>
         </ui:Card>
 
@@ -491,8 +503,8 @@
                   <ui:SymbolIcon Symbol="NetworkCheck24" Margin="0,0,8,0" />
                   <ui:TextBlock Style="{StaticResource CardTitle}" Text="Packet loss test" Margin="0" />
                 </StackPanel>
-                <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap"
-                              Text="Sends small 'ping' packets to your router and two public servers. Lost packets cause rubber-banding in games, robotic voices in calls and stalls in video." />
+                <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Text="Pings your router and two public servers to find lost packets."
+                              ToolTip="Lost packets cause rubber-banding in games, robotic voices in calls and stalls in video." />
               </StackPanel>
               <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top">
                 <ui:TextBlock Text="Pings" Appearance="Secondary" VerticalAlignment="Center" Margin="0,0,6,0" />
@@ -565,38 +577,49 @@
               </ItemsControl>
               <ui:InfoBar Severity="Informational" Title="Where the problem is" Message="{Binding PacketDiagnosis}" IsOpen="{Binding HasPacketDiagnosis, Mode=OneWay}" IsClosable="False" Margin="0,8,0,0" />
             </StackPanel>
-            <ui:TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,8,0,0"
-                          Text="What the numbers mean: 0 % loss is normal. Under 1 % is usually unnoticeable; 2 % or more is a real problem. If your router already loses packets, the cause is in your home (often Wi-Fi). If only the internet targets lose packets, it is your provider." />
+            <ui:TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,8,0,0" Text="Under 1 % loss is usually unnoticeable; 2 % or more is a real problem."
+                          ToolTip="0 % loss is normal. If your router already loses packets, the cause is in your home (often Wi-Fi). If only the internet targets lose packets, it is your provider." />
           </StackPanel>
         </ui:Card>
 
-        <!-- Tune Wi-Fi and network -->
+        <!-- 5. Fix tools -->
         <ui:Card Style="{StaticResource CardSpacing}">
           <StackPanel>
-            <Grid Margin="0,0,0,4">
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-              </Grid.ColumnDefinitions>
-              <StackPanel>
-                <StackPanel Orientation="Horizontal">
-                  <ui:SymbolIcon Symbol="Wrench24" Margin="0,0,8,0" />
-                  <ui:TextBlock Style="{StaticResource CardTitle}" Text="Tune Wi-Fi and network" Margin="0" />
-                </StackPanel>
-                <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap"
-                              Text="Each setting shows what it does, its current value and what PC Checker recommends. Every change asks first, is recorded, and can be undone with Revert, even after a restart." />
-              </StackPanel>
-              <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top">
-                <ui:Button Content="Quick improve" Icon="{ui:SymbolIcon Sparkle24}" Command="{Binding OpenQuickImproveCommand}" IsEnabled="{Binding IsIdle}" Margin="0,0,8,0" />
-                <ui:Button Content="Reload" Icon="{ui:SymbolIcon ArrowSync24}" Command="{Binding ReloadTuningCommand}" IsEnabled="{Binding IsIdle}" />
-              </StackPanel>
-            </Grid>
+            <ui:TextBlock Style="{StaticResource CardTitle}" Text="Fix common problems" />
+            <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,8"
+                          Text="Try these in order when websites will not load or the connection keeps dropping." />
+            <controls:AdaptiveGrid MinItemWidth="200" MaxColumns="5" Spacing="8">
+              <ui:Button Content="Flush DNS" Icon="{ui:SymbolIcon Broom24}" Command="{Binding FlushDnsCommand}" IsEnabled="{Binding IsIdle}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
+                         ToolTip="Clears the list of recently looked-up web addresses. Fixes sites that moved or fail to load after a network change." />
+              <ui:Button Content="Renew IP address" Icon="{ui:SymbolIcon ArrowSync24}" Command="{Binding RenewIpCommand}" IsEnabled="{Binding IsIdle}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
+                         ToolTip="Asks the router for a fresh address. The connection drops for a few seconds." />
+              <ui:Button Content="Wi-Fi settings" Icon="{ui:SymbolIcon Wifi124}" Command="{Binding OpenWifiSettingsCommand}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" />
+              <ui:Button Content="Network settings" Icon="{ui:SymbolIcon Globe24}" Command="{Binding OpenNetworkSettingsCommand}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" />
+              <ui:Button Content="Update the Wi-Fi driver" Icon="{ui:SymbolIcon Link24}" Command="{Binding GoToDriversCommand}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
+                         ToolTip="Opens the Drivers page. A current Wi-Fi driver fixes many drop-outs and slow link rates." />
+              <ui:Button Content="Reset network stack" Icon="{ui:SymbolIcon ArrowReset24}" Appearance="Danger" Command="{Binding ResetNetworkStackCommand}" IsEnabled="{Binding IsIdle}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
+                         Visibility="{Binding IsAdvancedMode, Converter={StaticResource BoolToVisibility}}"
+                         ToolTip="Resets Winsock and TCP/IP to the Windows defaults (advanced; needs a restart)." />
+            </controls:AdaptiveGrid>
+            <ui:TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,8,0,0" Visibility="{Binding IsAdvancedMode, Converter={StaticResource InverseBoolToVisibility}}"
+                          Text="Reset network stack is available in Advanced mode (Settings), because it clears any IP or DNS settings you typed in by hand." />
+          </StackPanel>
+        </ui:Card>
 
+        <!-- Options: tune Wi-Fi and network -->
+        <ui:CardExpander Icon="{ui:SymbolIcon Wrench24}" IsExpanded="False" Margin="0,0,0,12" ContentPadding="16">
+          <ui:CardExpander.Header>
+            <StackPanel>
+              <ui:TextBlock FontTypography="BodyStrong" Text="Tune Wi-Fi and network" />
+              <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Text="Each change asks first, is recorded, and can be reverted."
+                            ToolTip="Each setting shows what it does, its current value and what PC Checker recommends. Every change asks first, is recorded, and can be undone with Revert, even after a restart. Quick improve applies the recommended ones in one go." />
+            </StackPanel>
+          </ui:CardExpander.Header>
+          <StackPanel>
             <ui:InfoBar Severity="Informational" Title="Some tweaks are hidden"
                         Message="Turn on Advanced mode in Settings to see encrypted DNS (DNS over HTTPS), preferring IPv4, and driver settings without a recommendation."
-                        IsOpen="{Binding HasHiddenAdvancedActions, Mode=OneWay}" IsClosable="False" Margin="0,8,0,4" />
+                        IsOpen="{Binding HasHiddenAdvancedActions, Mode=OneWay}" IsClosable="False" Margin="0,0,0,8" />
 
-            <ui:TextBlock FontTypography="BodyStrong" Text="System settings" Margin="0,12,0,4" />
             <ItemsControl ItemsSource="{Binding TuningActions}">
               <ItemsControl.ItemTemplate>
                 <DataTemplate>
@@ -648,26 +671,35 @@
                 </Grid.ColumnDefinitions>
                 <StackPanel>
                   <ui:TextBlock FontWeight="SemiBold" Text="Nagle's algorithm (for some online games)" />
-                  <ui:TextBlock Appearance="Secondary" TextWrapping="Wrap"
-                                Text="Turning off Nagle's algorithm can lower ping in a few older games. It lives on the Latency page with the other input-lag fixes, so it is not repeated here." />
+                  <ui:TextBlock Appearance="Secondary" TextWrapping="Wrap" Text="Can lower ping in a few older games. It lives on the Latency page."
+                                ToolTip="Turning off Nagle's algorithm can lower ping in a few older games. It lives on the Latency page with the other input-lag fixes, so it is not repeated here." />
                 </StackPanel>
                 <ui:Button Grid.Column="1" Content="Open Latency page" Icon="{ui:SymbolIcon Link24}" Command="{Binding GoToLatencyCommand}" VerticalAlignment="Center" Margin="16,0,0,0" />
               </Grid>
             </Border>
+          </StackPanel>
+        </ui:CardExpander>
 
-            <!-- Adapter driver settings -->
-            <ui:TextBlock FontTypography="BodyStrong" Text="Adapter settings (driver)" Margin="0,16,0,0" />
-            <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,4"
-                          Text="Settings from Device Manager → your adapter → Advanced. Only settings your adapter actually has are listed. Changing one restarts the adapter, so the connection drops for a few seconds." />
+        <!-- Options: adapter driver settings -->
+        <ui:CardExpander Icon="{ui:SymbolIcon Settings24}" IsExpanded="False" Margin="0,0,0,12" ContentPadding="16">
+          <ui:CardExpander.Header>
+            <StackPanel>
+              <ui:TextBlock FontTypography="BodyStrong" Text="Adapter settings (driver)" />
+              <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Text="Changing one restarts the adapter for a few seconds."
+                            ToolTip="Settings from Device Manager → your adapter → Advanced. Only settings your adapter actually has are listed. Changing one restarts the adapter, so the connection drops for a few seconds." />
+            </StackPanel>
+          </ui:CardExpander.Header>
+          <StackPanel>
             <ui:TextBlock Style="{StaticResource Muted}" Text="No adapter settings could be read (they need Windows' NetAdapter tools and administrator rights)."
-                          Visibility="{Binding HasAdapterSettings, Converter={StaticResource InverseBoolToVisibility}}" Margin="0,4,0,0" />
+                          Visibility="{Binding HasAdapterSettings, Converter={StaticResource InverseBoolToVisibility}}" />
             <ItemsControl ItemsSource="{Binding AdapterSettingGroups}">
               <ItemsControl.ItemTemplate>
                 <DataTemplate>
-                  <ui:CardExpander Margin="0,6,0,0" IsExpanded="True" Icon="{ui:SymbolIcon Settings24}">
-                    <ui:CardExpander.Header>
-                      <ui:TextBlock FontTypography="BodyStrong" Text="{Binding AdapterName}" />
-                    </ui:CardExpander.Header>
+                  <StackPanel Margin="0,0,0,12">
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                      <ui:SymbolIcon Symbol="Settings24" Margin="0,0,8,0" />
+                      <ui:TextBlock FontTypography="BodyStrong" Text="{Binding AdapterName}" VerticalAlignment="Center" />
+                    </StackPanel>
                     <StackPanel>
                       <ItemsControl ItemsSource="{Binding Settings}">
                         <ItemsControl.ItemTemplate>
@@ -715,15 +747,23 @@
                       <ui:TextBlock Style="{StaticResource Caption}" Text="{Binding HiddenText}" TextWrapping="Wrap" Margin="0,6,0,0"
                                     Visibility="{Binding HasHidden, Converter={StaticResource BoolToVisibility}}" />
                     </StackPanel>
-                  </ui:CardExpander>
+                  </StackPanel>
                 </DataTemplate>
               </ItemsControl.ItemTemplate>
             </ItemsControl>
+          </StackPanel>
+        </ui:CardExpander>
 
-            <!-- Saved networks -->
-            <ui:TextBlock FontTypography="BodyStrong" Text="Saved Wi-Fi networks" Margin="0,16,0,0" />
-            <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,4"
-                          Text="Windows tries these from the top down when several are in range. Turn off auto-connect for hotspots you only use now and then, and mark capped connections as metered." />
+        <!-- Options: saved networks -->
+        <ui:CardExpander Icon="{ui:SymbolIcon Wifi124}" IsExpanded="False" Margin="0,0,0,12" ContentPadding="16">
+          <ui:CardExpander.Header>
+            <StackPanel>
+              <ui:TextBlock FontTypography="BodyStrong" Text="Saved Wi-Fi networks" />
+              <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Text="The order Windows tries them in, auto-connect and metered."
+                            ToolTip="Windows tries these from the top down when several are in range. Turn off auto-connect for hotspots you only use now and then, and mark capped connections as metered." />
+            </StackPanel>
+          </ui:CardExpander.Header>
+          <StackPanel>
             <ui:TextBlock Style="{StaticResource Muted}" Text="No saved Wi-Fi networks were found." Visibility="{Binding HasSavedNetworks, Converter={StaticResource InverseBoolToVisibility}}" />
             <ItemsControl ItemsSource="{Binding SavedNetworks}">
               <ItemsControl.ItemTemplate>
@@ -770,49 +810,19 @@
               </ItemsControl.ItemTemplate>
             </ItemsControl>
           </StackPanel>
-        </ui:Card>
+        </ui:CardExpander>
 
-        <!-- Physical-world advice -->
-        <ui:Card Style="{StaticResource CardSpacing}">
-          <StackPanel>
-            <StackPanel Orientation="Horizontal">
-              <ui:SymbolIcon Symbol="Lightbulb24" Margin="0,0,8,0" />
-              <ui:TextBlock Style="{StaticResource CardTitle}" Text="Better Wi-Fi without software" Margin="0" />
+        <!-- Advanced: adapters and counters -->
+        <ui:CardExpander Icon="{ui:SymbolIcon NetworkCheck24}" IsExpanded="False" Margin="0,0,0,12" ContentPadding="16"
+                         Visibility="{Binding HasAdapters, Converter={StaticResource BoolToVisibility}}">
+          <ui:CardExpander.Header>
+            <StackPanel>
+              <ui:TextBlock FontTypography="BodyStrong" Text="Network adapters" />
+              <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Text="Status, speed, data and error counters per adapter."
+                            ToolTip="Errors are damaged packets; discards are packets the adapter had to drop. Counters start at zero when Windows starts." />
             </StackPanel>
-            <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,4"
-                          Text="The biggest Wi-Fi improvements come from the router and where it stands. These tips are based on what this PC can see." />
-            <ItemsControl ItemsSource="{Binding Advice}">
-              <ItemsControl.ItemTemplate>
-                <DataTemplate>
-                  <Border Style="{StaticResource RowBorder}">
-                    <Grid>
-                      <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="*" />
-                      </Grid.ColumnDefinitions>
-                      <ui:SymbolIcon Grid.Column="0" Symbol="Star24" Foreground="{StaticResource AccentYellowBrush}" Margin="0,0,10,0" VerticalAlignment="Top"
-                                     Visibility="{Binding Highlight, Converter={StaticResource BoolToVisibility}}" />
-                      <ui:SymbolIcon Grid.Column="0" Symbol="Info24" Margin="0,0,10,0" VerticalAlignment="Top"
-                                     Visibility="{Binding Highlight, Converter={StaticResource InverseBoolToVisibility}}" />
-                      <StackPanel Grid.Column="1">
-                        <ui:TextBlock FontWeight="SemiBold" Text="{Binding Title}" />
-                        <ui:TextBlock Text="{Binding Detail}" TextWrapping="Wrap" Appearance="Secondary" />
-                      </StackPanel>
-                    </Grid>
-                  </Border>
-                </DataTemplate>
-              </ItemsControl.ItemTemplate>
-            </ItemsControl>
-          </StackPanel>
-        </ui:Card>
-
-        <!-- 5. Adapters -->
-        <ui:Card Style="{StaticResource CardSpacing}" Visibility="{Binding HasAdapters, Converter={StaticResource BoolToVisibility}}">
+          </ui:CardExpander.Header>
           <StackPanel>
-            <ui:TextBlock Style="{StaticResource CardTitle}" Text="Network adapters" />
-            <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,8"
-                          Text="Errors are damaged packets; discards are packets the adapter had to drop. Counters start at zero when Windows starts." />
-            <ui:InfoBar Severity="Warning" Title="Packet errors" Message="{Binding AdapterErrorsText}" IsOpen="{Binding HasAdapterErrors, Mode=OneWay}" IsClosable="False" Margin="0,0,0,8" />
             <ui:DataGrid ItemsSource="{Binding Adapters}" AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False" CanUserReorderColumns="False"
                          IsReadOnly="True" SelectionMode="Single" GridLinesVisibility="Horizontal" HeadersVisibility="Column">
               <ui:DataGrid.Columns>
@@ -850,31 +860,41 @@
               </ui:DataGrid.Columns>
             </ui:DataGrid>
           </StackPanel>
-        </ui:Card>
+        </ui:CardExpander>
 
-        <!-- 6. Fix tools -->
-        <ui:Card Style="{StaticResource CardSpacing}">
+        <!-- About this: Wi-Fi without software -->
+        <ui:CardExpander Icon="{ui:SymbolIcon Lightbulb24}" IsExpanded="False" Margin="0,0,0,12" ContentPadding="16">
+          <ui:CardExpander.Header>
+            <StackPanel>
+              <ui:TextBlock FontTypography="BodyStrong" Text="Better Wi-Fi without software" />
+              <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Text="Router and placement tips based on what this PC can see." />
+            </StackPanel>
+          </ui:CardExpander.Header>
           <StackPanel>
-            <ui:TextBlock Style="{StaticResource CardTitle}" Text="Fix common problems" />
-            <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,8"
-                          Text="Try these from left to right when websites will not load or the connection keeps dropping. Each one asks before it runs." />
-            <WrapPanel>
-              <ui:Button Content="Flush DNS" Icon="{ui:SymbolIcon Broom24}" Command="{Binding FlushDnsCommand}" IsEnabled="{Binding IsIdle}" Margin="0,0,8,8"
-                         ToolTip="Clears the list of recently looked-up web addresses. Fixes sites that moved or fail to load after a network change." />
-              <ui:Button Content="Renew IP address" Icon="{ui:SymbolIcon ArrowSync24}" Command="{Binding RenewIpCommand}" IsEnabled="{Binding IsIdle}" Margin="0,0,8,8"
-                         ToolTip="Asks the router for a fresh address. The connection drops for a few seconds." />
-              <ui:Button Content="Reset network stack" Icon="{ui:SymbolIcon ArrowReset24}" Appearance="Danger" Command="{Binding ResetNetworkStackCommand}" IsEnabled="{Binding IsIdle}" Margin="0,0,8,8"
-                         Visibility="{Binding IsAdvancedMode, Converter={StaticResource BoolToVisibility}}"
-                         ToolTip="Resets Winsock and TCP/IP to the Windows defaults (advanced; needs a restart)." />
-              <ui:Button Content="Wi-Fi settings" Icon="{ui:SymbolIcon Wifi124}" Command="{Binding OpenWifiSettingsCommand}" Margin="0,0,8,8" />
-              <ui:Button Content="Network settings" Icon="{ui:SymbolIcon Globe24}" Command="{Binding OpenNetworkSettingsCommand}" Margin="0,0,8,8" />
-              <ui:Button Content="Update the Wi-Fi driver" Icon="{ui:SymbolIcon Link24}" Command="{Binding GoToDriversCommand}" Margin="0,0,8,8"
-                         ToolTip="Opens the Drivers page. A current Wi-Fi driver fixes many drop-outs and slow link rates." />
-            </WrapPanel>
-            <ui:TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Visibility="{Binding IsAdvancedMode, Converter={StaticResource InverseBoolToVisibility}}"
-                          Text="Reset network stack is available in Advanced mode (Settings), because it clears any IP or DNS settings you typed in by hand." />
+            <ItemsControl ItemsSource="{Binding Advice}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <Border Style="{StaticResource RowBorder}">
+                    <Grid>
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                      </Grid.ColumnDefinitions>
+                      <ui:SymbolIcon Grid.Column="0" Symbol="Star24" Foreground="{StaticResource AccentYellowBrush}" Margin="0,0,10,0" VerticalAlignment="Top"
+                                     Visibility="{Binding Highlight, Converter={StaticResource BoolToVisibility}}" />
+                      <ui:SymbolIcon Grid.Column="0" Symbol="Info24" Margin="0,0,10,0" VerticalAlignment="Top"
+                                     Visibility="{Binding Highlight, Converter={StaticResource InverseBoolToVisibility}}" />
+                      <StackPanel Grid.Column="1">
+                        <ui:TextBlock FontWeight="SemiBold" Text="{Binding Title}" />
+                        <ui:TextBlock Text="{Binding Detail}" TextWrapping="Wrap" Appearance="Secondary" />
+                      </StackPanel>
+                    </Grid>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
           </StackPanel>
-        </ui:Card>
+        </ui:CardExpander>
 
         <!-- Learn -->
         <ui:CardExpander Icon="{ui:SymbolIcon BookOpen24}" Margin="0,0,0,12" IsExpanded="False">
