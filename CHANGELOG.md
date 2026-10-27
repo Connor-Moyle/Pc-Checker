@@ -7,7 +7,14 @@ All notable changes to PC Checker are recorded here. The format follows
 ## [Unreleased]
 
 ### Added
-- Nothing yet.
+- **Languages**: German, Spanish, French, Italian and Brazilian Portuguese as
+  well as English. Choose one in Settings → Appearance → Language, or follow
+  the Windows display language; it applies after a restart. Pages, tabs,
+  buttons, tooltips, dialogs and notifications are translated; scan results
+  and log lines are still in English. See `docs/TRANSLATING.md`.
+
+### Fixed
+- The FAQ no longer says Windows on Arm is unsupported; it has its own build.
 
 ## [0.2.0] - 2026-10-27
 

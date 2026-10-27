@@ -74,7 +74,7 @@ public partial class App : Application
         var settings = _services.GetRequiredService<ISettingsService>();
 
         SettingsViewModel.ApplyTheme(settings.Current.General.Theme);
-        ApplyLanguage(settings.Current.General.Language, options.ScreenshotsRequested);
+        ApplyLanguage(options.Language ?? settings.Current.General.Language, options.ScreenshotsRequested && options.Language is null);
 
         var window = _services.GetRequiredService<MainWindow>();
         MainWindow = window;
@@ -223,7 +223,7 @@ public partial class App : Application
 
     /// <summary>
     /// Picks the interface language for this run (Settings, or the Windows display language) and starts translating
-    /// the interface. Screenshot runs stay in English so the README images match.
+    /// the interface. Screenshot runs stay in English so the README images match, unless <c>--language</c> is given.
     /// </summary>
     private void ApplyLanguage(string? setting, bool screenshots)
     {

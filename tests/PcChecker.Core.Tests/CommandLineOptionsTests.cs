@@ -108,4 +108,14 @@ public class CommandLineOptionsTests
         Assert.True(o.IsDemo);
         Assert.Empty(o.UnknownArguments);
     }
+
+    [Theory]
+    [InlineData(new[] { "--language", "de" }, "de")]
+    [InlineData(new[] { "--lang=fr" }, "fr")]
+    [InlineData(new[] { "--screenshots", "out", "--language", "pt-BR" }, "pt-BR")]
+    [InlineData(new[] { "--demo" }, null)]
+    public void Parses_the_language_override(string[] args, string? expected)
+    {
+        Assert.Equal(expected, CommandLineOptions.Parse(args).Language);
+    }
 }

@@ -317,6 +317,8 @@ and the module boundaries are described in
 | [Logging](docs/LOGGING.md) | Log settings, diagnostics export and the Action Journal |
 | [Demo mode](docs/DEMO-MODE.md) | Exploring the app safely and capturing screenshots |
 | [FAQ](docs/FAQ.md) | Common questions |
+| [Translating](docs/TRANSLATING.md) | Interface languages and how to improve a translation |
+| [UI guidelines](docs/UI-GUIDELINES.md) | How pages are laid out |
 | [Building](docs/BUILDING.md) | Build, test, publish, package, release |
 | [Architecture](docs/ARCHITECTURE.md) | How the code is organised |
 | [Third-party notices](docs/THIRD-PARTY-NOTICES.md) | Open-source components and their licences |
@@ -341,7 +343,8 @@ not the public tracker.
 - [x] Per-game overlay and fan profiles that switch automatically
 - [x] Tray mode with a compact temperature popup
 - [x] Scheduled health checks and cleanup
-- [ ] Localization (the UI is English only today)
+- [x] Localization: German, Spanish, French, Italian and Brazilian Portuguese
+      (see [docs/TRANSLATING.md](docs/TRANSLATING.md))
 - [ ] Code-signed releases (the release workflow signs automatically once a
       code-signing certificate is added as a repository secret)
 - [x] ARM64 build for Windows on Arm
