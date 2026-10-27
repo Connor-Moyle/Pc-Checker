@@ -32,7 +32,7 @@ Every project targets `net8.0-windows10.0.19041.0`. `EnableWindowsTargeting` is 
 | `Hardware` | `HardwareInventory`, typed device records, `IHardwareInventoryService`, `WmiPropertyMapper` |
 | `Sensors` | `ISensorService`, `SensorReading`/`SensorSnapshot`, `SensorMath` |
 | `Health` | `HealthReport`, `IHealthService`, `HealthScoring`, `SmartRules`, `DeviceProblemCodes` |
-| `Drivers` | `IDriverService`, driver and update records, `DriverRules` |
+| `Drivers` | `IDriverService`, driver and update records, `DriverRules`, `IDriverCleanupService` and `DriverCleanupRules` (old and unused drivers) |
 | `Software` | `ISoftwareInventoryService`, `IUninstallService`, `BundleDetector`, `UninstallCommandBuilder`, `ProtectedSoftwareRules` |
 | `Performance` | `IPerformanceAnalyzer`, `PerformanceFacts`, `SlowdownRules` |
 | `Optimization` | `IOptimizationService`, `OptimizationCatalog`, `RiskLevel` |

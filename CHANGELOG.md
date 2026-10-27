@@ -21,6 +21,19 @@ All notable changes to PC Checker are recorded here. The format follows
   Copilot and Recall, and built-in app removal, collected from the well-known
   debloating tools into one reviewed list with presets. Each tweak shows what
   it changes and can be reverted. See `docs/DEBLOAT.md`.
+- **Old drivers** tab in Apps & Drivers: finds driver packages that a newer
+  version replaced, packages no connected device uses, and drivers of devices
+  that are no longer connected (`pnputil /enum-devices /disconnected`). Each
+  finding is marked Safe to remove, Probably safe or Keep (in use, part of
+  Windows, or a class Windows needs to start), with its size in the driver
+  store and the total space you can free. Removal confirms first, runs through
+  the change guard (restore point, Action Journal), exports every package to
+  `%LOCALAPPDATA%\PcChecker\driver-backups\<time>` before deleting it, never
+  forces a package off a device and reports each item.
+
+### Changed
+- The Drivers page header keeps *Scan drivers* and *Check for updates*; the
+  other actions (and the new *Old and unused drivers…*) moved to a *More* menu.
 
 ## [0.1.1] - 2026-10-27
 

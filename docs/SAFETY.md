@@ -178,6 +178,16 @@ damage hardware. PC Checker reduces the risk; it cannot remove it.
 - You can back up all current drivers before updating. Roll back works from
   the app when it can map the device to its driver package; otherwise it
   opens Device Manager and explains *Roll Back Driver*.
+- *Old drivers* only ever removes third-party packages (`oemN.inf`); packages
+  that ship with Windows are never listed. Packages a connected device uses,
+  and packages for storage controllers, disks, volumes, chipset/system
+  devices, processors, firmware, keyboards and mice, are marked *Keep* and can
+  only be selected in Advanced mode. Each package is exported to
+  `%LOCALAPPDATA%\PcChecker\driver-backups\<time>` before
+  `pnputil /delete-driver` runs, and a package that cannot be backed up is not
+  deleted. The app never adds `/force` or `/uninstall`, so Windows refuses to
+  remove a driver that is still in use. If the app cannot tell which devices
+  use which driver, every package is kept.
 
 ## Lighting rules
 

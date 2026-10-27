@@ -140,6 +140,19 @@ Edge, WebView2, Defender, the .NET and Visual C++ runtimes and driver
 packages are protected because other software depends on them. Advanced mode
 lets you override the protection for non-critical items, with a warning.
 
+### Can I remove old drivers?
+
+Yes, from **Apps & Drivers → Old drivers**. A scan lists driver versions that a
+newer one replaced, driver packages nothing connected uses, and drivers of
+devices you unplugged long ago, with the space each one takes. Items marked
+*Safe to remove* are ticked for you; *Probably safe* ones are up to you; *Keep*
+items (in use, part of Windows, or drivers Windows needs to start, such as
+storage, chipset, keyboard and mouse) can only be ticked in Advanced mode.
+Before a package is removed it is copied to
+`%LOCALAPPDATA%\PcChecker\driver-backups`, so you can put it back with
+*Drivers → More → Install .inf*. Windows refuses to remove a driver a device
+still uses, and PC Checker never forces it.
+
 ### What does the Latency page actually measure?
 
 It samples the CPU's DPC and interrupt time over a few seconds, reads the

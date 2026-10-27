@@ -141,7 +141,7 @@ limitations, is in [docs/FEATURES.md](docs/FEATURES.md).
 
 | Page | What it does |
 |---|---|
-| **Drivers** | Every installed driver with version, date, signature and problem code; flags old, unsigned and faulty ones. Checks the Windows Update driver catalog, downloads and installs after you confirm, backs up all drivers, installs a `.inf`, and links to NVIDIA, AMD, Intel and your motherboard vendor. |
+| **Drivers** | Every installed driver with version, date, signature and problem code; flags old, unsigned and faulty ones. Checks the Windows Update driver catalog, downloads and installs after you confirm, backs up all drivers, installs a `.inf`, and links to NVIDIA, AMD, Intel and your motherboard vendor. The **Old drivers** tab finds driver versions left behind by updates, packages no device uses and drivers of devices that are no longer connected, shows the space they take, and removes the ones you pick after backing each one up. |
 | **Software** | Programs and Store apps with size, location and install date. Detects what was *installed alongside* something else, groups runtime dependencies so they are not mistaken for bloat, protects critical components, and uninstalls quietly or with the vendor's own wizard. |
 | **Startup** | Startup apps from the registry, startup folders and logon tasks with enable, disable, add and remove; auto-start services (advanced); boot options: fast startup, boot-menu timeout, safe mode next boot, restart to UEFI or advanced startup. |
 | **Windows Features** | Optional features, capabilities and inbox apps with risk labels and notes on what removing each one affects. |

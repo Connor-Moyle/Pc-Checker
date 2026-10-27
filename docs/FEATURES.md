@@ -359,6 +359,14 @@ cosmetic, so they are journaled but do not create restore points.
   *Download selected* and *Install selected* (confirmed; restore point;
   reboot bar afterwards with *Restart now* or *Later*).
 - **Back up all drivers** to a folder you pick (`pnputil /export-driver`).
+- **Old drivers** (its own tab): superseded driver-store packages (same
+  original INF, provider and class with a newer date or version), packages no
+  connected device uses, and drivers of disconnected devices. Grouped as Safe
+  to remove, Probably safe and Keep, with sizes from the driver store and the
+  total space you can free. Removal exports each package to
+  `%LOCALAPPDATA%\PcChecker\driver-backups\<time>` first, forgets
+  disconnected devices with `pnputil /remove-device`, and deletes packages
+  with `pnputil /delete-driver` (never forced).
 - **Vendor links**: NVIDIA, AMD and Intel driver pages for your GPU and
   chipset, your motherboard vendor's support page, and *Windows Update
   optional updates*.
