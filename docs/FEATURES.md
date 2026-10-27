@@ -166,18 +166,40 @@ CPU or GPU power sensors shows dashes.
 
 ### Processes
 
-A live list of every running program, refreshed every 2 seconds while the
-page is open (**Pause / Resume** in the header).
+*Task manager → Processes.* Everything Windows 11 Task Manager's Processes
+and Details tabs do, in plain words. The list refreshes while the page is
+open at the chosen **Update speed**: High (twice a second), Normal (every
+second), Low (every 4 seconds) or Paused; *Pause updates* freezes it to read.
 
-- **Tiles**: total CPU use, memory in use, the number of processes and
-  programs, and the busiest program right now.
-- **Columns**: name with icon and a plain-English *what is this?* line, PID,
-  CPU, memory (private working set, the figure Task Manager shows), disk read
-  and write per second, GPU (all graphics engines of the program added up,
-  where the driver reports them), publisher with its signature state, user,
-  start time and file. Click a header to sort; search by name, PID,
-  publisher or folder; *Group by app* puts every process of a program under
-  one line with its totals (expand it to see them).
+- **Tiles**: total CPU use, memory in use, the number of processes (apps and
+  background programs), and the busiest program right now. A banner names any
+  program that is not responding.
+- **Processes view** (default): three sections like Task Manager. *Apps* are
+  programs with a window on the taskbar; the helpers they started (Steam's web
+  helpers, Chrome's tabs) are listed under them with summed figures, and a
+  game started from Steam is an app of its own. *Background processes* run
+  without a window; *Windows processes* are part of Windows (including
+  Microsoft-signed programs in the Windows folder; drivers' helpers count as
+  background). Expand a group with its arrow, a double-click or the Right
+  arrow key. Under a browser, helpers are labelled *Tab or extension*,
+  *Graphics helper*, *Network helper* and so on.
+- **Details view** (switch): one flat list of every process with its file
+  name, like Task Manager's Details tab.
+- **Columns**: Name (icon, friendly name, window title or *what is this?*),
+  Status (*Not responding*, *Suspended*, *Efficiency mode*), PID, CPU, Memory
+  (private working set, the figure Task Manager shows), Disk (MB/s), Disk read
+  and write, Network, GPU (the busiest graphics engine, as Task Manager
+  shows it), GPU engine, Power usage and Power usage trend (Very low to Very
+  high, estimated from processor, graphics and disk use; the trend covers two
+  minutes), Publisher with its signature state, User name, Session,
+  Architecture (x64, x86, ARM64), Elevated, Priority, Handles, Threads,
+  Started, Description, Command line and File. *Columns* (or a right-click on
+  a column title) picks which ones show; the choice is saved separately for
+  each view, and *Reset to default columns* brings back the defaults. Busy
+  cells get a stronger orange tint (heat map) that keeps the text readable in
+  both themes. Click a title to sort; drag a title to move the column.
+- **Search** (Ctrl+F): name, description, window title, PID, publisher or
+  folder.
 - ***What is this?***: a built-in catalogue explains more than 120 well-known
   Windows, Defender, driver (NVIDIA, AMD, Intel, Realtek), launcher (Steam,
   Epic, Battle.net, EA, Ubisoft), browser, chat and hardware-utility
@@ -189,21 +211,53 @@ page is open (**Pause / Resume** in the header).
   programs using a lot of CPU, GPU or memory, and programs with a Windows
   name running from outside the Windows folder. *Only flagged* filters the
   list. PC Checker never acts on a flag by itself.
-- **Actions** (header, *More* and right-click), each confirmed first: *End
-  task* (for a group, every process of the program), *End process tree*,
-  *Set priority* (Realtime only in Advanced mode, with a warning), *Open
-  file location*, *Search the name online* and *Copy details*. Ending and
-  re-prioritising are recorded in the Action Journal; no restore point is
-  made because no Windows setting changes.
+- **Actions** (header, *More*, right-click and the selected program's card),
+  each confirmed first:
+  - *End task* (Delete): a program with a window is asked to close, as if
+    you clicked its X, so it can save; if it is still open after a few
+    seconds you choose *End now* or *Switch to it*. A program that is not
+    responding, suspended or has no window is ended straight away. For a
+    group, every process of the program.
+  - *End process tree*, *Restart* (closes the program and starts the same
+    file with the same options, with your normal rights unless it had
+    administrator rights; File Explorer is restarted by Windows itself).
+  - *Suspend* / *Resume*: pauses a program so it uses no processor time.
+  - *Efficiency mode*: Windows' EcoQoS power throttling plus Low priority,
+    as Task Manager sets it; turning it off restores Normal priority.
+  - *Set priority* (Realtime only in Advanced mode, with a warning) and *Set
+    affinity* (one tick per logical processor).
+  - *Switch to* (Enter or double-click), *Minimize*, *Maximize*.
+  - *Create memory dump file*: a full dump in your Temp folder
+    (`name.DMP`, then `name (2).DMP`), opened in File Explorer afterwards;
+    the dialog warns that it can contain anything that was open.
+  - *Open file location*, *Search online*, *Properties* (Windows' file
+    properties) and *Copy details* (Ctrl+C).
+- **Run new task** (header): opens a program, folder, document or web
+  address and remembers the last ten. It starts with your normal rights,
+  even though PC Checker runs as administrator, unless you tick *Create this
+  task with administrative privileges*. Programs in Temp or AppData folders
+  are never started as administrator.
 
-Never offered: ending or re-prioritising System, Registry, Memory
-Compression, smss, csrss, wininit, winlogon, services, lsass and PC Checker
-itself.
+Every change is recorded in the Action Journal with an undo hint; no restore
+point is made because no Windows setting changes.
 
-Limitations: protected processes and programs of other accounts may refuse
-to be ended or show no path, user or memory figure. The GPU column is empty
-when the graphics driver has no *GPU Engine* performance counters. CPU and
-disk figures are averages over the last refresh.
+Never offered: ending, pausing, throttling or re-prioritising System,
+Registry, Memory Compression, smss, csrss, wininit, winlogon, services, lsass
+and PC Checker itself (Windows' own "critical" flag is checked too).
+Windows processes are never suspended or put in efficiency mode, services and
+other accounts' programs are not restarted, and no memory dump is made of
+Local Security Authority (it holds sign-in secrets).
+
+Limitations: Windows does not report network data per program without an
+event trace, so the Network column counts open connections (TCP and UDP)
+instead of showing Mbps. Power usage is an estimate, like Task Manager's.
+Protected processes and programs of other accounts may refuse an action or
+show no path, user, command line or memory figure. The GPU columns are empty
+when the graphics driver has no *GPU Engine* performance counters. Affinity
+is offered on PCs with up to 64 logical processors. Starting a program
+without administrator rights needs File Explorer's desktop to be running.
+CPU and disk figures are averages over the last refresh.
+
 ### History
 
 What the PC did over the last hour, day, week, month or three months.
