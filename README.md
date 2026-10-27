@@ -146,6 +146,7 @@ limitations, is in [docs/FEATURES.md](docs/FEATURES.md).
 | **Startup** | Startup apps from the registry, startup folders and logon tasks with enable, disable, add and remove; auto-start services (advanced); boot options: fast startup, boot-menu timeout, safe mode next boot, restart to UEFI or advanced startup. |
 | **Windows Features** | Optional features, capabilities and inbox apps with risk labels and notes on what removing each one affects. |
 | **Cleanup** | Junk by category (temp folders, update caches, browser and shader caches, crash dumps, logs, Windows.old) with a dry run first and strict safety rules. |
+| **Registry** | Finds leftover entries that point at programs, files and folders that are gone (uninstall entries, App Paths, startup entries, MUI cache, file associations, fonts, help files and more), backs each one up to a `.reg` file and creates a restore point before removing it, and restores any fix from the Backups list. Honest by design: tidies things up, does not promise speed. See [docs/REGISTRY.md](docs/REGISTRY.md). |
 
 ### Performance
 

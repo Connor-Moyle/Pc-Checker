@@ -41,6 +41,23 @@ follows, so you know what to expect and contributors know what to build.
   trade-off. Windows.old is only reported; removing it goes through Windows'
   own Storage settings or Disk Cleanup.
 
+## Registry rules
+
+- Only entries that provably point at something missing are reported: the
+  target must be an absolute path on a local fixed disk. Network paths,
+  removable or unplugged drives, unexpanded variables and bare program names
+  are never flagged, and Program Files / System32 paths are checked in both
+  their 64-bit and 32-bit folders.
+- Microsoft and Windows components are skipped for program registrations,
+  and services are report only.
+- System hives (SYSTEM, SAM, SECURITY), policies, Winlogon, LSA, boot and
+  driver settings, Windows Defender and the container keys themselves are
+  never changed.
+- Every fix creates a restore point, writes a `.reg` backup first (an entry
+  that cannot be backed up is skipped), re-checks the entry right before
+  removing it and is recorded in the Action Journal. Backups are restored
+  from the Registry page.
+
 ## Software rules
 
 - Edge, WebView2, Defender, the .NET and Visual C++ runtimes and driver

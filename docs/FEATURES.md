@@ -15,7 +15,7 @@ Hardware        Overview · Health · Storage · Memory
 Devices         Displays · Audio · Keyboard & Mouse
 Cooling & RGB   Fans · Lighting
 Apps & Drivers  Apps · Drivers · Startup · Windows Features
-Clean up        Cleanup
+Clean up        Cleanup · Registry
 Performance     Speed check · Optimize · Overclock
 Gaming          Overlay · Latency
 Network         Network
@@ -443,6 +443,26 @@ when needed.
 Safety rules: never outside the category roots, never through junctions or
 symbolic links, never files modified in the last 60 minutes (configurable),
 never `desktop.ini`, and browser caches are skipped while the browser runs.
+
+### Registry
+
+- **Honest intro**: registry "errors" rarely slow Windows down; the page
+  removes leftovers that point at things that no longer exist, so lists stay
+  tidy and some error dialogs or broken menu entries go away.
+- **Categories** with a description, where they look and a risk badge:
+  leftover uninstall entries, App Paths, shared file counters, file
+  associations and Open with entries, startup entries, MUI cache, fonts, help
+  files, services with a missing program (report only) and, in advanced
+  mode, orphaned COM components, installer folder records and right-click
+  menu handlers.
+- **Scan** is read only and cancellable. Results are grouped per category
+  with a checkbox (fixable entries only), the problem in plain English, the
+  key path (copy button) and the missing file or folder.
+- **Fix selected** asks first, creates a restore point, backs every entry up
+  to a `.reg` file, checks each entry again and only then removes it.
+- **Backups** lists every fix with *Restore*, *Delete* and *Open folder*;
+  backups older than 90 days are offered for cleanup, never removed
+  automatically. Details: [REGISTRY.md](REGISTRY.md).
 
 ---
 
