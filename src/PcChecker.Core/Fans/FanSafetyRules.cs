@@ -53,7 +53,12 @@ public static class FanSafetyRules
                 continue;
             }
 
-            double excess = value - CriticalThreshold(reading.Hardware, monitoring);
+            if (LimitsFor(reading, monitoring) is not { } limits)
+            {
+                continue;
+            }
+
+            double excess = value - limits.Crit;
             if (excess >= 0 && excess > worstExcess)
             {
                 worstExcess = excess;
@@ -83,13 +88,27 @@ public static class FanSafetyRules
                 continue;
             }
 
-            if (value >= WarningThreshold(reading.Hardware, monitoring))
+            if (LimitsFor(reading, monitoring) is { } limits && value >= limits.Warn)
             {
                 return false;
             }
         }
 
         return true;
+    }
+
+    /// <summary>
+    /// The limits a reading is held to, by role: hot spot and memory sensors have their own (higher) limits, the
+    /// Ryzen 7000/9000 CPU limits follow their 95 °C design point, and raw "Core (Tctl)" is ignored (it carries an
+    /// offset and always comes with a real Tdie reading). Motherboard sensors use the CPU/GPU maximum.
+    /// </summary>
+    public static (double Warn, double Crit)? LimitsFor(SensorReading reading, MonitoringSettings monitoring)
+    {
+        ArgumentNullException.ThrowIfNull(reading);
+        ArgumentNullException.ThrowIfNull(monitoring);
+        return reading.Hardware is HardwareKind.Cpu or HardwareKind.Gpu
+            ? TemperatureRoles.ThresholdsFor(reading, monitoring)
+            : (WarningThreshold(reading.Hardware, monitoring), CriticalThreshold(reading.Hardware, monitoring));
     }
 
     /// <summary>Clamps a requested manual percentage to the allowed range: the configured minimum (unless explicitly allowed) up to 100.</summary>

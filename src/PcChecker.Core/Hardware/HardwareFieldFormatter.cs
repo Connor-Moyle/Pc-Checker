@@ -73,6 +73,7 @@ public static class HardwareFieldFormatter
                 Add("Cores", c.Cores is null ? null : $"{c.Cores} ({c.LogicalProcessors?.ToString(CultureInfo.InvariantCulture) ?? "?"} threads)");
                 Add("Max clock", Mhz(c.MaxClockMhz));
                 Add("Current clock", Mhz(c.CurrentClockMhz));
+                Add("Platform", CpuTraits.Describe(c.Traits));
                 Add("Socket", c.Socket);
                 Add("Architecture", c.Architecture);
                 Add("L2 cache", Kb(c.L2CacheKb));

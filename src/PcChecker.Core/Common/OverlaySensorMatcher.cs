@@ -26,11 +26,11 @@ public static class OverlaySensorMatcher
             return OverlayMetricValue.None;
         }
 
-        var r = snapshot.Readings;
+        // Only the primary (discrete) GPU: an integrated Radeon is listed first on Ryzen 7000/9000 otherwise.
+        var r = GpuSelection.PrimaryGpuOnly(snapshot.Readings);
         return metricId switch
         {
-            OverlayMetricIds.CpuTemp => Value(First(r, HardwareKind.Cpu, SensorKind.Temperature, "CPU Package", "Package", "Tctl", "Tdie", "Core Average", "Core Max")
-                                              ?? First(r, HardwareKind.Cpu, SensorKind.Temperature)),
+            OverlayMetricIds.CpuTemp => Value(TemperatureRoles.PickCpuTemperature(r)),
             OverlayMetricIds.CpuLoad => Value(First(r, HardwareKind.Cpu, SensorKind.Load, "CPU Total", "Total") ?? First(r, HardwareKind.Cpu, SensorKind.Load)),
             OverlayMetricIds.CpuClock => Max(r, HardwareKind.Cpu, SensorKind.Clock, exclude: "Bus"),
             OverlayMetricIds.CpuPower => Value(First(r, HardwareKind.Cpu, SensorKind.Power, "CPU Package", "Package") ?? First(r, HardwareKind.Cpu, SensorKind.Power)),
@@ -185,7 +185,8 @@ public static class OverlaySensorMatcher
             return new(p, "W");
         }
 
-        var snapshot = new SensorSnapshot(DateTimeOffset.MinValue, readings);
+        // An APU's integrated graphics power is already inside the CPU package.
+        var snapshot = new SensorSnapshot(DateTimeOffset.MinValue, Power.PowerMath.WithoutIntegratedGpuPower(readings).ToList());
         var cpu = Resolve(snapshot, OverlayMetricIds.CpuPower);
         var gpu = Resolve(snapshot, OverlayMetricIds.GpuPower);
         if (!cpu.HasValue && !gpu.HasValue)

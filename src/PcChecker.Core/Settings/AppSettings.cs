@@ -110,6 +110,14 @@ public sealed class MonitoringSettings
     public double CpuCritC { get; set; } = 95;
     public double GpuWarnC { get; set; } = 83;
     public double GpuCritC { get; set; } = 92;
+
+    /// <summary>GPU hot spot (junction) limits; AMD specifies up to 110 °C, so the core limits do not apply.</summary>
+    public double GpuHotSpotWarnC { get; set; } = 100;
+    public double GpuHotSpotCritC { get; set; } = 110;
+
+    /// <summary>GPU memory (VRAM) temperature limits.</summary>
+    public double GpuMemoryWarnC { get; set; } = 95;
+    public double GpuMemoryCritC { get; set; } = 105;
     public double DiskWarnC { get; set; } = 55;
     public double DiskCritC { get; set; } = 65;
     public bool AlertsEnabled { get; set; } = true;

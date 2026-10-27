@@ -417,7 +417,7 @@ public sealed partial class SensorsViewModel : ViewModelBase
         foreach (var reading in snapshot.Readings)
         {
             bool isTemperature = reading.Kind == SensorKind.Temperature;
-            var thresholds = isTemperature ? SensorMath.ThresholdsFor(reading.Hardware, monitoring) : null;
+            var thresholds = isTemperature ? TemperatureRoles.ThresholdsFor(reading, monitoring) : null;
 
             if (!_rows.TryGetValue(reading.Id, out var row))
             {
@@ -489,11 +489,13 @@ public sealed partial class SensorsViewModel : ViewModelBase
     {
         var temps = snapshot.OfKind(SensorKind.Temperature).Where(r => r.Value is { } v && !double.IsNaN(v)).ToList();
 
-        var cpu = Pick(temps.Where(r => r.Hardware == HardwareKind.Cpu), "package", "tctl", "tdie", "core max", "average");
+        var cpu = TemperatureRoles.PickCpuTemperature(temps);
         CpuTemp = cpu?.Value ?? double.NaN;
         CpuLabel = cpu is null ? "CPU" : "CPU · " + cpu.Name;
 
-        var gpu = Pick(temps.Where(r => r.Hardware == HardwareKind.Gpu), "gpu core", "core", "hot spot");
+        // The headline is the primary (discrete) GPU; integrated graphics stay visible in the sensor list below.
+        var primaryGpu = GpuSelection.PrimaryGpuKey(snapshot.Readings);
+        var gpu = Pick(temps.Where(r => r.Hardware == HardwareKind.Gpu && GpuSelection.HardwareKey(r) == primaryGpu), "gpu core", "core", "hot spot");
         HasGpuTemp = gpu is not null;
         GpuTemp = gpu?.Value ?? double.NaN;
         GpuLabel = gpu is null ? "GPU" : "GPU · " + gpu.Name;
@@ -508,8 +510,7 @@ public sealed partial class SensorsViewModel : ViewModelBase
         BoardTemp = board?.Value ?? double.NaN;
         BoardLabel = board is null ? "Motherboard" : "Board · " + board.Name;
 
-        CpuWarn = monitoring.CpuWarnC;
-        CpuCrit = monitoring.CpuCritC;
+        (CpuWarn, CpuCrit) = TemperatureRoles.CpuThresholds(monitoring, cpu?.HardwareName);
         GpuWarn = monitoring.GpuWarnC;
         GpuCrit = monitoring.GpuCritC;
         DiskWarn = monitoring.DiskWarnC;

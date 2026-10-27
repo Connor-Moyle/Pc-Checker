@@ -43,7 +43,7 @@ public sealed class AlertTracker
             return null;
         }
 
-        if (SensorMath.ThresholdsFor(reading.Hardware, settings) is not { } thresholds)
+        if (TemperatureRoles.ThresholdsFor(reading, settings) is not { } thresholds)
         {
             return null;
         }

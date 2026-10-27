@@ -397,8 +397,20 @@ public sealed partial class LibreHardwareFanControlService
     private IReadOnlyList<FanProfile> BuildBuiltInProfiles()
     {
         var sources = GetTemperatureSources();
-        string cpu = PickSensor(sources, HardwareKind.Cpu, "package", "tctl", "tdie", "core") ?? "cpu.package";
-        string gpu = PickSensor(sources, HardwareKind.Gpu, "core", "hot") ?? "gpu.core";
+        IReadOnlyList<SensorReading> temps = [];
+        try
+        {
+            temps = _sensors.GetTemperatures();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Sensor temperatures unavailable for the built-in fan profiles.");
+        }
+
+        // Same picks as the Dashboard: Tdie before Tctl, and the discrete GPU's core (never the integrated Radeon,
+        // whose temperature follows the CPU).
+        string cpu = TemperatureRoles.PickCpuTemperature(temps)?.Id ?? PickSensor(sources, HardwareKind.Cpu, "package", "tdie", "tctl", "core") ?? "cpu.package";
+        string gpu = TemperatureRoles.PickGpuCoreTemperature(temps)?.Id ?? PickSensor(sources, HardwareKind.Gpu, "core", "hot") ?? "gpu.core";
         List<string> gpuFans;
         List<string> cpuFans;
         lock (_gate)

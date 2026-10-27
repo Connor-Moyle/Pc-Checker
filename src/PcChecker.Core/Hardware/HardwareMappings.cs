@@ -182,7 +182,18 @@ public static partial class HardwareMappings
         return m.Success ? m.Groups[1].Value.ToUpperInvariant() : null;
     }
 
-    /// <summary>Heuristic: integrated graphics share system memory and carry typical names (UHD, Iris, Radeon Graphics, Vega).</summary>
+    [GeneratedRegex(@"^(?:AMD\s+)?Radeon(?:\(TM\)|\u2122)?\s*(?:(?:\d{3}M|\d{4}S)(?:\s+Graphics)?|Graphics)$", RegexOptions.IgnoreCase)]
+    private static partial Regex AmdIntegratedName();
+
+    [GeneratedRegex(@"\bVega\s+(?<n>\d{1,2})\b", RegexOptions.IgnoreCase)]
+    private static partial Regex VegaCompute();
+
+    /// <summary>
+    /// The one rule for integrated graphics, shared by the inventory, the Overclock page and the sensor pickers.
+    /// Integrated graphics share system memory and carry typical names: Intel UHD/Iris/"Arc Graphics", AMD
+    /// "Radeon(TM) Graphics", "Radeon 780M"/"890M"/"8060S" and the Vega 3–11 APUs. A big UMA frame buffer does not
+    /// make an APU a graphics card, so the name decides, not the memory size.
+    /// </summary>
     public static bool IsIntegratedGpu(string? name, string vendor)
     {
         if (string.IsNullOrWhiteSpace(name))
@@ -190,19 +201,22 @@ public static partial class HardwareMappings
             return false;
         }
 
-        var n = name;
-        if (vendor == "Intel")
+        var n = name.Trim();
+        if (vendor == "Intel" || (vendor.Length == 0 && n.Contains("Intel", StringComparison.OrdinalIgnoreCase)))
         {
-            return !n.Contains("Arc", StringComparison.OrdinalIgnoreCase) || n.Contains("Arc Graphics", StringComparison.OrdinalIgnoreCase);
+            return !n.Contains("Arc", StringComparison.OrdinalIgnoreCase) || n.Contains("Arc Graphics", StringComparison.OrdinalIgnoreCase)
+                || n.Contains("Arc(TM) Graphics", StringComparison.OrdinalIgnoreCase);
         }
 
-        if (vendor == "AMD")
+        if (vendor == "AMD" || n.Contains("Radeon", StringComparison.OrdinalIgnoreCase))
         {
-            return n.EndsWith("Radeon(TM) Graphics", StringComparison.OrdinalIgnoreCase)
-                || n.EndsWith("Radeon Graphics", StringComparison.OrdinalIgnoreCase)
-                || n.Contains("Vega", StringComparison.OrdinalIgnoreCase) && !n.Contains("RX", StringComparison.OrdinalIgnoreCase)
-                || n.Contains("780M", StringComparison.OrdinalIgnoreCase) || n.Contains("680M", StringComparison.OrdinalIgnoreCase)
-                || n.Contains("890M", StringComparison.OrdinalIgnoreCase);
+            if (AmdIntegratedName().IsMatch(n))
+            {
+                return true;
+            }
+
+            var vega = VegaCompute().Match(n);
+            return vega.Success && int.Parse(vega.Groups["n"].Value, CultureInfo.InvariantCulture) <= 11;
         }
 
         return n.Contains("Integrated", StringComparison.OrdinalIgnoreCase);

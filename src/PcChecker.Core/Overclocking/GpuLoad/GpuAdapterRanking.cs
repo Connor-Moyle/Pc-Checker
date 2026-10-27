@@ -2,7 +2,8 @@ namespace PcChecker.Core.Overclocking.GpuLoad;
 
 /// <summary>
 /// Pure adapter choice: leaves out software renderers (Microsoft Basic Render Driver, WARP, remote adapters) and
-/// ranks the rest by dedicated video memory, so the discrete card comes first and is recommended by default.
+/// ranks the rest discrete first (by the shared integrated-graphics name rule, so a Strix Halo APU with a big UMA
+/// frame buffer does not outrank an eGPU), then by dedicated video memory, so the discrete card comes first and is recommended by default.
 /// </summary>
 public static class GpuAdapterRanking
 {
@@ -26,7 +27,8 @@ public static class GpuAdapterRanking
             .Where(a => !IsSoftwareAdapter(a))
             .GroupBy(a => a.Index)
             .Select(g => g.First())
-            .OrderByDescending(a => a.DedicatedVideoMemoryBytes)
+            .OrderBy(a => Hardware.HardwareMappings.IsIntegratedGpu(a.Name, VendorName(a.VendorId) is "AMD" or "Intel" ? VendorName(a.VendorId) : string.Empty))
+            .ThenByDescending(a => a.DedicatedVideoMemoryBytes)
             .ThenBy(a => a.Index)
             .ToList();
 

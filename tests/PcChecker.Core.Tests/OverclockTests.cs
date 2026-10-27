@@ -589,7 +589,8 @@ public class SensorPickerAndPresetTests
         Assert.Equal(42, live.GpuPowerW);
         Assert.Equal(58, live.CpuTempC);
         Assert.Equal(5300, live.CpuClockMhz);
-        Assert.Equal(58, SensorPicker.MaxGpuTemp(Snapshot()));
+        Assert.Equal(46, SensorPicker.MaxGpuTemp(Snapshot()));
+        Assert.Equal(58, SensorPicker.MaxGpuHotSpot(Snapshot()));
         Assert.Equal(58, SensorPicker.MaxCpuTemp(Snapshot()));
         Assert.Equal(LiveReadout.Empty, SensorPicker.Pick(null));
     }

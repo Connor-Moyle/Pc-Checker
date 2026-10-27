@@ -61,7 +61,9 @@ public static class PowerMath
 
             case HardwareKind.Gpu:
                 // NVIDIA: "GPU Power"; AMD: "GPU Package" (+ "GPU Core", "GPU SoC" which are parts of it); Intel: "GPU Power".
-                if (Contains(name, "package") || Contains(name, "board") || Contains(name, "total"))
+                // AMD "GPU PPT" is the whole-card total on a discrete Radeon (on an APU it is dropped before this, see
+                // WithoutIntegratedGpuPower).
+                if (Contains(name, "package") || Contains(name, "board") || Contains(name, "total") || Contains(name, "ppt"))
                 {
                     return PowerSource.Gpu;
                 }
@@ -79,6 +81,19 @@ public static class PowerMath
         }
     }
 
+    /// <summary>
+    /// Leaves out the power readings of integrated graphics when a CPU package reading exists: on a Ryzen APU (and
+    /// Intel) the iGPU's power is already part of the CPU package / PPT, so adding it would count it twice.
+    /// </summary>
+    public static IEnumerable<SensorReading> WithoutIntegratedGpuPower(IReadOnlyList<SensorReading> readings)
+    {
+        ArgumentNullException.ThrowIfNull(readings);
+        bool hasPackage = readings.Any(r => r.Hardware == HardwareKind.Cpu && r.Kind == SensorKind.Power && r.Value.HasValue && Contains(r.Name, "package"));
+        return hasPackage
+            ? readings.Where(r => !(r.Hardware == HardwareKind.Gpu && r.Kind == SensorKind.Power && GpuSelection.IsIntegrated(r.HardwareName)))
+            : readings;
+    }
+
     /// <summary>Aggregates every power reading of a snapshot into a breakdown.</summary>
     public static PowerBreakdown Aggregate(IEnumerable<SensorReading> readings)
     {
@@ -90,7 +105,7 @@ public static class PowerMath
         var psuByHardware = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
         double? other = null, battery = null;
 
-        foreach (var reading in readings)
+        foreach (var reading in WithoutIntegratedGpuPower(readings.ToList()))
         {
             if (reading.Kind != SensorKind.Power || reading.Value is not { } watts || double.IsNaN(watts) || watts < 0)
             {

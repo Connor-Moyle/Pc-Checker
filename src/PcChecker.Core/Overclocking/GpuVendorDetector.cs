@@ -86,12 +86,13 @@ public static partial class GpuVendorDetector
             return true;
         }
 
-        var n = (gpu.Name ?? string.Empty).ToLowerInvariant();
-        if (n.Contains("uhd graphics") || n.Contains("iris") || n.Contains("hd graphics") || n.EndsWith("radeon graphics") || n.Contains("radeon(tm) graphics") || n.Contains("vega 8") || n.Contains("vega 7"))
+        var vendor = DisplayName(Detect(gpu));
+        if (HardwareMappings.IsIntegratedGpu(gpu.Name, vendor == "Unknown" ? string.Empty : vendor))
         {
             return true;
         }
 
+        var n = (gpu.Name ?? string.Empty).ToLowerInvariant();
         return gpu.AdapterRamBytes is { } ram && ram > 0 && ram < 1024L * 1024 * 1024 && !n.Contains("arc");
     }
 

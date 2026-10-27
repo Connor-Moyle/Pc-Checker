@@ -728,7 +728,13 @@ public sealed partial class WindowsOverclockService : IOverclockService, IDispos
     private OperationResult? CheckTemperatures(OverclockSettings settings)
     {
         var snapshot = _sensors.Latest;
-        return OverclockSafetyValidator.CheckTemperatures(SensorPicker.MaxCpuTemp(snapshot), SensorPicker.MaxGpuTemp(snapshot), settings);
+        // Ryzen 7000/9000 run at 95 °C by design: with the stock limit, the pre-check uses Tjmax + 3 °C instead.
+        var effective = new OverclockSettings
+        {
+            MaxCpuTempC = TemperatureRoles.EffectiveCpuStopC(settings.MaxCpuTempC, SensorPicker.CpuName(snapshot)),
+            MaxGpuTempLimitC = settings.MaxGpuTempLimitC,
+        };
+        return OverclockSafetyValidator.CheckTemperatures(SensorPicker.MaxCpuTemp(snapshot), SensorPicker.MaxGpuTemp(snapshot), effective);
     }
 
     private GpuTunerDetection DetectGpuTuner(GpuVendor vendor, string? gpuName)
