@@ -10,6 +10,13 @@
       mc:Ignorable="d"
       Title="Drivers"
       ScrollViewer.CanContentScroll="False">
+  <Page.Resources>
+    <Style x:Key="Tile" TargetType="controls:StatCard">
+      <Setter Property="Margin" Value="0" />
+    </Style>
+  </Page.Resources>
+
+  <!-- Each tab's list fills the remaining height and scrolls itself. -->
   <Grid Style="{StaticResource PageRoot}">
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto" />
@@ -19,7 +26,7 @@
     </Grid.RowDefinitions>
 
     <!-- Header with the main actions -->
-    <controls:SectionHeader Grid.Row="0" Title="Drivers" Subtitle="Every installed driver, what needs attention, and updates from Windows Update and your hardware makers.">
+    <controls:SectionHeader Grid.Row="0" Title="Drivers" Subtitle="Every installed driver, the ones that need attention, and driver updates.">
       <controls:SectionHeader.Actions>
         <StackPanel Orientation="Horizontal">
           <ui:DropDownButton Content="More" Icon="{ui:SymbolIcon MoreHorizontal24}" Margin="0,0,8,0">
@@ -46,29 +53,29 @@
       </controls:SectionHeader.Actions>
     </controls:SectionHeader>
 
-    <!-- Headline numbers -->
-    <UniformGrid Grid.Row="1" Columns="6" Margin="0,0,0,12">
-      <controls:StatCard Title="Installed drivers" Value="{Binding TotalDrivers}" Icon="Wrench24" Accent="{StaticResource AccentCyanBrush}" Subtitle="{Binding LastScanText}" Margin="0,0,12,0" />
-      <controls:StatCard Title="Third-party" Value="{Binding ThirdPartyCount}" Icon="Box24" Accent="{StaticResource AccentPurpleBrush}" Subtitle="Not shipped with Windows" Margin="0,0,12,0" />
-      <controls:StatCard Title="With problems" Value="{Binding ProblemCount}" Icon="Warning24" Accent="{StaticResource AccentRedBrush}" Subtitle="Device Manager error codes" Margin="0,0,12,0" />
-      <controls:StatCard Title="Older than 3 years" Value="{Binding OldCount}" Icon="History24" Accent="{StaticResource AccentOrangeBrush}" Subtitle="Third-party only" Margin="0,0,12,0" />
-      <controls:StatCard Title="Unsigned" Value="{Binding UnsignedCount}" Icon="ShieldError24" Accent="{StaticResource AccentYellowBrush}" Subtitle="No valid signature" Margin="0,0,12,0" />
-      <controls:StatCard Title="Updates available" Value="{Binding UpdatesAvailable}" Icon="CloudArrowDown24" Accent="{StaticResource AccentGreenBrush}" Subtitle="{Binding LastCheckText}" />
-    </UniformGrid>
-
-    <!-- Messages -->
-    <StackPanel Grid.Row="2">
-      <ui:InfoBar Severity="Error" Title="Something went wrong" Message="{Binding ErrorMessage}" IsOpen="{Binding HasError, Mode=OneWay}" IsClosable="True" Margin="0,0,0,8" />
-      <ui:InfoBar Severity="Warning" Title="Some information is missing" Message="{Binding Warnings}" IsOpen="{Binding HasWarnings, Mode=OneWay}" IsClosable="True" Margin="0,0,0,8" />
+    <!-- Status -->
+    <StackPanel Grid.Row="1">
+      <ui:InfoBar Severity="Error" Title="Something went wrong" Message="{Binding ErrorMessage}" IsOpen="{Binding HasError, Mode=OneWay}" IsClosable="True" Margin="0,0,0,12" />
+      <ui:InfoBar Severity="Warning" Title="Some information is missing" Message="{Binding Warnings}" IsOpen="{Binding HasWarnings, Mode=OneWay}" IsClosable="True" Margin="0,0,0,12" />
       <controls:RestartPromptBar IsOpen="{Binding RebootRequired}"
                                  Message="Windows needs a restart to finish installing the new driver(s). Save your work first."
                                  Reason="to finish installing the new drivers"
                                  DismissCommand="{Binding DismissRebootCommand}" />
-      <ui:InfoBar Severity="Success" Title="Done" Message="{Binding LastResultMessage}" IsOpen="{Binding ShowSuccessResult, Mode=OneWay}" IsClosable="True" Margin="0,0,0,8" />
-      <ui:InfoBar Severity="Error" Title="That did not work" Message="{Binding LastResultMessage}" IsOpen="{Binding ShowFailureResult, Mode=OneWay}" IsClosable="True" Margin="0,0,0,8" />
+      <ui:InfoBar Severity="Success" Title="Done" Message="{Binding LastResultMessage}" IsOpen="{Binding ShowSuccessResult, Mode=OneWay}" IsClosable="True" Margin="0,0,0,12" />
+      <ui:InfoBar Severity="Error" Title="That did not work" Message="{Binding LastResultMessage}" IsOpen="{Binding ShowFailureResult, Mode=OneWay}" IsClosable="True" Margin="0,0,0,12" />
     </StackPanel>
 
-    <!-- Updates / Installed -->
+    <!-- Summary -->
+    <controls:AdaptiveGrid Grid.Row="2" MinItemWidth="180" MaxColumns="6" Margin="0,0,0,12">
+      <controls:StatCard Style="{StaticResource Tile}" Title="Installed drivers" Value="{Binding TotalDrivers}" Icon="Wrench24" Accent="{StaticResource AccentCyanBrush}" Subtitle="{Binding LastScanText}" />
+      <controls:StatCard Style="{StaticResource Tile}" Title="Third-party" Value="{Binding ThirdPartyCount}" Icon="Box24" Accent="{StaticResource AccentPurpleBrush}" Subtitle="Not shipped with Windows" />
+      <controls:StatCard Style="{StaticResource Tile}" Title="With problems" Value="{Binding ProblemCount}" Icon="Warning24" Accent="{StaticResource AccentRedBrush}" Subtitle="Device Manager error codes" />
+      <controls:StatCard Style="{StaticResource Tile}" Title="Older than 3 years" Value="{Binding OldCount}" Icon="History24" Accent="{StaticResource AccentOrangeBrush}" Subtitle="Third-party only" />
+      <controls:StatCard Style="{StaticResource Tile}" Title="Unsigned" Value="{Binding UnsignedCount}" Icon="ShieldError24" Accent="{StaticResource AccentYellowBrush}" Subtitle="No valid signature" />
+      <controls:StatCard Style="{StaticResource Tile}" Title="Updates available" Value="{Binding UpdatesAvailable}" Icon="CloudArrowDown24" Accent="{StaticResource AccentGreenBrush}" Subtitle="{Binding LastCheckText}" />
+    </controls:AdaptiveGrid>
+
+    <!-- Main content: Updates / Installed -->
     <TabControl Grid.Row="3" Padding="0,8,0,0">
 
       <!-- Tab 1: Updates available -->
@@ -85,8 +92,8 @@
 
           <Grid Grid.Row="0" Grid.Column="0" Margin="0,0,0,8">
             <Grid.ColumnDefinitions>
-              <ColumnDefinition Width="Auto" />
               <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
             <StackPanel Grid.Column="0" Orientation="Horizontal">
               <ui:Button Content="Install selected" Icon="{ui:SymbolIcon ArrowDownload24}" Appearance="Primary" Command="{Binding InstallSelectedCommand}" Margin="0,0,8,0"
@@ -99,8 +106,8 @@
                 <Run Text="{Binding SelectedUpdateCount, Mode=OneWay}" /><Run Text=" selected" />
               </ui:TextBlock>
             </StackPanel>
-            <ui:Button Grid.Column="1" HorizontalAlignment="Right" Content="Windows Update optional updates" Icon="{ui:SymbolIcon Open24}" Command="{Binding OpenOptionalUpdatesCommand}"
-                       ToolTip="Opens the Windows Settings page that lists optional driver updates." />
+            <ui:Button Grid.Column="1" Content="Optional updates" Icon="{ui:SymbolIcon Open24}" Command="{Binding OpenOptionalUpdatesCommand}" Margin="8,0,0,0"
+                       ToolTip="Opens the Windows Update page in Settings that lists optional driver updates." />
           </Grid>
 
           <Grid Grid.Row="1" Grid.Column="0" Margin="0,0,12,0">
@@ -160,8 +167,9 @@
             <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
               <StackPanel>
                 <ui:TextBlock Style="{StaticResource CardTitle}" Text="Download from the maker" />
-                <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,10"
-                              Text="Windows Update only carries basic drivers. For graphics cards, chipsets and gaming peripherals, the manufacturer's site usually has the newest version." />
+                <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,8"
+                              Text="Makers often have newer drivers than Windows Update."
+                              ToolTip="Windows Update only carries basic drivers. For graphics cards, chipsets and gaming peripherals, the manufacturer's site usually has the newest version." />
                 <ItemsControl ItemsSource="{Binding VendorLinks}">
                   <ItemsControl.ItemTemplate>
                     <DataTemplate>
@@ -203,11 +211,11 @@
             <Grid.ColumnDefinitions>
               <ColumnDefinition Width="320" />
               <ColumnDefinition Width="*" />
-              <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
             <ui:TextBox Grid.Column="0" PlaceholderText="Search device, maker, version, hardware id…" Icon="{ui:SymbolIcon Search24}" ClearButtonEnabled="True"
-                        Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" />
-            <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="16,0,0,0" VerticalAlignment="Center">
+                        Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Center" />
+            <!-- Filters wrap onto a second line on narrow windows. The last scan time is on the Installed drivers tile. -->
+            <WrapPanel Grid.Column="1" Orientation="Horizontal" Margin="16,0,0,0" VerticalAlignment="Center">
               <CheckBox Content="Third-party only" IsChecked="{Binding ThirdPartyOnly}" Margin="0,0,12,0" ToolTip="Hide the drivers that ship with Windows." />
               <CheckBox Content="Problems only" IsChecked="{Binding ProblemsOnly}" Margin="0,0,12,0" ToolTip="Only devices with a Device Manager error code." />
               <CheckBox Content="Older than 3 years" IsChecked="{Binding OldOnly}" Margin="0,0,12,0" />
@@ -216,8 +224,7 @@
                         Visibility="{Binding HasDisconnected, Converter={StaticResource BoolToVisibility}}"
                         ToolTip="Devices Windows remembers but that are not plugged in right now, such as USB sticks, phones and old monitors. Device Manager hides these too; they are not counted as problems." />
               <ui:Button Content="Clear filters" Appearance="Transparent" Command="{Binding ClearFiltersCommand}" Padding="8,4" />
-            </StackPanel>
-            <ui:TextBlock Grid.Column="2" Style="{StaticResource Muted}" VerticalAlignment="Center" Text="{Binding LastScanText}" />
+            </WrapPanel>
           </Grid>
 
           <Grid Grid.Row="1">
@@ -283,7 +290,7 @@
           </Grid>
 
           <!-- Advanced: driver store -->
-          <ui:CardExpander Grid.Row="2" Margin="0,12,0,0" IsExpanded="False" ContentPadding="12"
+          <ui:CardExpander Grid.Row="2" Margin="0,12,0,0" IsExpanded="False" ContentPadding="16"
                            Icon="{ui:SymbolIcon Archive24}"
                            Visibility="{Binding IsAdvancedMode, Converter={StaticResource BoolToVisibility}}">
             <ui:CardExpander.Header>
@@ -294,7 +301,8 @@
                 </Grid.ColumnDefinitions>
                 <StackPanel Grid.Column="0">
                   <ui:TextBlock FontTypography="BodyStrong" Text="Driver store (third-party packages)" />
-                  <ui:TextBlock Style="{StaticResource Muted}" Text="The oemN.inf packages Windows has staged, as listed by pnputil /enum-drivers. These are what 'Back up all drivers' exports." TextWrapping="Wrap" />
+                  <ui:TextBlock Style="{StaticResource Muted}" Text="The oemN.inf packages Windows has staged." TextWrapping="Wrap"
+                                ToolTip="As listed by pnputil /enum-drivers. These are what 'Back up all drivers' exports." />
                 </StackPanel>
                 <ui:Button Grid.Column="1" Content="Refresh" Icon="{ui:SymbolIcon ArrowSync24}" Command="{Binding LoadDriverStoreCommand}" Margin="12,0,0,0" VerticalAlignment="Center"
                            ToolTip="Runs pnputil /enum-drivers and lists every third-party package in the driver store." />
