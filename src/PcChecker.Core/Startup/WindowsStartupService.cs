@@ -52,6 +52,11 @@ public sealed partial class WindowsStartupService : IStartupService, IRestartCan
             return Task.FromResult(OperationResult.Fail("Winlogon values are shown for information only. Use a Microsoft Defender scan if you did not set this yourself."));
         }
 
+        if (StartupTaskRules.ToggleRefusal(item) is { } toggleRefusal)
+        {
+            return Task.FromResult(OperationResult.Fail(toggleRefusal));
+        }
+
         string verb = enabled ? "Enable" : "Disable";
         var options = new ChangeOptions(CreateBefore: false, CreateAfter: false, Module, item.Name, Reversible: true,
             UndoHint: $"Set '{item.Name}' back to {(enabled ? "disabled" : "enabled")} on the Startup page ({item.Location}).");
@@ -75,6 +80,11 @@ public sealed partial class WindowsStartupService : IStartupService, IRestartCan
         if (item.Kind == StartupKinds.Winlogon)
         {
             return Task.FromResult(OperationResult.Fail("Winlogon values cannot be removed from here. Reset them with a Microsoft Defender scan or by restoring the default value in the registry."));
+        }
+
+        if (StartupTaskRules.RemoveRefusal(item) is { } removeRefusal)
+        {
+            return Task.FromResult(OperationResult.Fail(removeRefusal));
         }
 
         var options = new ChangeOptions(null, null, Module, item.Name, Reversible: true,
@@ -214,7 +224,11 @@ public sealed partial class WindowsStartupService : IStartupService, IRestartCan
 
         try
         {
-            SaveBackup(item);
+            if (!SaveBackup(item))
+            {
+                return OperationResult.Fail($"{item.Name} was not removed: a backup copy could not be saved in {BackupDirectory}. Turn it off with the switch instead.");
+            }
+
             using var hive = RegistryKey.OpenBaseKey(source.Hive, source.View);
             using var run = hive.OpenSubKey(source.SubKey, writable: true);
             run?.DeleteValue(item.Name, throwOnMissingValue: false);
@@ -258,18 +272,20 @@ public sealed partial class WindowsStartupService : IStartupService, IRestartCan
             Directory.CreateDirectory(BackupDirectory);
             string xmlPath = Path.Combine(BackupDirectory, $"{DateTime.Now:yyyyMMdd-HHmmss}-task-{Sanitize(name)}.xml");
             var export = await PowerShellRunner.RunAsync(
-                $"Export-ScheduledTask -TaskName {PowerShellRunner.Quote(name)} -TaskPath {PowerShellRunner.Quote(path)} -ErrorAction Stop | Set-Content -Path {PowerShellRunner.Quote(xmlPath)} -Encoding Unicode",
+                $"Export-ScheduledTask -TaskName {PowerShellRunner.Quote(name)} -TaskPath {PowerShellRunner.Quote(path)} -ErrorAction Stop | Set-Content -LiteralPath {PowerShellRunner.Quote(xmlPath)} -Encoding Unicode -ErrorAction Stop",
                 TimeSpan.FromSeconds(60), ct).ConfigureAwait(false);
-            if (!export.Success)
+            if (!export.Success || !File.Exists(xmlPath) || new FileInfo(xmlPath).Length == 0)
             {
+                // The confirmation promises a copy to put back; without one, nothing is deleted.
                 _logger.LogWarning("Could not export task {Task} before removing it: {Error}", name, export.StdErr);
+                return OperationResult.Fail($"Task {name} was not removed: a backup copy could not be saved ({FirstLine(export.StdErr, export.StdOut)}). Turn it off with the switch instead.");
             }
 
             var result = await PowerShellRunner.RunAsync(
                 $"Unregister-ScheduledTask -TaskName {PowerShellRunner.Quote(name)} -TaskPath {PowerShellRunner.Quote(path)} -Confirm:$false -ErrorAction Stop",
                 TimeSpan.FromSeconds(60), ct).ConfigureAwait(false);
             return result.Success
-                ? OperationResult.Ok($"Task {name} was removed." + (export.Success ? $" A copy was saved to {xmlPath}." : string.Empty))
+                ? OperationResult.Ok($"Task {name} was removed. A copy was saved to {xmlPath}.")
                 : OperationResult.Fail($"Task Scheduler refused: {FirstLine(result.StdErr, result.StdOut)}");
         }
         catch (OperationCanceledException)
@@ -296,17 +312,21 @@ public sealed partial class WindowsStartupService : IStartupService, IRestartCan
         }
     }
 
-    private static void SaveBackup(StartupItem item)
+    /// <summary>Saves the entry as JSON in <see cref="BackupDirectory"/>; false when no copy could be written.</summary>
+    private bool SaveBackup(StartupItem item)
     {
         try
         {
             Directory.CreateDirectory(BackupDirectory);
             string path = Path.Combine(BackupDirectory, $"{DateTime.Now:yyyyMMdd-HHmmss}-{Sanitize(item.Name)}.json");
             File.WriteAllText(path, JsonSerializer.Serialize(item, new JsonSerializerOptions { WriteIndented = true }));
+            return true;
         }
-        catch
+        catch (Exception ex)
         {
-            // A missing backup should not block the removal the user asked for.
+            // The confirmation promises a copy to put back, so the removal does not go ahead without one.
+            _logger.LogWarning(ex, "Could not save a backup of startup item {Name}.", item.Name);
+            return false;
         }
     }
 
@@ -438,7 +458,7 @@ public sealed partial class WindowsStartupService : IStartupService, IRestartCan
 
         return _guard.RunGuardedAsync($"Set service '{serviceName}' start mode to {canonical}", options, async ct =>
         {
-            var result = await CommandRunner.RunAsync("sc.exe", $"config \"{serviceName}\" start= {arg}", TimeSpan.FromSeconds(30), ct).ConfigureAwait(false);
+            var result = await CommandRunner.RunAsync(CommandRunner.SystemTool("sc.exe"), $"config \"{serviceName}\" start= {arg}", TimeSpan.FromSeconds(30), ct).ConfigureAwait(false);
             if (!result.Success)
             {
                 return OperationResult.Fail($"sc config failed ({result.ExitCode}): {result.FirstLine}");

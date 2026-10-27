@@ -22,5 +22,6 @@ public interface IDriverUpdateHiding
 {
     Task<OperationResult> SetHiddenAsync(IReadOnlyList<DriverUpdateInfo> updates, bool hidden, CancellationToken cancellationToken);
 
+    /// <summary>Hidden driver updates. Throws when Windows Update cannot be searched (an empty list means none are hidden).</summary>
     Task<IReadOnlyList<DriverUpdateInfo>> GetHiddenAsync(CancellationToken cancellationToken);
 }

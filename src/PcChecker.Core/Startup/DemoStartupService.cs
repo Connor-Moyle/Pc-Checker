@@ -58,6 +58,11 @@ public sealed class DemoStartupService : IStartupService, IRestartCanceller
 
     public async Task<OperationResult> SetStartupItemEnabledAsync(StartupItem item, bool enabled, CancellationToken cancellationToken)
     {
+        if (StartupTaskRules.ToggleRefusal(item) is { } refusal)
+        {
+            return OperationResult.Fail(refusal);
+        }
+
         await DemoData.DelayAsync(cancellationToken).ConfigureAwait(false);
         lock (_gate)
         {
@@ -73,6 +78,11 @@ public sealed class DemoStartupService : IStartupService, IRestartCanceller
 
     public async Task<OperationResult> RemoveStartupItemAsync(StartupItem item, CancellationToken cancellationToken)
     {
+        if (StartupTaskRules.RemoveRefusal(item) is { } refusal)
+        {
+            return OperationResult.Fail(refusal);
+        }
+
         await DemoData.DelayAsync(cancellationToken).ConfigureAwait(false);
         lock (_gate)
         {

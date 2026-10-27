@@ -125,7 +125,7 @@ internal sealed class WindowsUpdateAgent
         }, cancellationToken);
     }
 
-    /// <summary>Lists hidden driver updates (IsHidden=1) and caches them so they can be unhidden.</summary>
+    /// <summary>Lists hidden driver updates (IsHidden=1) and caches them so they can be unhidden. Throws when the search fails.</summary>
     public Task<IReadOnlyList<DriverUpdateInfo>> SearchHiddenAsync(CancellationToken cancellationToken)
     {
         return Task.Run(() =>
@@ -167,7 +167,10 @@ internal sealed class WindowsUpdateAgent
             }
             catch (Exception ex)
             {
+                // An empty list would read as "nothing is hidden", so the failure is reported instead.
                 _logger.LogWarning(ex, "Listing hidden driver updates failed.");
+                throw new InvalidOperationException(
+                    "Windows Update could not list hidden driver updates. Check the internet connection and try again when Windows Update is not busy. (" + ex.Message + ")", ex);
             }
 
             return (IReadOnlyList<DriverUpdateInfo>)list;

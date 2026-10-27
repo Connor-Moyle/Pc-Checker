@@ -22,7 +22,7 @@ public sealed class WindowsRestartScheduler : IRestartScheduler
             return OperationResult.Fail("Restarting is only available on Windows.");
         }
 
-        var result = await CommandRunner.RunAsync("shutdown.exe", RestartPrompt.RestartArguments(reason), TimeSpan.FromSeconds(15), cancellationToken).ConfigureAwait(false);
+        var result = await CommandRunner.RunAsync(CommandRunner.SystemTool("shutdown.exe"), RestartPrompt.RestartArguments(reason), TimeSpan.FromSeconds(15), cancellationToken).ConfigureAwait(false);
         return result.Success
             ? OperationResult.Ok($"Windows restarts in {RestartPrompt.CountdownSeconds} seconds {reason.Trim().TrimEnd('.')}. Save your work now.", rebootRequired: true)
             : OperationResult.Fail($"Could not schedule the restart: {result.FirstLine}");
@@ -35,7 +35,7 @@ public sealed class WindowsRestartScheduler : IRestartScheduler
             return OperationResult.Fail("Restarting is only available on Windows.");
         }
 
-        var result = await CommandRunner.RunAsync("shutdown.exe", RestartPrompt.CancelArguments, TimeSpan.FromSeconds(15), cancellationToken).ConfigureAwait(false);
+        var result = await CommandRunner.RunAsync(CommandRunner.SystemTool("shutdown.exe"), RestartPrompt.CancelArguments, TimeSpan.FromSeconds(15), cancellationToken).ConfigureAwait(false);
         if (result.Success)
         {
             return OperationResult.Ok("The restart was cancelled.");

@@ -1,6 +1,8 @@
 using System.Diagnostics;
 using System.Text;
+using Microsoft.Extensions.Logging.Abstractions;
 using PcChecker.Core.Common;
+using PcChecker.Core.Drivers.Sources;
 
 namespace PcChecker.Core.Software;
 
@@ -15,41 +17,21 @@ public static class WingetUpgradeChecker
 {
     public static readonly TimeSpan DefaultTimeout = TimeSpan.FromMinutes(2);
 
-    /// <summary>True when winget can be started from this process.</summary>
-    public static bool IsInstalled()
-    {
-        if (!PlatformGuard.IsWindows)
-        {
-            return false;
-        }
-
-        try
-        {
-            var local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-            if (File.Exists(Path.Combine(local, "Microsoft", "WindowsApps", "winget.exe")))
-            {
-                return true;
-            }
-
-            var path = Environment.GetEnvironmentVariable("PATH") ?? string.Empty;
-            return path.Split(';', StringSplitOptions.RemoveEmptyEntries).Any(dir => File.Exists(Path.Combine(dir.Trim(), "winget.exe")));
-        }
-        catch
-        {
-            return false;
-        }
-    }
-
     public static async Task<WingetUpgradeResult> CheckAsync(CancellationToken cancellationToken, TimeSpan? timeout = null)
     {
-        if (!IsInstalled())
+        // The elevated app only starts winget.exe from the App Installer package folder under Program Files\WindowsApps,
+        // never the per-user alias in %LOCALAPPDATA%\Microsoft\WindowsApps or a bare name found through PATH.
+        string? winget = PlatformGuard.IsWindows
+            ? await new OemToolDetector(NullLogger.Instance).FindWingetAsync(cancellationToken).ConfigureAwait(false)
+            : null;
+        if (winget is null)
         {
             return new WingetUpgradeResult(false, [], "The Windows Package Manager (winget) is not installed, so upgrade checks are unavailable. It ships with the App Installer from the Microsoft Store.");
         }
 
         var psi = new ProcessStartInfo
         {
-            FileName = "winget.exe",
+            FileName = winget,
             Arguments = "upgrade --accept-source-agreements --disable-interactivity --include-unknown",
             UseShellExecute = false,
             RedirectStandardOutput = true,

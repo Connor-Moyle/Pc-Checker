@@ -26,6 +26,13 @@ public static class CommandRunner
 {
     public static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(60);
 
+    /// <summary>
+    /// The full System32 path of a Windows tool (sc.exe, bcdedit.exe, powercfg.exe, shutdown.exe). A bare name would be
+    /// looked up in the app's own folder first, which is often a user-writable Downloads folder.
+    /// </summary>
+    public static string SystemTool(string fileName) =>
+        PlatformGuard.IsWindows ? Path.Combine(Environment.SystemDirectory, fileName) : fileName;
+
     public static Task<CommandOutput> RunAsync(string fileName, string arguments, TimeSpan? timeout = null, CancellationToken cancellationToken = default) =>
         RunCoreAsync(fileName, psi => psi.Arguments = arguments, timeout, cancellationToken);
 

@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
+using PcChecker.App.Localization;
 using PcChecker.App.Services;
 using PcChecker.Core.Common;
 using PcChecker.Core.Restore;
@@ -117,7 +118,7 @@ public sealed partial class WindowsFeaturesViewModel : ViewModelBase
     public override Task RefreshAsync(CancellationToken cancellationToken) => LoadBusyAsync(cancellationToken);
 
     [RelayCommand]
-    private Task RefreshListAsync() => RunBusyAsync(LoadAsync, "Reading Windows features…");
+    private Task RefreshListAsync() => RunBusyAsync(LoadAsync, Loc.T("Reading Windows features…"));
 
     [RelayCommand]
     private Task TurnOnAsync(FeatureRow? row)
@@ -189,7 +190,7 @@ public sealed partial class WindowsFeaturesViewModel : ViewModelBase
     {
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(busyToken, cancellationToken);
         await LoadAsync(linked.Token);
-    }, "Reading Windows features…");
+    }, Loc.T("Reading Windows features…"));
 
     private async Task LoadAsync(CancellationToken cancellationToken)
     {
@@ -279,36 +280,38 @@ public sealed partial class WindowsFeaturesViewModel : ViewModelBase
         var lines = new List<string>();
         lines.Add(row.Kind switch
         {
-            FeatureKind.InboxApp => $"{row.DisplayName} will be uninstalled{(allUsers ? " for every user account on this PC, and new accounts will not get it either" : " for your user account")}. You can reinstall it from the Microsoft Store at any time.",
-            FeatureKind.Capability when verb == "Install" => $"Windows will download and install {row.DisplayName}. This needs an internet connection and can take a few minutes.",
-            FeatureKind.Capability => $"{row.DisplayName} will be removed from Windows. You can install it again from this page later.",
-            _ when verb == "Enable" => $"Windows will turn on {row.DisplayName}. It may download files and may ask for a restart.",
-            _ => $"Windows will turn off {row.DisplayName}. It may ask for a restart. You can turn it back on from this page later.",
+            FeatureKind.InboxApp => allUsers
+                ? Loc.F("{0} will be uninstalled for every user account on this PC, and new accounts will not get it either. You can reinstall it from the Microsoft Store at any time.", row.DisplayName)
+                : Loc.F("{0} will be uninstalled for your user account. You can reinstall it from the Microsoft Store at any time.", row.DisplayName),
+            FeatureKind.Capability when verb == "Install" => Loc.F("Windows will download and install {0}. This needs an internet connection and can take a few minutes.", row.DisplayName),
+            FeatureKind.Capability => Loc.F("{0} will be removed from Windows. You can install it again from this page later.", row.DisplayName),
+            _ when verb == "Enable" => Loc.F("Windows will turn on {0}. It may download files and may ask for a restart.", row.DisplayName),
+            _ => Loc.F("Windows will turn off {0}. It may ask for a restart. You can turn it back on from this page later.", row.DisplayName),
         });
 
         if (!string.IsNullOrWhiteSpace(row.Recommendation) && row.Kind != FeatureKind.InboxApp)
         {
-            lines.Add("Advice: " + row.Recommendation);
+            lines.Add(Loc.F("Advice: {0}", row.Recommendation));
         }
         else if (row.Kind == FeatureKind.InboxApp && !string.IsNullOrWhiteSpace(row.Description))
         {
-            lines.Add("Advice: " + row.Description);
+            lines.Add(Loc.F("Advice: {0}", row.Description));
         }
 
         if (row.Risk == Core.Optimization.RiskLevel.Advanced)
         {
-            lines.Add("This item is marked \"not recommended\". Only continue if you are sure.");
+            lines.Add(Loc.T("This item is marked \"not recommended\". Only continue if you are sure."));
         }
 
         lines.Add(RestorePointsBeforeChanges
-            ? "A restore point will be created first so you can undo the change."
-            : "No restore point will be created (turned off in Settings → Restore points).");
+            ? Loc.T("A restore point will be created first so you can undo the change.")
+            : Loc.T("No restore point will be created (turned off in Settings → Restore points)."));
         return string.Join("\n\n", lines);
     }
 
     private async Task ChangeAsync(FeatureRow row, string verb, string message, bool danger, Func<CancellationToken, Task<OperationResult>> operation)
     {
-        bool confirmed = await _dialogs.ConfirmAsync($"{verb} {row.DisplayName}?", message, verb, danger);
+        bool confirmed = await _dialogs.ConfirmAsync(Loc.F("{0} {1}?", Loc.T(verb), row.DisplayName), message, Loc.T(verb), danger);
         if (!confirmed)
         {
             return;
@@ -321,11 +324,11 @@ public sealed partial class WindowsFeaturesViewModel : ViewModelBase
             if (result.Success)
             {
                 StatusMessage = result.Message;
-                _notifications.Success($"{row.DisplayName}", result.Message);
+                _notifications.Success(row.DisplayName, result.Message);
                 if (result.RebootRequired)
                 {
                     RebootRequired = true;
-                    RebootMessage = $"{row.DisplayName}: Windows needs a restart to finish this change.";
+                    RebootMessage = Loc.F("{0}: Windows needs a restart to finish this change.", row.DisplayName);
                 }
             }
             else
@@ -335,7 +338,7 @@ public sealed partial class WindowsFeaturesViewModel : ViewModelBase
             }
 
             await LoadAsync(ct);
-        }, $"{verb} {row.DisplayName}…", cancellable: false);
+        }, Loc.F("{0} {1}…", Loc.T(verb), row.DisplayName), cancellable: false);
     }
 
     private void Open(string target)

@@ -22,7 +22,7 @@ public sealed partial class WindowsStartupService
         BootLoaderInfo loader = new(null, false, null, false, null);
         try
         {
-            var bootmgr = await CommandRunner.RunAsync("bcdedit.exe", "/enum {bootmgr}", TimeSpan.FromSeconds(20), cancellationToken).ConfigureAwait(false);
+            var bootmgr = await CommandRunner.RunAsync(CommandRunner.SystemTool("bcdedit.exe"), "/enum {bootmgr}", TimeSpan.FromSeconds(20), cancellationToken).ConfigureAwait(false);
             if (bootmgr.Success)
             {
                 manager = BootConfigParser.ParseBootManager(bootmgr.StdOut);
@@ -32,7 +32,7 @@ public sealed partial class WindowsStartupService
                 _logger.LogWarning("bcdedit /enum {{bootmgr}} failed: {Error}", bootmgr.FirstLine);
             }
 
-            var current = await CommandRunner.RunAsync("bcdedit.exe", "/enum {current}", TimeSpan.FromSeconds(20), cancellationToken).ConfigureAwait(false);
+            var current = await CommandRunner.RunAsync(CommandRunner.SystemTool("bcdedit.exe"), "/enum {current}", TimeSpan.FromSeconds(20), cancellationToken).ConfigureAwait(false);
             if (current.Success)
             {
                 loader = BootConfigParser.ParseBootLoader(current.StdOut);
@@ -84,7 +84,7 @@ public sealed partial class WindowsStartupService
             UndoHint: "Set the timeout back on the Startup page or run: bcdedit /timeout 30");
         return _guard.RunGuardedAsync($"Set boot menu timeout to {clamped} s", options, async ct =>
         {
-            var result = await CommandRunner.RunAsync("bcdedit.exe", $"/timeout {clamped}", TimeSpan.FromSeconds(20), ct).ConfigureAwait(false);
+            var result = await CommandRunner.RunAsync(CommandRunner.SystemTool("bcdedit.exe"), $"/timeout {clamped}", TimeSpan.FromSeconds(20), ct).ConfigureAwait(false);
             return result.Success
                 ? OperationResult.Ok($"The boot menu now waits {clamped} second{(clamped == 1 ? string.Empty : "s")}.")
                 : OperationResult.Fail($"bcdedit failed: {result.FirstLine}");
@@ -103,14 +103,14 @@ public sealed partial class WindowsStartupService
         return _guard.RunGuardedAsync(enabled ? "Arm Safe Mode for the next restart" : "Disarm Safe Mode", options, async ct =>
         {
             string args = enabled ? "/set {current} safeboot minimal" : "/deletevalue {current} safeboot";
-            var result = await CommandRunner.RunAsync("bcdedit.exe", args, TimeSpan.FromSeconds(20), ct).ConfigureAwait(false);
+            var result = await CommandRunner.RunAsync(CommandRunner.SystemTool("bcdedit.exe"), args, TimeSpan.FromSeconds(20), ct).ConfigureAwait(false);
             if (!result.Success)
             {
                 // Deleting a value that is not there is fine. bcdedit's message is localized and other failures
                 // ("could not be opened", "access is denied") read alike, so check the entry itself instead.
                 if (!enabled)
                 {
-                    var check = await CommandRunner.RunAsync("bcdedit.exe", "/enum {current}", TimeSpan.FromSeconds(20), ct).ConfigureAwait(false);
+                    var check = await CommandRunner.RunAsync(CommandRunner.SystemTool("bcdedit.exe"), "/enum {current}", TimeSpan.FromSeconds(20), ct).ConfigureAwait(false);
                     var loader = check.Success ? BootConfigParser.ParseBootLoader(check.StdOut) : null;
                     if (loader is { SafeMode: false } && (loader.Identifier is not null || loader.Description is not null))
                     {
@@ -141,7 +141,7 @@ public sealed partial class WindowsStartupService
             string note = string.Empty;
             if (enabled && ReadDword(HibernateKey, "HibernateEnabled") != 1)
             {
-                var hib = await CommandRunner.RunAsync("powercfg.exe", "/hibernate on", TimeSpan.FromSeconds(20), ct).ConfigureAwait(false);
+                var hib = await CommandRunner.RunAsync(CommandRunner.SystemTool("powercfg.exe"), "/hibernate on", TimeSpan.FromSeconds(20), ct).ConfigureAwait(false);
                 if (!hib.Success)
                 {
                     return OperationResult.Fail($"Fast startup needs hibernation, and it could not be turned on: {hib.FirstLine}");
@@ -186,7 +186,7 @@ public sealed partial class WindowsStartupService
             return OperationResult.Fail(NotOnWindows);
         }
 
-        var result = await CommandRunner.RunAsync("shutdown.exe", "/a", TimeSpan.FromSeconds(15), cancellationToken).ConfigureAwait(false);
+        var result = await CommandRunner.RunAsync(CommandRunner.SystemTool("shutdown.exe"), "/a", TimeSpan.FromSeconds(15), cancellationToken).ConfigureAwait(false);
         if (result.Success)
         {
             _logger.LogInformation("Pending restart cancelled by the user.");
@@ -215,7 +215,7 @@ public sealed partial class WindowsStartupService
         var options = new ChangeOptions(CreateBefore: false, CreateAfter: false, Module, "Restart", Reversible: true, UndoHint: "Cancel within the countdown (shutdown /a).");
         return _guard.RunGuardedAsync(description, options, async ct =>
         {
-            var result = await CommandRunner.RunAsync("shutdown.exe", arguments, TimeSpan.FromSeconds(15), ct).ConfigureAwait(false);
+            var result = await CommandRunner.RunAsync(CommandRunner.SystemTool("shutdown.exe"), arguments, TimeSpan.FromSeconds(15), ct).ConfigureAwait(false);
             if (result.Success)
             {
                 return OperationResult.Ok(okMessage, rebootRequired: true);

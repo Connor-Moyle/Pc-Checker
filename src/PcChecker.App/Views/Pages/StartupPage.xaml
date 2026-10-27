@@ -92,7 +92,8 @@
                    Command="{Binding DataContext.OpenFileLocationCommand, RelativeSource={RelativeSource AncestorType=Page}}"
                    CommandParameter="{Binding}" />
         <ui:Button Icon="{ui:SymbolIcon Delete24}" Appearance="Secondary" AutomationProperties.Name="Remove from startup" Padding="8,4"
-                   ToolTip="Remove this entry from startup (a backup copy is kept)"
+                   ToolTip="{Binding RemoveToolTip}" ToolTipService.ShowOnDisabled="True"
+                   IsEnabled="{Binding CanRemove}"
                    Command="{Binding DataContext.RemoveItemCommand, RelativeSource={RelativeSource AncestorType=Page}}"
                    CommandParameter="{Binding}" />
       </StackPanel>

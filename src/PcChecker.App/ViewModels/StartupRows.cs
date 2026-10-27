@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using PcChecker.App.Localization;
 using PcChecker.Core.Common;
 using PcChecker.Core.Performance;
 using PcChecker.Core.Startup;
@@ -28,11 +29,20 @@ public sealed partial class StartupItemRow : ObservableObject
     /// <summary>RunOnce values run once at the next sign-in; Windows ignores a disabled flag for them, so the switch is locked.</summary>
     public bool IsRunOnce => StartupEnumerator.IsRunOnceLocation(Item.Location);
 
-    public bool CanToggle => !IsBusy && !IsRunOnce && !IsWinlogon;
+    public bool CanToggle => !IsBusy && !IsRunOnce && !IsWinlogon && StartupTaskRules.ToggleRefusal(Item) is null;
 
     public string ToggleToolTip => IsRunOnce
         ? StartupEnumerator.RunOnceCannotBeDisabled
-        : "On: starts with Windows. Off: stays installed but does not start by itself.";
+        : StartupTaskRules.ToggleRefusal(Item) is { } refusal
+            ? Loc.T(refusal)
+            : "On: starts with Windows. Off: stays installed but does not start by itself.";
+
+    /// <summary>Windows' and PC Checker's own tasks are never removed from here (the Scheduled tasks page rules).</summary>
+    public bool CanRemove => !IsWinlogon && StartupTaskRules.RemoveRefusal(Item) is null;
+
+    public string RemoveToolTip => StartupTaskRules.RemoveRefusal(Item) is { } refusal
+        ? Loc.T(refusal)
+        : Loc.T("Remove this entry from startup (a backup copy is kept)");
 
     public StartupItem Item { get; private set; }
 
@@ -45,7 +55,7 @@ public sealed partial class StartupItemRow : ObservableObject
     public string Kind => Item.Kind;
     public bool IsTask => Item.Kind == StartupKinds.Task;
     public bool IsWinlogon => Item.Kind == StartupKinds.Winlogon;
-    public bool IsMicrosoft => StartupPublisherRules.IsMicrosoft(Item.Publisher);
+    public bool IsMicrosoft => StartupPublisherRules.IsMicrosoft(Item.Publisher) || StartupTaskRules.IsInMicrosoftFolder(Item);
     public string Impact => Insight.Impact;
     public string ImpactReason => Insight.ImpactReason;
     public string? ExecutablePath => Insight.ExecutablePath;

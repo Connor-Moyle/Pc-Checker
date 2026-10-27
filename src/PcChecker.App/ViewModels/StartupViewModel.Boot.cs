@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
+using PcChecker.App.Localization;
 using PcChecker.App.Services;
 using PcChecker.Core.Startup;
 
@@ -91,12 +92,14 @@ public sealed partial class StartupViewModel
     {
         bool target = !(Boot?.FastStartup ?? FastStartup);
         string message = target
-            ? "Fast startup makes cold boots quicker by saving the Windows kernel to disk at shutdown (it uses hibernation, which will be turned on if needed).\n\n"
-              + "Pros: faster boot after a shutdown.\nCons: a shutdown is no longer a full fresh start, some driver and update problems only clear after a restart, and dual-boot PCs may see disk errors on the other system."
-            : "With fast startup off, every shutdown is a complete fresh start.\n\n"
-              + "Pros: the cleanest start every time; safe for dual-boot; fixes odd problems after shutdown.\nCons: a cold boot takes a few seconds longer.";
+            ? Loc.T("Fast startup makes cold boots quicker by saving the Windows kernel to disk at shutdown (it uses hibernation, which will be turned on if needed).") + "\n\n"
+              + Loc.T("Pros: faster boot after a shutdown.") + "\n"
+              + Loc.T("Cons: a shutdown is no longer a full fresh start, some driver and update problems only clear after a restart, and dual-boot PCs may see disk errors on the other system.")
+            : Loc.T("With fast startup off, every shutdown is a complete fresh start.") + "\n\n"
+              + Loc.T("Pros: the cleanest start every time; safe for dual-boot; fixes odd problems after shutdown.") + "\n"
+              + Loc.T("Cons: a cold boot takes a few seconds longer.");
         message += "\n\n" + RestorePointNote;
-        bool ok = await _dialogs.ConfirmAsync(target ? "Turn fast startup on?" : "Turn fast startup off?", message, target ? "Turn on" : "Turn off");
+        bool ok = await _dialogs.ConfirmAsync(target ? Loc.T("Turn fast startup on?") : Loc.T("Turn fast startup off?"), message, target ? Loc.T("Turn on") : Loc.T("Turn off"));
         if (!ok)
         {
             OnPropertyChanged(nameof(FastStartup));
@@ -108,25 +111,27 @@ public sealed partial class StartupViewModel
             var result = await _startup.SetFastStartupAsync(target, ct);
             if (result.Success)
             {
-                _notifications.Success("Fast startup " + (target ? "on" : "off"), result.Message);
+                _notifications.Success(target ? Loc.T("Fast startup on") : Loc.T("Fast startup off"), result.Message);
                 ApplyBoot(await _startup.GetBootConfigAsync(ct));
                 RebuildWarnings();
             }
             else
             {
                 OnPropertyChanged(nameof(FastStartup));
-                _notifications.Error("Fast startup was not changed", result.Message);
+                _notifications.Error(Loc.T("Fast startup was not changed"), result.Message);
             }
-        }, target ? "Turning fast startup on…" : "Turning fast startup off…");
+        }, target ? Loc.T("Turning fast startup on…") : Loc.T("Turning fast startup off…"));
     }
 
     [RelayCommand]
     private async Task ApplyBootTimeoutAsync()
     {
         int seconds = Math.Clamp((int)Math.Round(BootTimeoutSeconds), 0, 999);
-        bool ok = await _dialogs.ConfirmAsync("Change the boot menu wait?",
-            $"Windows will wait {seconds} second{(seconds == 1 ? string.Empty : "s")} at the boot menu before starting {BootDescription}. "
-            + "The menu only appears when more than one operating system (or a recovery entry) is installed. 0 skips the menu entirely.", "Apply");
+        bool ok = await _dialogs.ConfirmAsync(Loc.T("Change the boot menu wait?"),
+            (seconds == 1
+                ? Loc.F("Windows will wait 1 second at the boot menu before starting {0}.", BootDescription)
+                : Loc.F("Windows will wait {0} seconds at the boot menu before starting {1}.", seconds, BootDescription))
+            + " " + Loc.T("The menu only appears when more than one operating system (or a recovery entry) is installed. 0 skips the menu entirely."), Loc.T("Apply"));
         if (!ok)
         {
             return;
@@ -137,15 +142,15 @@ public sealed partial class StartupViewModel
             var result = await _startup.SetBootTimeoutAsync(seconds, ct);
             if (result.Success)
             {
-                _notifications.Success("Boot menu wait changed", result.Message);
+                _notifications.Success(Loc.T("Boot menu wait changed"), result.Message);
                 ApplyBoot(await _startup.GetBootConfigAsync(ct));
                 RebuildWarnings();
             }
             else
             {
-                _notifications.Error("Boot menu wait was not changed", result.Message);
+                _notifications.Error(Loc.T("Boot menu wait was not changed"), result.Message);
             }
-        }, "Updating the boot menu timeout…");
+        }, Loc.T("Updating the boot menu timeout…"));
     }
 
     [RelayCommand]
@@ -155,14 +160,14 @@ public sealed partial class StartupViewModel
         bool ok;
         if (target)
         {
-            ok = await _dialogs.ConfirmAsync("Start in Safe Mode next time?",
-                "Safe Mode loads Windows with only basic drivers and no startup apps. It is useful for removing a bad driver or program.\n\n"
-                + "Important: Windows keeps starting in Safe Mode until you turn this off. To get back to normal, open PC Checker (or Settings → Recovery) in Safe Mode and switch this off, "
-                + "or run: bcdedit /deletevalue {current} safeboot\n\nNothing happens until you restart.", "Arm Safe Mode", isDanger: true);
+            ok = await _dialogs.ConfirmAsync(Loc.T("Start in Safe Mode next time?"),
+                Loc.T("Safe Mode loads Windows with only basic drivers and no startup apps. It is useful for removing a bad driver or program.") + "\n\n"
+                + Loc.T("Important: Windows keeps starting in Safe Mode until you turn this off. To get back to normal, open PC Checker (or Settings → Recovery) in Safe Mode and switch this off, or run:")
+                + " bcdedit /deletevalue {current} safeboot\n\n" + Loc.T("Nothing happens until you restart."), Loc.T("Arm Safe Mode"), isDanger: true);
         }
         else
         {
-            ok = await _dialogs.ConfirmAsync("Start normally next time?", "Safe Mode will no longer be forced at the next restart.", "Turn off");
+            ok = await _dialogs.ConfirmAsync(Loc.T("Start normally next time?"), Loc.T("Safe Mode will no longer be forced at the next restart."), Loc.T("Turn off"));
         }
 
         if (!ok)
@@ -176,29 +181,29 @@ public sealed partial class StartupViewModel
             var result = await _startup.SetSafeModeNextBootAsync(target, ct);
             if (result.Success)
             {
-                _notifications.Show(target ? "Safe Mode armed" : "Safe Mode disarmed", result.Message, target ? NotificationKind.Warning : NotificationKind.Success);
+                _notifications.Show(target ? Loc.T("Safe Mode armed") : Loc.T("Safe Mode disarmed"), result.Message, target ? NotificationKind.Warning : NotificationKind.Success);
                 ApplyBoot(await _startup.GetBootConfigAsync(ct));
                 RebuildWarnings();
             }
             else
             {
                 OnPropertyChanged(nameof(SafeModeNextBoot));
-                _notifications.Error("Safe Mode was not changed", result.Message);
+                _notifications.Error(Loc.T("Safe Mode was not changed"), result.Message);
             }
-        }, "Updating boot settings…");
+        }, Loc.T("Updating boot settings…"));
     }
 
     [RelayCommand]
     private Task RestartToUefiAsync() => ScheduleRestartAsync(
-        "Restart into UEFI (BIOS) settings?",
-        "Your PC will restart straight into the firmware settings, where you can change XMP/EXPO memory profiles, fan curves and boot order.",
-        "Restarting into the UEFI settings", _startup.RestartToUefiAsync);
+        Loc.T("Restart into UEFI (BIOS) settings?"),
+        Loc.T("Your PC will restart straight into the firmware settings, where you can change XMP/EXPO memory profiles, fan curves and boot order."),
+        Loc.T("Restarting into the UEFI settings…"), _startup.RestartToUefiAsync);
 
     [RelayCommand]
     private Task RestartToAdvancedStartupAsync() => ScheduleRestartAsync(
-        "Restart into Advanced startup?",
-        "Your PC will restart into the Windows recovery menu (Startup Repair, System Restore, Safe Mode options, Command Prompt).",
-        "Restarting into Advanced startup", _startup.RestartToAdvancedStartupAsync);
+        Loc.T("Restart into Advanced startup?"),
+        Loc.T("Your PC will restart into the Windows recovery menu (Startup Repair, System Restore, Safe Mode options, Command Prompt)."),
+        Loc.T("Restarting into Advanced startup…"), _startup.RestartToAdvancedStartupAsync);
 
     /// <summary>
     /// Uses the shared restart flow (Danger confirmation, fixed countdown, Cancel restart) so these special restarts
@@ -206,12 +211,12 @@ public sealed partial class StartupViewModel
     /// </summary>
     private Task ScheduleRestartAsync(string title, string description, string busy, Func<CancellationToken, Task<Core.Common.OperationResult>> action)
     {
-        string message = description + $"\n\nSave your work first. You get a {Core.Common.RestartPrompt.CountdownSeconds}-second countdown to cancel.";
+        string message = description + "\n\n" + Loc.F("Save your work first. You get a {0}-second countdown to cancel.", Core.Common.RestartPrompt.CountdownSeconds);
         Func<CancellationToken, Task<Core.Common.OperationResult>>? cancel = _startup is IRestartCanceller canceller ? canceller.CancelPendingRestartAsync : null;
         return _restart.RequestAsync(title, message, Core.Common.RestartPrompt.ConfirmButtonText(), async ct =>
         {
             Core.Common.OperationResult result = Core.Common.OperationResult.Fail("The restart was not scheduled.");
-            await RunBusyAsync(async innerCt => result = await action(innerCt), busy + "…");
+            await RunBusyAsync(async innerCt => result = await action(innerCt), busy);
             return result;
         }, cancel);
     }
