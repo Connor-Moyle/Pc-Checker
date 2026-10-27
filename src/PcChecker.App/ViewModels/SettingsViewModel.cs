@@ -105,6 +105,9 @@ public sealed partial class SettingsViewModel : ViewModelBase
         new("OpenRGB.NET", "MIT"),
         new("NAudio", "MIT"),
         new("System.Diagnostics.PerformanceCounter", "MIT"),
+        new("System.Management", "MIT"),
+        new("System.Security.Cryptography.ProtectedData", "MIT"),
+        new("Microsoft.Extensions.* (DependencyInjection, Hosting, Logging)", "MIT"),
     ];
 
     public override Task InitializeAsync(CancellationToken cancellationToken)

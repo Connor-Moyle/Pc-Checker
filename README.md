@@ -283,6 +283,7 @@ and the module boundaries are described in
 | [FAQ](docs/FAQ.md) | Common questions |
 | [Building](docs/BUILDING.md) | Build, test, publish, package, release |
 | [Architecture](docs/ARCHITECTURE.md) | How the code is organised |
+| [Third-party notices](docs/THIRD-PARTY-NOTICES.md) | Open-source components and their licences |
 
 ## Contributing
 
