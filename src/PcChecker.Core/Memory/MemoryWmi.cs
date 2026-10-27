@@ -215,6 +215,34 @@ public static class MemoryWmi
         }
     }
 
+    /// <summary>Removes the <c>Win32_PageFileSetting</c> for a drive (the page file there is gone after a restart).</summary>
+    public static OperationResult DeletePageFileSetting(string drive)
+    {
+        if (!PlatformGuard.IsWindows)
+        {
+            return OperationResult.Fail("Page file settings can only be changed on Windows.");
+        }
+
+        string name = $"{drive.TrimEnd('\\')}\\pagefile.sys";
+        try
+        {
+            using var searcher = new ManagementObjectSearcher($"SELECT * FROM Win32_PageFileSetting WHERE Name = '{name.Replace("\\", "\\\\").Replace("'", "\\'")}'");
+            foreach (ManagementObject existing in searcher.Get())
+            {
+                using (existing)
+                {
+                    existing.Delete();
+                }
+            }
+
+            return OperationResult.Ok($"Page file on {drive} removed.", rebootRequired: true);
+        }
+        catch (Exception ex)
+        {
+            return OperationResult.Fail($"Could not remove the page file on {drive}: {ex.Message}", ex);
+        }
+    }
+
     /// <summary>Runs a WQL query in root\cimv2 and returns each row as a property dictionary; empty on any failure.</summary>
     public static IReadOnlyList<IReadOnlyDictionary<string, object?>> Query(string wql, string scope = @"root\cimv2")
     {

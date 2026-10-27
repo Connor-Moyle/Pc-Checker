@@ -20,10 +20,12 @@ public sealed class MemoryActionsProvider : IOptimizationActionProvider
     private const string Category = "Memory";
 
     private readonly IMemoryService _memory;
+    private readonly IPageFileSnapshotStore _pageFileStore;
 
-    public MemoryActionsProvider(IMemoryService memory)
+    public MemoryActionsProvider(IMemoryService memory, IPageFileSnapshotStore? pageFileStore = null)
     {
         _memory = memory ?? throw new ArgumentNullException(nameof(memory));
+        _pageFileStore = pageFileStore ?? new RegistryPageFileSnapshotStore();
     }
 
     public IReadOnlyList<OptimizationAction> Actions { get; } =
@@ -72,7 +74,7 @@ public sealed class MemoryActionsProvider : IOptimizationActionProvider
         SysMainOn => SetSysMainAsync(true, cancellationToken),
         SysMainOff => SetSysMainAsync(false, cancellationToken),
         StandbyClear => _memory.ClearStandbyListAsync(cancellationToken),
-        PageFileAuto => _memory.SetPageFileAsync(SystemDrive(), true, null, null, cancellationToken),
+        PageFileAuto => ApplyAutomaticPageFileAsync(cancellationToken),
         _ => Task.FromResult(OperationResult.Fail($"Unknown memory action \"{id}\".")),
     };
 
@@ -83,7 +85,7 @@ public sealed class MemoryActionsProvider : IOptimizationActionProvider
         SysMainOn => SetSysMainAsync(false, cancellationToken),
         SysMainOff => SetSysMainAsync(true, cancellationToken),
         StandbyClear => Task.FromResult(OperationResult.Ok("Nothing to undo: Windows refills the standby list on its own.")),
-        PageFileAuto => RestoreRecommendedPageFileAsync(cancellationToken),
+        PageFileAuto => RestorePreviousPageFilesAsync(cancellationToken),
         _ => Task.FromResult(OperationResult.Fail($"Unknown memory action \"{id}\".")),
     };
 
@@ -92,11 +94,52 @@ public sealed class MemoryActionsProvider : IOptimizationActionProvider
             ? tuning.SetSysMainAsync(enabled, cancellationToken)
             : Task.FromResult(OperationResult.Fail("SysMain cannot be changed with this memory service."));
 
-    private async Task<OperationResult> RestoreRecommendedPageFileAsync(CancellationToken cancellationToken)
+    /// <summary>
+    /// Remembers the page file configuration (automatic or not, and every page file with its sizes) before the first
+    /// change, read fresh from Windows, so Revert can put back exactly that.
+    /// </summary>
+    private async Task<OperationResult> ApplyAutomaticPageFileAsync(CancellationToken cancellationToken)
     {
-        var overview = _memory.Last ?? await SafeOverviewAsync(cancellationToken).ConfigureAwait(false);
-        var (initial, max) = PageFileRules.Recommend(overview?.TotalBytes ?? 16L * 1024 * 1024 * 1024);
-        return await _memory.SetPageFileAsync(SystemDrive(), false, initial, max, cancellationToken).ConfigureAwait(false);
+        bool remembered = false;
+        if (PageFileSnapshot.Parse(_pageFileStore.Get()) is null && await SafeOverviewAsync(cancellationToken).ConfigureAwait(false) is { } current)
+        {
+            _pageFileStore.Set(PageFileSnapshot.From(current).Format());
+            remembered = true;
+        }
+
+        var result = await _memory.SetPageFileAsync(SystemDrive(), true, null, null, cancellationToken).ConfigureAwait(false);
+        if (!result.Success && remembered)
+        {
+            _pageFileStore.Remove();
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Restores the remembered configuration. Without one nothing is changed: guessing a size would write a fixed page
+    /// file of up to 32 GB to the Windows drive that the user never had.
+    /// </summary>
+    private async Task<OperationResult> RestorePreviousPageFilesAsync(CancellationToken cancellationToken)
+    {
+        var snapshot = PageFileSnapshot.Parse(_pageFileStore.Get());
+        if (snapshot is null)
+        {
+            return OperationResult.Fail("The page file settings from before were not recorded, so there is nothing to restore and Windows keeps managing the page file. To use a custom size, set it on the Memory page or in System Properties → Performance → Advanced → Virtual memory.");
+        }
+
+        if (_memory is not IMemoryTuning tuning)
+        {
+            return OperationResult.Fail("The page file cannot be restored with this memory service.");
+        }
+
+        var result = await tuning.RestorePageFilesAsync(snapshot, cancellationToken).ConfigureAwait(false);
+        if (result.Success)
+        {
+            _pageFileStore.Remove();
+        }
+
+        return result;
     }
 
     private async Task<MemoryOverview?> SafeOverviewAsync(CancellationToken cancellationToken)

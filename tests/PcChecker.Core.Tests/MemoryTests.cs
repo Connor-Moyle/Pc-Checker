@@ -313,7 +313,7 @@ public class MemoryActionsProviderTests
     public async Task Provider_applies_and_reverts_through_the_memory_service()
     {
         var memory = new DemoMemoryService();
-        var provider = new MemoryActionsProvider(memory);
+        var provider = new MemoryActionsProvider(memory, new MemoryPageFileStore());
 
         Assert.True((await provider.GetStateAsync("memory.compression.on", CancellationToken.None)).IsApplied);
         Assert.True((await provider.ApplyAsync("memory.compression.off", CancellationToken.None)).Success);
@@ -330,13 +330,90 @@ public class MemoryActionsProviderTests
         Assert.True((await provider.ApplyAsync("memory.standby.clear", CancellationToken.None)).Success);
         Assert.True((await provider.RevertAsync("memory.standby.clear", CancellationToken.None)).Success);
 
-        Assert.True((await provider.RevertAsync("memory.pagefile.auto", CancellationToken.None)).Success);
-        Assert.False((await memory.GetOverviewAsync(CancellationToken.None)).AutomaticPageFile);
+        Assert.True((await memory.SetPageFileAsync("D:", false, 4096, 8192, CancellationToken.None)).Success);
         Assert.True((await provider.ApplyAsync("memory.pagefile.auto", CancellationToken.None)).Success);
         Assert.True((await memory.GetOverviewAsync(CancellationToken.None)).AutomaticPageFile);
+        Assert.True((await provider.RevertAsync("memory.pagefile.auto", CancellationToken.None)).Success);
+        var restored = await memory.GetOverviewAsync(CancellationToken.None);
+        Assert.False(restored.AutomaticPageFile);
+        Assert.Equal(new PageFileInfo("D:", 4096, 8192, false), restored.PageFiles[0]);
 
         Assert.False((await provider.ApplyAsync("memory.unknown", CancellationToken.None)).Success);
         Assert.Null((await provider.GetStateAsync("memory.standby.clear", CancellationToken.None)).IsApplied);
+    }
+
+    [Fact]
+    public async Task Page_file_revert_restores_the_remembered_configuration_only()
+    {
+        var memory = new DemoMemoryService();
+        var store = new MemoryPageFileStore();
+        var provider = new MemoryActionsProvider(memory, store);
+
+        // Nothing remembered: Revert changes nothing instead of writing a fixed page file of up to 32 GB.
+        var unknown = await provider.RevertAsync("memory.pagefile.auto", CancellationToken.None);
+        Assert.False(unknown.Success);
+        Assert.Contains("not recorded", unknown.Message);
+        Assert.True((await memory.GetOverviewAsync(CancellationToken.None)).AutomaticPageFile);
+
+        Assert.True((await memory.SetPageFileAsync("C:", false, 2048, 4096, CancellationToken.None)).Success);
+        Assert.True((await provider.ApplyAsync("memory.pagefile.auto", CancellationToken.None)).Success);
+        Assert.Equal("auto=0|C:=2048-4096", store.Value);
+
+        // A second Apply keeps the first snapshot.
+        Assert.True((await provider.ApplyAsync("memory.pagefile.auto", CancellationToken.None)).Success);
+        Assert.Equal("auto=0|C:=2048-4096", store.Value);
+
+        var revert = await provider.RevertAsync("memory.pagefile.auto", CancellationToken.None);
+        Assert.True(revert.Success);
+        Assert.Contains("C: 2048–4096 MB", revert.Message);
+        Assert.Null(store.Value);
+        var o = await memory.GetOverviewAsync(CancellationToken.None);
+        Assert.False(o.AutomaticPageFile);
+        Assert.Equal(new PageFileInfo("C:", 2048, 4096, false), o.PageFiles[0]);
+    }
+
+    [Fact]
+    public void Page_file_snapshot_round_trips_and_rejects_unknown_text()
+    {
+        var overview = MemoryOverview.Empty() with
+        {
+            AutomaticPageFile = false,
+            PageFiles = [new PageFileInfo("c:", 0, 0, true), new PageFileInfo("D:", 4096, 8192, false), new PageFileInfo("?:", 0, 0, true)],
+        };
+        var snapshot = PageFileSnapshot.From(overview);
+        Assert.Equal("auto=0|C:=0-0|D:=4096-8192", snapshot.Format());
+        Assert.Equal("C: system managed, D: 4096–8192 MB", snapshot.Describe());
+
+        var parsed = PageFileSnapshot.Parse(snapshot.Format())!;
+        Assert.False(parsed.Automatic);
+        Assert.Equal([new PageFileInfo("C:", 0, 0, true), new PageFileInfo("D:", 4096, 8192, false)], parsed.PageFiles);
+
+        // No page file at all is a real configuration and is restored as such.
+        var none = PageFileSnapshot.Parse("auto=0")!;
+        Assert.Empty(none.PageFiles);
+        Assert.Equal("no page file", none.Describe());
+
+        var automatic = PageFileSnapshot.From(MemoryOverview.Empty() with { AutomaticPageFile = true, PageFiles = [new PageFileInfo("C:", 0, 0, true)] });
+        Assert.Equal("auto=1", automatic.Format());
+        Assert.True(PageFileSnapshot.Parse("auto=1")!.Automatic);
+
+        Assert.Null(PageFileSnapshot.Parse(null));
+        Assert.Null(PageFileSnapshot.Parse(""));
+        Assert.Null(PageFileSnapshot.Parse("auto=2"));
+        Assert.Null(PageFileSnapshot.Parse("auto=0|C:=x-1"));
+        Assert.Null(PageFileSnapshot.Parse("auto=0|CC=1-2"));
+        Assert.Null(PageFileSnapshot.Parse("auto=0|C:=-1-2"));
+    }
+
+    private sealed class MemoryPageFileStore : IPageFileSnapshotStore
+    {
+        public string? Value { get; private set; }
+
+        public string? Get() => Value;
+
+        public void Set(string value) => Value = value;
+
+        public void Remove() => Value = null;
     }
 
     [Fact]

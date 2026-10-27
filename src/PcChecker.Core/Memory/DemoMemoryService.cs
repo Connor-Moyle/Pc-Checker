@@ -129,6 +129,19 @@ public sealed class DemoMemoryService : IMemoryService, IMemoryTuning
         return result with { Message = result.Message + " (demo)" };
     }
 
+    public async Task<OperationResult> RestorePageFilesAsync(PageFileSnapshot snapshot, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
+        await DemoData.DelayAsync(cancellationToken).ConfigureAwait(false);
+        _automaticPageFile = snapshot.Automatic;
+        if (snapshot.PageFiles.Count > 0)
+        {
+            _pageFile = snapshot.PageFiles[0];
+        }
+
+        return OperationResult.Ok($"Previous page file settings restored: {snapshot.Describe()} (demo). Restart the PC to apply.", rebootRequired: true);
+    }
+
     public async Task<OperationResult> SetSysMainAsync(bool enabled, CancellationToken cancellationToken)
     {
         await DemoData.DelayAsync(cancellationToken).ConfigureAwait(false);

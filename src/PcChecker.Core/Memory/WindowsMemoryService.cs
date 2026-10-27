@@ -188,6 +188,59 @@ public sealed class WindowsMemoryService : IMemoryService, IMemoryTuning
             null, cancellationToken);
     }
 
+    public Task<OperationResult> RestorePageFilesAsync(PageFileSnapshot snapshot, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
+        return _guard.RunGuardedAsync($"Restore the previous page file settings ({snapshot.Describe()})",
+            ChangeOptions.For(Module, "Page file", reversible: true, undoHint: "Apply \"Let Windows manage the page file\" or change the sizes in System Properties → Performance → Advanced."),
+            ct => Task.Run(() => RestorePageFiles(snapshot), ct), null, cancellationToken);
+    }
+
+    private static OperationResult RestorePageFiles(PageFileSnapshot snapshot)
+    {
+        if (snapshot.Automatic)
+        {
+            return MemoryWmi.SetAutomaticPageFile(true);
+        }
+
+        var manual = MemoryWmi.SetAutomaticPageFile(false);
+        if (!manual.Success)
+        {
+            return manual;
+        }
+
+        var failures = new List<string>();
+        foreach (var file in snapshot.PageFiles)
+        {
+            var set = MemoryWmi.SetPageFileSize(file.Drive, file.InitialMb, file.MaximumMb);
+            if (!set.Success)
+            {
+                failures.Add(set.Message);
+            }
+        }
+
+        // Remove page files that did not exist before only once every earlier one is back, so a failure never leaves
+        // the PC with less virtual memory than either configuration.
+        if (failures.Count == 0)
+        {
+            foreach (var existing in MemoryWmi.GetPageFileSettings())
+            {
+                if (!snapshot.PageFiles.Any(f => f.Drive.Equals(existing.Drive, StringComparison.OrdinalIgnoreCase)))
+                {
+                    var removed = MemoryWmi.DeletePageFileSetting(existing.Drive);
+                    if (!removed.Success)
+                    {
+                        failures.Add(removed.Message);
+                    }
+                }
+            }
+        }
+
+        return failures.Count == 0
+            ? OperationResult.Ok($"Previous page file settings restored: {snapshot.Describe()}. Restart the PC to apply.", rebootRequired: true)
+            : OperationResult.Fail($"The previous page file settings ({snapshot.Describe()}) were only partly restored: {string.Join(" ", failures)}");
+    }
+
     public Task<OperationResult> SetMemoryCompressionAsync(bool enabled, CancellationToken cancellationToken) =>
         _guard.RunGuardedAsync(enabled ? "Turn memory compression on" : "Turn memory compression off",
             ChangeOptions.For(Module, "Memory compression", reversible: true, undoHint: enabled ? "Disable-MMAgent -MemoryCompression" : "Enable-MMAgent -MemoryCompression"),
