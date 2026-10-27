@@ -52,6 +52,7 @@ Every project targets `net8.0-windows10.0.19041.0`. `EnableWindowsTargeting` is 
 | `Storage` | `IStorageToolsService` (surface scan, benchmark, chkdsk, repair, optimize), `BlockMapBuilder`, `BenchmarkMath`, `StorageVendorRules` |
 | `Benchmark` | `IBenchmarkService`, `IBenchmarkHistoryStore`, the CPU and memory workloads, `BenchmarkScoring`, `BenchmarkStatistics`, `BenchmarkComparer`, `BenchmarkFormatter` |
 | `Memory` | `IMemoryService`, `MemoryOverview`, profiles, `MemoryTestPatterns`, `PageFileRules` |
+| `Battery` | `IBatteryService`, `BatteryReportParser` (`powercfg /batteryreport /xml`), `IsoDuration`, `BatteryMath`, `BatteryChartBuilder`, `BatteryPageRules`, `BatterySources` |
 | `Displays` | `IDisplayService`, `DisplayInfo`/`DisplayMode`, profiles, `DisplayModeMath` |
 | `Audio` | `IAudioService` (NAudio.Wasapi Core Audio wrappers), devices and sessions |
 | `Input` | `IInputService`, `IMousePollingMeter`, mouse/keyboard settings, profiles, vendor links |
@@ -99,7 +100,7 @@ The side menu has one item per section; a section with several pages shows them 
 Home            Dashboard · Check-up
 Monitor         Temperatures · Power · Processes
 Monitor         Temperatures · Power · History
-Hardware        Overview · Health · Storage · Memory
+Hardware        Overview · Health · Storage · Memory · Battery
 Devices         Displays · Audio · Keyboard & Mouse
 Cooling & RGB   Fans · Lighting
 Apps & Drivers  Apps · Drivers · Startup · Windows Features

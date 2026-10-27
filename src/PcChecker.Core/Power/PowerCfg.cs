@@ -16,9 +16,39 @@ public static class PowerCfg
 {
     public static readonly TimeSpan Timeout = TimeSpan.FromSeconds(20);
 
-    public static async Task<PowerCfgResult> RunAsync(string arguments, CancellationToken cancellationToken)
+    public static Task<PowerCfgResult> RunAsync(string arguments, CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(arguments);
+        return RunCoreAsync(psi => psi.Arguments = arguments, cancellationToken);
+    }
+
+    /// <summary>
+    /// Runs powercfg with each argument quoted for it (<see cref="ProcessStartInfo.ArgumentList"/>), for arguments
+    /// that hold paths.
+    /// </summary>
+    public static Task<PowerCfgResult> RunAsync(IReadOnlyList<string> arguments, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(arguments);
+        if (arguments.Count == 0)
+        {
+            throw new ArgumentException("At least one argument is required.", nameof(arguments));
+        }
+
+        return RunCoreAsync(psi =>
+        {
+            foreach (var argument in arguments)
+            {
+                psi.ArgumentList.Add(argument);
+            }
+        }, cancellationToken);
+    }
+
+    /// <summary>powercfg.exe in System32, so the elevated app never starts a copy that sits in its own folder.</summary>
+    public static string ExecutablePath =>
+        PlatformGuard.IsWindows ? Path.Combine(Environment.SystemDirectory, "powercfg.exe") : "powercfg.exe";
+
+    private static async Task<PowerCfgResult> RunCoreAsync(Action<ProcessStartInfo> setArguments, CancellationToken cancellationToken)
+    {
         if (!PlatformGuard.IsWindows)
         {
             return new PowerCfgResult(-1, string.Empty, "powercfg is only available on Windows.");
@@ -26,8 +56,7 @@ public static class PowerCfg
 
         var psi = new ProcessStartInfo
         {
-            FileName = "powercfg.exe",
-            Arguments = arguments,
+            FileName = ExecutablePath,
             UseShellExecute = false,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
@@ -38,6 +67,7 @@ public static class PowerCfg
             StandardOutputEncoding = StorageCommandRunner.OemEncoding(),
             StandardErrorEncoding = StorageCommandRunner.OemEncoding(),
         };
+        setArguments(psi);
 
         try
         {

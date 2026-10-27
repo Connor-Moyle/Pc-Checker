@@ -8,6 +8,7 @@ using PcChecker.App.Views.Windows;
 using PcChecker.Claude;
 using PcChecker.Core.Assistant;
 using PcChecker.Core.Audio;
+using PcChecker.Core.Battery;
 using PcChecker.Core.Benchmark;
 using PcChecker.Core.Checkup;
 using PcChecker.Core.Cleanup;
@@ -111,6 +112,7 @@ public static class ServiceRegistration
         Add<ILightingService, OpenRgbLightingService, DemoLightingService>(services, demo);
         Add<IStorageToolsService, WindowsStorageToolsService, DemoStorageToolsService>(services, demo);
         Add<IMemoryService, WindowsMemoryService, DemoMemoryService>(services, demo);
+        Add<IBatteryService, WindowsBatteryService, DemoBatteryService>(services, demo);
         Add<IDisplayService, WindowsDisplayService, DemoDisplayService>(services, demo);
         Add<IAudioService, WindowsAudioService, DemoAudioService>(services, demo);
         Add<IInputService, WindowsInputService, DemoInputService>(services, demo);
@@ -179,6 +181,7 @@ public static class ServiceRegistration
         services.AddSingleton<HealthViewModel>().AddSingleton<HealthPage>();
         services.AddSingleton<StorageViewModel>().AddSingleton<StoragePage>();
         services.AddSingleton<MemoryViewModel>().AddSingleton<MemoryPage>();
+        services.AddSingleton<BatteryViewModel>().AddSingleton<BatteryPage>();
         services.AddSingleton<DisplaysViewModel>().AddSingleton<DisplaysPage>();
         services.AddSingleton<AudioViewModel>().AddSingleton<AudioPage>();
         services.AddSingleton<InputViewModel>().AddSingleton<InputPage>();

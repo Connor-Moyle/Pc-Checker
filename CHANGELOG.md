@@ -28,6 +28,13 @@ All notable changes to PC Checker are recorded here. The format follows
   paused or up to date), CPU and GPU temperature sparklines for the last 24
   hours from History, the fullest drive from Disk space and a check-up strip
   with *Run check-up*.
+- **Battery** (Hardware → Battery): battery health, charge cycles and full
+  charge against design capacity, how long a full charge lasts now and when
+  new, a capacity history chart, the last three days of use and tips such as
+  charge limits, all read from WMI and Windows' battery report (parsed from
+  its language-independent XML). *Open the full report* saves Windows' HTML
+  battery report to Documents and opens it. Desktops show "This PC has no
+  battery", with a note for UPS battery backups.
 
 ## [0.4.0] - 2026-10-27
 

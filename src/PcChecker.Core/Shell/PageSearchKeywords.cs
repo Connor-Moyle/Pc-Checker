@@ -18,6 +18,7 @@ public static class PageSearchKeywords
         ["health"] = T("smart errors problems crashes score"),
         ["storage"] = T("disk drive ssd hdd benchmark chkdsk trim"),
         ["memory"] = T("ram xmp expo page file"),
+        ["battery"] = T("laptop wear cycles capacity battery report charge"),
         ["displays"] = T("monitor screen resolution refresh rate hdr brightness"),
         ["audio"] = T("sound speakers microphone volume"),
         ["input"] = T("mouse keyboard pointer polling rate dpi"),

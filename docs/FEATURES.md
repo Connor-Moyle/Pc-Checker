@@ -380,6 +380,43 @@ is confirmed first.
   restart.
 - **Advanced**: a manual page-file editor per drive.
 
+### Battery
+
+Hardware → Battery shows how worn a laptop or tablet battery is and how long a
+charge lasts. It only reads; nothing on the PC changes.
+
+- **Summary tiles**: battery health (full-charge capacity as a percentage of
+  the design capacity, coloured with the same 20 % / 40 % wear limits as the
+  Health page), charge cycles, full charge against design capacity in Wh, and
+  how long a full charge lasts in use now and when the battery was new.
+- **Capacity history**: a chart of the full-charge capacity over the life of
+  the battery, one point per day or week as Windows recorded it, with the
+  design capacity as a dashed line and the average loss per month.
+- **Right now**: charge, whether it is charging or discharging and at how
+  many watts, the time left, and the battery's name, manufacturer and
+  chemistry.
+- **Recent use**: the last three days from Windows' battery report, newest
+  first: in use or asleep, on battery or plugged in, how long, and the charge
+  before and after (the drain per hour in the tooltip).
+- **Make the battery last longer** (collapsed): tips that fit the battery, such
+  as a charge limit in the maker's app when the PC is mostly plugged in, battery
+  saver, heat, and a replacement once it has lost 40 % or more.
+- **Usage history** (collapsed): time on battery and plugged in per day or
+  week, with Windows' estimate of how long a full charge lasted then.
+- **Open the full report** has Windows write its detailed HTML battery report
+  to `Documents\PC Checker Reports` and opens it. **Battery settings** and
+  *More → Power settings* open the matching Windows Settings pages.
+- **Desktops**: the page says "This PC has no battery" instead of showing
+  empty charts. A UPS (battery backup) plugged in over USB is recognised and
+  pointed to its maker's software.
+
+Sources: `Win32_Battery`, `BatteryStaticData`, `BatteryFullChargedCapacity`
+and `BatteryCycleCount` from WMI, the live state the Power page uses, and
+`powercfg /batteryreport /xml`, whose numbers, dates and durations do not
+depend on the Windows display language. A missing source becomes a warning and
+the page shows what the others returned. Demo mode shows a two-year-old 57 Wh
+laptop battery at 86 % health after 318 cycles.
+
 ### Displays
 
 - **Arrangement preview**: rectangles proportional to each display's

@@ -144,6 +144,7 @@ limitations, is in [docs/FEATURES.md](docs/FEATURES.md).
 | **Health** | Disk SMART, battery wear, device problems, event-log errors, reliability history, crash dumps, memory-diagnostic results, Windows Update state, free space, thermals and security basics, scored out of 100 with the reasons. |
 | **Storage** | Read-only surface scan (quick or full) with a live block map, disk benchmark (sequential and random 4K), `chkdsk` scan or scheduled repair, `Repair-Volume`, TRIM or defragment, recent disk error events explained, and links to your drive vendor's tool. |
 | **Memory** | Usage, commit, standby and cache, compression and SysMain state, page files, module list, XMP/EXPO status with BIOS guidance, channel layout, an in-app memory test, Windows Memory Diagnostic scheduling, standby-list clearing, memory profiles and a manual page-file editor. |
+| **Battery** | Battery health against the design capacity, charge cycles, how long a full charge lasts now and when new, a capacity history chart and the last three days of use from Windows' battery report, tips such as charge limits, and the full HTML report in one click. Desktops get a clear "no battery" message. |
 
 ### Devices
 
