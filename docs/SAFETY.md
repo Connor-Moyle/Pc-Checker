@@ -421,6 +421,25 @@ journaled but do not create restore points. The app never installs or
 modifies OpenRGB; it only launches it and talks to its SDK server on the
 local machine.
 
+## Right-click menu and hosts file rules
+
+- Right-click menu entries are turned off, never deleted: a `LegacyDisable`
+  value for commands (in the key that holds the command), the current user's
+  Shell Extensions Blocked list for shell extensions and Windows 11 app
+  entries, and a move to a hidden backup folder for Send to items. Turning on
+  removes exactly that again.
+- Windows' own entries (files in the Windows folder, files signed with
+  Windows' certificate, known built-in verbs and handlers) are refused by the
+  service whatever asks; entries of Microsoft apps need Advanced mode.
+  Entries another tool turned off its own way are left to that tool.
+- A hosts file save asks first, refuses to write when the file changed since
+  it was read, copies the current file to a timestamped backup before writing,
+  lifts read-only, hidden and system only while writing and sets them back,
+  and keeps comments, blank lines, encoding and line endings. *Reset to
+  Windows default* and *Restore* are saves too, with their own backup.
+- Both are guarded changes: restore point per your settings, an Action
+  Journal entry that says how to undo it, and undo on the page.
+
 ## Windows features and uninstall cautions
 
 - Removing the Xbox app breaks Game Bar; the Store is marked *do not
