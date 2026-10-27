@@ -5,6 +5,7 @@ using System.Text;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
+using PcChecker.App.Localization;
 using PcChecker.App.Services;
 using PcChecker.Core.Common;
 using PcChecker.Core.Drivers;
@@ -135,7 +136,7 @@ public sealed partial class DriverCleanupViewModel : ViewModelBase
     {
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(busyToken, outer);
         await ScanCoreAsync(linked.Token);
-    }, "Looking for old and unused drivers…");
+    }, Loc.T("Looking for old and unused drivers…"));
 
     private async Task ScanCoreAsync(CancellationToken ct)
     {
@@ -155,7 +156,7 @@ public sealed partial class DriverCleanupViewModel : ViewModelBase
         }
 
         bool keepSelected = selected.Any(i => i.Status == DriverCleanupStatus.Keep);
-        if (!await _dialogs.ConfirmAsync("Remove these drivers?", ConfirmationText(plan, keepSelected), "Remove", isDanger: true))
+        if (!await _dialogs.ConfirmAsync(Loc.T("Remove these drivers?"), ConfirmationText(plan, keepSelected), Loc.T("Remove"), isDanger: true))
         {
             return;
         }
@@ -167,7 +168,7 @@ public sealed partial class DriverCleanupViewModel : ViewModelBase
             RebootRequired |= result.RebootRequired;
             ShowResult(result);
             await ScanCoreAsync(ct);
-        }, "Removing old drivers…", cancellable: false);
+        }, Loc.T("Removing old drivers…"), cancellable: false);
     }
 
     private bool CanRemove() => SelectedCount > 0;
@@ -255,30 +256,32 @@ public sealed partial class DriverCleanupViewModel : ViewModelBase
     {
         var packages = plan.Where(p => p.Kind == DriverCleanupStepKind.DeletePackage).ToList();
         var devices = plan.Where(p => p.Kind == DriverCleanupStepKind.RemoveDevice).ToList();
-        var text = new StringBuilder("PC Checker will:\n");
+        var text = new StringBuilder(Loc.T("PC Checker will:") + "\n");
         if (devices.Count > 0)
         {
-            text.Append(devices.Count == 1 ? "• make Windows forget 1 device that is not connected\n" : $"• make Windows forget {devices.Count} devices that are not connected\n");
+            text.Append("• ").Append(devices.Count == 1
+                ? Loc.T("make Windows forget 1 device that is not connected")
+                : Loc.F("make Windows forget {0} devices that are not connected", devices.Count)).Append('\n');
         }
 
         if (packages.Count > 0)
         {
             long bytes = packages.Sum(p => p.SizeBytes ?? 0);
-            text.Append(packages.Count == 1 ? "• remove 1 driver package" : $"• remove {packages.Count} driver packages");
-            text.Append(bytes > 0 ? $" (about {ByteSize.Format(bytes)})\n" : "\n");
+            text.Append("• ").Append(packages.Count == 1 ? Loc.T("remove 1 driver package") : Loc.F("remove {0} driver packages", packages.Count));
+            text.Append(bytes > 0 ? " " + Loc.F("(about {0})", ByteSize.Format(bytes)) + "\n" : "\n");
         }
 
         var added = plan.Where(p => p.AddedAutomatically).Select(p => p.Title).Distinct().ToList();
         if (added.Count > 0)
         {
-            text.Append("\nIncluded because they belong together: ").Append(string.Join(", ", added)).Append(".\n");
+            text.Append('\n').Append(Loc.F("Included because they belong together: {0}.", string.Join(", ", added))).Append('\n');
         }
 
-        text.Append($"\nEach package is copied to {_cleanup.BackupRoot} first, so you can reinstall it from Drivers → More → Install .inf (Advanced mode). ")
-            .Append("Windows refuses to remove a package that a device still uses; nothing is forced. A restore point is created first, per your settings.");
+        text.Append('\n').Append(Loc.F("Each package is copied to {0} first, so you can reinstall it from Drivers → More → Install .inf (Advanced mode).", _cleanup.BackupRoot))
+            .Append(' ').Append(Loc.T("Windows refuses to remove a package that a device still uses; nothing is forced. A restore point is created first, per your settings."));
         if (keepSelected)
         {
-            text.Append("\n\nYou selected items marked Keep. Only remove them if you are sure the hardware is gone for good.");
+            text.Append("\n\n").Append(Loc.T("You selected items marked Keep. Only remove them if you are sure the hardware is gone for good."));
         }
 
         return text.ToString();
@@ -301,15 +304,15 @@ public sealed partial class DriverCleanupViewModel : ViewModelBase
         ResultMessage = result.Message;
         if (allOk)
         {
-            _notifications.Success("Old drivers removed", result.Message);
+            _notifications.Success(Loc.T("Old drivers removed"), result.Message);
         }
         else if (result.Success)
         {
-            _notifications.Warning("Some drivers were kept", result.Message);
+            _notifications.Warning(Loc.T("Some drivers were kept"), result.Message);
         }
         else
         {
-            _notifications.Error("Removal failed", result.Message.Split('\n')[0]);
+            _notifications.Error(Loc.T("Removal failed"), result.Message.Split('\n')[0]);
         }
     }
 

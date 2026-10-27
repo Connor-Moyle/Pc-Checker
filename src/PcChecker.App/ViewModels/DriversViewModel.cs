@@ -4,6 +4,7 @@ using System.IO;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
+using PcChecker.App.Localization;
 using PcChecker.App.Services;
 using PcChecker.App.Views.Pages;
 using PcChecker.Core.Common;
@@ -189,12 +190,12 @@ public sealed partial class DriversViewModel : ViewModelBase
         {
             await ReadDriverStoreAsync(ct);
         }
-    }, "Scanning installed drivers…");
+    }, Loc.T("Scanning installed drivers…"));
 
     [RelayCommand]
     private async Task BackupAsync()
     {
-        var folder = await _dialogs.PickFolderAsync("Choose a folder for the driver backup");
+        var folder = await _dialogs.PickFolderAsync(Loc.T("Choose a folder for the driver backup"));
         if (string.IsNullOrWhiteSpace(folder))
         {
             return;
@@ -205,8 +206,8 @@ public sealed partial class DriversViewModel : ViewModelBase
         {
             var progress = new Progress<ProgressUpdate>(p => BusyText = FormatProgress(p));
             var result = await _drivers.BackupDriversAsync(target, progress, ct);
-            ShowResult(result.Success, result.Message, "Driver backup");
-        }, "Backing up drivers…");
+            ShowResult(result.Success, result.Message, Loc.T("Driver backup"));
+        }, Loc.T("Backing up drivers…"));
     }
 
     [RelayCommand]
@@ -218,9 +219,9 @@ public sealed partial class DriversViewModel : ViewModelBase
             return;
         }
 
-        var message = $"PC Checker will add {Path.GetFileName(path)} to the Windows driver store and install it on any matching device.\n\n"
-            + "Only install packages from sources you trust. A restore point is created first (per your settings).";
-        if (!await _dialogs.ConfirmAsync("Install this driver package?", message, "Install"))
+        var message = Loc.F("PC Checker will add {0} to the Windows driver store and install it on any matching device.", Path.GetFileName(path)) + "\n\n"
+            + Loc.T("Only install packages from sources you trust. A restore point is created first (per your settings).");
+        if (!await _dialogs.ConfirmAsync(Loc.T("Install this driver package?"), message, Loc.T("Install")))
         {
             return;
         }
@@ -229,12 +230,12 @@ public sealed partial class DriversViewModel : ViewModelBase
         {
             var result = await _drivers.InstallInfAsync(path, ct);
             RebootRequired |= result.RebootRequired;
-            ShowResult(result.Success, result.Message, "Install .inf");
+            ShowResult(result.Success, result.Message, Loc.T("Install .inf"));
             if (result.Success)
             {
                 await ScanAsyncCore(null, ct);
             }
-        }, "Installing driver package…", cancellable: false);
+        }, Loc.T("Installing driver package…"), cancellable: false);
     }
 
     [RelayCommand]
@@ -248,10 +249,10 @@ public sealed partial class DriversViewModel : ViewModelBase
         if (!row.CanRollBack)
         {
             // Nothing to remove from here: offer the Device Manager route instead of a dead-end message.
-            var open = await _dialogs.ConfirmAsync("Use Device Manager for this one",
-                $"{row.DeviceName} uses a driver that ships with Windows, so there is no third-party package to remove.\n\n"
-                + "Device Manager can still roll back to the previous version: right-click the device → Properties → Driver → Roll Back Driver.",
-                "Open Device Manager");
+            var open = await _dialogs.ConfirmAsync(Loc.T("Use Device Manager for this one"),
+                Loc.F("{0} uses a driver that ships with Windows, so there is no third-party package to remove.", row.DeviceName) + "\n\n"
+                + Loc.T("Device Manager can still roll back to the previous version: right-click the device → Properties → Driver → Roll Back Driver."),
+                Loc.T("Open Device Manager"));
             if (open)
             {
                 OpenDeviceManager();
@@ -260,10 +261,10 @@ public sealed partial class DriversViewModel : ViewModelBase
             return;
         }
 
-        var message = $"PC Checker will remove the third-party driver package {row.Driver.InfName} used by {row.DeviceName}. "
-            + "Windows will fall back to its own driver for the device, or look for one on Windows Update.\n\n"
-            + "This cannot be undone from here; keep a driver backup first. A restore point is created per your settings.";
-        if (!await _dialogs.ConfirmAsync("Remove this driver package?", message, "Remove", isDanger: true))
+        var message = Loc.F("PC Checker will remove the third-party driver package {0} used by {1}. Windows will fall back to its own driver for the device, or look for one on Windows Update.",
+                row.Driver.InfName, row.DeviceName) + "\n\n"
+            + Loc.T("This cannot be undone from here; keep a driver backup first. A restore point is created per your settings.");
+        if (!await _dialogs.ConfirmAsync(Loc.T("Remove this driver package?"), message, Loc.T("Remove"), isDanger: true))
         {
             return;
         }
@@ -272,27 +273,27 @@ public sealed partial class DriversViewModel : ViewModelBase
         {
             var result = await _drivers.RollbackAsync(row.Driver.DeviceId, ct);
             RebootRequired |= result.RebootRequired;
-            ShowResult(result.Success, result.Message, "Roll back");
+            ShowResult(result.Success, result.Message, Loc.T("Roll back"));
             if (result.Success)
             {
                 await ScanAsyncCore(null, ct);
             }
-        }, "Removing driver package…", cancellable: false);
+        }, Loc.T("Removing driver package…"), cancellable: false);
     }
 
     [RelayCommand]
-    private Task LoadDriverStoreAsync() => RunBusyAsync(ReadDriverStoreAsync, "Reading the driver store…");
+    private Task LoadDriverStoreAsync() => RunBusyAsync(ReadDriverStoreAsync, Loc.T("Reading the driver store…"));
 
     [RelayCommand]
     private async Task ExportListAsync()
     {
         if (_allDrivers.Count == 0)
         {
-            _notifications.Warning("Nothing to export", "Scan drivers first.");
+            _notifications.Warning(Loc.T("Nothing to export"), Loc.T("Scan drivers first."));
             return;
         }
 
-        var path = await _dialogs.SaveFileAsync("Export driver list", "drivers.csv", "CSV file|*.csv");
+        var path = await _dialogs.SaveFileAsync(Loc.T("Export driver list"), "drivers.csv", Loc.T("CSV file") + "|*.csv");
         if (string.IsNullOrWhiteSpace(path))
         {
             return;
@@ -301,11 +302,11 @@ public sealed partial class DriversViewModel : ViewModelBase
         try
         {
             await File.WriteAllTextAsync(path, DriverListExport.BuildCsv(_allDrivers.Select(r => r.Driver)), System.Text.Encoding.UTF8);
-            _notifications.Success("Exported", $"{_allDrivers.Count} drivers written to {path}.");
+            _notifications.Success(Loc.T("Exported"), Loc.F("{0} drivers written to {1}.", _allDrivers.Count, path));
         }
         catch (Exception ex)
         {
-            ErrorMessage = "The list could not be exported: " + ex.Message;
+            ErrorMessage = Loc.T("The list could not be exported:") + " " + ex.Message;
         }
     }
 
@@ -433,7 +434,7 @@ public sealed partial class DriversViewModel : ViewModelBase
         }
         else
         {
-            _notifications.Error(title + " failed", message.Split('\n')[0]);
+            _notifications.Error(Loc.F("{0} failed", title), message.Split('\n')[0]);
         }
     }
 

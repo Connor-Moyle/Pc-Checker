@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
+using PcChecker.App.Localization;
 using PcChecker.App.Services;
 using PcChecker.Core.Common;
 using PcChecker.Core.Leftovers;
@@ -160,7 +161,7 @@ public sealed partial class SoftwareViewModel : ViewModelBase
         var inventory = await _inventory.ScanAsync(progress, ct);
         ApplyScan(inventory);
         _logger.LogInformation("Software page loaded {Count} programs.", inventory.Programs.Count);
-    }, "Scanning installed programs…");
+    }, Loc.T("Scanning installed programs…"));
 
     [RelayCommand]
     private void ClearSearch() => SearchText = string.Empty;

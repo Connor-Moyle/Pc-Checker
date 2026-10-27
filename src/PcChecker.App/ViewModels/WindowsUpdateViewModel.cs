@@ -162,7 +162,7 @@ public sealed partial class WindowsUpdateViewModel : ViewModelBase
             await CheckCoreAsync(linked.Token);
             await LoadRollbackCoreAsync(linked.Token);
         }
-    }, "Reading Windows Update status…");
+    }, Loc.T("Reading Windows Update status…"));
 
     public override Task RefreshAsync(CancellationToken cancellationToken) => RunBusyAsync(async busyToken =>
     {
@@ -172,12 +172,12 @@ public sealed partial class WindowsUpdateViewModel : ViewModelBase
         {
             await LoadRollbackCoreAsync(linked.Token);
         }
-    }, "Reading Windows Update status…");
+    }, Loc.T("Reading Windows Update status…"));
 
     protected override void OnBusyError(Exception exception) => _logger.LogError(exception, "Windows Update page operation failed.");
 
     [RelayCommand]
-    private Task CheckForUpdatesAsync() => RunBusyAsync(CheckCoreAsync, "Checking Windows Update…");
+    private Task CheckForUpdatesAsync() => RunBusyAsync(CheckCoreAsync, Loc.T("Checking Windows Update…"));
 
     [RelayCommand]
     private Task RefreshStatusAsync() => RefreshAsync(CancellationToken.None);
@@ -289,11 +289,11 @@ public sealed partial class WindowsUpdateViewModel : ViewModelBase
     {
         if (selected.Count == 0)
         {
-            _notifications.Warning("Nothing to install", "Tick the updates you want to install first.");
+            _notifications.Warning(Loc.T("Nothing to install"), Loc.T("Tick the updates you want to install first."));
             return;
         }
 
-        if (!await _dialogs.ConfirmAsync("Install Windows updates?", ConfirmationText(selected), "Install"))
+        if (!await _dialogs.ConfirmAsync(Loc.T("Install Windows updates?"), ConfirmationText(selected), Loc.T("Install")))
         {
             return;
         }
@@ -323,12 +323,14 @@ public sealed partial class WindowsUpdateViewModel : ViewModelBase
             }
 
             await LoadStatusAndHistoryAsync(CancellationToken.None);
-        }, "Installing Windows updates… Cancel stops after the current update.");
+        }, Loc.T("Installing Windows updates… Cancel stops after the current update."));
     }
 
     private static string ConfirmationText(IReadOnlyList<PendingUpdate> selected)
     {
-        var text = new StringBuilder($"PC Checker will download (if needed) and install {(selected.Count == 1 ? "this update" : $"these {selected.Count} updates")} from Windows Update, one at a time:\n\n");
+        var text = new StringBuilder((selected.Count == 1
+            ? Loc.T("PC Checker will download (if needed) and install this update from Windows Update:")
+            : Loc.F("PC Checker will download (if needed) and install these {0} updates from Windows Update, one at a time:", selected.Count)) + "\n\n");
         foreach (var u in selected.Take(8))
         {
             text.Append("• ").Append(u.Title).Append('\n');
@@ -336,24 +338,24 @@ public sealed partial class WindowsUpdateViewModel : ViewModelBase
 
         if (selected.Count > 8)
         {
-            text.Append($"• and {selected.Count - 8} more\n");
+            text.Append("• ").Append(Loc.F("and {0} more", selected.Count - 8)).Append('\n');
         }
 
         long bytes = selected.Where(u => !u.IsDownloaded).Sum(u => u.SizeBytes);
         if (bytes > 0)
         {
-            text.Append($"\nUp to {ByteSize.Format(bytes)} will be downloaded.");
+            text.Append('\n').Append(Loc.F("Up to {0} will be downloaded.", ByteSize.Format(bytes)));
         }
 
-        text.Append("\nA restore point is created first (per your settings). Installing accepts Microsoft's licence terms for these updates, as Windows Update does.");
+        text.Append('\n').Append(Loc.T("A restore point is created first (per your settings). Installing accepts Microsoft's licence terms for these updates, as Windows Update does."));
         if (selected.Any(u => u.Restart == UpdateRestartNeed.Yes))
         {
-            text.Append("\n\nWindows will need a restart to finish. PC Checker does not restart on its own.");
+            text.Append("\n\n").Append(Loc.T("Windows will need a restart to finish. PC Checker does not restart on its own."));
         }
 
         if (selected.Any(u => u.Classification == UpdateClassification.Feature))
         {
-            text.Append("\n\nA new Windows version takes a long time to install and several restarts to finish.");
+            text.Append("\n\n").Append(Loc.T("A new Windows version takes a long time to install and several restarts to finish."));
         }
 
         return text.ToString();
@@ -375,15 +377,15 @@ public sealed partial class WindowsUpdateViewModel : ViewModelBase
         ResultMessage = result.Message;
         if (allOk)
         {
-            _notifications.Success("Updates installed", result.Message);
+            _notifications.Success(Loc.T("Updates installed"), result.Message);
         }
         else if (result.Success)
         {
-            _notifications.Warning("Some updates did not install", result.Message);
+            _notifications.Warning(Loc.T("Some updates did not install"), result.Message);
         }
         else
         {
-            _notifications.Error("Updates not installed", result.Message.Split('\n')[0]);
+            _notifications.Error(Loc.T("Updates not installed"), result.Message.Split('\n')[0]);
         }
     }
 
