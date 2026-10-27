@@ -828,6 +828,13 @@ How it works:
   change, and is deleted straight after. It never goes through your `%TEMP%`
   folder, where another program running as you could swap it for its own
   command before Task Scheduler reads it.
+- A task (a schedule or *Start with Windows*) is only created when
+  `PcChecker.exe`, its folder and every folder above it can be changed by
+  Administrators, SYSTEM and TrustedInstaller only, as under `Program Files`.
+  From a folder such as Downloads or the Desktop, another program running as
+  you could replace `PcChecker.exe` and be started with administrator rights
+  without a UAC prompt, so PC Checker asks you to move it to
+  `C:\Program Files\PC Checker` first.
   Status is read with `schtasks /Query /FO CSV /V /NH` by column position, so it
   works on Windows in any language.
 - `PcChecker.exe --scheduled <job>` runs without a window. If PC Checker is

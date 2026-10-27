@@ -199,6 +199,83 @@ public class SchedulingTests
         Assert.Throws<ArgumentException>(() => JobTaskXml.Build(new JobSchedule(), path!, null, new DateOnly(2026, 10, 27)));
     }
 
+    // ---- Elevated task executable location ----------------------------------------------------------------------
+
+    private const string UserSid = "S-1-5-21-1000-2000-3000-1001";
+    private const string UsersSid = "S-1-5-32-545";
+    private const string AuthenticatedUsersSid = "S-1-5-11";
+
+    private static TaskPathAccessRule Allow(string sid, System.Security.AccessControl.FileSystemRights rights, bool inheritOnly = false) =>
+        new(sid, rights, true, inheritOnly);
+
+    private static TaskPathSecurity ProtectedPath(string path, string owner = TaskExecutableRules.AdministratorsSid, params TaskPathAccessRule[] extra) =>
+        new(path, owner,
+        [
+            Allow(TaskExecutableRules.AdministratorsSid, System.Security.AccessControl.FileSystemRights.FullControl),
+            Allow(TaskExecutableRules.SystemSid, System.Security.AccessControl.FileSystemRights.FullControl),
+            Allow(TaskExecutableRules.TrustedInstallerSid, System.Security.AccessControl.FileSystemRights.FullControl),
+            Allow(UsersSid, System.Security.AccessControl.FileSystemRights.ReadAndExecute),
+            .. extra,
+        ]);
+
+    private static IReadOnlyList<TaskPathSecurity> ProgramFilesChain() =>
+    [
+        ProtectedPath(@"C:\Program Files\PC Checker"),
+        ProtectedPath(@"C:\Program Files", TaskExecutableRules.TrustedInstallerSid,
+            Allow("S-1-3-0", System.Security.AccessControl.FileSystemRights.FullControl, inheritOnly: true)),
+        ProtectedPath(@"C:\", TaskExecutableRules.TrustedInstallerSid,
+            Allow(AuthenticatedUsersSid, System.Security.AccessControl.FileSystemRights.AppendData),
+            Allow(AuthenticatedUsersSid, System.Security.AccessControl.FileSystemRights.Modify, inheritOnly: true)),
+    ];
+
+    [Fact]
+    public void Elevated_task_executable_under_program_files_is_accepted()
+    {
+        Assert.Null(TaskExecutableRules.WhyUnsafe(ProtectedPath(Exe), ProgramFilesChain()));
+    }
+
+    [Fact]
+    public void Elevated_task_executable_the_user_can_change_is_refused()
+    {
+        var file = ProtectedPath(Exe, TaskExecutableRules.AdministratorsSid, Allow(UserSid, System.Security.AccessControl.FileSystemRights.Modify));
+        var problem = TaskExecutableRules.WhyUnsafe(file, ProgramFilesChain());
+        Assert.NotNull(problem);
+        Assert.Contains("Program Files", problem);
+
+        Assert.NotNull(TaskExecutableRules.WhyUnsafe(ProtectedPath(Exe, UserSid), ProgramFilesChain()));
+    }
+
+    [Fact]
+    public void Elevated_task_executable_in_a_user_writable_folder_is_refused()
+    {
+        const string downloads = @"C:\Users\me\Downloads";
+        var file = ProtectedPath(downloads + @"\PcChecker.exe", UserSid, Allow(UserSid, System.Security.AccessControl.FileSystemRights.FullControl));
+        var chain = new[] { ProtectedPath(downloads, UserSid, Allow(UserSid, System.Security.AccessControl.FileSystemRights.FullControl)) };
+        Assert.NotNull(TaskExecutableRules.WhyUnsafe(file, chain));
+
+        // A protected file in a folder where anyone can add files (DLL planting) or delete it is refused too.
+        var folder = ProtectedPath(@"C:\Program Files\PC Checker", TaskExecutableRules.AdministratorsSid,
+            Allow(UsersSid, System.Security.AccessControl.FileSystemRights.CreateFiles));
+        var problem = TaskExecutableRules.WhyUnsafe(ProtectedPath(Exe), [folder, .. ProgramFilesChain().Skip(1)]);
+        Assert.NotNull(problem);
+        Assert.Contains(@"C:\Program Files\PC Checker", problem);
+    }
+
+    [Fact]
+    public void Elevated_task_executable_below_a_renameable_folder_is_refused()
+    {
+        // C:\Tools created by the user inherits Modify for Authenticated Users, so the whole folder can be swapped.
+        var tools = ProtectedPath(@"C:\Tools", UserSid, Allow(AuthenticatedUsersSid, System.Security.AccessControl.FileSystemRights.Modify));
+        var chain = new[] { ProtectedPath(@"C:\Tools\PC Checker"), tools, ProgramFilesChain()[2] };
+        Assert.NotNull(TaskExecutableRules.WhyUnsafe(ProtectedPath(@"C:\Tools\PC Checker\PcChecker.exe"), chain));
+
+        // Deny rules and inherit-only rules do not make a location unsafe; an empty folder chain does.
+        Assert.Null(TaskExecutableRules.WhyUnsafe(
+            ProtectedPath(Exe, TaskExecutableRules.AdministratorsSid, new TaskPathAccessRule(UserSid, System.Security.AccessControl.FileSystemRights.FullControl, false, false)),
+            ProgramFilesChain()));
+        Assert.NotNull(TaskExecutableRules.WhyUnsafe(ProtectedPath(Exe), []));
+    }
+
     [Fact]
     public void Invalid_job_time_is_rejected()
     {

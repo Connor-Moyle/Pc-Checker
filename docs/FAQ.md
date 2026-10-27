@@ -12,7 +12,9 @@ folders, changing services, boot configuration and the page file, scheduling
 `chkdsk` and tuning the GPU all need them. The app does not install a
 background service. Nothing runs while it is closed unless you turn on a
 schedule or *Start with Windows* in Settings; both use Windows Task Scheduler
-with highest privileges, which is why they start without a UAC prompt.
+with highest privileges, which is why they start without a UAC prompt. For
+the same reason they can only be turned on when PcChecker.exe sits in a folder
+only administrators can change, such as `C:\Program Files\PC Checker`.
 
 ### Can PC Checker keep running in the tray or run checks on a schedule?
 

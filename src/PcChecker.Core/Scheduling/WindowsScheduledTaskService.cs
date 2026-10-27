@@ -53,6 +53,11 @@ public sealed class WindowsScheduledTaskService : IScheduledTaskService
             return OperationResult.Fail(problem);
         }
 
+        if (ElevatedTaskProblem() is { } unsafeLocation)
+        {
+            return OperationResult.Fail(unsafeLocation);
+        }
+
         string xml;
         try
         {
@@ -91,6 +96,11 @@ public sealed class WindowsScheduledTaskService : IScheduledTaskService
             return OperationResult.Fail(UnavailableReason ?? "Scheduled tasks are not available.");
         }
 
+        if (ElevatedTaskProblem() is { } unsafeLocation)
+        {
+            return OperationResult.Fail(unsafeLocation);
+        }
+
         string xml;
         try
         {
@@ -112,6 +122,26 @@ public sealed class WindowsScheduledTaskService : IScheduledTaskService
                     : "PC Checker will open when you sign in, without a UAC prompt.")
                 : OperationResult.Fail("Task Scheduler refused the logon task: " + Describe(output));
         }, null, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Every task runs PcChecker.exe with highest privileges and no UAC prompt, so it is only registered when nobody
+    /// but administrators can change the executable or the folders above it.
+    /// </summary>
+    private string? ElevatedTaskProblem()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return "Scheduled tasks need Windows.";
+        }
+
+        var problem = TaskExecutableSecurity.WhyUnsafe(ExecutablePath!);
+        if (problem is not null)
+        {
+            _logger.LogWarning("Not registering an elevated task: {Problem}", problem);
+        }
+
+        return problem;
     }
 
     private static string? CurrentUserId()
