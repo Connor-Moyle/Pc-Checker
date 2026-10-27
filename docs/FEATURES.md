@@ -503,9 +503,9 @@ Intel RST / AMD RAID volumes, dynamic, offline and empty disks.
   sectors, 90 % wear, or an NVMe critical warning. When there is no reading
   the page says why: the USB enclosure blocks SMART, the RAID driver hides it
   (use Intel RST or AMD RAIDXpert), a storage space has no SMART of its own.
-- **Sleeping drives stay asleep**: a hard disk that has spun down is never
-  woken by a routine refresh, by the Health check or by the hardware monitor.
-  It shows *Asleep, last reading at …* with the last reading (kept between
+- **Sleeping drives stay asleep**: a hard disk that has spun down is not
+  woken by a routine refresh or the Health check, and the sensor polling
+  skips it until it wakes. It shows *Asleep, last reading at …* with the last reading (kept between
   runs). *Wake and read* asks first.
 - Right-click a drive for *Copy details* (Ctrl+C), *Read now*, Disk
   Management and Refresh (F5).
