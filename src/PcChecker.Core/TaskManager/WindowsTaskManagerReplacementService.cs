@@ -161,14 +161,21 @@ public sealed class WindowsTaskManagerReplacementService : ITaskManagerReplaceme
         {
             try
             {
-                RestoreOrClear();
-                var message = "Windows Task Manager opens normally again.";
+                string? restored = RestoreOrClear();
+                var message = restored is null
+                    ? "Windows Task Manager opens normally again."
+                    : $"The program set in Task Manager's place before PC Checker was put back: {restored}";
                 if (openTaskManager)
                 {
+                    // With a previous value put back, Windows opens that program instead of its own Task Manager.
                     var open = ShellLauncher.Open(System.IO.Path.Combine(Environment.SystemDirectory, "Taskmgr.exe"));
-                    message = open.Success
-                        ? "Turned the option off and opened Windows Task Manager."
-                        : "Turned the option off. Windows Task Manager could not be opened automatically; press Ctrl+Shift+Esc.";
+                    message = restored is not null
+                        ? open.Success
+                            ? $"Turned the option off and put back the program set in Task Manager's place before PC Checker, which opened instead of Windows Task Manager: {restored}"
+                            : $"Turned the option off and put back the program set in Task Manager's place before PC Checker: {restored}"
+                        : open.Success
+                            ? "Turned the option off and opened Windows Task Manager."
+                            : "Turned the option off. Windows Task Manager could not be opened automatically; press Ctrl+Shift+Esc.";
                 }
 
                 return Task.FromResult(OperationResult.Ok(message));
@@ -187,7 +194,7 @@ public sealed class WindowsTaskManagerReplacementService : ITaskManagerReplaceme
             return Task.FromResult(TaskManagerStartCheck.Nothing);
         }
 
-        return Task.Run(() =>
+        return Task.Run(async () =>
         {
             try
             {
@@ -195,11 +202,30 @@ public sealed class WindowsTaskManagerReplacementService : ITaskManagerReplaceme
                 switch (TaskManagerReplacement.Classify(current, _exePath, System.IO.File.Exists))
                 {
                     case DebuggerValueKind.Stale:
+                    {
                         // PC Checker was uninstalled or moved: the value would start a missing file, so Task Manager
-                        // would not open at all. It carries --taskmgr, so it is ours to remove.
-                        RestoreOrClear();
+                        // would not open at all. It carries --taskmgr, so it is ours to remove. Recorded in the Action
+                        // Journal like any other change (no restore point for one registry value).
+                        string? restored = null;
+                        var options = new ChangeOptions(false, false, Module, "Replace Task Manager", Reversible: false, UndoHint: null);
+                        var result = await _guard.RunGuardedAsync("Clean up a leftover 'Replace Task Manager' setting", options, _ =>
+                        {
+                            restored = RestoreOrClear();
+                            return Task.FromResult(OperationResult.Ok(restored is null
+                                ? "Removed the leftover value, so Windows Task Manager opens again."
+                                : $"Removed the leftover value and put back the previous one: {restored}"));
+                        }, null, cancellationToken).ConfigureAwait(false);
+                        if (!result.Success)
+                        {
+                            _logger.LogWarning("A stale 'Replace Task Manager' value could not be cleaned up: {Message}", result.Message);
+                            return TaskManagerStartCheck.Nothing;
+                        }
+
                         _logger.LogInformation("Removed a stale 'Replace Task Manager' value left by a PC Checker that no longer exists.");
-                        return new TaskManagerStartCheck("A leftover 'Replace Task Manager' setting from an old PC Checker was cleaned up, so Windows Task Manager opens again.", null);
+                        return new TaskManagerStartCheck(restored is null
+                            ? "A leftover 'Replace Task Manager' setting from an old PC Checker was cleaned up, so Windows Task Manager opens again."
+                            : $"A leftover 'Replace Task Manager' setting from an old PC Checker was cleaned up and the program set before it was put back: {restored}", null);
+                    }
 
                     case DebuggerValueKind.OtherCopy:
                         // Another copy that still exists: never change it silently, offer to point it here instead.
@@ -289,25 +315,40 @@ public sealed class WindowsTaskManagerReplacementService : ITaskManagerReplaceme
         }
     }
 
-    private void RestoreOrClear()
+    /// <summary>
+    /// Puts back the saved third-party value when its program still exists, otherwise removes the value. Returns the
+    /// value put back, or null when Windows Task Manager opens again.
+    /// </summary>
+    private string? RestoreOrClear()
     {
         string? backup = ReadBackup();
         using var key = Registry.LocalMachine.CreateSubKey(TaskManagerReplacement.IfeoKeyPath, writable: true);
         if (key is null)
         {
-            return;
+            return null;
         }
 
-        if (!string.IsNullOrEmpty(backup))
+        string? restored = null;
+        if (TaskManagerReplacement.ShouldRestoreBackup(backup, System.IO.File.Exists))
         {
-            key.SetValue(TaskManagerReplacement.DebuggerValueName, backup);
+            key.SetValue(TaskManagerReplacement.DebuggerValueName, backup!);
+            restored = backup;
         }
-        else if (key.GetValue(TaskManagerReplacement.DebuggerValueName) is not null)
+        else
         {
-            key.DeleteValue(TaskManagerReplacement.DebuggerValueName, throwOnMissingValue: false);
+            if (!string.IsNullOrEmpty(backup))
+            {
+                _logger.LogInformation("The previous Task Manager value was not put back because its program no longer exists: {Value}", backup);
+            }
+
+            if (key.GetValue(TaskManagerReplacement.DebuggerValueName) is not null)
+            {
+                key.DeleteValue(TaskManagerReplacement.DebuggerValueName, throwOnMissingValue: false);
+            }
         }
 
         ClearBackup();
+        return restored;
     }
 
     private static string? ReadDebuggerValue()
