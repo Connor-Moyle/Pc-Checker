@@ -268,7 +268,7 @@ public sealed class DemoFanControlService : IFanControlService, IFanControlAdvan
             new("gpu.hotspot", DemoData.GpuName + " — GPU Hot Spot", HardwareKind.Gpu, 58),
             new("mb.vrm", "Nuvoton NCT6798D — VRM", HardwareKind.Motherboard, 44),
             new("mb.chipset", "Nuvoton NCT6798D — Chipset", HardwareKind.Motherboard, 49),
-            new("nvme.temp", DemoData.NvmeModel + " — Temperature", HardwareKind.Storage, 41),
+            new("nvme.temp", DemoData.NvmeModel + " — Temperature", HardwareKind.Storage, 35),
         ];
     }
 

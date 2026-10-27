@@ -3,6 +3,7 @@ using System.Text.RegularExpressions;
 using LibreHardwareMonitor.Hardware;
 using Microsoft.Extensions.Logging;
 using PcChecker.Core.Common;
+using PcChecker.Core.Storage;
 
 namespace PcChecker.Core.Health;
 
@@ -123,7 +124,7 @@ public sealed partial class WindowsHealthService
 
                 disk.Attributes = attributes.ToList();
                 var facts = SmartBlobParser.ExtractFacts(attributes);
-                disk.TemperatureC ??= facts.TemperatureC;
+                disk.SmartTemperatureC ??= facts.TemperatureC;
                 disk.PowerOnHours ??= facts.PowerOnHours;
                 disk.Reallocated ??= facts.ReallocatedSectors;
                 disk.Pending ??= facts.PendingSectors;
@@ -187,8 +188,20 @@ public sealed partial class WindowsHealthService
 
                     switch (sensor.SensorType)
                     {
-                        case SensorType.Temperature when sensor.Name.StartsWith("Temperature", StringComparison.OrdinalIgnoreCase):
-                            disk.TemperatureC = value;
+                        case SensorType.Temperature:
+                            // Only the composite ("Composite Temperature" / "Temperature") is the drive temperature.
+                            // "Temperature #2" is often a hotter controller sensor, and "Warning Temperature" /
+                            // "Critical Temperature" are the drive's limits (often 70 °C and 80 °C), not readings.
+                            var info = DriveTemperatureRules.Classify(sensor.Name);
+                            if (info.Role == DriveSensorRole.Drive)
+                            {
+                                disk.MonitorTemperatureC ??= DriveTemperatureRules.Plausible(value);
+                            }
+                            else if (info.Role == DriveSensorRole.Limit)
+                            {
+                                disk.ReportedLimitsC.Add(DriveTemperatureRules.Plausible(value));
+                            }
+
                             break;
                         case SensorType.Level when sensor.Name.Equals("Remaining Life", StringComparison.OrdinalIgnoreCase):
                             disk.WearPercent ??= Math.Clamp(100 - value, 0, 100);
@@ -215,7 +228,7 @@ public sealed partial class WindowsHealthService
 
         const string script = "Get-PhysicalDisk | ForEach-Object { $c = $_ | Get-StorageReliabilityCounter -ErrorAction SilentlyContinue; " +
                               "[pscustomobject]@{ DeviceId = [string]$_.DeviceId; SerialNumber = [string]$_.SerialNumber; " +
-                              "Temperature = $c.Temperature; Wear = $c.Wear; PowerOnHours = $c.PowerOnHours; " +
+                              "Temperature = $c.Temperature; TemperatureMax = $c.TemperatureMax; Wear = $c.Wear; PowerOnHours = $c.PowerOnHours; " +
                               "ReadErrorsTotal = $c.ReadErrorsTotal; WriteErrorsTotal = $c.WriteErrorsTotal; " +
                               "ReadErrorsUncorrected = $c.ReadErrorsUncorrected; WriteErrorsUncorrected = $c.WriteErrorsUncorrected } }";
         var rows = await PowerShellRunner.RunJsonAsync<List<ReliabilityCounterRow>>(script, PowerShellTimeout, ct).ConfigureAwait(false);
@@ -233,10 +246,8 @@ public sealed partial class WindowsHealthService
                 continue;
             }
 
-            if (row.Temperature is > 0)
-            {
-                disk.TemperatureC ??= row.Temperature;
-            }
+            // Temperature is the current value (0 = not reported); TemperatureMax is a limit and is never the reading.
+            disk.ReliabilityTemperatureC ??= DriveTemperatureRules.FromReliabilityCounter(row.Temperature, row.TemperatureMax);
 
             if (row.Wear is >= 0)
             {
@@ -261,6 +272,13 @@ public sealed partial class WindowsHealthService
         var monitoring = _settings.Current.Monitoring;
         foreach (var b in ctx.DiskBuilders.OrderBy(d => d.Index))
         {
+            b.TemperatureC = DriveTemperatureRules.Choose(
+                [
+                    (DriveTemperatureSource.HardwareMonitor, b.MonitorTemperatureC),
+                    (DriveTemperatureSource.Smart, b.SmartTemperatureC),
+                    (DriveTemperatureSource.ReliabilityCounter, b.ReliabilityTemperatureC),
+                ],
+                [.. b.ReportedLimitsC]);
             string? smartText = b.PredictFailure ? "Predicting failure" : b.PhysicalDiskHealth ?? (b.SmartSupported ? "OK" : null);
             var draft = new DiskHealth(b.Model, b.Serial, b.Firmware, b.SizeBytes, b.MediaType, HealthStatus.Unknown, smartText,
                 b.TemperatureC, b.PowerOnHours, b.Reallocated, b.Pending, b.Uncorrectable, b.WearPercent, b.HostWritesGb, b.Attributes);
@@ -333,6 +351,10 @@ public sealed partial class WindowsHealthService
         public bool SmartSupported { get; set; }
         public bool PredictFailure { get; set; }
         public double? TemperatureC { get; set; }
+        public double? MonitorTemperatureC { get; set; }
+        public double? SmartTemperatureC { get; set; }
+        public double? ReliabilityTemperatureC { get; set; }
+        public List<double?> ReportedLimitsC { get; } = [];
         public long? PowerOnHours { get; set; }
         public long? Reallocated { get; set; }
         public long? Pending { get; set; }
@@ -347,6 +369,7 @@ public sealed partial class WindowsHealthService
         public string? DeviceId { get; set; }
         public string? SerialNumber { get; set; }
         public double? Temperature { get; set; }
+        public double? TemperatureMax { get; set; }
         public double? Wear { get; set; }
         public long? PowerOnHours { get; set; }
         public long? ReadErrorsTotal { get; set; }

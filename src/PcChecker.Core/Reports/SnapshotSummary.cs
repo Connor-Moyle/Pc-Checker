@@ -38,7 +38,7 @@ public static class SnapshotSummary
         var gpuLoad = PickLoad(readings, HardwareKind.Gpu, "core");
         var memoryLoad = readings.FirstOrDefault(r => r.Hardware == HardwareKind.Memory && r.Kind == SensorKind.Load && !IsVirtual(r.Name))?.Value;
         var memoryUsed = readings.FirstOrDefault(r => r.Hardware == HardwareKind.Memory && r.Kind == SensorKind.Data && r.Name.Contains("used", StringComparison.OrdinalIgnoreCase) && !IsVirtual(r.Name))?.Value;
-        var driveTemps = readings.Where(r => r.Hardware == HardwareKind.Storage && r.Kind == SensorKind.Temperature && r.Value.HasValue).Select(r => r.Value!.Value).ToList();
+        var hottestDrive = Storage.DriveTemperatureRules.HottestDrive(readings);
         var power = SumPower(readings);
 
         return new HeadlineReadings(
@@ -48,7 +48,7 @@ public static class SnapshotSummary
             gpuLoad,
             memoryLoad,
             memoryUsed,
-            driveTemps.Count > 0 ? driveTemps.Max() : null,
+            hottestDrive?.Value,
             power,
             cpuTemp?.HardwareName ?? readings.FirstOrDefault(r => r.Hardware == HardwareKind.Cpu)?.HardwareName,
             gpuTemp?.HardwareName ?? readings.FirstOrDefault(r => r.Hardware == HardwareKind.Gpu)?.HardwareName);

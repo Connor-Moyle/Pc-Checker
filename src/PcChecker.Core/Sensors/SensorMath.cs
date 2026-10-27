@@ -81,6 +81,19 @@ public static class SensorMath
         _ => null,
     };
 
+    /// <summary>
+    /// The thresholds for one reading. Same as <see cref="ThresholdsFor(HardwareKind, MonitoringSettings)"/> except for
+    /// extra drive sensors (an NVMe controller sensor, "Sensor 2"), which run hotter than the drive and get their own,
+    /// higher limits (see <see cref="Storage.DriveTemperatureRules.Thresholds"/>).
+    /// </summary>
+    public static (double Warn, double Crit)? ThresholdsFor(SensorReading reading, MonitoringSettings settings)
+    {
+        ArgumentNullException.ThrowIfNull(reading);
+        return reading.Hardware == HardwareKind.Storage && reading.Kind == SensorKind.Temperature
+            ? Storage.DriveTemperatureRules.Thresholds(reading, settings)
+            : ThresholdsFor(reading.Hardware, settings);
+    }
+
     /// <summary>Evaluates a temperature against thresholds: null when fine, otherwise the severity crossed.</summary>
     public static Severity? Evaluate(double value, double warn, double crit)
     {
@@ -105,7 +118,7 @@ public static class SensorMath
             return null;
         }
 
-        if (ThresholdsFor(reading.Hardware, settings) is not { } t)
+        if (ThresholdsFor(reading, settings) is not { } t)
         {
             return null;
         }

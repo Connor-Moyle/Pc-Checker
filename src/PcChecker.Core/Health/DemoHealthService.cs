@@ -43,7 +43,7 @@ public sealed class DemoHealthService : IHealthService
             new(9, "Power-On Hours", 100, 100, 0, 4120, false),
             new(12, "Power Cycle Count", 100, 100, 0, 611, false),
             new(177, "Wear Leveling Count", 97, 97, 0, 42, false),
-            new(194, "Temperature", 59, 52, 0, 41, false),
+            new(194, "Temperature", 65, 52, 0, 35, false),
             new(199, "UltraDMA CRC Error Count", 100, 100, 0, 0, false),
             new(241, "Total LBAs Written", 100, 100, 0, 38_654_705_664, false),
         };
@@ -66,7 +66,7 @@ public sealed class DemoHealthService : IHealthService
             new(199, "UltraDMA CRC Error Count", 200, 200, 0, 0, false),
         };
         var nvmeDraft = new DiskHealth(DemoData.NvmeModel, "S6Z2NJ0R512345X", "4B2QJXD7", DemoData.NvmeBytes, "SSD", HealthStatus.Unknown, "Healthy",
-            41, 4120, 0, 0, 0, 3, 18_420, nvmeAttributes);
+            35, 4120, 0, 0, 0, 3, 18_420, nvmeAttributes);
         var hddDraft = new DiskHealth(DemoData.HddModel, "WD-WX12D80K7E42", "80.00A80", DemoData.HddBytes, "HDD", HealthStatus.Unknown, "Healthy",
             36, 15_230, 8, 0, 0, null, null, hddAttributes);
         var disks = new List<DiskHealth>();

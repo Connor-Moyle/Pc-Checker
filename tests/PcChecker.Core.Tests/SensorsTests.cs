@@ -225,7 +225,9 @@ public class DemoSensorCatalogTests
             {
                 double value = spec.ValueAt(s, 1);
                 Assert.True(value >= 0 || spec.Kind == SensorKind.Voltage, spec.Id);
-                if (spec.Kind == SensorKind.Temperature && SensorMath.ThresholdsFor(spec.Hardware, settings) is { } t)
+                // Per-reading limits: an extra drive sensor (the NVMe controller) has its own, higher limits.
+                var reading = new SensorReading(spec.Id, spec.HardwareName, spec.Hardware, spec.Kind, spec.Name, value, null, null, spec.Unit);
+                if (spec.Kind == SensorKind.Temperature && SensorMath.ThresholdsFor(reading, settings) is { } t)
                 {
                     Assert.True(value < t.Warn, $"{spec.Id} = {value}");
                 }

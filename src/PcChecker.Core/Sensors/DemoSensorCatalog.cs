@@ -110,8 +110,9 @@ public static class DemoSensorCatalog
         Temp(list, "ram.temp.b2", DemoData.MemoryKit, HardwareKind.Memory, "DIMM B2", 42, 1, 0.2, 180, 0.7);
 
         // Storage
-        Temp(list, "nvme.temp", DemoData.NvmeModel, HardwareKind.Storage, "Temperature", 41, 1.5, 0.3, 200, 0.2);
-        Temp(list, "nvme.temp.2", DemoData.NvmeModel, HardwareKind.Storage, "Temperature 2 (controller)", 48, 2, 0.3, 200, 0.2);
+        // A cool NVMe drive (composite 35 °C) whose controller sensor runs much hotter, as real ones do.
+        Temp(list, "nvme.temp", DemoData.NvmeModel, HardwareKind.Storage, "Temperature", 35, 1.5, 0.3, 200, 0.2);
+        Temp(list, "nvme.temp.2", DemoData.NvmeModel, HardwareKind.Storage, "Controller", 60, 2, 0.3, 200, 0.2);
         Add(list, "nvme.space", DemoData.NvmeModel, HardwareKind.Storage, SensorKind.Load, "Used Space", 54.2, 0, 0, 60, 0, "%", 1);
         Add(list, "nvme.life", DemoData.NvmeModel, HardwareKind.Storage, SensorKind.Level, "Remaining Life", 97, 0, 0, 60, 0, "%", 0);
         Add(list, "nvme.read", DemoData.NvmeModel, HardwareKind.Storage, SensorKind.Throughput, "Read Rate", 1.4, 1.2, 0.6, 30, 0.2, "MB/s", 1);

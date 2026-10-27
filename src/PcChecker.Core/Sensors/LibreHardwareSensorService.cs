@@ -2,6 +2,7 @@ using LibreHardwareMonitor.Hardware;
 using Microsoft.Extensions.Logging;
 using PcChecker.Core.Common;
 using PcChecker.Core.Settings;
+using PcChecker.Core.Storage;
 
 namespace PcChecker.Core.Sensors;
 
@@ -493,13 +494,27 @@ public sealed class LibreHardwareSensorService : ISensorService, IHardwareMonito
                 continue;
             }
 
+            string name = string.IsNullOrWhiteSpace(sensor.Name) ? SensorMapping.DisplayName(SensorMapping.ToSensorKind(sensor.SensorType)) : sensor.Name;
+            double? value = SensorMapping.ConvertValue(sensor.SensorType, sensor.Value);
+            if (kind == HardwareKind.Storage && sensor.SensorType == SensorType.Temperature)
+            {
+                // LibreHardwareMonitor lists the NVMe warning/critical thresholds as temperatures and reports 0 for
+                // "unknown". Drop the thresholds, label the composite "Temperature" and extra sensors "Sensor N".
+                if (DriveTemperatureRules.NormalizeSensor(name, value) is not { } drive)
+                {
+                    continue;
+                }
+
+                (name, value) = drive;
+            }
+
             into.Add((
                 id,
                 hardwareName,
                 kind,
                 SensorMapping.ToSensorKind(sensor.SensorType),
-                string.IsNullOrWhiteSpace(sensor.Name) ? SensorMapping.DisplayName(SensorMapping.ToSensorKind(sensor.SensorType)) : sensor.Name,
-                SensorMapping.ConvertValue(sensor.SensorType, sensor.Value),
+                name,
+                value,
                 SensorMapping.UnitFor(sensor.SensorType)));
         }
 

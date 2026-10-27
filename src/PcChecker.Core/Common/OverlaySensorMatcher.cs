@@ -45,7 +45,7 @@ public static class OverlaySensorMatcher
             OverlayMetricIds.GpuFan => GpuFan(r),
             OverlayMetricIds.RamUsed => Gigabytes(First(r, HardwareKind.Memory, SensorKind.Data, "Memory Used", "Used") ?? First(r, HardwareKind.Memory, SensorKind.Data)),
             OverlayMetricIds.RamPercent => Value(First(r, HardwareKind.Memory, SensorKind.Load, "Memory") ?? First(r, HardwareKind.Memory, SensorKind.Load)),
-            OverlayMetricIds.DiskTemp => Max(r, HardwareKind.Storage, SensorKind.Temperature),
+            OverlayMetricIds.DiskTemp => Value(Storage.DriveTemperatureRules.HottestDrive(r)),
             OverlayMetricIds.DiskActivity => Max(r, HardwareKind.Storage, SensorKind.Load, include: "Activity"),
             OverlayMetricIds.NetDown => Throughput(r, "Download"),
             OverlayMetricIds.NetUp => Throughput(r, "Upload"),

@@ -136,20 +136,15 @@ public static class SmartBlobParser
     {
         ArgumentNullException.ThrowIfNull(attributes);
         var list = attributes.ToList();
-        double? temp = null;
+        // 194 wins over 190 whatever order the drive lists them in, and only raw low bytes count as degrees
+        // (the normalized value of 190 is "100 - temperature" on many drives).
+        double? temp = Storage.DriveTemperatureRules.FromSmartAttributes(list);
         long? hours = null, reallocated = null, pending = null, uncorrectable = null, writesGb = null;
 
         foreach (var a in list)
         {
             switch (a.Id)
             {
-                case SmartRules.TemperatureId:
-                    temp ??= TemperatureFromRaw(a.RawValue);
-                    break;
-                case SmartAttributeNames.AirflowTemperatureId:
-                    // Airflow temperature is a fallback when 194 is missing; some vendors store 100 - temp in "current".
-                    temp ??= TemperatureFromRaw(a.RawValue) ?? (a.Current is { } c && c is > 0 and < 100 ? 100 - c : null);
-                    break;
                 case SmartRules.PowerOnHoursId:
                     hours = a.RawValue is { } h ? h & 0xFFFFFFFF : null;
                     break;
@@ -177,17 +172,8 @@ public static class SmartBlobParser
         return new SmartFacts(temp, hours, reallocated, pending, uncorrectable, wear, writesGb);
     }
 
-    /// <summary>The temperature lives in the low byte of the raw value; values outside 0..125 °C are discarded.</summary>
-    public static double? TemperatureFromRaw(long? raw)
-    {
-        if (raw is null)
-        {
-            return null;
-        }
-
-        long low = raw.Value & 0xFF;
-        return low is > 0 and <= 125 ? low : null;
-    }
+    /// <summary>The temperature lives in the low byte of the raw value; values outside 1..125 °C are discarded.</summary>
+    public static double? TemperatureFromRaw(long? raw) => Storage.DriveTemperatureRules.FromSmart194(raw);
 }
 
 /// <summary>Human names for ATA SMART attribute ids.</summary>
