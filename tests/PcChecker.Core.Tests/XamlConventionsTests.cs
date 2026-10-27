@@ -4,7 +4,8 @@ using Xunit;
 namespace PcChecker.Core.Tests;
 
 /// <summary>
-/// Guards against two WPF-UI pitfalls that compile fine but break the UI at runtime.
+/// Guards against WPF-UI pitfalls that compile fine but break the UI at runtime, and keeps the navigation tidy
+/// (see docs/UI-GUIDELINES.md).
 /// </summary>
 public class XamlConventionsTests
 {
@@ -43,6 +44,26 @@ public class XamlConventionsTests
         }
 
         Assert.Empty(offenders);
+    }
+
+    [Fact]
+    public void Every_page_is_listed_in_the_navigation_catalog()
+    {
+        var catalog = File.ReadAllText(Path.Combine(AppDirectory(), "Services", "NavigationCatalog.cs"));
+        var pages = Directory.EnumerateFiles(Path.Combine(AppDirectory(), "Views", "Pages"), "*Page.xaml")
+            .Select(Path.GetFileNameWithoutExtension)
+            .ToList();
+
+        Assert.NotEmpty(pages);
+        Assert.Empty(pages.Where(p => !catalog.Contains($"typeof({p})")));
+    }
+
+    [Fact]
+    public void The_side_menu_stays_short()
+    {
+        var catalog = File.ReadAllText(Path.Combine(AppDirectory(), "Services", "NavigationCatalog.cs"));
+        int sections = Regex.Matches(catalog, @"\b(Section|Footer)\(""").Count;
+        Assert.InRange(sections, 1, 14);
     }
 
     private static string AppDirectory()
