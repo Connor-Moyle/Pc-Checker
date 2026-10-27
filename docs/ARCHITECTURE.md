@@ -59,6 +59,7 @@ Every project targets `net8.0-windows10.0.19041.0`. `EnableWindowsTargeting` is 
 | `Input` | `IInputService`, `IMousePollingMeter`, mouse/keyboard settings, profiles, vendor links |
 | `Latency` | `ILatencyService`, `LatencyReport`, `LatencyRules`, `BcdEditParser`, `PowerCfgQueryParser`, `LatencyActionIds` |
 | `Processes` | `IProcessService`, `ProcessCatalog`, `ProcessRateTracker`, `ProcessMath`, `ProcessSorting`, `CriticalProcessRules`, `ProcessSuspicionRules`, `SignatureCache` |
+| `LiveUsage` | `ILiveUsageService` (Task Manager's Performance tab: PDH counters added by English name through `PdhQuery`, `GetPerformanceInfo`, DXGI), `SampleRing`, `LiveUsageFormat`, `LiveUsageMath`, `CounterInstanceParser`, `CpuTopologyParser`, `LiveUsageText`, `LiveUsagePreferencesStore` |
 | `Startup` | `IStartupService`, `BootConfig`, `StartupEnumerator` (shared with Performance) |
 | `Accessibility` | `ThemeColor` and `ContrastMath` (WCAG contrast), `AccentPalette` (the dark and light status colours, checked against AA by the tests), `AccessibleText` (screen-reader names, access keys) |
 | `Shell` | Quick search (`FuzzyMatcher`, `QuickSearchIndex`, `QuickSearchRanker`, `RecentItems`, the settings, quick action and page keyword catalogs) and `WelcomeRules` for the first-start welcome |

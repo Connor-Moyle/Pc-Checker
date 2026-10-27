@@ -204,6 +204,63 @@ Limitations: protected processes and programs of other accounts may refuse
 to be ended or show no path, user or memory figure. The GPU column is empty
 when the graphics driver has no *GPU Engine* performance counters. CPU and
 disk figures are averages over the last refresh.
+
+### Live usage
+
+Task manager → Live usage is the equivalent of Task Manager's Performance tab.
+It reads once a second while the page or the compact window is showing and
+stops when neither is (**Pause / Resume** in the header).
+
+- **List** (left): CPU, Memory, every physical disk (*Disk 0 (C: D:)* with
+  SSD, HDD, SSD (NVMe) or Removable), every active network adapter (Ethernet,
+  Wi-Fi with the network name) and every graphics card, each with a
+  sparkline of the last minute and its current value. Arrow keys move
+  between them.
+- **CPU**: utilization graph, or one small graph per logical processor
+  (right-click or *More* → *Processor graph*); *Show kernel times* shades the
+  time spent inside Windows. Details: utilization, current speed (from the
+  processor's performance counter times its base speed), processes, threads,
+  handles, up time, base speed, sockets, cores, logical processors,
+  virtualization and the L1, L2 and L3 cache sizes.
+- **Memory**: usage graph and a composition bar (in use, modified, standby,
+  free). Details: in use with the compressed amount, available, committed
+  out of the limit, cached, paged and non-paged pool, speed, slots used,
+  form factor, type and hardware reserved.
+- **Disk**: active time graph and a transfer-rate graph (reads solid, writes
+  dashed). Details: active time, average response time, read and write
+  speed, capacity, formatted space, whether it holds Windows or a page file,
+  type and model.
+- **Network**: received (solid) and sent (dashed) on a scale that grows in
+  readable steps. Details: send, receive, Wi-Fi signal and network name,
+  adapter name, connection type (802.11ax, Ethernet), link speed, IPv4 and
+  IPv6 addresses.
+- **GPU**: graphs for the 3D, Copy, Video Encode and Video Decode engines
+  (or the busiest others the card has), dedicated and shared memory graphs.
+  Details: utilization (the busiest engine, as Task Manager counts it),
+  dedicated, shared and total GPU memory, temperature when the Temperatures
+  sensors are running, driver version and date, DirectX version with the
+  feature level, and the physical location (PCI bus).
+- **Copy details** (Ctrl+C, *More* or right-click) puts the selected
+  resource's details on the clipboard as text.
+- **Compact view**: a small always-on-top window with every sparkline (the
+  header button, *More* or the tray menu's *Compact live usage*). Drag it
+  anywhere; it remembers where it was. Double-click it to come back to the
+  page; Esc closes it.
+
+How it reads: performance counters added by their English names, so they
+work on every Windows language (Processor Information, Memory, PhysicalDisk,
+GPU Engine and GPU Adapter Memory), `GetPerformanceInfo` for counts and the
+commit charge, the adapters' own byte counters for network throughput,
+`netsh wlan` for the Wi-Fi name and signal, DXGI and WMI for the graphics
+cards, and WMI for disks, memory modules and slots. Nothing is changed.
+
+Limitations: when Windows' performance counters are damaged the graphs show
+0 and the page says so (`lodctr /R` as administrator repairs them). GPU
+graphs need a WDDM 2 driver with GPU Engine counters. The compressed amount
+needs the Memory Compression process to be readable and shows nothing
+otherwise. On a PC with more than 64 logical processors, the core count and
+cache sizes cover only the first processor group.
+
 ### History
 
 What the PC did over the last hour, day, week, month or three months.
