@@ -28,6 +28,11 @@ All notable changes to PC Checker are recorded here. The format follows
   sudden drops in free space, falling health scores) and export the range as
   CSV. Older days are rolled up to 15-minute and hourly points and deleted
   after 90 days (Settings → History); nothing leaves the PC.
+- **Benchmark** (Performance → Benchmark): processor single- and multi-core,
+  memory bandwidth and latency, system drive and graphics compute tests scored
+  against a mid-range 2024 desktop (1,000 per test) with an overall score.
+  Warns before a run on battery, when hot or when the processor is busy,
+  saves every run, compares two runs side by side and exports results as text.
 
 ## [0.3.0] - 2026-10-27
 

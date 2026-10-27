@@ -17,7 +17,7 @@ Devices         Displays · Audio · Keyboard & Mouse
 Cooling & RGB   Fans · Lighting
 Apps & Drivers  Apps · Drivers · Startup · Windows Features
 Clean up        Cleanup · Debloat · Registry
-Performance     Speed check · Optimize · Overclock
+Performance     Speed check · Optimize · Benchmark · Overclock
 Gaming          Overlay · Latency
 Network         Network
 Ask Claude      Ask Claude
@@ -673,6 +673,57 @@ badge, current state, *Apply* and *Revert*:
   Nagle off, MSI mode for the GPU. Long-running repairs stream their output.
 - **Apply all safe recommendations** runs the safe set in sequence with
   progress.
+
+### Benchmark
+
+Six short tests score the PC against a reference machine, a mid-range 2024
+desktop (6-core/12-thread processor, dual-channel DDR5-6000, PCIe 4.0 NVMe,
+GeForce RTX 4060-class graphics), which scores about **1,000** on each test.
+Nothing on the PC is changed.
+
+- **Processor, single-core** and **multi-core**: Deflate compression of
+  generated text, a prime sieve, a double-precision matrix multiply and
+  SHA-256, on one thread and then on every logical processor. Each kernel
+  checks its answer against the first one, so a processor that computes a
+  wrong result (unstable overclock or undervolt) is called out.
+- **Memory bandwidth**: several threads copy and write a large buffer
+  (256 MB, less on PCs short of free memory). **Memory latency**: a pointer
+  chase through a random single cycle of cache lines, so every load waits for
+  memory.
+- **System drive**: the Storage page's benchmark (sequential 1 MB and random
+  4K, queue depth 1, unbuffered) on the Windows drive with a 256 MB temporary
+  file that is deleted afterwards, also when cancelled.
+- **Graphics compute**: the Overclock stress test's DirectX 11 compute load
+  at full intensity without result checking, timed after a 3-second warm-up;
+  throughput is reported in billions of shader steps per second. Skipped with
+  the reason when there is no DirectX 11 card.
+- Each timed test repeats its work for 12 seconds (10–20 in **Options**) and
+  reports the median after dropping outliers (1.5 × the interquartile range);
+  a note asks to run again when the repeats varied by more than 10 %. Scores
+  are measured ÷ reference × 1,000 (inverted for latency); a test with several
+  numbers and the **overall score** use the geometric mean.
+- **Before a run** the page checks the power source, how busy the processor
+  is (over one second; above 15 % is a warning) and CPU/GPU temperatures
+  (80 °C or more). Warnings are shown in the confirmation and saved with the
+  run, which shows them as a banner later.
+- **Results**: summary tiles (overall score, change since the last run with
+  the same tests, tests with a score, date) and one card per test with the
+  score, a bar whose middle marker is the reference PC, the raw numbers, the
+  number of repeats and their spread. **Run** on a card runs that test alone.
+  **Cancel** keeps the tests that finished.
+- **History**: every run is saved in `benchmarks.json` next to the settings
+  (newest 100), with an optional note such as "Before overclock". **Show**
+  puts an older run on the cards; **More → Remove this run** deletes one after
+  confirming.
+- **Compare two runs** side by side with the change in percent for each test
+  and each raw value (changes under 3 % count as normal variation). The
+  overall score is only compared when both runs completed the same tests, and
+  notes say when the scoring, the hardware or the conditions differed.
+- **More → Copy results / Save results as text / Copy comparison / Save
+  comparison as text** produce plain text ready for a forum post.
+
+The reference numbers are PC Checker's own estimates for its own workloads;
+compare scores with other PC Checker runs, not with other benchmark apps.
 
 ### Latency
 

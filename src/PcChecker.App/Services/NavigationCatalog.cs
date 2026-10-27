@@ -59,6 +59,7 @@ public static class NavigationCatalog
         Section("Performance", SymbolRegular.TopSpeed24,
             Page("Speed check", "performance", typeof(PerformancePage)),
             Page("Optimize", "optimize", typeof(OptimizePage)),
+            Page("Benchmark", "benchmark", typeof(BenchmarkPage)),
             Page("Overclock", "overclock", typeof(OverclockPage))),
         Section("Gaming", SymbolRegular.Games24,
             Page("Overlay", "overlay-settings", typeof(OverlayPage)),

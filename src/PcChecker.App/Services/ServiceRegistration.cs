@@ -8,6 +8,7 @@ using PcChecker.App.Views.Windows;
 using PcChecker.Claude;
 using PcChecker.Core.Assistant;
 using PcChecker.Core.Audio;
+using PcChecker.Core.Benchmark;
 using PcChecker.Core.Cleanup;
 using PcChecker.Core.Common;
 using PcChecker.Core.Debloat;
@@ -121,6 +122,8 @@ public static class ServiceRegistration
         Add<IGameProfileService, WindowsGameProfileService, DemoGameProfileService>(services, demo);
         Add<IScheduledTaskService, WindowsScheduledTaskService, DemoScheduledTaskService>(services, demo);
         Add<IScheduledJobStore, JsonScheduledJobStore, DemoScheduledJobStore>(services, demo);
+        Add<IBenchmarkService, WindowsBenchmarkService, DemoBenchmarkService>(services, demo);
+        Add<IBenchmarkHistoryStore, JsonBenchmarkHistoryStore, DemoBenchmarkHistoryStore>(services, demo);
         services.AddSingleton<ScheduledJobExecutor>();
 
         // Optimization action providers (IOptimizationService aggregates every registration below).
@@ -178,6 +181,7 @@ public static class ServiceRegistration
         services.AddSingleton<RegistryViewModel>().AddSingleton<RegistryPage>();
         services.AddSingleton<PerformanceViewModel>().AddSingleton<PerformancePage>();
         services.AddSingleton<OptimizeViewModel>().AddSingleton<OptimizePage>();
+        services.AddSingleton<BenchmarkViewModel>().AddSingleton<BenchmarkPage>();
         services.AddSingleton<LatencyViewModel>().AddSingleton<LatencyPage>();
         services.AddSingleton<NetworkViewModel>().AddSingleton<NetworkPage>();
         services.AddSingleton<OverclockViewModel>().AddSingleton<OverclockPage>();

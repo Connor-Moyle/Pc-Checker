@@ -49,6 +49,7 @@ Every project targets `net8.0-windows10.0.19041.0`. `EnableWindowsTargeting` is 
 | `Fans` | `IFanControlService`, fan devices/curves/profiles, `FanCurveMath` |
 | `Lighting` | `ILightingService` (OpenRGB), `RgbColor`, devices/zones/modes/profiles, `RgbColorMath` |
 | `Storage` | `IStorageToolsService` (surface scan, benchmark, chkdsk, repair, optimize), `BlockMapBuilder`, `BenchmarkMath`, `StorageVendorRules` |
+| `Benchmark` | `IBenchmarkService`, `IBenchmarkHistoryStore`, the CPU and memory workloads, `BenchmarkScoring`, `BenchmarkStatistics`, `BenchmarkComparer`, `BenchmarkFormatter` |
 | `Memory` | `IMemoryService`, `MemoryOverview`, profiles, `MemoryTestPatterns`, `PageFileRules` |
 | `Displays` | `IDisplayService`, `DisplayInfo`/`DisplayMode`, profiles, `DisplayModeMath` |
 | `Audio` | `IAudioService` (NAudio.Wasapi Core Audio wrappers), devices and sessions |
@@ -100,7 +101,7 @@ Devices         Displays · Audio · Keyboard & Mouse
 Cooling & RGB   Fans · Lighting
 Apps & Drivers  Apps · Drivers · Startup · Windows Features
 Clean up        Cleanup
-Performance     Speed check · Optimize · Overclock
+Performance     Speed check · Optimize · Benchmark · Overclock
 Gaming          Overlay · Latency
 Ask Claude      Ask Claude
 Footer          Logs · Settings · Advanced mode toggle
