@@ -10,11 +10,14 @@
       <StackPanel>
         <ui:ProgressRing IsIndeterminate="True" Width="40" Height="40" HorizontalAlignment="Center" />
         <ui:TextBlock Text="{Binding Text, ElementName=Root}" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" Margin="0,14,0,0" />
-        <ui:Button Content="Cancel"
-                   Command="{Binding CancelCommand, ElementName=Root}"
-                   HorizontalAlignment="Center"
-                   Margin="0,14,0,0"
-                   Visibility="{Binding CancelCommand, ElementName=Root, Converter={StaticResource NullToVisibility}}" />
+        <!-- Hidden for operations that cannot be stopped part-way (installs, uninstalls, feature changes). -->
+        <Grid Visibility="{Binding CanCancel, ElementName=Root, Converter={StaticResource BoolToVisibility}}">
+          <ui:Button Content="Cancel"
+                     Command="{Binding CancelCommand, ElementName=Root}"
+                     HorizontalAlignment="Center"
+                     Margin="0,14,0,0"
+                     Visibility="{Binding CancelCommand, ElementName=Root, Converter={StaticResource NullToVisibility}}" />
+        </Grid>
       </StackPanel>
     </ui:Card>
   </Grid>

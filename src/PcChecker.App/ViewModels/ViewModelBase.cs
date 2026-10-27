@@ -26,6 +26,14 @@ public abstract partial class ViewModelBase : ObservableObject
     [ObservableProperty]
     private string? _busyText;
 
+    /// <summary>
+    /// False while the current busy operation cannot be stopped part-way (driver installs, uninstalls, Windows feature
+    /// changes); the overlay then hides its Cancel button and <see cref="CancelCommand"/> is disabled.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(CancelCommand))]
+    private bool _canCancelBusy = true;
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasError))]
     private string? _errorMessage;
@@ -70,9 +78,11 @@ public abstract partial class ViewModelBase : ObservableObject
     /// <summary>
     /// Runs a long operation with the busy overlay shown; exceptions become <see cref="ErrorMessage"/>. Returns false
     /// when the operation was skipped (already busy) or cancelled. A cancellation is also recorded so that
-    /// <see cref="EnsureInitializedAsync"/> can tell a cancelled first load from a finished one.
+    /// <see cref="EnsureInitializedAsync"/> can tell a cancelled first load from a finished one. Pass
+    /// <paramref name="cancellable"/> false for operations that cannot be stopped part-way: Cancel is hidden and the work
+    /// gets a token that never fires, so its result and any restart notice are always reported.
     /// </summary>
-    protected async Task<bool> RunBusyAsync(Func<CancellationToken, Task> work, string busyText = "Working…")
+    protected async Task<bool> RunBusyAsync(Func<CancellationToken, Task> work, string busyText = "Working…", bool cancellable = true)
     {
         if (IsBusy)
         {
@@ -81,9 +91,10 @@ public abstract partial class ViewModelBase : ObservableObject
 
         _busyCts?.Dispose();
         _busyCts = new CancellationTokenSource();
-        var token = _busyCts.Token;
+        var token = cancellable ? _busyCts.Token : CancellationToken.None;
         ErrorMessage = null;
         BusyText = busyText;
+        CanCancelBusy = cancellable;
         IsBusy = true;
         try
         {
@@ -106,6 +117,7 @@ public abstract partial class ViewModelBase : ObservableObject
         {
             IsBusy = false;
             BusyText = null;
+            CanCancelBusy = true;
             _busyCts.Dispose();
             _busyCts = null;
         }
@@ -189,9 +201,16 @@ public abstract partial class ViewModelBase : ObservableObject
         InitializationCancelled = true;
     }
 
-    [RelayCommand(CanExecute = nameof(IsBusy))]
+    private bool CanCancel() => IsBusy && CanCancelBusy;
+
+    [RelayCommand(CanExecute = nameof(CanCancel))]
     private void Cancel()
     {
+        if (!CanCancelBusy)
+        {
+            return;
+        }
+
         try
         {
             _busyCts?.Cancel();

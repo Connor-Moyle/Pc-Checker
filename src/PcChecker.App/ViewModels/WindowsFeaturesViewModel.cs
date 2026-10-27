@@ -352,7 +352,7 @@ public sealed partial class WindowsFeaturesViewModel : ViewModelBase
             }
 
             await LoadAsync(ct);
-        }, $"{verb} {row.DisplayName}…");
+        }, $"{verb} {row.DisplayName}…", cancellable: false);
     }
 
     private void Open(string target)

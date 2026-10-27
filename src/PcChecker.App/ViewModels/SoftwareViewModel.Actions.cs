@@ -68,7 +68,7 @@ public sealed partial class SoftwareViewModel
             {
                 ApplyScan(await _inventory.ScanAsync(progress, ct));
             }
-        }, $"Uninstalling {row.Name}…");
+        }, $"Uninstalling {row.Name}…", cancellable: false);
     }
 
     [RelayCommand]

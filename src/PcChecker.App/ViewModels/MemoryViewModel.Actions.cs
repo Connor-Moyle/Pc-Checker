@@ -107,7 +107,7 @@ public sealed partial class MemoryViewModel
             var result = await _memory.ApplyProfileAsync(item.Profile, ct);
             Report(result, "Memory profile applied");
             Apply(await _memory.GetOverviewAsync(ct));
-        }, $"Applying \"{item.Name}\"…");
+        }, $"Applying \"{item.Name}\"…", cancellable: false);
     }
 
     [RelayCommand]

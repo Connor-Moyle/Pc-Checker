@@ -175,6 +175,6 @@
       </StackPanel>
     </ScrollViewer>
 
-    <controls:BusyOverlay Grid.Row="0" Grid.RowSpan="3" IsBusy="{Binding IsBusy}" Text="{Binding BusyText}" CancelCommand="{Binding CancelCommand}" />
+    <controls:BusyOverlay Grid.Row="0" Grid.RowSpan="3" IsBusy="{Binding IsBusy}" Text="{Binding BusyText}" CancelCommand="{Binding CancelCommand}" CanCancel="{Binding CanCancelBusy}" />
   </Grid>
 </Page>

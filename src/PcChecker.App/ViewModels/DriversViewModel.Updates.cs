@@ -177,7 +177,7 @@ public sealed partial class DriversViewModel
             {
                 await ScanAsyncCore(null, ct);
             }
-        }, "Installing driver updates…");
+        }, "Installing driver updates…", cancellable: false);
     }
 
     [RelayCommand]

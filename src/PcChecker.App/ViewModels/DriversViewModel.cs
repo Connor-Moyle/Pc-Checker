@@ -214,7 +214,7 @@ public sealed partial class DriversViewModel : ViewModelBase
             {
                 await ScanAsyncCore(null, ct);
             }
-        }, "Installing driver package…");
+        }, "Installing driver package…", cancellable: false);
     }
 
     [RelayCommand]
@@ -257,7 +257,7 @@ public sealed partial class DriversViewModel : ViewModelBase
             {
                 await ScanAsyncCore(null, ct);
             }
-        }, "Removing driver package…");
+        }, "Removing driver package…", cancellable: false);
     }
 
     [RelayCommand]
