@@ -129,11 +129,16 @@ public static class DebloatConfirmationText
         _ => "Undo: " + op.Describe(),
     };
 
-    /// <summary>True when the confirmation should use the Danger style (advanced or one-way changes).</summary>
-    /// <summary>True when the batch removes Xbox Game Bar on a dual-CCD Ryzen 9 X3D, which AMD's CCD parking relies on.</summary>
+    /// <summary>
+    /// True when the batch removes or turns off Xbox Game Bar on a dual-CCD Ryzen 9 X3D, which AMD's CCD parking relies
+    /// on: the Game Bar app removal itself, or a tweak that runs the Optimize page's Game Bar action.
+    /// </summary>
     public static bool X3dGameBarConflict(IEnumerable<DebloatTweak> tweaks, string? cpuName) =>
-        Hardware.CpuTraits.IsDualCcdX3D(cpuName) && tweaks.Any(t => t.Id.Equals("apps.gamebar", StringComparison.OrdinalIgnoreCase));
+        Hardware.CpuTraits.IsDualCcdX3D(cpuName) && tweaks.Any(t =>
+            Hardware.AmdPlatformRules.ActionWarning(t.Id, cpuName) == Hardware.AmdPlatformRules.GameBarX3dWarning ||
+            Hardware.AmdPlatformRules.ActionWarning(t.DelegatesToOptimizationId, cpuName) == Hardware.AmdPlatformRules.GameBarX3dWarning);
 
+    /// <summary>True when the confirmation should use the Danger style (advanced or one-way changes).</summary>
     public static bool IsDanger(IEnumerable<DebloatTweak> tweaks, bool revert) =>
         tweaks.Any(t => t.Risk == RiskLevel.Advanced || (!revert && !t.Reversible));
 

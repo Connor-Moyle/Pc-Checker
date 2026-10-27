@@ -152,7 +152,11 @@ public sealed class AmdAdlGpuTuner : IGpuTuner, IGpuVoltageTuner, IGpuTuningSwit
             int memOffset = mem is not null ? Value(Od8Feature.UclkFmax) - mem.Default : 0;
             int power = AdlValueRules.PowerDeltaToPercent(Value(Od8Feature.PowerPercentage));
             int? tempLimit = temp is not null ? Value(Od8Feature.OperatingTempMax) : null;
-            return OperationResult<GpuTunerState>.Ok(new GpuTunerState(coreOffset, memOffset, power, tempLimit, null, null, null, null, null));
+            int? voltageOffset = Supported(Od8Feature.OdVoltage) is not null ? Value(Od8Feature.OdVoltage) : 0;
+            return OperationResult<GpuTunerState>.Ok(new GpuTunerState(coreOffset, memOffset, power, tempLimit, null, null, null, null, null)
+            {
+                VoltageOffsetMv = voltageOffset,
+            });
         }
         catch (Exception ex)
         {

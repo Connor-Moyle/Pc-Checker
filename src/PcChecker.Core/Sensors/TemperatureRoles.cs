@@ -186,8 +186,27 @@ public static partial class TemperatureRoles
     }
 
     /// <summary>
+    /// The CPU's hardware name in a set of readings (the first CPU reading), or null. Integrated GPU readings carry
+    /// the GPU's own name, so callers pass this to <see cref="ThresholdsFor"/> to give them the CPU's limits.
+    /// </summary>
+    public static string? CpuNameOf(IEnumerable<SensorReading> readings)
+    {
+        ArgumentNullException.ThrowIfNull(readings);
+        foreach (var reading in readings)
+        {
+            if (reading.Hardware == HardwareKind.Cpu && !string.IsNullOrWhiteSpace(reading.HardwareName))
+            {
+                return reading.HardwareName;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
     /// Warning and critical thresholds for one reading, by role; null when the reading is not held to a limit
-    /// (raw Tctl, which LibreHardwareMonitor always pairs with a real Tdie reading).
+    /// (raw Tctl, which LibreHardwareMonitor always pairs with a real Tdie reading). <paramref name="cpuName"/> is the
+    /// CPU in the same snapshot (<see cref="CpuNameOf"/>), used for integrated GPU sensors on the CPU die.
     /// </summary>
     public static (double Warn, double Crit)? ThresholdsFor(SensorReading reading, MonitoringSettings settings, string? cpuName = null)
     {

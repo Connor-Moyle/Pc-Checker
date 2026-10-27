@@ -148,11 +148,12 @@ public sealed class WindowsDriverService : IDriverService, IDriverStoreProvider,
 
         _logger.LogInformation("Windows Update reported {Count} driver update(s).", updates.Count);
         bool amdSoftware = Overclocking.VendorSoftwareCatalog.AmdAdrenalin.Locate(File.Exists) is not null;
-        bool nvidiaSoftware = Overclocking.VendorSoftwareCatalog.NvidiaApp.Locate(File.Exists) is not null;
-        var annotated = DriverUpdateRules.Annotate(updates, amdSoftware, nvidiaSoftware);
+        bool nvidiaSoftware = Overclocking.VendorSoftwareCatalog.NvidiaDriverToolsInstalled(File.Exists, Directory.Exists);
+        bool amdChipsetSoftware = Overclocking.VendorSoftwareCatalog.AmdChipsetSoftwareInstalled(Directory.Exists);
+        var annotated = DriverUpdateRules.Annotate(updates, amdSoftware, nvidiaSoftware, amdChipsetSoftware);
         if (annotated.Any(u => u.VendorWarning is not null))
         {
-            allWarnings.Add("Some offers would replace a driver that AMD Software or the NVIDIA app manages; they are left unticked. Use \"Hide selected\" to stop Windows Update offering them, or the Debloat tweak \"Don't install drivers through Windows Update\" to stop driver updates for good.");
+            allWarnings.Add("Some offers would replace a driver that AMD Software, AMD Chipset Software or NVIDIA's software manages; they are left unticked. Use \"Hide selected\" to stop Windows Update offering them, or the Debloat tweak \"Don't install drivers through Windows Update\" to stop driver updates for good.");
         }
 
         return new DriverUpdateCheckResult(annotated, links, allWarnings, DateTimeOffset.Now);

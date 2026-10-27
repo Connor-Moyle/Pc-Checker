@@ -297,12 +297,12 @@ between driver versions) show *Not present* and are left alone.
 | **Stop AMD Link update tasks**<br>`amd.link` | Disables the AMD Link update tasks.<br>`Disable scheduled task \AMDLinkUpdate`<br>`Disable scheduled task \ModifyLinkUpdate` | Vendor app setting | Safe | Yes |
 | **Don't start AMD recording (Instant Replay) at sign-in**<br>`amd.dvr` | Disables the task that starts AMD's recording component at sign-in. Instant Replay and recording hotkeys stop until you open AMD Software.<br>`Disable scheduled task \StartDVR` | Vendor app setting | Moderate | Yes |
 | **Don't start AMD Software at sign-in**<br>`amd.autostart` | Disables the task that starts the AMD Software tray and overlay. The driver, FreeSync and game settings keep working; Alt+R and the tray icon are gone until you open AMD Software.<br>`Disable scheduled task \StartCN` | Vendor app setting | Moderate | Yes |
-| **Set AMD Crash Defender to manual**<br>`amd.crashdefender` | Stops the Crash Defender service starting with Windows; driver crash reports are lost.<br>`Set service amdfendrmgr to Manual` | Vendor app setting | Advanced (Advanced mode) | Yes |
+| **Set AMD Crash Defender to manual**<br>`amd.crashdefender` | Stops the AMD Crash Defender Service (amdfendrsr.exe) starting with Windows; driver crash reports are lost. The Crash Defender kernel drivers (amdfendr, amdfendrmgr) are never touched.<br>`Set service AMD Crash Defender Service to Manual` | Vendor app setting | Advanced (Advanced mode) | Yes |
 | **Turn off NVIDIA telemetry**<br>`nvidia.telemetry` | Opts out of NVIDIA usage data in the driver and control panel and disables the old telemetry container where it still exists.<br>`Set HKLM\SOFTWARE\NVIDIA Corporation\NvControlPanel2\Client\OptInOrOutPreference = 0`<br>`Set HKLM\SOFTWARE\NVIDIA Corporation\Global\FTS\EnableRID44231 = 0`<br>`Set HKLM\SOFTWARE\NVIDIA Corporation\Global\FTS\EnableRID64640 = 0`<br>… and 2 more | Optimizer, Vendor app setting | Safe | Yes |
 
 None of these is part of a preset. The catalog test keeps FreeSync (AMD
-External Events Utility), the X3D service, the graphics drivers and the AMD
-platform drivers on a never-touch list.
+External Events Utility), the X3D service, the graphics and Crash Defender
+kernel drivers and the AMD platform drivers on a never-touch list.
 
 ### Apps
 

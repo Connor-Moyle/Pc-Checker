@@ -9,7 +9,19 @@ public sealed record GpuTunerDetection(GpuControlMethod Method, string? GpuName,
 }
 
 /// <summary>Current tuner-side state (what the driver reports as applied).</summary>
-public sealed record GpuTunerState(int CoreOffsetMhz, int MemoryOffsetMhz, int PowerLimitPercent, int? TempLimitC, int? FanPercent, int? CoreClockMhz, int? MemoryClockMhz, double? TempC, double? PowerW);
+public sealed record GpuTunerState(int CoreOffsetMhz, int MemoryOffsetMhz, int PowerLimitPercent, int? TempLimitC, int? FanPercent, int? CoreClockMhz, int? MemoryClockMhz, double? TempC, double? PowerW)
+{
+    /// <summary>The voltage offset the driver reports in mV (0 = stock), or null when the tuner cannot read one.</summary>
+    public int? VoltageOffsetMv { get; init; }
+
+    /// <summary>
+    /// True when the driver reports every value PC Checker manages at stock. A voltage offset that could not be read
+    /// counts as stock only when <paramref name="expectVoltageOffset"/> is false (none was applied).
+    /// </summary>
+    public bool IsStock(bool expectVoltageOffset) =>
+        CoreOffsetMhz == 0 && MemoryOffsetMhz == 0 && PowerLimitPercent == 100
+        && (VoltageOffsetMv is { } v ? v == 0 : !expectVoltageOffset);
+}
 
 /// <summary>
 /// A vendor-specific GPU controller. One implementation per vendor API (NVAPI, ADL/Overdrive8, IGCL). Every call is

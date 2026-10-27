@@ -632,7 +632,9 @@ public sealed partial class WindowsOverclockService : IOverclockService, IDispos
         try
         {
             var state = _tuner?.GetState();
-            if (state is not { Success: true, Value: { } s } || s.CoreOffsetMhz != 0 || s.MemoryOffsetMhz != 0 || s.PowerLimitPercent != 100)
+            // The voltage offset is part of the check: an undervolt is the likeliest cause of the reset, so the session
+            // is cleared only when the driver confirms it is back to 0 mV too.
+            if (state is not { Success: true, Value: { } s } || !s.IsStock(expectVoltageOffset: _applied.GpuVoltageOffsetMv != 0))
             {
                 return false;
             }

@@ -39,9 +39,11 @@ public static class FanSafetyRules
     public static SensorReading? FindCriticalReading(IEnumerable<SensorReading> temperatures, MonitoringSettings monitoring)
     {
         ArgumentNullException.ThrowIfNull(temperatures);
+        var list = temperatures as IReadOnlyCollection<SensorReading> ?? temperatures.ToList();
+        string? cpuName = TemperatureRoles.CpuNameOf(list);
         SensorReading? worst = null;
         double worstExcess = double.NegativeInfinity;
-        foreach (var reading in temperatures)
+        foreach (var reading in list)
         {
             if (reading.Kind != SensorKind.Temperature || reading.Value is not { } value || double.IsNaN(value))
             {
@@ -53,7 +55,7 @@ public static class FanSafetyRules
                 continue;
             }
 
-            if (LimitsFor(reading, monitoring) is not { } limits)
+            if (LimitsFor(reading, monitoring, cpuName) is not { } limits)
             {
                 continue;
             }
@@ -76,7 +78,9 @@ public static class FanSafetyRules
     public static bool CanRelease(IEnumerable<SensorReading> temperatures, MonitoringSettings monitoring)
     {
         ArgumentNullException.ThrowIfNull(temperatures);
-        foreach (var reading in temperatures)
+        var list = temperatures as IReadOnlyCollection<SensorReading> ?? temperatures.ToList();
+        string? cpuName = TemperatureRoles.CpuNameOf(list);
+        foreach (var reading in list)
         {
             if (reading.Kind != SensorKind.Temperature || reading.Value is not { } value)
             {
@@ -88,7 +92,7 @@ public static class FanSafetyRules
                 continue;
             }
 
-            if (LimitsFor(reading, monitoring) is { } limits && value >= limits.Warn)
+            if (LimitsFor(reading, monitoring, cpuName) is { } limits && value >= limits.Warn)
             {
                 return false;
             }
@@ -100,14 +104,15 @@ public static class FanSafetyRules
     /// <summary>
     /// The limits a reading is held to, by role: hot spot and memory sensors have their own (higher) limits, the
     /// Ryzen 7000/9000 CPU limits follow their 95 °C design point, and raw "Core (Tctl)" is ignored (it carries an
-    /// offset and always comes with a real Tdie reading). Motherboard sensors use the CPU/GPU maximum.
+    /// offset and always comes with a real Tdie reading). Motherboard sensors use the CPU/GPU maximum. Integrated GPU
+    /// sensors use the limits of <paramref name="cpuName"/>, the CPU in the same snapshot.
     /// </summary>
-    public static (double Warn, double Crit)? LimitsFor(SensorReading reading, MonitoringSettings monitoring)
+    public static (double Warn, double Crit)? LimitsFor(SensorReading reading, MonitoringSettings monitoring, string? cpuName = null)
     {
         ArgumentNullException.ThrowIfNull(reading);
         ArgumentNullException.ThrowIfNull(monitoring);
         return reading.Hardware is HardwareKind.Cpu or HardwareKind.Gpu
-            ? TemperatureRoles.ThresholdsFor(reading, monitoring)
+            ? TemperatureRoles.ThresholdsFor(reading, monitoring, cpuName)
             : (WarningThreshold(reading.Hardware, monitoring), CriticalThreshold(reading.Hardware, monitoring));
     }
 

@@ -9,12 +9,13 @@ public static partial class DebloatCatalog
 
     /// <summary>
     /// AMD and NVIDIA components no tweak may ever disable: FreeSync and display hotkeys (AMD External Events
-    /// Utility), the X3D CCD parking service, the graphics kernel drivers and the AMD platform (PSP/PPM) drivers,
+    /// Utility), the X3D CCD parking service, the graphics and Crash Defender kernel drivers, the AMD platform (PSP/PPM) drivers,
     /// plus the NVIDIA display driver service. A catalog test enforces this list.
     /// </summary>
     public static IReadOnlyList<string> NeverDisableVendorServices { get; } =
     [
         "AMD External Events Utility", "amd3dvcacheSvc", "amd3dvcache", "amdkmdag", "amdwddmg", "amdpsp", "AmdPPM", "amdgpio2", "amdi2c",
+        "amdfendr", "amdfendrmgr",
         "NVDisplay.ContainerLocalSystem", "nvlddmkm",
     ];
 
@@ -58,9 +59,9 @@ public static partial class DebloatCatalog
         with { Precondition = DebloatPrecondition.AmdSoftwareInstalled },
 
         Tweak("amd.crashdefender", VendorCategory, "Set AMD Crash Defender to manual",
-            "Stops the AMD Crash Defender service starting with Windows. It collects information after a graphics driver crash.",
+            "Stops the AMD Crash Defender Service (amdfendrsr.exe) starting with Windows. It collects information after a graphics driver crash. The Crash Defender kernel drivers are left alone.",
             RiskLevel.Advanced, From(VendorApp),
-            [Service("amdfendrmgr", DebloatStartMode.Manual, DebloatStartMode.Automatic)],
+            [Service("AMD Crash Defender Service", DebloatStartMode.Manual, DebloatStartMode.Automatic)],
             advancedOnly: true,
             warning: "Driver crash reports for AMD are lost. Leave it on while you are troubleshooting crashes.")
         with { Precondition = DebloatPrecondition.AmdSoftwareInstalled },

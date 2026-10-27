@@ -12,10 +12,12 @@ public static class DriverUpdateRules
     public const string ExcludeDriversTweakId = "wu.drivers";
 
     /// <summary>
-    /// The warning to show for a Windows Update driver offer, or null when it is fine to install. <paramref name="amdSoftware"/>
-    /// and <paramref name="nvidiaSoftware"/> say whether AMD Software / the NVIDIA app is installed.
+    /// The warning to show for a Windows Update driver offer, or null when it is fine to install. <paramref name="amdSoftware"/>,
+    /// <paramref name="nvidiaSoftware"/> and <paramref name="amdChipsetSoftware"/> say whether AMD Software, NVIDIA's
+    /// driver tools and AMD Chipset Software are installed. AMD System-class (chipset) offers are flagged when either
+    /// AMD package is installed, so a Ryzen PC with a GeForce card is covered too.
     /// </summary>
-    public static string? VendorWarning(DriverUpdateInfo update, bool amdSoftware, bool nvidiaSoftware)
+    public static string? VendorWarning(DriverUpdateInfo update, bool amdSoftware, bool nvidiaSoftware, bool amdChipsetSoftware = false)
     {
         ArgumentNullException.ThrowIfNull(update);
         string cls = ClassOf(update);
@@ -25,11 +27,14 @@ public static class DriverUpdateRules
         bool amd = Has(who, "Advanced Micro Devices") || Has(who, "ATI Technologies") || who.TrimStart().StartsWith("AMD", StringComparison.OrdinalIgnoreCase);
         bool nvidia = Has(who, "NVIDIA");
 
-        if (amd && amdSoftware && (display || system))
+        if (amd && display && amdSoftware)
         {
-            return display
-                ? "Install Radeon drivers with AMD Software. This Windows Update driver can replace them and break AMD Software (\"driver version does not match\")."
-                : "Install AMD chipset drivers with AMD Chipset Software. This Windows Update driver can replace a newer AMD component.";
+            return "Install Radeon drivers with AMD Software. This Windows Update driver can replace them and break AMD Software (\"driver version does not match\").";
+        }
+
+        if (amd && system && (amdChipsetSoftware || amdSoftware))
+        {
+            return "Install AMD chipset drivers with AMD Chipset Software. This Windows Update driver can replace a newer AMD component.";
         }
 
         if (nvidia && nvidiaSoftware && display)
@@ -54,10 +59,10 @@ public static class DriverUpdateRules
     }
 
     /// <summary>Copies of the updates with <see cref="DriverUpdateInfo.VendorWarning"/> filled in.</summary>
-    public static IReadOnlyList<DriverUpdateInfo> Annotate(IEnumerable<DriverUpdateInfo> updates, bool amdSoftware, bool nvidiaSoftware)
+    public static IReadOnlyList<DriverUpdateInfo> Annotate(IEnumerable<DriverUpdateInfo> updates, bool amdSoftware, bool nvidiaSoftware, bool amdChipsetSoftware = false)
     {
         ArgumentNullException.ThrowIfNull(updates);
-        return updates.Select(u => u with { VendorWarning = VendorWarning(u, amdSoftware, nvidiaSoftware) }).ToList();
+        return updates.Select(u => u with { VendorWarning = VendorWarning(u, amdSoftware, nvidiaSoftware, amdChipsetSoftware) }).ToList();
     }
 
     private static bool Has(string text, string part) => text.Contains(part, StringComparison.OrdinalIgnoreCase);

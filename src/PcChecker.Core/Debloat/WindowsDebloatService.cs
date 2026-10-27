@@ -61,8 +61,7 @@ public sealed class WindowsDebloatService : DebloatServiceBase
                 found |= DebloatVendorSoftware.Amd;
             }
 
-            if (Overclocking.VendorSoftwareCatalog.NvidiaApp.Locate(File.Exists) is not null
-                || Directory.Exists(Environment.ExpandEnvironmentVariables(@"%ProgramFiles%\NVIDIA Corporation\Control Panel Client")))
+            if (Overclocking.VendorSoftwareCatalog.NvidiaDriverToolsInstalled(File.Exists, Directory.Exists))
             {
                 found |= DebloatVendorSoftware.Nvidia;
             }

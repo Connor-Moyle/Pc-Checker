@@ -449,6 +449,7 @@ public sealed class LibreHardwareSensorService : ISensorService, IHardwareMonito
         }
 
         List<TemperatureAlert>? alerts = null;
+        string? cpuName = TemperatureRoles.CpuNameOf(readings);
         lock (_stateLock)
         {
             foreach (var reading in readings)
@@ -458,7 +459,7 @@ public sealed class LibreHardwareSensorService : ISensorService, IHardwareMonito
                     continue;
                 }
 
-                if (_alerts.Evaluate(reading, monitoring, now) is { } alert)
+                if (_alerts.Evaluate(reading, monitoring, now, cpuName) is { } alert)
                 {
                     (alerts ??= []).Add(alert);
                 }

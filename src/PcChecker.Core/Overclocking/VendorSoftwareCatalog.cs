@@ -40,6 +40,32 @@ public static class VendorSoftwareCatalog
         [@"tools\ryzenadj.exe", @"ryzenadj.exe"],
         "Open-source power limit tool for Ryzen laptops and APUs.");
 
+    /// <summary>Folders AMD Chipset Software installs to.</summary>
+    public static IReadOnlyList<string> AmdChipsetSoftwareFolders { get; } =
+        [@"%ProgramFiles(x86)%\AMD\Chipset_Software", @"%ProgramFiles%\AMD\Chipset_Software"];
+
+    /// <summary>The NVIDIA Control Panel's folder (DCH drivers without the NVIDIA app still install it).</summary>
+    public static IReadOnlyList<string> NvidiaControlPanelFolders { get; } =
+        [@"%ProgramFiles%\NVIDIA Corporation\Control Panel Client"];
+
+    /// <summary>True when AMD Chipset Software is installed (it manages AMD's System-class drivers).</summary>
+    public static bool AmdChipsetSoftwareInstalled(Func<string, bool> directoryExists)
+    {
+        ArgumentNullException.ThrowIfNull(directoryExists);
+        return AmdChipsetSoftwareFolders.Select(VendorSoftware.Expand).Any(directoryExists);
+    }
+
+    /// <summary>
+    /// True when NVIDIA's driver tools are installed: the NVIDIA app (or GeForce Experience) or the NVIDIA Control
+    /// Panel. One rule for every page, so Debloat and Drivers agree.
+    /// </summary>
+    public static bool NvidiaDriverToolsInstalled(Func<string, bool> fileExists, Func<string, bool> directoryExists)
+    {
+        ArgumentNullException.ThrowIfNull(fileExists);
+        ArgumentNullException.ThrowIfNull(directoryExists);
+        return NvidiaApp.Locate(fileExists) is not null || NvidiaControlPanelFolders.Select(VendorSoftware.Expand).Any(directoryExists);
+    }
+
     public static VendorSoftware ForGpu(GpuVendor vendor) => vendor switch
     {
         GpuVendor.Amd => AmdAdrenalin,

@@ -413,11 +413,12 @@ public sealed partial class SensorsViewModel : ViewModelBase
         var window = TimeSpan.FromMinutes(Math.Max(1, monitoring.HistoryMinutes));
         var now = snapshot.Timestamp;
         var touched = new HashSet<SensorGroupViewModel>();
+        string? cpuName = TemperatureRoles.CpuNameOf(snapshot.Readings);
 
         foreach (var reading in snapshot.Readings)
         {
             bool isTemperature = reading.Kind == SensorKind.Temperature;
-            var thresholds = isTemperature ? TemperatureRoles.ThresholdsFor(reading, monitoring) : null;
+            var thresholds = isTemperature ? TemperatureRoles.ThresholdsFor(reading, monitoring, cpuName) : null;
 
             if (!_rows.TryGetValue(reading.Id, out var row))
             {

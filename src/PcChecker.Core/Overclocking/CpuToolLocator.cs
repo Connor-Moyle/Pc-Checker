@@ -44,7 +44,7 @@ public static class CpuToolLocator
                     + RyzenAdjDriverNote(adj, fileExists));
             }
 
-            var master = LocateRyzenMaster(fileExists, ryzenMasterInstallDirectory);
+            var master = LocateRyzenMaster(fileExists, ryzenMasterInstallDirectory, trustedRoots ?? []);
             if (master is null)
             {
                 return new CpuToolDetection(CpuControlMethod.None, null, traits.IsRyzenMobileOrApu
@@ -127,8 +127,10 @@ public static class CpuToolLocator
     public static int FastLimitW(int sustainedW) => Math.Clamp((int)Math.Round(sustainedW * 1.25, MidpointRounding.AwayFromZero), sustainedW, 400);
 
     /// <summary>
-    /// Reads ryzenadj's output instead of trusting its exit code: every value it applied prints "Sucessfully set"
-    /// (ryzenadj's own spelling); a driver that could not load prints "unable to init". Returns success and a message.
+    /// Reads ryzenadj's output as well as its exit code: every value it applied prints "Sucessfully set" (ryzenadj's
+    /// own spelling); a value the firmware refused prints "Failed to set", "... is rejected by SMU" or "... timeout";
+    /// a driver that could not load prints "unable to init". Success needs at least one confirmed value, no refused
+    /// value and exit code 0 (ryzenadj returns its error count). Returns success and a message.
     /// </summary>
     public static (bool Success, string Message) ParseRyzenAdjOutput(string? stdOut, string? stdErr, int exitCode)
     {
@@ -136,7 +138,8 @@ public static class CpuToolLocator
         var lines = text.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         int set = lines.Count(l => l.Contains("Sucessfully set", StringComparison.OrdinalIgnoreCase) || l.Contains("Successfully set", StringComparison.OrdinalIgnoreCase));
         var failed = lines.Where(l => l.Contains("Failed to set", StringComparison.OrdinalIgnoreCase) || l.Contains("not supported", StringComparison.OrdinalIgnoreCase)
-            || l.Contains("Unable to", StringComparison.OrdinalIgnoreCase)).ToList();
+            || l.Contains("Unable to", StringComparison.OrdinalIgnoreCase) || l.Contains("rejected by SMU", StringComparison.OrdinalIgnoreCase)
+            || l.EndsWith("timeout", StringComparison.OrdinalIgnoreCase) || l.Contains(" timeout ", StringComparison.OrdinalIgnoreCase)).ToList();
 
         if (text.Contains("unable to init", StringComparison.OrdinalIgnoreCase) || text.Contains("WinRing0", StringComparison.OrdinalIgnoreCase))
         {
@@ -156,6 +159,11 @@ public static class CpuToolLocator
         if (set == 0)
         {
             return (false, exitCode == 0 ? "ryzenadj ran but did not confirm any change." : $"ryzenadj failed (exit code {exitCode}).");
+        }
+
+        if (exitCode != 0)
+        {
+            return (false, $"ryzenadj set {set} limit(s) but reported an error (exit code {exitCode}), so not every limit may be applied.");
         }
 
         return (true, $"ryzenadj confirmed {set} limit(s).");
@@ -181,11 +189,16 @@ public static class CpuToolLocator
             : "WinRing0x64.sys is missing next to ryzenadj.exe, so it will not be able to set limits.";
     }
 
-    /// <summary>Ryzen Master's exe: the uninstall entry's folder first, then the default install folders.</summary>
-    public static string? LocateRyzenMaster(Func<string, bool> fileExists, string? installDirectory)
+    /// <summary>
+    /// Ryzen Master's exe: the uninstall entry's folder first, then the default install folders. The uninstall entry's
+    /// folder is used only inside <paramref name="trustedRoots"/> (Program Files), the same rule as ryzenadj, because the
+    /// elevated app launches what it finds.
+    /// </summary>
+    public static string? LocateRyzenMaster(Func<string, bool> fileExists, string? installDirectory, IReadOnlyList<string> trustedRoots)
     {
         ArgumentNullException.ThrowIfNull(fileExists);
-        if (!string.IsNullOrWhiteSpace(installDirectory))
+        ArgumentNullException.ThrowIfNull(trustedRoots);
+        if (!string.IsNullOrWhiteSpace(installDirectory) && IsUnderTrustedRoot(installDirectory, trustedRoots))
         {
             foreach (var name in new[] { "AMD Ryzen Master.exe", "AMDRyzenMaster.exe", Path.Combine("bin", "AMD Ryzen Master.exe"), Path.Combine("bin", "AMDRyzenMaster.exe") })
             {

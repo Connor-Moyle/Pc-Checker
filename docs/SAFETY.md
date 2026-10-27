@@ -220,8 +220,9 @@ damage hardware. PC Checker reduces the risk; it cannot remove it.
   not recorded), and *Reset* never sends AC timing, auto-tuning or internal
   settings and retries one setting at a time if the driver rejects the batch.
 - Temperature limits follow the sensor: GPU hot spot and memory have their
-  own limits, and Ryzen 7000/9000 (95 °C by design) use 90/98 °C and a
-  stress stop of Tjmax + 3 °C only while you keep the stock thresholds.
+  own limits, and Ryzen 7000 (except 7000X3D) and 9000 desktop chips,
+  9000X3D included (95 °C by design), use 90/98 °C and a stress stop of
+  Tjmax + 3 °C only while you keep the stock thresholds.
 - CPU tuning only goes through vendor tools (Intel XTU, AMD Ryzen Master,
   ryzenadj) when they are installed; the app does not write MSRs or BIOS
   settings. If a tool's output does not match what the app expects, it

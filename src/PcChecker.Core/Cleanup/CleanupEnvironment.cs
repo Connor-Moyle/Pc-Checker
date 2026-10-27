@@ -60,10 +60,38 @@ internal sealed class CleanupEnvironment
 
     public bool IsProtected(string path) => ProtectedDirectories.Any(d => CleanupRules.IsUnderDirectory(path, d));
 
-    /// <summary>Names (without .exe) of the browser processes currently running.</summary>
+    /// <summary>
+    /// Names (without .exe) of the browser and installer processes currently running, including versioned vendor
+    /// self-extractors (<see cref="CleanupRules.InstallerNameFragments"/>).
+    /// </summary>
     public static IReadOnlyList<string> RunningBrowserProcesses()
     {
         var running = new List<string>();
+        try
+        {
+            foreach (var p in Process.GetProcesses())
+            {
+                using (p)
+                {
+                    try
+                    {
+                        if (CleanupRules.IsVersionedInstallerName(p.ProcessName))
+                        {
+                            running.Add(p.ProcessName);
+                        }
+                    }
+                    catch
+                    {
+                        // A process that exited or cannot be read is not an installer we have to wait for.
+                    }
+                }
+            }
+        }
+        catch
+        {
+            // Process enumeration failed; the exact-name checks below and the fresh-file rule still apply.
+        }
+
         foreach (var name in CleanupRules.AllBrowserProcessNames)
         {
             try

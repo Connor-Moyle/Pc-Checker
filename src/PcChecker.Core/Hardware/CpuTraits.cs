@@ -61,11 +61,18 @@ public sealed record CpuTraitsInfo(
     /// <summary>Ryzen laptop, handheld or desktop APU: the parts ryzenadj supports (Dragon Range HX excluded).</summary>
     public bool IsRyzenMobileOrApu => IsAmd && !IsDragonRange && (FormFactor is CpuFormFactor.Laptop or CpuFormFactor.Handheld or CpuFormFactor.DesktopApu);
 
-    /// <summary>Ryzen 7045/9055 HX laptop chips are desktop silicon; ryzenadj does not support them.</summary>
+    /// <summary>
+    /// Dragon Range (Ryzen 7045 HX and the 8040 HX refresh) and Fire Range (Ryzen 9055 HX, including 9850HX) laptop
+    /// chips are desktop silicon; ryzenadj does not support them.
+    /// </summary>
     public bool IsDragonRange { get; init; }
 
-    /// <summary>Ryzen 7000/9000 desktop (AM5) parts that are not X3D: designed to boost until Tctl reaches 95 °C.</summary>
-    public bool BoostsToTjMax => IsAmd && !IsX3D && (Generation is ZenGeneration.Zen4 or ZenGeneration.Zen5) && (FormFactor is CpuFormFactor.Desktop or CpuFormFactor.DesktopApu or CpuFormFactor.Workstation);
+    /// <summary>
+    /// Ryzen 7000/9000 desktop (AM5) parts designed to boost until Tctl reaches 95 °C: every Zen 4 part except the
+    /// 7000X3D (Tjmax 89 °C) and every Zen 5 part, including the fully unlocked 9000X3D (Tjmax 95 °C).
+    /// </summary>
+    public bool BoostsToTjMax => IsAmd && (Generation == ZenGeneration.Zen5 || (Generation == ZenGeneration.Zen4 && !IsX3D))
+        && (FormFactor is CpuFormFactor.Desktop or CpuFormFactor.DesktopApu or CpuFormFactor.Workstation);
 
     /// <summary>The memory the platform uses (DDR4 on AM4, DDR5 on AM5), or null.</summary>
     public string? MemoryType => Socket switch
@@ -269,7 +276,7 @@ public static partial class CpuTraits
 
         bool laptop = suffix.StartsWith('U') || suffix.StartsWith('H') || suffix is "HS" or "HX" or "HX3D";
         bool apu = !laptop && (suffix.StartsWith('G') || suffix == "GE");
-        bool dragonRange = laptop && suffix.StartsWith("HX", StringComparison.Ordinal) && ((series == 7 && third == 4 && num % 10 == 5) || (series == 9 && third == 5 && num % 10 == 5));
+        bool dragonRange = laptop && suffix.StartsWith("HX", StringComparison.Ordinal) && (((series is 7 or 8) && third == 4) || (series == 9 && third == 5));
         var form = laptop ? CpuFormFactor.Laptop : apu ? CpuFormFactor.DesktopApu : CpuFormFactor.Desktop;
 
         ZenGeneration generation;

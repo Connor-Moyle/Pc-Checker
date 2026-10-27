@@ -192,6 +192,9 @@ public class AmdCpuToolTests
         Assert.Contains("blocks that driver", CpuToolLocator.ParseRyzenAdjOutput("unable to init ryzenadj", "", -1).Message);
         Assert.Contains("does not support this CPU", CpuToolLocator.ParseRyzenAdjOutput("CPU family not supported", "", 1).Message);
         Assert.False(CpuToolLocator.ParseRyzenAdjOutput("Sucessfully set stapm_limit to 15000\nFailed to set fast_limit", "", 0).Success);
+        Assert.False(CpuToolLocator.ParseRyzenAdjOutput("Sucessfully set stapm_limit to 15000\nset_fast_limit is rejected by SMU", "", 0).Success);
+        Assert.False(CpuToolLocator.ParseRyzenAdjOutput("Sucessfully set stapm_limit to 15000\nset_slow_limit timeout", "", 0).Success);
+        Assert.False(CpuToolLocator.ParseRyzenAdjOutput("Sucessfully set stapm_limit to 15000", "", 2).Success);
         Assert.Equal(19, CpuToolLocator.FastLimitW(15));
         Assert.Equal(400, CpuToolLocator.FastLimitW(400));
         Assert.Contains("--fast-limit=19000", CpuToolLocator.RyzenAdjArguments(15));
@@ -207,7 +210,10 @@ public class AmdCpuToolTests
 
         string dir = Path.Combine(Pf, "AMD", "RyzenMaster");
         string exe = Path.Combine(dir, "AMD Ryzen Master.exe");
-        Assert.Equal(exe, CpuToolLocator.LocateRyzenMaster(p => p == exe, dir));
+        Assert.Equal(exe, CpuToolLocator.LocateRyzenMaster(p => p == exe, dir, [Pf]));
+        string untrusted = Path.Combine(Path.GetTempPath(), "RyzenMaster");
+        string untrustedExe = Path.Combine(untrusted, "AMD Ryzen Master.exe");
+        Assert.Null(CpuToolLocator.LocateRyzenMaster(p => p == untrustedExe, untrusted, [Pf]));
 
         Assert.Contains("Virtualization-Based Security", CpuToolLocator.RyzenMasterCaveat("AMD Ryzen 7 7700X", vbsRunning: true));
         Assert.Contains("laptops", CpuToolLocator.RyzenMasterCaveat("AMD Ryzen 7 7840HS w/ Radeon 780M Graphics", false));

@@ -112,7 +112,6 @@ public static class ProcessCatalog
         new("atieclxx", "AMD External Events client", "Handles display hotkeys and events for the AMD graphics driver.", Graphics),
         new("atiesrxx", "AMD External Events service", "Handles display events for the AMD graphics driver.", Graphics),
         new("amdfendrsr", "AMD Crash Defender", "Collects details when the AMD graphics driver crashes.", Graphics),
-        new("amdfendrmgr", "AMD Crash Defender manager", "Manages AMD Crash Defender, which collects details when the AMD graphics driver crashes.", Graphics),
         new("amdrssrcext", "AMD Software tray", "The AMD Software icon in the notification area and its hotkeys.", Graphics),
         new("amdow", "AMD Software overlay", "Draws the AMD in-game overlay (Alt+R) and the performance metrics overlay.", Graphics),
         new("cncmd", "AMD Software helper", "A small helper AMD Software uses to apply settings in the background.", Graphics),

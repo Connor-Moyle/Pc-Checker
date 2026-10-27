@@ -33,6 +33,27 @@ public static class CleanupRules
             ["nvidia.downloader"] = ("An NVIDIA installer", ["setup", "NVIDIA app installer", "NVIDIA_app_installer"]),
         };
 
+    /// <summary>
+    /// Name fragments of versioned vendor self-extractors that unpack into an installer folder, for example
+    /// "amd-software-adrenalin-edition-25.9.1-win10-win11-….exe", "581.42-desktop-win10-win11-64bit-international-dch-whql.exe"
+    /// and "NVIDIA_app_v11.0.5.266.exe". A running process whose name contains one counts as that category's installer.
+    /// </summary>
+    public static readonly IReadOnlyDictionary<string, string[]> InstallerNameFragments =
+        new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["amd.installer"] = ["amd-software-adrenalin-edition", "amd-software-pro-edition", "amd_chipset_software", "amd-chipset-software"],
+            ["nvidia.installer"] = ["NVIDIA_app_v", "-dch-whql", "-international-whql", "-win10-win11-64bit", "-desktop-win1", "-notebook-win1"],
+            ["nvidia.downloader"] = ["NVIDIA_app_v", "-dch-whql", "-international-whql", "-win10-win11-64bit", "-desktop-win1", "-notebook-win1"],
+        };
+
+    /// <summary>Every installer name fragment (so the scanner reads the full process list once).</summary>
+    public static IReadOnlyList<string> AllInstallerNameFragments { get; } =
+        InstallerNameFragments.Values.SelectMany(v => v).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+
+    /// <summary>True when a process name (without .exe) is a versioned vendor installer of any category.</summary>
+    public static bool IsVersionedInstallerName(string? processName) =>
+        !string.IsNullOrEmpty(processName) && AllInstallerNameFragments.Any(f => processName.Contains(f, StringComparison.OrdinalIgnoreCase));
+
     /// <summary>Every process name any browser rule cares about (so the scanner checks the process list once).</summary>
     public static IReadOnlyList<string> AllBrowserProcessNames { get; } =
         BrowserProcesses.Values.SelectMany(v => v.Processes).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
@@ -76,7 +97,9 @@ public static class CleanupRules
         var running = new HashSet<string>(
             (runningProcessNames ?? []).Select(n => n.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ? n[..^4] : n),
             StringComparer.OrdinalIgnoreCase);
-        return rule.Processes.Any(running.Contains)
+        bool installerRunning = InstallerNameFragments.TryGetValue(categoryId, out var fragments)
+            && running.Any(name => fragments.Any(f => name.Contains(f, StringComparison.OrdinalIgnoreCase)));
+        return rule.Processes.Any(running.Contains) || installerRunning
             ? (categoryId.StartsWith("browser.", StringComparison.OrdinalIgnoreCase)
                 ? $"Skipped: {rule.Browser} is running. Close it and scan again to clean its cache."
                 : $"Skipped: {rule.Browser} is running. Let it finish (or close it) and scan again.")

@@ -947,10 +947,12 @@ name: Zen generation, socket, desktop/laptop/APU, X3D, Tjmax):
   fan profiles, power total or watchdog; the discrete card is. One rule
   recognises current Radeon APUs (760M, 780M, 890M, 8060S, Vega 3–11).
 - **Temperatures**: Tdie is shown instead of the offset Tctl on Ryzen
-  1000/2000 X and Threadripper. With the stock thresholds, Ryzen 7000/9000
-  (which run at 95 °C by design) use 90/98 °C and the stress test stops at
-  Tjmax + 3 °C; GPU hot spot (100/110 °C) and memory (95/105 °C) have their
-  own limits. Integrated GPU power is not added to the CPU package twice.
+  1000/2000 X and Threadripper. With the stock thresholds, Ryzen 7000
+  (except 7000X3D) and 9000 desktop chips, 9000X3D included (which run at
+  95 °C by design), use 90/98 °C and the stress test stops at Tjmax + 3 °C;
+  integrated Radeon sensors share the CPU's limits, and GPU hot spot
+  (100/110 °C) and memory (95/105 °C) have their own. Integrated GPU power is
+  not added to the CPU package twice.
 - **X3D**: on dual-CCD Ryzen 9 X3D, nothing recommends High performance or
   turning core parking off, actions that would undo AMD's CCD parking (and
   game profiles that switch plans, removing Game Bar) warn first, and the
