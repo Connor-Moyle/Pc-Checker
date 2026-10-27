@@ -63,8 +63,10 @@ dotnet publish src/PcChecker.App/PcChecker.App.csproj -c Release -r win-x64 --se
 
 ## Releases and self-update
 
-A release is one file: a self-contained, compressed, single-file `PcChecker.exe` (win-x64, .NET 8 runtime
-included). There is no installer and no zip.
+A release is a self-contained, compressed, single-file `PcChecker.exe` (win-x64, .NET 8 runtime included) and the
+same for Windows on Arm, `PcChecker-arm64.exe` (published with `-r win-arm64` and renamed). There is no installer and
+no zip; *Install in Program Files* in Settings copies the exe to `C:\Program Files\PC Checker` when a protected
+location is needed.
 
 ```powershell
 dotnet publish src/PcChecker.App/PcChecker.App.csproj -c Release -r win-x64 --self-contained true `
@@ -72,7 +74,8 @@ dotnet publish src/PcChecker.App/PcChecker.App.csproj -c Release -r win-x64 --se
   -p:IncludeAllContentForSelfExtract=true -p:EnableCompressionInSingleFile=true -p:DebugType=None -o publish
 ```
 
-`build/publish.ps1` does the same locally and writes the SHA-256 next to the exe.
+For the Arm build use `-r win-arm64`. `build/publish.ps1` does the same locally and writes the SHA-256 next to the
+exe; `-Runtime win-arm64` publishes the Arm build.
 
 The app updates itself from GitHub Releases: it reads the releases list, picks the newest release for the chosen
 channel (Stable skips pre-releases), downloads the `PcChecker.exe` asset, verifies it against GitHub's asset

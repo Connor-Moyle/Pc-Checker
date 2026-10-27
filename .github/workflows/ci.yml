@@ -61,6 +61,16 @@ jobs:
           -p:VersionSuffix=ci.${{ github.run_number }}
           -o publish/win-x64
 
+      # The release also ships PcChecker-arm64.exe; publish it here so an Arm-only break shows up before a tag.
+      - name: Publish the Windows on Arm build (same as a release)
+        run: >
+          dotnet publish src/PcChecker.App/PcChecker.App.csproj
+          -c Release -r win-arm64 --self-contained true
+          -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:IncludeAllContentForSelfExtract=true -p:EnableCompressionInSingleFile=true -p:DebugType=None
+          -p:VersionSuffix=ci.${{ github.run_number }}
+          -o publish/win-arm64
+
       - name: Upload publish output
         uses: actions/upload-artifact@v4
         with:

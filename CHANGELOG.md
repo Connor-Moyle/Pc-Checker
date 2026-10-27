@@ -22,6 +22,8 @@ All notable changes to PC Checker are recorded here. The format follows
 ### Fixed
 - The message for an unsafe install folder no longer tells you to use an
   installer that does not exist.
+- The Arm build's self-update no longer checks its download against the x64
+  checksum from the release notes.
 
 ## [0.6.0] - 2026-10-27
 
