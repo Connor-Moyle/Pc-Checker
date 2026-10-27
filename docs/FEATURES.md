@@ -204,6 +204,87 @@ Limitations: protected processes and programs of other accounts may refuse
 to be ended or show no path, user or memory figure. The GPU column is empty
 when the graphics driver has no *GPU Engine* performance counters. CPU and
 disk figures are averages over the last refresh.
+
+### Services
+
+Every Windows service, with what it does and the safe actions a Task Manager
+user expects. The list is read through WMI (`Win32_Service`: structured and
+the same on non-English Windows), and changes go through the Service Control
+Manager APIs — never by parsing `sc.exe` text.
+
+- **Tiles**: how many services there are, how many are running, how many are
+  stopped, and how many come from other companies rather than Windows.
+- **Columns**: display name with the service name underneath and a lock icon
+  on core services, status (Running, Stopped, Paused…), startup type
+  (Automatic, Automatic (Delayed), Manual, Disabled), log-on account, PID,
+  group and whether it is a Windows or other-company service. The description
+  is in the tooltip and the selected-service card.
+- **Search and filters**: search the display name, service name, description
+  or PID; filter to Running, Stopped, Other companies only or Disabled.
+- **Actions** (right-click or the selected-service card): Start, Stop,
+  Restart, Pause and Continue where the service allows it; change the startup
+  type; open the Services console (`services.msc`); open the service's file;
+  search the name online; **Go to the process** (opens the Processes tab
+  filtered to that PID); and **Show dependencies** (what the service depends
+  on and what depends on it). A Restart stops the service and everything that
+  depends on it in order, then starts them again in reverse.
+- **Safety**: a built-in list of core services (Remote Procedure Call, DCOM,
+  Local Session Manager, WMI, Event Log, Plug and Play, Power, the Base
+  Filtering Engine, the firewall, Defender and more) can never be stopped or
+  set to Manual or Disabled, each with a one-line reason. Protection-related
+  services such as Windows Update warn before being disabled. A known
+  background service (updaters and peripheral helpers) gets a "safe to set to
+  Manual" note. Every change is confirmed and journaled through the change
+  guard with the previous startup type, so it can be undone from the Action
+  Journal.
+
+Limitations: the per-service group comes from the service's registry key and
+the dependency lists from the Service Control Manager, so either can be empty
+when a service does not record them. Setting Boot or System start types is
+not offered; those are driver load types.
+
+### Users
+
+Everyone signed in to this PC, read with the Remote Desktop Services (WTS)
+APIs, with the totals of what each person is running.
+
+- **Tile**: how many sessions are signed in.
+- **Columns**: user (with a *You* badge on your own session), session id,
+  state (Active, Connected, Disconnected…), that user's summed processor use
+  and memory, how many programs they are running, and when they signed in.
+- **Actions**: **Switch user** locks the PC and shows the sign-in screen so
+  someone else can sign in while your session stays open; **Disconnect** locks
+  another user's desktop but leaves their programs running; **Sign out**
+  closes another user's programs (confirmed first, needs administrator
+  rights); and **Send a message** shows a short message box on that user's
+  screen. To sign yourself out, PC Checker points you at Switch user or the
+  Start menu so you are not cut off part-way through something.
+
+Limitations: per-user processor use is measured over a short sample, so it is
+an estimate; the sign-in time is taken from the user's earliest process when
+Windows does not report it.
+
+### Replace Task Manager
+
+An option that makes PC Checker open in place of Windows Task Manager, exactly
+the way Sysinternals Process Explorer does it: through the Image File Execution
+Options *Debugger* value for `taskmgr.exe`. When Windows launches Task Manager
+(Ctrl+Shift+Esc, the taskbar menu, anywhere) it launches PC Checker with a
+`--taskmgr` switch instead, and PC Checker opens straight on the Processes tab.
+
+- **Where**: Settings → General, and the Processes page *More* menu.
+- **Only when installed safely**: the option is only available when PC Checker
+  runs from Program Files. A user-writable copy could let another program take
+  Task Manager's elevated slot, so the option stays off and explains why.
+- **Safe and reversible**: turning it on is confirmed and journaled; any value
+  that was there before is saved and put back when the option is turned off.
+- **Self-healing**: at every start PC Checker checks the value still points at
+  this copy; a leftover setting pointing at a PC Checker that no longer exists
+  (after an uninstall or move) is cleaned up automatically.
+- **Opening the real Task Manager**: because the redirection is what the option
+  does, Windows Task Manager only opens while the option is off; PC Checker
+  offers a one-click *Turn off and open Windows Task Manager* for that.
+
 ### History
 
 What the PC did over the last hour, day, week, month or three months.
