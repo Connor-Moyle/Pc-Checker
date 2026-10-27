@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using PcChecker.App.Services;
 using PcChecker.Core.Common;
 using PcChecker.Core.Performance;
+using PcChecker.Core.Restore;
 using PcChecker.Core.Settings;
 using PcChecker.Core.Startup;
 using Wpf.Ui;
@@ -88,6 +89,9 @@ public sealed partial class StartupViewModel : ViewModelBase
     public string AppsSummary => $"{EnabledAppCount} of {TotalAppCount} enabled";
     public string TasksSummary => $"{EnabledTaskCount} of {TaskCount} enabled";
 
+    /// <summary>Restore-point policy sentence for confirmations of guarded changes (remove, service start mode, fast startup).</summary>
+    private string RestorePointNote => RestorePointPolicyText.Note(Settings.Current.RestorePoints.CreateBeforeChanges);
+
     public override Task InitializeAsync(CancellationToken cancellationToken) => RefreshAsync(cancellationToken);
 
     public override Task RefreshAsync(CancellationToken cancellationToken) => RunBusyAsync(LoadAsync, "Reading startup apps, tasks, services and boot options…");
@@ -106,11 +110,12 @@ public sealed partial class StartupViewModel : ViewModelBase
         var services = await servicesTask;
         var boot = await bootTask;
 
+        // Impact descriptions stat each item's file on disk; keep that off the UI thread.
+        var rows = await Task.Run(
+            () => items.Select(item => new StartupItemRow(item, StartupImpactRules.Describe(item, StartupEnumerator.ProbeFileSize))).ToList(), ct);
+
         _allItems.Clear();
-        foreach (var item in items)
-        {
-            _allItems.Add(new StartupItemRow(item, StartupImpactRules.Describe(item, StartupEnumerator.ProbeFileSize)));
-        }
+        _allItems.AddRange(rows);
 
         foreach (var row in _allServices)
         {
@@ -252,7 +257,8 @@ public sealed partial class StartupViewModel : ViewModelBase
             $"Remove {row.Name} from startup?",
             $"This deletes the {what} so the program no longer starts with Windows. The program itself stays installed.\n\n"
             + "A copy of the entry is saved in your PC Checker backup folder so you can put it back. "
-            + "If you only want to stop it temporarily, use the toggle instead.",
+            + "If you only want to stop it temporarily, use the toggle instead.\n\n"
+            + RestorePointNote,
             "Remove", isDanger: true);
         if (!ok)
         {
@@ -397,7 +403,7 @@ public sealed partial class StartupViewModel : ViewModelBase
                 explanation += "\n\n" + message;
             }
 
-            bool ok = await _dialogs.ConfirmAsync($"Set {row.DisplayName} to {newMode}?", explanation + "\n\nYou can change it back here at any time.", "Change", isDanger: stopsAuto);
+            bool ok = await _dialogs.ConfirmAsync($"Set {row.DisplayName} to {newMode}?", explanation + "\n\nYou can change it back here at any time.\n" + RestorePointNote, "Change", isDanger: stopsAuto);
             if (!ok)
             {
                 row.SetStartModeSilently(oldMode);

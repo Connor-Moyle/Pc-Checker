@@ -29,7 +29,12 @@ public static class StartupEnumerator
         new(RegistryHive.CurrentUser, RegistryView.Default, RunOnceSubKey, StartupApprovedSubKey + @"\Run", @"HKCU\Software\Microsoft\Windows\CurrentVersion\RunOnce", true),
     ];
 
-    public static async Task<IReadOnlyList<StartupItem>> EnumerateAsync(CancellationToken cancellationToken)
+    public static Task<IReadOnlyList<StartupItem>> EnumerateAsync(CancellationToken cancellationToken) =>
+        // The registry walk and Startup-folder listing are synchronous; run the whole enumeration on the thread pool so a
+        // caller on the UI thread is never blocked by them.
+        Task.Run(() => EnumerateCoreAsync(cancellationToken), cancellationToken);
+
+    private static async Task<IReadOnlyList<StartupItem>> EnumerateCoreAsync(CancellationToken cancellationToken)
     {
         if (!PlatformGuard.IsWindows)
         {

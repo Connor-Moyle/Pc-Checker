@@ -106,6 +106,7 @@ public sealed partial class StartupViewModel
               + "Pros: faster boot after a shutdown.\nCons: a shutdown is no longer a full fresh start, some driver and update problems only clear after a restart, and dual-boot PCs may see disk errors on the other system."
             : "With fast startup off, every shutdown is a complete fresh start.\n\n"
               + "Pros: the cleanest start every time; safe for dual-boot; fixes odd problems after shutdown.\nCons: a cold boot takes a few seconds longer.";
+        message += "\n\n" + RestorePointNote;
         bool ok = await _dialogs.ConfirmAsync(target ? "Turn fast startup on?" : "Turn fast startup off?", message, target ? "Turn on" : "Turn off");
         if (!ok)
         {
