@@ -62,7 +62,16 @@ public partial class App : Application
             if (!createdNew)
             {
                 // The running copy may be hidden in the tray: ask it to come to the front instead of showing a message.
-                if (SendToRunningInstance(new PipeRequest(PipeCommand.Show, null)) != ScheduledJobPipe.ReplyOk)
+                // Opened in place of Task Manager: ask it to switch to Processes too (an older copy refuses; then just show it).
+                string? reply = options.TaskManagerLaunch
+                    ? SendToRunningInstance(new PipeRequest(PipeCommand.ShowProcesses, null))
+                    : null;
+                if (reply != ScheduledJobPipe.ReplyOk)
+                {
+                    reply = SendToRunningInstance(new PipeRequest(PipeCommand.Show, null));
+                }
+
+                if (reply != ScheduledJobPipe.ReplyOk)
                 {
                     MessageBox.Show("PC Checker is already running. Check the taskbar or system tray.", "PC Checker", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
@@ -113,6 +122,12 @@ public partial class App : Application
 
         StartGameProfiles();
         StartHistory();
+
+        // Launched in place of Windows Task Manager (the "Replace Task Manager" option): open on the Processes tab.
+        if (options.TaskManagerLaunch && !options.ScreenshotsRequested)
+        {
+            window.Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, new Action(NavigateToProcesses));
+        }
 
         if (options.ScreenshotsDirectory is { } directory)
         {
@@ -191,7 +206,13 @@ public partial class App : Application
         {
             var services = _services ?? throw new InvalidOperationException("Services are not built yet.");
             var runner = services.GetRequiredService<ScheduledRunner>();
-            runner.StartListening(tray is not null ? tray.ShowMainWindow : () => BringToFront(window));
+            Action show = tray is not null ? tray.ShowMainWindow : () => BringToFront(window);
+            runner.StartListening(show, () =>
+            {
+                // "show processes" from a second launch with --taskmgr: front window on the Processes tab.
+                show();
+                NavigateToProcesses();
+            });
             if (!AppOptions.Current.IsDemo)
             {
                 runner.CheckMovedTasksInBackground();
@@ -200,6 +221,18 @@ public partial class App : Application
         catch (Exception ex)
         {
             _logger?.LogWarning(ex, "The job pipe could not be started; scheduled jobs run in their own process.");
+        }
+    }
+
+    private void NavigateToProcesses()
+    {
+        try
+        {
+            _services?.GetRequiredService<Wpf.Ui.INavigationService>().Navigate(typeof(Views.Pages.ProcessesPage));
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Could not open the Processes tab for the Task Manager replacement.");
         }
     }
 

@@ -7,6 +7,36 @@ All notable changes to PC Checker are recorded here. The format follows
 ## [Unreleased]
 
 ### Added
+- **Task manager → Services**: every Windows service with its display name,
+  service name, description, status, startup type (Automatic, Automatic
+  (Delayed), Manual, Disabled), log-on account, PID and group; search and
+  filters (running, stopped, other companies only, disabled); start, stop,
+  restart, pause, continue and change the startup type; open the Services
+  console or the file, search online, go to the process, and show what the
+  service depends on and what depends on it. Core Windows services are locked
+  with a plain reason, a known background service gets a "safe to set to
+  Manual" note, and every action is confirmed and journaled; a startup-type
+  change records the previous type so it can be set back. Services are read
+  through WMI and changed through the Service Control Manager APIs, never by
+  parsing `sc.exe` text.
+- **Task manager → Users**: everyone signed in to the PC (user, session,
+  state, client and sign-in time) with each person's summed processor and
+  memory use; switch user (locks to the sign-in screen), disconnect, sign
+  another user out (confirmed, administrator) and send a short on-screen
+  message, using the Remote Desktop Services (WTS) APIs.
+- **Replace Task Manager**: an option in Settings → General and on the
+  Processes *More* menu that makes Ctrl+Shift+Esc and every other way of
+  opening Task Manager open PC Checker on the Processes tab instead, exactly
+  as Process Explorer does it, through the Image File Execution Options
+  Debugger value. It is only offered from a Program Files install (so a
+  user-writable copy cannot take Task Manager's elevated slot), is confirmed
+  and journaled with any previous value, and turning it off restores that
+  value. A leftover setting pointing at a PC Checker that no longer exists is
+  cleaned up automatically at the next start, and one pointing at another copy
+  is offered to be pointed at this one. *Open Windows Task Manager* on the
+  Processes *More* menu turns the option off and opens Task Manager. A new
+  `--taskmgr` command line opens straight on the Processes tab, also when PC
+  Checker is already running.
 - **PawnIO from inside the app**: the welcome has a ticked *Install PawnIO*
   choice, later starts ask once when the sensor driver is missing (*Install*,
   *Not now* for a week, or *Don't ask again*), and Settings → Monitoring has

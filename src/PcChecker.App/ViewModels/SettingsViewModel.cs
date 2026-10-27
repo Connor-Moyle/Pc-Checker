@@ -135,6 +135,7 @@ public sealed partial class SettingsViewModel : ViewModelBase
     {
         ShowUpdateResult(UpdatePrompter.LastResult);
         _ = RefreshPawnIoAsync();
+        RefreshTaskManagerReplacement();
         return RefreshScheduleStatusAsync(cancellationToken);
     }
 

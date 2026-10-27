@@ -701,6 +701,9 @@ public class SchedulingTests
         }
 
         Assert.Equal(new PipeRequest(PipeCommand.Show, null), ScheduledJobPipe.Parse(" SHOW "));
+        Assert.Equal(new PipeRequest(PipeCommand.ShowProcesses, null), ScheduledJobPipe.Parse(ScheduledJobPipe.Format(new PipeRequest(PipeCommand.ShowProcesses, null))));
+        Assert.Equal("show processes", ScheduledJobPipe.Format(new PipeRequest(PipeCommand.ShowProcesses, null)));
+        Assert.Null(ScheduledJobPipe.Parse("show settings"));
         Assert.Null(ScheduledJobPipe.Parse("run"));
         Assert.Null(ScheduledJobPipe.Parse("run format-c"));
         Assert.Null(ScheduledJobPipe.Parse(null));

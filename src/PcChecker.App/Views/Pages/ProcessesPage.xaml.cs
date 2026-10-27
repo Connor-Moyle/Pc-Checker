@@ -33,9 +33,26 @@ public partial class ProcessesPage
 
     public ProcessesViewModel ViewModel { get; }
 
-    private void OnLoaded(object sender, RoutedEventArgs e) => ViewModel.StartLive();
+    private void OnLoaded(object sender, RoutedEventArgs e)
+    {
+        ViewModel.SelectionRequested += OnSelectionRequested;
+        ViewModel.StartLive();
+        ViewModel.RefreshTaskManagerReplacement();
 
-    private void OnUnloaded(object sender, RoutedEventArgs e) => ViewModel.StopLive();
+        // Arrived from "Go to the process": show the selected row.
+        if (ViewModel.SelectedRow is { } selected)
+        {
+            Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded, () => ProcessGrid.ScrollIntoView(selected));
+        }
+    }
+
+    private void OnUnloaded(object sender, RoutedEventArgs e)
+    {
+        ViewModel.SelectionRequested -= OnSelectionRequested;
+        ViewModel.StopLive();
+    }
+
+    private void OnSelectionRequested(object? sender, RunningProcessRow row) => ProcessGrid.ScrollIntoView(row);
 
     /// <summary>Shows the grid columns that are ticked for the current view (the column's sort key is its id).</summary>
     private void ApplyColumns()

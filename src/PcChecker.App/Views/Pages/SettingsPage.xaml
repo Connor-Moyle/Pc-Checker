@@ -88,6 +88,21 @@
               </ui:CardControl.Header>
               <ui:ToggleSwitch IsChecked="{Binding AdvancedMode}" />
             </ui:CardControl>
+            <ui:CardControl Style="{StaticResource Row}" Icon="{ui:SymbolIcon TaskListLtr24}">
+              <ui:CardControl.Header>
+                <StackPanel>
+                  <ui:TextBlock Text="Open PC Checker instead of Windows Task Manager" />
+                  <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Text="{Binding TaskManagerReplacementHint}" />
+                </StackPanel>
+              </ui:CardControl.Header>
+              <StackPanel Orientation="Horizontal">
+                <ui:Button Content="Open this copy" Margin="0,0,12,0"
+                           Command="{Binding RepointTaskManagerReplacementCommand}"
+                           Visibility="{Binding TaskManagerPointsElsewhere, Converter={StaticResource BoolToVisibility}}"
+                           ToolTip="Make Task Manager open this copy of PC Checker instead of the other one (you confirm first)" />
+                <ui:ToggleSwitch IsChecked="{Binding IsTaskManagerReplaced}" IsEnabled="{Binding TaskManagerReplacementEligible}" />
+              </StackPanel>
+            </ui:CardControl>
             <ui:CardControl Style="{StaticResource Row}" Icon="{ui:SymbolIcon Heart24}">
               <ui:CardControl.Header>
                 <StackPanel>
