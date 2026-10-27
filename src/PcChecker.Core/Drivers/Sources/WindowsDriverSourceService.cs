@@ -2,6 +2,7 @@ using System.Management;
 using Microsoft.Extensions.Logging;
 using Microsoft.Win32;
 using PcChecker.Core.Common;
+using PcChecker.Core.Drivers.Platform;
 using PcChecker.Core.Hardware;
 using PcChecker.Core.Restore;
 using PcChecker.Core.Settings;
@@ -22,10 +23,12 @@ public sealed class WindowsDriverSourceService : IDriverSourceService
     private readonly ISettingsService _settings;
     private readonly ILogger<WindowsDriverSourceService> _logger;
     private readonly VendorPackageInstaller _installer;
+    private readonly IPcPlatformService? _platform;
 
     public WindowsDriverSourceService(IDriverService drivers, IHardwareInventoryService hardware, IChangeGuard changeGuard,
-        ISettingsService settings, ILogger<WindowsDriverSourceService> logger)
+        ISettingsService settings, ILogger<WindowsDriverSourceService> logger, IPcPlatformService? platform = null)
     {
+        _platform = platform;
         _drivers = drivers;
         _hardware = hardware;
         _settings = settings;
@@ -59,14 +62,23 @@ public sealed class WindowsDriverSourceService : IDriverSourceService
     {
         Task<string> Fetch(string url, CancellationToken ct) => VendorHttp.GetStringAsync(url, VendorDownloadRules.LookupHosts, ct);
         async Task<bool> Winget(CancellationToken ct) => await detector.FindWingetAsync(ct).ConfigureAwait(false) is not null;
-        return
-        [
+        var providers = new List<IDriverUpdateProvider>
+        {
             new WindowsUpdateDriverProvider(_drivers),
             new NvidiaDriverProvider(Fetch, _logger),
             new AmdDriverProvider(Fetch, ReadRadeonSoftwareVersions, _logger),
             new IntelDriverProvider(detector.DetectAsync, Winget),
             new PcMakerToolProvider(detector.DetectAsync, Winget),
-        ];
+        };
+        if (_platform is { } platform)
+        {
+            Task<PcPlatformReport> Report(bool online, CancellationToken ct) => platform.CheckAsync(online, false, null, ct);
+            providers.Add(new ChipsetDriverProvider(Report));
+            providers.Add(new DeviceMakerProvider(Report));
+            providers.Add(new MakerCatalogProvider(Report));
+        }
+
+        return providers;
     }
 
     public Task<OperationResult<VendorPackageInfo>> InspectPackageAsync(DriverOffer offer, CancellationToken cancellationToken)

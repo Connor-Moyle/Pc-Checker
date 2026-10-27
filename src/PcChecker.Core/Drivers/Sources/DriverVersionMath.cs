@@ -118,6 +118,12 @@ public static class DriverVersionMath
                 return IsAdrenalinVersion(offered) && IsAdrenalinVersion(installed) ? Math.Sign(VersionText.Compare(offered, installed)) : null;
             }
 
+            case DriverVersionScheme.Vendor:
+            {
+                var installed = device.InstalledVendorScheme == DriverVersionScheme.Vendor ? device.InstalledVendorVersion : null;
+                return Platform.VendorVersionText.Compare(offered, installed);
+            }
+
             default:
                 return null;
         }
@@ -143,6 +149,12 @@ public static class DriverVersionMath
         ArgumentNullException.ThrowIfNull(a);
         ArgumentNullException.ThrowIfNull(b);
         ArgumentNullException.ThrowIfNull(device);
+        if (a.Scheme == DriverVersionScheme.Vendor && b.Scheme == DriverVersionScheme.Vendor
+            && Platform.VendorVersionText.Compare(a.Version, b.Version) is { } vendor)
+        {
+            return vendor;
+        }
+
         if (ComparableKey(a, b.Scheme) is { } ka && ComparableKey(b, b.Scheme) is { } kb)
         {
             return Math.Sign(VersionText.Compare(ka, kb));
@@ -166,6 +178,12 @@ public static class DriverVersionMath
     {
         if (offer.Version is null || offer.Scheme == DriverVersionScheme.None || target == DriverVersionScheme.None)
         {
+            return null;
+        }
+
+        if (target == DriverVersionScheme.Vendor)
+        {
+            // Vendor numbers are compared by their own rules (CompareOffers handles two of them), not by VersionText.
             return null;
         }
 

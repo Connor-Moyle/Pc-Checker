@@ -8,6 +8,15 @@ public enum DriverSourceKind
     Amd,
     Intel,
     PcMaker,
+
+    /// <summary>The chipset driver from AMD (version checked) or Intel (linked).</summary>
+    Chipset,
+
+    /// <summary>Network, audio and Bluetooth makers (Intel, Realtek, Killer, MediaTek, Qualcomm): links to the right page.</summary>
+    DeviceMakers,
+
+    /// <summary>The PC maker's own machine-readable driver and BIOS catalog (Lenovo), read without an account.</summary>
+    MakerCatalog,
 }
 
 /// <summary>How a version string is written. Vendors number their packages differently from the Windows driver version.</summary>
@@ -24,6 +33,12 @@ public enum DriverVersionScheme
 
     /// <summary>No version (a page or a tool, not a package).</summary>
     None,
+
+    /// <summary>
+    /// A maker's own package or firmware number (AMD chipset 6.10.17.152, BIOS 2.A0, F23c), compared with
+    /// <see cref="PcChecker.Core.Drivers.Platform.VendorVersionText"/>.
+    /// </summary>
+    Vendor,
 }
 
 /// <summary>An offered version relative to the installed one.</summary>
@@ -135,6 +150,9 @@ public sealed record DriverOffer(
 
     /// <summary>The page the download link was read from (sent as the HTTP referrer, as a browser would).</summary>
     public string? ReferrerUrl { get; init; }
+
+    /// <summary>Who the offer comes from when it is more specific than <see cref="Source"/> (Realtek, Lenovo, MSI).</summary>
+    public string? SourceName { get; init; }
 
     /// <summary>Filled in by the merger: how this offer compares with what is installed.</summary>
     public DriverVersionComparison Comparison { get; init; } = DriverVersionComparison.Unknown;
