@@ -214,6 +214,22 @@ public sealed class LatencyActionsProvider : IOptimizationActionProvider
                 }
                 else
                 {
+                    // Targets that appeared since (a dock, a VPN, a second adapter) were not changed before, so their
+                    // current values are the originals: add them, or the revert would never put them back.
+                    var stored = _captured[action.Id];
+                    var added = previous.Where(p => p.Key.Contains('|') && !stored.ContainsKey(p.Key)).ToList();
+                    if (added.Count > 0)
+                    {
+                        var merged = new Dictionary<string, string?>(stored, StringComparer.OrdinalIgnoreCase);
+                        foreach (var (key, value) in added)
+                        {
+                            merged[key] = value;
+                        }
+
+                        _captured[action.Id] = merged;
+                        SaveCaptures();
+                    }
+
                     previous = _captured[action.Id];
                 }
             }
@@ -612,12 +628,33 @@ public sealed class LatencyActionsProvider : IOptimizationActionProvider
 
     private static OperationResult SetNagle(bool apply, IReadOnlyDictionary<string, string?>? previous)
     {
+        // A revert goes back over exactly the interfaces that were changed, even if they hold no address right now
+        // (a disconnected dock or VPN), and leaves interfaces it never changed alone. Only without a capture does it
+        // fall back to removing the values from the interfaces that are active now.
+        IReadOnlyList<string> captured = apply ? [] : LatencyCaptureStore.CapturedTargets(previous, LatencyProbes.TcpInterfacesKey, "TcpAckFrequency", "TCPNoDelay");
+        if (captured.Count > 0)
+        {
+            var existing = new HashSet<string>(LatencyProbes.SubKeyNames(RegistryHive.LocalMachine, LatencyProbes.TcpInterfacesKey), StringComparer.OrdinalIgnoreCase);
+            var present = captured.Where(key => existing.Contains(key[(key.LastIndexOf('\\') + 1)..])).ToList();
+            if (present.Count == 0)
+            {
+                return OperationResult.Ok("The network interfaces that were changed no longer exist, so there is nothing to restore.");
+            }
+
+            return SetNagleOn(present, apply, previous);
+        }
+
         var interfaces = ActiveTcpInterfaces();
         if (interfaces.Count == 0)
         {
             return OperationResult.Fail("No active network interfaces were found under Tcpip\\Parameters\\Interfaces.");
         }
 
+        return SetNagleOn(interfaces, apply, previous);
+    }
+
+    private static OperationResult SetNagleOn(IReadOnlyList<string> interfaces, bool apply, IReadOnlyDictionary<string, string?>? previous)
+    {
         foreach (var key in interfaces)
         {
             var result = apply

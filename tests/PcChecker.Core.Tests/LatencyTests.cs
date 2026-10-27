@@ -398,6 +398,33 @@ public class LatencyCaptureStoreTests
     }
 }
 
+public class LatencyCaptureTargetTests
+{
+    private const string Interfaces = @"SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces";
+
+    [Fact]
+    public void Captured_interfaces_are_listed_once_and_only_under_the_parent_key()
+    {
+        var capture = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+        {
+            [$@"{Interfaces}\{{AAA}}|TcpAckFrequency"] = null,
+            [$@"{Interfaces}\{{AAA}}|TCPNoDelay"] = "0",
+            [$@"{Interfaces}\{{BBB}}|tcpnodelay"] = null,
+            [$@"{Interfaces}\{{CCC}}|MTU"] = "1500",
+            [$@"{Interfaces}\{{DDD}}\Nested|TCPNoDelay"] = null,
+            [@"SOFTWARE\Other|TCPNoDelay"] = null,
+            ["AC"] = "1",
+        };
+
+        var targets = LatencyCaptureStore.CapturedTargets(capture, Interfaces, "TcpAckFrequency", "TCPNoDelay");
+        Assert.Equal(2, targets.Count);
+        Assert.Contains($@"{Interfaces}\{{AAA}}", targets);
+        Assert.Contains($@"{Interfaces}\{{BBB}}", targets);
+        Assert.Empty(LatencyCaptureStore.CapturedTargets(null, Interfaces, "TCPNoDelay"));
+        Assert.Empty(LatencyCaptureStore.CapturedTargets(capture, Interfaces));
+    }
+}
+
 public class LatencyPowerSchemeTests
 {
     [Theory]

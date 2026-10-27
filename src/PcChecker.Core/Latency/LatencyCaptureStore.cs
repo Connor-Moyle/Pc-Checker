@@ -76,6 +76,39 @@ public static class LatencyCaptureStore
         File.Move(temp, path, overwrite: true);
     }
 
+    /// <summary>
+    /// The targets (registry key paths) a capture recorded as "target|valueName" keys for any of
+    /// <paramref name="valueNames"/>, limited to keys under <paramref name="parentKey"/>, without duplicates. Pure.
+    /// </summary>
+    public static IReadOnlyList<string> CapturedTargets(IReadOnlyDictionary<string, string?>? capture, string parentKey, params string[] valueNames)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(parentKey);
+        if (capture is null || valueNames is null || valueNames.Length == 0)
+        {
+            return [];
+        }
+
+        var prefix = parentKey.TrimEnd('\\') + "\\";
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var targets = new List<string>();
+        foreach (var key in capture.Keys)
+        {
+            int bar = key.LastIndexOf('|');
+            if (bar <= prefix.Length || !valueNames.Contains(key[(bar + 1)..], StringComparer.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var target = key[..bar];
+            if (target.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) && !target[prefix.Length..].Contains('\\') && seen.Add(target))
+            {
+                targets.Add(target);
+            }
+        }
+
+        return targets;
+    }
+
     /// <summary>Returns the captures recorded at <paramref name="path"/>, or an empty map when there are none or the file is unreadable.</summary>
     public static Dictionary<string, IReadOnlyDictionary<string, string?>> TryRead(string path)
     {
