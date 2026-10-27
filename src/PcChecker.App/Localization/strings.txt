@@ -2455,6 +2455,7 @@ system restore frequency limit
 System Restore point created before this change
 Target
 Task
+Task manager
 Task path
 Task Scheduler
 task scheduler daily weekly automatic jobs
