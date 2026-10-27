@@ -62,7 +62,7 @@ public sealed partial class SoftwareViewModel
 
         if (!row.CanUninstall)
         {
-            await _dialogs.ShowMessageAsync("Cannot uninstall " + row.Name, row.UninstallReason);
+            await _dialogs.ShowMessageAsync(Loc.F("Cannot uninstall {0}", row.Name), row.UninstallReason);
             return;
         }
 
@@ -70,23 +70,32 @@ public sealed partial class SoftwareViewModel
         bool allUsers = row.IsStoreApp && IsAdvancedMode && RemoveStoreAppsForAllUsers;
         var mode = row.IsStoreApp
             ? allUsers
-                ? "The Store app will be removed with Windows' package manager for ALL user accounts on this PC (\"Remove Store apps for all users\" is on); no installer window appears."
-                : "The Store app will be removed with Windows' package manager from your account only; other accounts on this PC keep it. No installer window appears."
+                ? Loc.T("The Store app will be removed with Windows' package manager for ALL user accounts on this PC (\"Remove Store apps for all users\" is on); no installer window appears.")
+                : Loc.T("The Store app will be removed with Windows' package manager from your account only; other accounts on this PC keep it. No installer window appears.")
             : quiet
-                ? "Quiet uninstall is on: the program's own uninstaller runs with its silent switches, so you will not see its windows. Some uninstallers ignore this and show prompts anyway."
+                ? Loc.T("Quiet uninstall is on: the program's own uninstaller runs with its silent switches, so you will not see its windows. Some uninstallers ignore this and show prompts anyway.")
                 : QuietUninstall
-                    ? "This program's uninstaller has no known silent switch, so its window will open and you follow its prompts."
-                    : "Quiet uninstall is off: the program's own uninstaller opens and you follow its prompts.";
+                    ? Loc.T("This program's uninstaller has no known silent switch, so its window will open and you follow its prompts.")
+                    : Loc.T("Quiet uninstall is off: the program's own uninstaller opens and you follow its prompts.");
         var restore = Settings.Current.RestorePoints.CreateBeforeChanges
-            ? "A restore point is created first (per your settings)."
-            : "No restore point will be created (per your settings).";
-        var message = $"Remove {row.Name}{(row.Publisher == "—" ? string.Empty : " by " + row.Publisher)} from this PC?\n\n{mode}\n\n{restore}\n\nThis cannot be undone from PC Checker; you would need to reinstall it from the vendor.";
-        if (row.IsProtected)
+            ? Loc.T("A restore point is created first (per your settings).")
+            : Loc.T("No restore point will be created (per your settings).");
+        var question = row.Publisher == "—"
+            ? Loc.F("Remove {0} from this PC?", row.Name)
+            : Loc.F("Remove {0} by {1} from this PC?", row.Name, row.Publisher);
+        var message = $"{question}\n\n{mode}\n\n{restore}\n\n" + Loc.T("This cannot be undone from PC Checker; you would need to reinstall it from the vendor.");
+        if (!row.IsStoreApp && UninstallCommandBuilder.Build(row.Program, quiet) is { } command
+            && UninstallElevationRules.UnelevatedReason(row.Program, command.FileName) is { } unelevated)
         {
-            message += "\n\nThis program is protected: " + row.ProtectionReason + " Advanced mode allows the override, but only continue if you are sure.";
+            message += "\n\n" + Loc.F("Its uninstaller runs with your normal rights, not as administrator. {0} If it needs more, Windows asks you first.", Loc.T(unelevated));
         }
 
-        if (!await _dialogs.ConfirmAsync("Uninstall " + row.Name, message, "Uninstall", isDanger: true))
+        if (row.IsProtected)
+        {
+            message += "\n\n" + Loc.F("This program is protected: {0} Advanced mode allows the override, but only continue if you are sure.", row.ProtectionReason);
+        }
+
+        if (!await _dialogs.ConfirmAsync(Loc.F("Uninstall {0}", row.Name), message, Loc.T("Uninstall"), isDanger: true))
         {
             return;
         }
@@ -95,7 +104,7 @@ public sealed partial class SoftwareViewModel
         {
             var progress = new Progress<ProgressUpdate>(p => BusyText = p.Detail is null ? p.Stage + "…" : $"{p.Stage}…\n{p.Detail}");
             var result = await _uninstaller.UninstallAsync(row.Program, new UninstallOptions(quiet, allUsers), progress, ct);
-            ReportResult(result, "Uninstall");
+            ReportResult(result, Loc.T("Uninstall"));
             if (result.Success)
             {
                 // Store apps are removed whole by Windows; for other programs offer a look for what the uninstaller left.
@@ -104,7 +113,7 @@ public sealed partial class SoftwareViewModel
                     : new LeftoverFocus(row.Program.Name, row.Program.Publisher, row.Program.InstallLocation, row.Program.Id);
                 ApplyScan(await _inventory.ScanAsync(progress, ct));
             }
-        }, $"Uninstalling {row.Name}…", cancellable: false);
+        }, Loc.F("Uninstalling {0}…", row.Name), cancellable: false);
     }
 
     [RelayCommand]
@@ -116,10 +125,12 @@ public sealed partial class SoftwareViewModel
         }
 
         var names = string.Join("\n • ", bundle.Removable.Select(c => c.Name));
-        var message = $"These were installed alongside {bundle.ParentName} ({bundle.Reason}):\n\n • {names}\n\n{bundle.ParentName} itself stays. Each extra is removed with its own uninstaller"
-            + (QuietUninstall ? " quietly where possible." : "; follow each uninstaller's prompts.")
-            + "\n\nThis cannot be undone from PC Checker.";
-        if (!await _dialogs.ConfirmAsync("Uninstall the extras?", message, "Uninstall extras", isDanger: true))
+        var message = Loc.F("These were installed alongside {0} ({1}):", bundle.ParentName, bundle.Reason) + $"\n\n • {names}\n\n"
+            + (QuietUninstall
+                ? Loc.F("{0} itself stays. Each extra is removed with its own uninstaller quietly where possible.", bundle.ParentName)
+                : Loc.F("{0} itself stays. Each extra is removed with its own uninstaller; follow each uninstaller's prompts.", bundle.ParentName))
+            + "\n\n" + Loc.T("This cannot be undone from PC Checker.");
+        if (!await _dialogs.ConfirmAsync(Loc.T("Uninstall the extras?"), message, Loc.T("Uninstall extras"), isDanger: true))
         {
             return;
         }
@@ -130,12 +141,12 @@ public sealed partial class SoftwareViewModel
             foreach (var child in bundle.Removable)
             {
                 ct.ThrowIfCancellationRequested();
-                BusyText = $"Uninstalling {child.Name}…";
+                BusyText = Loc.F("Uninstalling {0}…", child.Name);
                 var verdict = _uninstaller.CanUninstall(child.Program);
                 if (!verdict.CanUninstall)
                 {
                     failed++;
-                    _notifications.Warning("Skipped " + child.Name, verdict.Reason);
+                    _notifications.Warning(Loc.F("Skipped {0}", child.Name), verdict.Reason);
                     continue;
                 }
 
@@ -147,13 +158,13 @@ public sealed partial class SoftwareViewModel
                 else
                 {
                     failed++;
-                    _notifications.Error("Could not uninstall " + child.Name, result.Message);
+                    _notifications.Error(Loc.F("Could not uninstall {0}", child.Name), result.Message);
                 }
             }
 
-            _notifications.Show("Bundle clean-up finished", $"{ok} removed, {failed} skipped or failed.", failed == 0 ? NotificationKind.Success : NotificationKind.Warning);
+            _notifications.Show(Loc.T("Bundle clean-up finished"), Loc.F("{0} removed, {1} skipped or failed.", ok, failed), failed == 0 ? NotificationKind.Success : NotificationKind.Warning);
             ApplyScan(await _inventory.ScanAsync(null, ct));
-        }, "Uninstalling bundled extras…");
+        }, Loc.T("Uninstalling bundled extras…"));
     }
 
     /// <summary>
@@ -185,12 +196,12 @@ public sealed partial class SoftwareViewModel
 
         int stillUnknown = updated.Count(p => p.SizeBytes is null or 0);
         ApplyInventory(current with { Programs = updated, Bundles = RelinkBundles(current.Bundles, updated) });
-        _notifications.Info("Sizes measured", measured > 0
-            ? $"{measured} more programs now have a size." + (stillUnknown > 0 ? $" {stillUnknown} have no install folder to measure." : string.Empty)
+        _notifications.Info(Loc.T("Sizes measured"), measured > 0
+            ? Loc.F("{0} more programs now have a size.", measured) + (stillUnknown > 0 ? " " + Loc.F("{0} have no install folder to measure.", stillUnknown) : string.Empty)
             : stillUnknown > 0
-                ? "No new sizes: the remaining entries have no install folder to measure."
-                : "Every entry already has a size.");
-    }, "Measuring install folders…");
+                ? Loc.T("No new sizes: the remaining entries have no install folder to measure.")
+                : Loc.T("Every entry already has a size."));
+    }, Loc.T("Measuring install folders…"));
 
     [RelayCommand]
     private async Task ExportCsvAsync()
@@ -198,11 +209,11 @@ public sealed partial class SoftwareViewModel
         var current = _current;
         if (current is null || current.Programs.Count == 0)
         {
-            _notifications.Warning("Nothing to export", "Scan for installed programs first.");
+            _notifications.Warning(Loc.T("Nothing to export"), Loc.T("Scan for installed programs first."));
             return;
         }
 
-        var path = await _dialogs.SaveFileAsync("Export installed programs", $"installed-programs-{DateTime.Now:yyyyMMdd}.csv", "CSV files|*.csv|All files|*.*");
+        var path = await _dialogs.SaveFileAsync(Loc.T("Export installed programs"), $"installed-programs-{DateTime.Now:yyyyMMdd}.csv", "CSV files|*.csv|All files|*.*");
         if (path is null)
         {
             return;
@@ -211,12 +222,12 @@ public sealed partial class SoftwareViewModel
         try
         {
             await File.WriteAllTextAsync(path, SoftwareCsvExporter.Build(current.Programs), System.Text.Encoding.UTF8);
-            _notifications.Success("Exported", $"{current.Programs.Count} entries written to {Path.GetFileName(path)}.");
+            _notifications.Success(Loc.T("Exported"), Loc.F("{0} entries written to {1}.", current.Programs.Count, Path.GetFileName(path)));
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "CSV export failed.");
-            ErrorMessage = "The CSV file could not be written: " + ex.Message;
+            ErrorMessage = Loc.T("The CSV file could not be written:") + " " + ex.Message;
         }
     }
 
@@ -231,7 +242,7 @@ public sealed partial class SoftwareViewModel
         var result = ShellLauncher.Open(row.Location);
         if (!result.Success)
         {
-            _notifications.Warning("Folder not opened", result.Message);
+            _notifications.Warning(Loc.T("Folder not opened"), result.Message);
         }
     }
 
@@ -252,7 +263,7 @@ public sealed partial class SoftwareViewModel
         var result = ShellLauncher.Open(url);
         if (!result.Success)
         {
-            _notifications.Warning("Page not opened", result.Message);
+            _notifications.Warning(Loc.T("Page not opened"), result.Message);
         }
     }
 
@@ -279,9 +290,9 @@ public sealed partial class SoftwareViewModel
             }
 
             WingetUpgradeCount = WingetUpgrades.Count;
-            WingetStatus = result.Note ?? (result.Upgrades.Count == 1 ? "1 program has a newer version available." : $"{result.Upgrades.Count} programs have newer versions available.");
+            WingetStatus = result.Note ?? (result.Upgrades.Count == 1 ? Loc.T("1 program has a newer version available.") : Loc.F("{0} programs have newer versions available.", result.Upgrades.Count));
         });
-    }, "Asking winget for available upgrades…");
+    }, Loc.T("Asking winget for available upgrades…"));
 
     [RelayCommand]
     private void OpenWingetUpgradeHelp()
@@ -289,7 +300,7 @@ public sealed partial class SoftwareViewModel
         var result = ShellLauncher.Open("https://learn.microsoft.com/windows/package-manager/winget/upgrade");
         if (!result.Success)
         {
-            _notifications.Warning("Page not opened", result.Message);
+            _notifications.Warning(Loc.T("Page not opened"), result.Message);
         }
     }
 
@@ -297,7 +308,7 @@ public sealed partial class SoftwareViewModel
     {
         if (result.Success)
         {
-            _notifications.Show(action + " finished", result.Message + (result.RebootRequired ? " A restart is needed to finish." : string.Empty),
+            _notifications.Show(Loc.F("{0} finished", Loc.T(action)), result.Message + (result.RebootRequired ? " " + Loc.T("A restart is needed to finish.") : string.Empty),
                 result.RebootRequired ? NotificationKind.Warning : NotificationKind.Success);
         }
         else

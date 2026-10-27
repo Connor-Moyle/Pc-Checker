@@ -97,6 +97,11 @@ public sealed class WindowsUninstallService : IUninstallService
         _logger.LogInformation("Running uninstaller for {Program}: {File} {Args}", program.Name, file, args);
         progress?.Report(new ProgressUpdate(quiet ? "Uninstalling quietly" : "Running the uninstaller", 20, program.Name));
 
+        if (UninstallElevationRules.UnelevatedReason(program, file) is { } unelevated)
+        {
+            return await RunUnelevatedAsync(program, file, args, quiet, unelevated, progress, cancellationToken).ConfigureAwait(false);
+        }
+
         var run = await UninstallProcessRunner.RunAsync(file, args, quiet, progress, cancellationToken).ConfigureAwait(false);
         if (!run.Success)
         {
@@ -135,6 +140,32 @@ public sealed class WindowsUninstallService : IUninstallService
         }
 
         return mapped with { Message = mapped.Message + " Its registry entry is still present; it may disappear after a restart or the uninstaller may have been cancelled." };
+    }
+
+    /// <summary>
+    /// Per-user and user-writable uninstallers run with the signed-in user's normal rights (see
+    /// <see cref="UninstallElevationRules"/>). Their exit code cannot be read, so success means the entry is gone.
+    /// </summary>
+    private async Task<OperationResult> RunUnelevatedAsync(InstalledProgram program, string file, string args, bool quiet, string reason,
+        IProgress<ProgressUpdate>? progress, CancellationToken cancellationToken)
+    {
+        _logger.LogInformation("Starting the uninstaller for {Program} without administrator rights: {Reason}", program.Name, reason);
+        var run = await UninstallProcessRunner.RunUnelevatedAsync(file, args, progress, cancellationToken).ConfigureAwait(false);
+        if (!run.Success)
+        {
+            return run;
+        }
+
+        progress?.Report(new ProgressUpdate("Checking the program is gone", 90, program.Name));
+        var gone = await UninstallCompletionWaiter.WaitUntilGoneAsync(
+            () => RegistryUninstallReader.KeyExists(program.RegistryKey),
+            UninstallCompletionWaiter.GraceFor(program.Installer, quiet),
+            UninstallCompletionWaiter.DefaultInterval,
+            cancellationToken).ConfigureAwait(false);
+        return gone
+            ? UninstallExitCodes.Map(UninstallExitCodes.Success, program.Name)
+            : OperationResult.Fail($"The uninstaller for {program.Name} was started with your normal rights but {program.Name} is still registered. "
+                                   + "If you cancelled it, nothing was removed; otherwise it may still be finishing, so scan again in a minute.");
     }
 
     /// <param name="allUsers">Remove the package from every account (an explicit per-uninstall choice, never inferred from a global toggle).</param>
