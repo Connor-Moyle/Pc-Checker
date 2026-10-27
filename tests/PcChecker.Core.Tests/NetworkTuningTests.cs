@@ -291,6 +291,19 @@ public class NetshCommandBuilderTests
         Assert.Null(NetshCommandBuilder.SetProfileOrder("Home", "Wi-Fi", 0));
         Assert.Null(NetshCommandBuilder.SetCost("Line\nBreak", true, null));
     }
+
+    [Fact]
+    public void Refuses_wildcards_and_trailing_backslashes_so_one_forget_cannot_delete_every_network()
+    {
+        Assert.Null(NetshCommandBuilder.DeleteProfile("*", "Wi-Fi"));
+        Assert.Null(NetshCommandBuilder.DeleteProfile("Guest*", null));
+        Assert.Null(NetshCommandBuilder.DeleteProfile("Home", "*"));
+        Assert.Null(NetshCommandBuilder.DeleteProfile("Home\\", null));
+        Assert.Null(NetshCommandBuilder.ExportProfile("*", @"C:\Backups", null));
+        Assert.Null(NetshCommandBuilder.ShowProfile("*"));
+        Assert.Equal("wlan delete profile name=\"Back\\slash\"", NetshCommandBuilder.DeleteProfile("Back\\slash", null));
+        Assert.Equal("wlan export profile name=\"Home\" folder=\"C:\\Backups\"", NetshCommandBuilder.ExportProfile("Home", @"C:\Backups\", null));
+    }
 }
 
 public class NetworkTuningCatalogTests

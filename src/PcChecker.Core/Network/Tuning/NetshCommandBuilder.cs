@@ -2,7 +2,9 @@ namespace PcChecker.Core.Network.Tuning;
 
 /// <summary>
 /// Builds <c>netsh wlan</c> argument strings. Profile and interface names are quoted; names netsh cannot take
-/// safely (double quotes, control characters, empty, very long) are refused with null. Pure.
+/// safely (double quotes, control characters, empty, very long) are refused with null, and so are names with a
+/// <c>*</c> (netsh reads <c>name="*"</c> as "every profile", so forgetting one network would delete them all) or a
+/// trailing backslash (<c>\"</c> turns the closing quote into a literal one). Pure.
 /// </summary>
 public static class NetshCommandBuilder
 {
@@ -12,7 +14,9 @@ public static class NetshCommandBuilder
         !string.IsNullOrWhiteSpace(name)
         && name.Length <= MaxNameLength
         && !name.Contains('"')
-        && !name.Any(char.IsControl);
+        && !name.Any(char.IsControl)
+        && !name.Contains('*')
+        && !name.EndsWith('\\');
 
     public static string? ShowProfile(string name) =>
         IsSafeName(name) ? $"wlan show profile name=\"{name}\"" : null;
@@ -37,8 +41,8 @@ public static class NetshCommandBuilder
 
     /// <summary>Exports the profile to a folder; the password stays encrypted (no key=clear) and only this PC can read it back.</summary>
     public static string? ExportProfile(string name, string folder, string? interfaceName) =>
-        IsSafeName(name) && OptionalSafe(interfaceName) && IsSafePath(folder)
-            ? $"wlan export profile name=\"{name}\" folder=\"{folder.TrimEnd('\\')}\"{Interface(interfaceName)}"
+        IsSafeName(name) && OptionalSafe(interfaceName) && IsSafePath(folder?.TrimEnd('\\'))
+            ? $"wlan export profile name=\"{name}\" folder=\"{folder!.TrimEnd('\\')}\"{Interface(interfaceName)}"
             : null;
 
     public static string? AddProfile(string fileName) =>
@@ -47,6 +51,5 @@ public static class NetshCommandBuilder
     private static bool OptionalSafe(string? name) => string.IsNullOrEmpty(name) || IsSafeName(name);
 
     private static bool IsSafePath(string? path) => IsSafeName(path) && path!.Length <= 260;
-
     private static string Interface(string? name) => string.IsNullOrEmpty(name) ? string.Empty : $" interface=\"{name}\"";
 }
