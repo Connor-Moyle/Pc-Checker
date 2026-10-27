@@ -506,6 +506,21 @@ public class FansTests : IDisposable
     }
 
     [Fact]
+    public async Task Startup_detects_the_fans_so_the_dashboard_and_tray_can_use_them()
+    {
+        // No marker and "apply on startup" off: the startup work still detects the fans once.
+        var fake = new FakeGpuFanHost();
+        using var sensors = new DemoSensorService();
+        using var svc = new LibreHardwareFanControlService(fake, sensors, new FakeSettingsService(_dir), new PassThroughGuard(),
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<LibreHardwareFanControlService>.Instance);
+        Assert.False(svc.IsAvailable);
+
+        Assert.Empty(await svc.RunStartupAsync(CancellationToken.None));
+        Assert.True(svc.IsAvailable);
+        Assert.Null(svc.UnavailableReason);
+    }
+
+    [Fact]
     public async Task A_fan_that_refuses_to_go_back_to_automatic_stays_watched_and_is_retried()
     {
         var fake = new FakeGpuFanHost { RefuseDefault = true };
