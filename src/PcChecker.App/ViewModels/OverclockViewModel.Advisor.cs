@@ -78,8 +78,11 @@ public sealed partial class OverclockViewModel
 
         StressMinutes = Math.Clamp(step.Step.StressSeconds / 60.0, 0.5, 30);
         SelectedStressTarget = step.Step.Target.CpuAllCoreRatio is not null || step.Step.Target.CpuVoltageOffsetMv is not null ? StressTarget.Both : StressTarget.Gpu;
+        // StartStress returns without running when the dialog is cancelled or the battery check refuses; then the
+        // result is still the one of an earlier, unrelated test and must not mark this step.
+        var before = StressResult;
         await StartStressCommand.ExecuteAsync(null);
-        if (StressResult is { } r)
+        if (StressResult is { } r && !ReferenceEquals(r, before))
         {
             step.IsApplied = r.Passed;
             step.ResultText = r.Passed ? "Stress test passed" : r.AbortedByWatchdog ? "Aborted by the watchdog" : "Stress test failed";
