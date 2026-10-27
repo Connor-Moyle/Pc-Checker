@@ -1,6 +1,7 @@
 using LibreHardwareMonitor.Hardware;
 using Microsoft.Extensions.Logging;
 using PcChecker.Core.Common;
+using PcChecker.Core.Sensors.PawnIo;
 using PcChecker.Core.Settings;
 using PcChecker.Core.Storage;
 
@@ -15,13 +16,6 @@ namespace PcChecker.Core.Sensors;
 public sealed class LibreHardwareSensorService : ISensorService, IHardwareMonitorHost, ISensorServiceExtras, IDisposable
 {
     private const string AdminHint = "Make sure PC Checker runs as administrator, that the PawnIO driver is installed and that no other monitoring tool holds the hardware.";
-
-    /// <summary>
-    /// Shown when PawnIO is missing. LibreHardwareMonitor reads the CPU and the motherboard sensor chip only through the
-    /// signed PawnIO driver (it no longer bundles WinRing0, which Microsoft Defender quarantines), and it does not install it.
-    /// </summary>
-    internal const string PawnIoMissing = "The PawnIO driver is not installed, so CPU temperatures and the motherboard sensor chip (case and CPU fan headers, VRM and chipset readings) cannot be read. "
-        + "Install PawnIO from https://pawnio.eu (or run \"winget install namazso.PawnIO\"), then restart PC Checker.";
 
     private readonly ISettingsService _settings;
     private readonly ILogger<LibreHardwareSensorService> _logger;
@@ -39,6 +33,7 @@ public sealed class LibreHardwareSensorService : ISensorService, IHardwareMonito
     private CancellationTokenSource? _loopCts;
     private Task? _loopTask;
     private int _historyCapacity;
+    private int _generation;
 
     public LibreHardwareSensorService(ISettingsService settings, ILogger<LibreHardwareSensorService> logger)
     {
@@ -66,7 +61,9 @@ public sealed class LibreHardwareSensorService : ISensorService, IHardwareMonito
 
     public bool IsOpen => _isOpen;
 
-    public string? DriverProblem => PlatformGuard.IsWindows && !IsPawnIoInstalled() ? PawnIoMissing : null;
+    public int Generation => Volatile.Read(ref _generation);
+
+    public string? DriverProblem => DescribeDriverProblem(ProbePawnIo());
 
     public string? OpenError => _isOpen ? null : _openError;
 
@@ -184,6 +181,18 @@ public sealed class LibreHardwareSensorService : ISensorService, IHardwareMonito
         return Task.Run(OpenComputer, cancellationToken);
     }
 
+    public Task<bool> ReopenAsync(CancellationToken cancellationToken) => Task.Run(() =>
+    {
+        // Under the computer lock: the poll loop and the fan loop never see a half-closed monitor.
+        lock (_computerLock)
+        {
+            CloseComputer();
+            OpenComputer();
+            _logger.LogInformation("Hardware monitor re-opened (generation {Generation}); open: {Open}.", Generation, _isOpen);
+            return _isOpen;
+        }
+    }, cancellationToken);
+
     public T? WithComputer<T>(Func<IComputer, T> func)
     {
         ArgumentNullException.ThrowIfNull(func);
@@ -295,6 +304,7 @@ public sealed class LibreHardwareSensorService : ISensorService, IHardwareMonito
                 _computer = computer;
                 _isOpen = true;
                 _openError = null;
+                Interlocked.Increment(ref _generation);
                 BuildWarnings(computer);
                 _logger.LogInformation("LibreHardwareMonitor opened with {Count} hardware items.", computer.Hardware.Count);
             }
@@ -338,40 +348,27 @@ public sealed class LibreHardwareSensorService : ISensorService, IHardwareMonito
 
     private void BuildWarnings(Computer computer)
     {
-        var notes = new List<string>();
-        bool hasCpuTemp = false, hasMotherboard = false, hasGpu = false;
+        bool hasCpuTemp = false, hasMotherboard = false, hasMotherboardChip = false, hasGpu = false;
         foreach (var hardware in computer.Hardware)
         {
             var kind = SensorMapping.ToHardwareKind(hardware.HardwareType);
-            hasMotherboard |= kind == HardwareKind.Motherboard;
             hasGpu |= kind == HardwareKind.Gpu;
+            if (kind == HardwareKind.Motherboard)
+            {
+                hasMotherboard = true;
+
+                // The motherboard node itself has no sensors: its Super I/O chip and embedded controller are sub-hardware,
+                // and they only appear when the chip could be read (through PawnIO).
+                hasMotherboardChip |= hardware.SubHardware.Any(sub => sub.Sensors.Length > 0);
+            }
+
             if (kind == HardwareKind.Cpu && EnumerateSensors(hardware).Any(s => s.SensorType == SensorType.Temperature))
             {
                 hasCpuTemp = true;
             }
         }
 
-        string? driverProblem = DriverProblem;
-        if (driverProblem is not null)
-        {
-            notes.Add(driverProblem);
-        }
-
-        if (!hasCpuTemp)
-        {
-            notes.Add("No CPU temperature sensor was found. " + (driverProblem is null ? AdminHint : "Install PawnIO (see above)."));
-        }
-
-        if (!hasMotherboard)
-        {
-            notes.Add("No motherboard sensor chip was detected, so VRM, chipset and case fan readings are not available on this board.");
-        }
-
-        if (!hasGpu)
-        {
-            notes.Add("No graphics card sensors were found. Install the latest graphics driver if a dedicated GPU is present.");
-        }
-
+        var notes = SensorWarnings.Build(hasCpuTemp, hasMotherboard, hasMotherboardChip, hasGpu, DriverProblem, AdminHint);
         lock (_stateLock)
         {
             _warnings.Clear();
@@ -379,19 +376,21 @@ public sealed class LibreHardwareSensorService : ISensorService, IHardwareMonito
         }
     }
 
-    private bool IsPawnIoInstalled()
+    private PawnIoStatus ProbePawnIo()
     {
         try
         {
-            return LibreHardwareMonitor.PawnIo.PawnIo.IsInstalled;
+            return PlatformGuard.IsWindows ? PawnIoProbe.Probe() : PawnIoStatus.NotSupported;
         }
         catch (Exception ex)
         {
-            // Could not read the uninstall entry: do not claim the driver is missing.
+            // Could not check: do not claim the driver is missing.
             _logger.LogDebug(ex, "Could not check whether PawnIO is installed.");
-            return true;
+            return new PawnIoStatus(PawnIoState.Unknown, null, null, null);
         }
     }
+
+    private static string? DescribeDriverProblem(PawnIoStatus status) => SensorWarnings.DriverProblem(status.State);
 
     private void Poll()
     {

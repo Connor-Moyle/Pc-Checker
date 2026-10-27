@@ -19,7 +19,19 @@ public interface IHardwareMonitorHost
     /// </summary>
     string? DriverProblem => null;
 
+    /// <summary>
+    /// Goes up by one every time the monitor is (re)opened. Sensor and control objects from an older generation belong to
+    /// a closed monitor: callers that keep them (the fan service) must detect their hardware again.
+    /// </summary>
+    int Generation => 0;
+
     Task EnsureOpenAsync(CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Closes and re-opens the monitor, so a driver installed meanwhile (PawnIO) is picked up without restarting the app.
+    /// Closing hands every fan the monitor changed back to the firmware. Returns true when it is open again.
+    /// </summary>
+    Task<bool> ReopenAsync(CancellationToken cancellationToken) => Task.FromResult(false);
 
     /// <summary>Runs <paramref name="func"/> against the computer under the host's lock; returns default when closed.</summary>
     T? WithComputer<T>(Func<IComputer, T> func);
