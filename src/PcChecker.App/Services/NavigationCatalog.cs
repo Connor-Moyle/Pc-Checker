@@ -31,7 +31,7 @@ public static class NavigationCatalog
         Section("Monitor", SymbolRegular.Temperature24,
             Page("Temperatures", "temperatures", typeof(SensorsPage)),
             Page("Power", "power", typeof(PowerPage)),
-            Page("Processes", "processes", typeof(ProcessesPage))),
+            Page("Processes", "processes", typeof(ProcessesPage)),
             Page("History", "history", typeof(HistoryPage))),
         Section("Hardware", SymbolRegular.DeveloperBoard24,
             Page("Overview", "hardware", typeof(HardwarePage)),
