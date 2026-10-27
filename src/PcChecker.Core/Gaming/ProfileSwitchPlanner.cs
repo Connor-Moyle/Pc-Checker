@@ -27,7 +27,8 @@ public sealed record ProfileSwitchDecision(
 /// <item>Losing focus never switches back; only the game's process exiting does (with "revert on exit").</item>
 /// <item>A second profiled game coming to the front while the first still runs takes over: the first profile is
 /// undone (when it reverts on exit) and the second applied. Going back to the first game later re-applies it.</item>
-/// <item>Turning auto-switch off, or disabling/deleting the active profile, undoes it at once.</item>
+/// <item>Turning auto-switch off, or disabling/deleting the active profile, undoes it at once. Editing or renaming it
+/// re-applies it.</item>
 /// </list>
 /// Not thread-safe: the caller serialises calls.
 /// </summary>
@@ -148,9 +149,11 @@ public sealed class ProfileSwitchPlanner
             return new ProfileSwitchDecision(active.Profile, true, null, null, null, false, "automatic switching was turned off");
         }
 
-        var current = settings.Profiles.FirstOrDefault(p => string.Equals(p.Name, active.Profile.Name, StringComparison.OrdinalIgnoreCase));
+        // Look the game up again rather than the profile name: a renamed profile still matches its game and is
+        // re-applied under its new name, and when the active profile is switched off another enabled profile for the
+        // same game takes over (the one the foreground check would pick).
         var winner = GameProfileMatcher.Match(active.ExeName, settings.Profiles);
-        if (current is null || !current.Enabled || winner is null)
+        if (winner is null)
         {
             Active = null;
             return new ProfileSwitchDecision(active.Profile, true, null, null, null, false, $"the \"{active.Profile.Name}\" profile was turned off or removed");
@@ -159,8 +162,10 @@ public sealed class ProfileSwitchPlanner
         if (!SameProfile(active.Profile, winner))
         {
             Active = active with { Profile = winner };
-            return new ProfileSwitchDecision(active.Profile, true, winner, active.ProcessId, active.ExeName, false,
-                $"the \"{winner.Name}\" profile was changed");
+            string reason = string.Equals(active.Profile.Name, winner.Name, StringComparison.OrdinalIgnoreCase)
+                ? $"the \"{winner.Name}\" profile was changed"
+                : $"the \"{active.Profile.Name}\" profile was renamed or switched off, so \"{winner.Name}\" applies now";
+            return new ProfileSwitchDecision(active.Profile, true, winner, active.ProcessId, active.ExeName, false, reason);
         }
 
         return ProfileSwitchDecision.None;

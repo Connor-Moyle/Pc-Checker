@@ -18,7 +18,7 @@ namespace PcChecker.App.Services;
 /// </summary>
 public sealed partial class GameProfileSwitcher : IDisposable
 {
-    public const string JournalModule = "Gaming";
+    public const string JournalModule = WindowsGameProfileService.JournalModule;
     private static readonly TimeSpan TickInterval = TimeSpan.FromMilliseconds(500);
 
     private readonly ISettingsService _settings;
@@ -84,7 +84,7 @@ public sealed partial class GameProfileSwitcher : IDisposable
         _timer = new Timer(_ => _ = RunAsync(Tick), null, TickInterval, TickInterval);
         if (LiveForeground() is { } current)
         {
-            _ = RunAsync(now => _planner.OnForeground(current, _settings.Current.Gaming, now));
+            _ = RunAsync(now => _planner.OnForeground(current, GamingSnapshot(), now));
         }
 
         _logger.LogInformation("Game profile switching started ({Count} profile(s), auto-switch {Auto}).",
@@ -124,15 +124,22 @@ public sealed partial class GameProfileSwitcher : IDisposable
     }
 
     private void OnForegroundChanged(object? sender, ForegroundApp app) =>
-        _ = RunAsync(now => _planner.OnForeground(app, _settings.Current.Gaming, now));
+        _ = RunAsync(now => _planner.OnForeground(app, GamingSnapshot(), now));
 
     private void OnSettingsChanged(object? sender, AppSettings settings) => _ = RunAsync(now =>
     {
-        var decision = _planner.OnSettingsChanged(settings.Gaming, now);
+        var gaming = GameProfileRules.Snapshot(settings.Gaming);
+        var decision = _planner.OnSettingsChanged(gaming, now);
         return decision.IsNone && _planner.Active is null && LiveForeground() is { } current
-            ? _planner.OnForeground(current, settings.Gaming, now)
+            ? _planner.OnForeground(current, gaming, now)
             : decision;
     });
+
+    /// <summary>
+    /// A copy of the profile list for the planner. The planner runs on background threads while the Overlay page edits
+    /// the live list on the UI thread, so it never enumerates the live list.
+    /// </summary>
+    private GamingSettings GamingSnapshot() => GameProfileRules.Snapshot(_settings.Current.Gaming);
 
     /// <summary>Applies a pending game once the debounce has passed, unless it closed in the meantime.</summary>
     private ProfileSwitchDecision Tick(DateTimeOffset now)
@@ -185,8 +192,11 @@ public sealed partial class GameProfileSwitcher : IDisposable
 
             if (decision.Enter is { } enter && decision.EnterProcessId is { } pid)
             {
-                await EnterAsync(enter, pid, decision.EnterExeName ?? enter.ExeName, decision.CaptureBaseline).ConfigureAwait(false);
+                // Watch the game before applying anything: the planner already counts the profile as active, so if
+                // applying fails part-way, whatever did change is still put back when the game closes. An exit that
+                // fires straight away waits for the gate and is handled after this switch.
                 _exitWatch = _tracker.WatchProcessExit(pid, () => OnProcessExited(pid));
+                await EnterAsync(enter, pid, decision.EnterExeName ?? enter.ExeName, decision.CaptureBaseline).ConfigureAwait(false);
             }
         }
         catch (Exception ex)
@@ -217,9 +227,18 @@ public sealed partial class GameProfileSwitcher : IDisposable
         var results = new List<string>();
         if (!_dryRun)
         {
-            await ApplyOverlayAsync(profile, results).ConfigureAwait(false);
-            await ApplyFansAsync(profile, results).ConfigureAwait(false);
-            await ApplyPowerAsync(profile, results).ConfigureAwait(false);
+            // Each part is applied on its own, so one failing does not skip the others. A part that failed may have
+            // changed partly, so it is marked as changed and put back with the rest when the game closes.
+            bool presetWanted = profile.OverlayPresetName is { Length: > 0 };
+            await TryStepAsync("overlay", () => ApplyOverlayAsync(profile, results), results, b =>
+            {
+                b.OverlayLayoutChanged |= presetWanted;
+                b.OverlayVisibilityChanged = true;
+            }).ConfigureAwait(false);
+            bool fansWanted = profile.FanProfileName is { Length: > 0 };
+            await TryStepAsync("fans", () => ApplyFansAsync(profile, results), results, b => b.FansChanged |= fansWanted).ConfigureAwait(false);
+            bool powerWanted = profile.PowerPlanId is { } plan && plan != Guid.Empty;
+            await TryStepAsync("power plan", () => ApplyPowerAsync(profile, results), results, b => b.PowerChanged |= powerWanted).ConfigureAwait(false);
         }
 
         var since = DateTimeOffset.Now;
@@ -240,9 +259,10 @@ public sealed partial class GameProfileSwitcher : IDisposable
         var baseline = _baseline;
         if (revert && baseline is not null && !_dryRun)
         {
-            await RevertOverlayAsync(baseline, results, shuttingDown).ConfigureAwait(false);
-            await RevertFansAsync(baseline, results).ConfigureAwait(false);
-            await RevertPowerAsync(baseline, results).ConfigureAwait(false);
+            // One part failing to go back must not stop the others from being put back.
+            await TryStepAsync("overlay", () => RevertOverlayAsync(baseline, results, shuttingDown), results, null).ConfigureAwait(false);
+            await TryStepAsync("fans", () => RevertFansAsync(baseline, results), results, null).ConfigureAwait(false);
+            await TryStepAsync("power plan", () => RevertPowerAsync(baseline, results), results, null).ConfigureAwait(false);
         }
 
         _baseline = revert ? baseline?.Cleared() : null;
@@ -288,6 +308,25 @@ public sealed partial class GameProfileSwitcher : IDisposable
 
     // ----- Helpers -----
 
+    /// <summary>Runs one apply or put-back step; a failure is logged and noted in the summary instead of ending the switch.</summary>
+    private async Task TryStepAsync(string part, Func<Task> step, List<string> results, Action<Baseline>? onFailure)
+    {
+        try
+        {
+            await step().ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Game profile step failed: {Part}.", part);
+            if (onFailure is not null && _baseline is { } baseline)
+            {
+                onFailure(baseline);
+            }
+
+            results.Add($"{part} failed ({ex.Message.TrimEnd('.')})");
+        }
+    }
+
     private void SeedSampleProfiles()
     {
         var gaming = _settings.Current.Gaming;
@@ -296,7 +335,12 @@ public sealed partial class GameProfileSwitcher : IDisposable
             return;
         }
 
-        gaming.Profiles.AddRange(_profiles.SampleProfiles.Select(p => p.Clone()));
+        GameProfileRules.AddCopies(gaming, _profiles.SampleProfiles);
+
+        // The demo's sample game is always in front, so with auto-switch on its profile would pop up the overlay and
+        // switch fans and power plan a moment after launch with no action from the user. Only the screenshot run
+        // (which plans but never applies) starts with it on; otherwise the user turns it on to try it.
+        gaming.AutoSwitch = _dryRun;
 
         // Sample data: show the FPS counter in the sample overlay as well.
         var overlay = _settings.Current.Overlay;

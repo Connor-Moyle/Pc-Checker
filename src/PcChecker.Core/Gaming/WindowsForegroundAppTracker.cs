@@ -17,7 +17,7 @@ public sealed class WindowsForegroundAppTracker : IForegroundAppTracker, IDispos
 
     private readonly ILogger<WindowsForegroundAppTracker> _logger;
     private readonly object _gate = new();
-    private readonly Dictionary<int, (string Name, string? Path)> _processCache = [];
+    private readonly ProcessInfoCache _processCache = new();
     private readonly int _ownProcessId = Environment.ProcessId;
     private Timer? _timer;
     private int _references;
@@ -156,7 +156,8 @@ public sealed class WindowsForegroundAppTracker : IForegroundAppTracker, IDispos
 
     private (string Name, string? Path) DescribeProcess(int pid)
     {
-        if (_processCache.TryGetValue(pid, out var cached))
+        long? started = GamingNativeMethods.TryGetProcessStartTime(pid);
+        if (_processCache.TryGet(pid, started, out var cached))
         {
             return cached;
         }
@@ -178,12 +179,7 @@ public sealed class WindowsForegroundAppTracker : IForegroundAppTracker, IDispos
             name = GameProfileMatcher.NormalizeExeName(path);
         }
 
-        if (_processCache.Count > 256)
-        {
-            _processCache.Clear();
-        }
-
-        _processCache[pid] = (name, path);
+        _processCache.Set(pid, started, name, path);
         return (name, path);
     }
 

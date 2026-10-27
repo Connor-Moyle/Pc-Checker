@@ -61,6 +61,40 @@ internal static class GamingNativeMethods
     [return: MarshalAs(UnmanagedType.Bool)]
     public static extern bool QueryFullProcessImageName(IntPtr process, uint flags, StringBuilder exeName, ref uint size);
 
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool GetProcessTimes(IntPtr process, out long creationTime, out long exitTime, out long kernelTime, out long userTime);
+
+    /// <summary>
+    /// When the process started (as a FILETIME), or null when Windows does not tell. Together with the process id it
+    /// identifies one run of a program, because Windows reuses process ids.
+    /// </summary>
+    public static long? TryGetProcessStartTime(int processId)
+    {
+        IntPtr handle = IntPtr.Zero;
+        try
+        {
+            handle = OpenProcess(ProcessQueryLimitedInformation, false, (uint)processId);
+            if (handle == IntPtr.Zero)
+            {
+                return null;
+            }
+
+            return GetProcessTimes(handle, out long created, out _, out _, out _) && created != 0 ? created : null;
+        }
+        catch
+        {
+            return null;
+        }
+        finally
+        {
+            if (handle != IntPtr.Zero)
+            {
+                CloseHandle(handle);
+            }
+        }
+    }
+
     /// <summary>The full exe path of a process, or null when Windows does not tell (protected or exited process).</summary>
     public static string? TryGetProcessPath(int processId)
     {

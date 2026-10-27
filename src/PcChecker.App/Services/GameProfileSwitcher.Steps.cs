@@ -120,7 +120,9 @@ public sealed partial class GameProfileSwitcher
             return;
         }
 
-        var fanProfile = _settings.Current.Fans.Profiles.FirstOrDefault(p => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase))
+        // ToArray copies without an enumerator, so an edit on the Fans page at the same moment does not throw
+        // "Collection was modified" here.
+        var fanProfile = _settings.Current.Fans.Profiles.ToArray().FirstOrDefault(p => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase))
             ?? _fans.BuiltInProfiles.FirstOrDefault(p => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase));
         if (fanProfile is null)
         {

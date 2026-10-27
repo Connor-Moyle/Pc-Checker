@@ -238,6 +238,53 @@ public class GameProfileRulesTests
     }
 
     [Fact]
+    public void Snapshot_is_a_deep_copy_of_the_settings()
+    {
+        var settings = new GamingSettings { AutoSwitch = false, OnlyWhenFullscreen = true };
+        GameProfileRules.AddCopies(settings, [new GameProfile { Name = "A", ExeName = "a.exe" }]);
+        var snapshot = GameProfileRules.Snapshot(settings);
+
+        settings.Profiles[0].Enabled = false;
+        GameProfileRules.Upsert(settings, new GameProfile { Name = "B", ExeName = "b.exe" });
+
+        Assert.False(snapshot.AutoSwitch);
+        Assert.True(snapshot.OnlyWhenFullscreen);
+        Assert.Equal("A", Assert.Single(snapshot.Profiles).Name);
+        Assert.True(snapshot.Profiles[0].Enabled);
+        Assert.NotSame(settings.Profiles[0], snapshot.Profiles[0]);
+    }
+
+    [Fact]
+    public async Task Snapshot_never_sees_a_list_being_edited()
+    {
+        // The editor changes the list on the UI thread while the switcher reads it on background threads.
+        var settings = new GamingSettings();
+        using var stop = new CancellationTokenSource(TimeSpan.FromMilliseconds(300));
+        var writer = Task.Run(() =>
+        {
+            int i = 0;
+            while (!stop.IsCancellationRequested)
+            {
+                GameProfileRules.Upsert(settings, new GameProfile { Name = "P" + (i % 20), ExeName = "p.exe" }, originalName: "P" + (i % 20));
+                if (i % 7 == 0)
+                {
+                    GameProfileRules.Remove(settings, "P" + (i % 20));
+                }
+
+                i++;
+            }
+        });
+
+        while (!writer.IsCompleted)
+        {
+            var snapshot = GameProfileRules.Snapshot(settings);
+            Assert.All(snapshot.Profiles, p => Assert.Equal("p.exe", p.ExeName));
+        }
+
+        await writer;
+    }
+
+    [Fact]
     public void Describe_lists_what_changes()
     {
         var profile = new GameProfile { Name = "X", ExeName = "x.exe", OverlayPresetName = "Full", FanProfileName = "Performance", PowerPlanId = PowerPlanParser.HighPerformance };
@@ -407,6 +454,47 @@ public class ProfileSwitchPlannerTests
     }
 
     [Fact]
+    public void Renaming_the_active_profile_reapplies_it_under_the_new_name()
+    {
+        var settings = Settings(Game("Elden Ring", "eldenring.exe"));
+        var planner = new ProfileSwitchPlanner();
+        planner.OnForeground(App(10, "eldenring.exe"), settings, T0);
+        planner.OnTick(T0.AddSeconds(2));
+
+        settings.Profiles[0] = Game("Elden Ring (max)", "eldenring.exe");
+        var decision = planner.OnSettingsChanged(settings, T0.AddSeconds(3));
+
+        Assert.Equal("Elden Ring", decision.Exit?.Name);
+        Assert.True(decision.RevertExit);
+        Assert.Equal("Elden Ring (max)", decision.Enter?.Name);
+        Assert.Equal(10, decision.EnterProcessId);
+        Assert.False(decision.CaptureBaseline);
+        Assert.Equal("Elden Ring (max)", planner.Active?.Profile.Name);
+        Assert.True(planner.OnSettingsChanged(settings, T0.AddSeconds(4)).IsNone);
+    }
+
+    [Fact]
+    public void Turning_off_the_active_profile_hands_over_to_another_one_for_the_same_game()
+    {
+        var settings = Settings(Game("Main", "eldenring.exe"), Game("Backup", "eldenring.exe"));
+        var planner = new ProfileSwitchPlanner();
+        planner.OnForeground(App(10, "eldenring.exe"), settings, T0);
+        planner.OnTick(T0.AddSeconds(2));
+        Assert.Equal("Main", planner.Active?.Profile.Name);
+
+        settings.Profiles[0].Enabled = false;
+        var decision = planner.OnSettingsChanged(settings, T0.AddSeconds(3));
+        Assert.Equal("Main", decision.Exit?.Name);
+        Assert.Equal("Backup", decision.Enter?.Name);
+
+        settings.Profiles[1].Enabled = false;
+        var off = planner.OnSettingsChanged(settings, T0.AddSeconds(4));
+        Assert.Equal("Backup", off.Exit?.Name);
+        Assert.Null(off.Enter);
+        Assert.Null(planner.Active);
+    }
+
+    [Fact]
     public void Deactivate_reverts_per_profile_unless_forced()
     {
         var settings = Settings(Game("Keep", "keep.exe", revert: false));
@@ -552,5 +640,49 @@ public class GamingSupportTests : IDisposable
         Assert.Equal(2, profiles.SampleProfiles.Count);
         Assert.All(profiles.SampleProfiles, p => Assert.Null(GameProfileRules.Validate(p, [])));
         Assert.NotNull(GameProfileMatcher.Match(tracker.Current, profiles.SampleProfiles));
+    }
+}
+
+public class ProcessInfoCacheTests
+{
+    [Fact]
+    public void A_reused_process_id_with_another_start_time_misses()
+    {
+        var cache = new ProcessInfoCache();
+        cache.Set(1234, 1000, "eldenring", @"C:\Games\eldenring.exe");
+
+        Assert.True(cache.TryGet(1234, 1000, out var hit));
+        Assert.Equal("eldenring", hit.Name);
+        Assert.False(cache.TryGet(1234, 2000, out _));
+
+        cache.Set(1234, 2000, "notepad", null);
+        Assert.True(cache.TryGet(1234, 2000, out var reused));
+        Assert.Equal("notepad", reused.Name);
+        Assert.False(cache.TryGet(1234, 1000, out _));
+    }
+
+    [Fact]
+    public void An_unknown_start_time_is_never_cached()
+    {
+        var cache = new ProcessInfoCache();
+        cache.Set(42, 5, "game", null);
+        cache.Set(42, null, "other", null);
+
+        Assert.False(cache.TryGet(42, null, out _));
+        Assert.False(cache.TryGet(42, 5, out _));
+        Assert.Equal(0, cache.Count);
+    }
+
+    [Fact]
+    public void The_cache_stays_bounded()
+    {
+        var cache = new ProcessInfoCache(capacity: 3);
+        for (int pid = 1; pid <= 10; pid++)
+        {
+            cache.Set(pid, pid, "p" + pid, null);
+            Assert.InRange(cache.Count, 1, 3);
+        }
+
+        Assert.True(cache.TryGet(10, 10, out _));
     }
 }

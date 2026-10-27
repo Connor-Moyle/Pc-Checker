@@ -1,6 +1,10 @@
 namespace PcChecker.Core.Gaming;
 
-/// <summary>Pure validation and list editing for <see cref="GamingSettings.Profiles"/>.</summary>
+/// <summary>
+/// Pure validation and list editing for <see cref="GamingSettings.Profiles"/>. The profile list is edited on the UI
+/// thread and read by the game profile switcher on background threads, so every change to the list goes through
+/// these methods, which lock the list, and background readers work on a <see cref="Snapshot"/>.
+/// </summary>
 public static class GameProfileRules
 {
     public const int MaxNameLength = 60;
@@ -73,16 +77,20 @@ public static class GameProfileRules
             stored.PowerPlanId = null;
         }
 
-        int index = originalName is null
-            ? -1
-            : settings.Profiles.FindIndex(p => string.Equals(p.Name, originalName, StringComparison.OrdinalIgnoreCase));
-        if (index >= 0)
+        var profiles = settings.Profiles;
+        lock (profiles)
         {
-            settings.Profiles[index] = stored;
-        }
-        else
-        {
-            settings.Profiles.Add(stored);
+            int index = originalName is null
+                ? -1
+                : profiles.FindIndex(p => string.Equals(p.Name, originalName, StringComparison.OrdinalIgnoreCase));
+            if (index >= 0)
+            {
+                profiles[index] = stored;
+            }
+            else
+            {
+                profiles.Add(stored);
+            }
         }
 
         return stored;
@@ -92,7 +100,49 @@ public static class GameProfileRules
     public static bool Remove(GamingSettings settings, string name)
     {
         ArgumentNullException.ThrowIfNull(settings);
-        return settings.Profiles.RemoveAll(p => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase)) > 0;
+        var profiles = settings.Profiles;
+        lock (profiles)
+        {
+            return profiles.RemoveAll(p => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase)) > 0;
+        }
+    }
+
+    /// <summary>Adds copies of <paramref name="profiles"/> to the list (sample profiles for a new installation).</summary>
+    public static void AddCopies(GamingSettings settings, IEnumerable<GameProfile> profiles)
+    {
+        ArgumentNullException.ThrowIfNull(settings);
+        ArgumentNullException.ThrowIfNull(profiles);
+        var copies = profiles.Where(p => p is not null).Select(p => p.Clone()).ToList();
+        var list = settings.Profiles;
+        lock (list)
+        {
+            list.AddRange(copies);
+        }
+    }
+
+    /// <summary>
+    /// A deep copy of the gaming settings, taken under the list's lock, for code that reads profiles off the UI
+    /// thread while the editor may be changing the list (enumerating the live list there can throw "Collection was
+    /// modified").
+    /// </summary>
+    public static GamingSettings Snapshot(GamingSettings settings)
+    {
+        ArgumentNullException.ThrowIfNull(settings);
+        var list = settings.Profiles ?? [];
+        List<GameProfile> copies;
+        lock (list)
+        {
+            copies = new List<GameProfile>(list.Count);
+            foreach (var profile in list)
+            {
+                if (profile is not null)
+                {
+                    copies.Add(profile.Clone());
+                }
+            }
+        }
+
+        return new GamingSettings { Profiles = copies, AutoSwitch = settings.AutoSwitch, OnlyWhenFullscreen = settings.OnlyWhenFullscreen };
     }
 
     /// <summary>Other enabled profiles for the same exe that are shadowed by this one (or that shadow it).</summary>

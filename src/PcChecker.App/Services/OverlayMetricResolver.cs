@@ -30,7 +30,10 @@ public sealed class OverlayMetricResolver : IDisposable
     private bool _networkFailed;
     private PerformanceCounter? _diskCounter;
     private bool _diskCounterFailed;
+    private readonly object _frameGate = new();
+    private bool _frameCounterWanted;
     private bool _frameCounterRunning;
+    private Task _frameWork = Task.CompletedTask;
 
     public OverlayMetricResolver(ISensorService sensors, IPowerService power, IFrameRateMonitor? frames = null)
     {
@@ -44,10 +47,39 @@ public sealed class OverlayMetricResolver : IDisposable
 
     /// <summary>
     /// Starts the frame counter while an FPS metric is shown and stops it otherwise (its tracing session costs a
-    /// little CPU, so it never runs for nothing). Safe to call repeatedly.
+    /// little CPU, so it never runs for nothing). Safe to call repeatedly. Returns at once: starting creates the
+    /// tracing session and stopping waits up to 2 s for its thread, so both run in the background, one at a time
+    /// and in order, each bringing the counter to the latest wanted state.
     /// </summary>
     public void SetFrameCounterWanted(bool wanted)
     {
+        if (_frames is null)
+        {
+            return;
+        }
+
+        lock (_frameGate)
+        {
+            if (wanted == _frameCounterWanted)
+            {
+                return;
+            }
+
+            _frameCounterWanted = wanted;
+            _frameWork = _frameWork.ContinueWith(_ => SyncFrameCounter(), CancellationToken.None,
+                TaskContinuationOptions.None, TaskScheduler.Default);
+        }
+    }
+
+    /// <summary>Runs on the background chain only, so <c>_frameCounterRunning</c> is never touched by two threads at once.</summary>
+    private void SyncFrameCounter()
+    {
+        bool wanted;
+        lock (_frameGate)
+        {
+            wanted = _frameCounterWanted;
+        }
+
         if (_frames is null || wanted == _frameCounterRunning)
         {
             return;
@@ -159,6 +191,22 @@ public sealed class OverlayMetricResolver : IDisposable
     public void Dispose()
     {
         SetFrameCounterWanted(false);
+        Task pending;
+        lock (_frameGate)
+        {
+            pending = _frameWork;
+        }
+
+        // On exit the tracing session must really be stopped (Windows keeps it alive otherwise), so wait for it briefly.
+        try
+        {
+            pending.Wait(TimeSpan.FromSeconds(3));
+        }
+        catch
+        {
+            // SyncFrameCounter never throws; nothing else to do.
+        }
+
         try
         {
             _diskCounter?.Dispose();

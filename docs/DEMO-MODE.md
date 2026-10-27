@@ -37,6 +37,9 @@ What you get:
   results for every job, but nothing is added to Task Scheduler ("Demo mode:
   schedules are not created"). *Run now* runs the job on sample data; a demo
   report is written to `%LOCALAPPDATA%\PcChecker\demo\reports`.
+- The Overlay page starts with two sample game profiles and a sample game in
+  front, with *Switch automatically* off, so nothing changes on its own after
+  launch. Turn it on to watch the sample profile apply two seconds later.
 
 Nothing in demo mode reads WMI, the registry, drivers, OpenRGB or the
 network, and nothing writes outside the demo settings folder.
