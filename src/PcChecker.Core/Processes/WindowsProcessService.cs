@@ -118,7 +118,7 @@ public sealed partial class WindowsProcessService : IProcessService, IDisposable
             _identities.Remove(stale);
         }
 
-        var rates = _rates.Update(counters, now, Environment.ProcessorCount);
+        var rates = _rates.Update(counters, now, LogicalProcessorCount);
         var gpu = ReadGpu();
         double totalCpu = ReadSystemCpu() ?? Math.Min(100, rates.Values.Sum(r => r.CpuPercent));
         long used = 0, total = 0;

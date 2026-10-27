@@ -148,7 +148,7 @@ public sealed partial class ProcessesViewModel : ViewModelBase
 
     public Wpf.Ui.Controls.SymbolRegular PauseIcon => IsPaused ? Wpf.Ui.Controls.SymbolRegular.Play24 : Wpf.Ui.Controls.SymbolRegular.Pause24;
 
-    public string CpuHeader => Loc.F("Processor use across all {0} logical processors", Environment.ProcessorCount);
+    public string CpuHeader => Loc.F("Processor use across all {0} logical processors", _processes.LogicalProcessorCount);
 
     public override Task InitializeAsync(CancellationToken cancellationToken) =>
         RunBusyAsync(async ct =>
