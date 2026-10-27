@@ -288,6 +288,11 @@ public sealed partial class SensorsViewModel : ViewModelBase
     [RelayCommand]
     private async Task ReloadSensorsAsync()
     {
+        if (!await _pawnIoFlow.ConfirmReloadAsync())
+        {
+            return;
+        }
+
         await RunBusyAsync(async ct =>
         {
             var result = await _pawnIoFlow.ReloadAsync(ct);

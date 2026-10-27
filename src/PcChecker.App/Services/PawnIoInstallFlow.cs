@@ -83,6 +83,29 @@ public sealed class PawnIoInstallFlow
         return OperationResult.Ok(message, result.RebootRequired);
     }
 
+    /// <summary>
+    /// Asks before a reload when PC Checker controls any fan, because the reload hands every fan back to automatic
+    /// control and clears the active profile. Returns false when the user says no.
+    /// </summary>
+    public Task<bool> ConfirmReloadAsync()
+    {
+        int controlled = 0;
+        try
+        {
+            controlled = (_fans as IFanControlAdvanced)?.SoftwareControlledFanIds.Count ?? 0;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Could not read which fans are under software control.");
+        }
+
+        return controlled == 0
+            ? Task.FromResult(true)
+            : _dialogs.ConfirmAsync(Loc.T("Reload sensors?"),
+                Loc.T("Every fan PC Checker controls returns to automatic control first, then the hardware monitor restarts and the fans are detected again."),
+                Loc.T("Reload"));
+    }
+
     /// <summary>Returns the fans to automatic, re-opens the hardware monitor and detects the fans again.</summary>
     public async Task<OperationResult> ReloadAsync(CancellationToken cancellationToken)
     {
