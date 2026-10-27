@@ -35,8 +35,9 @@ the release notes (`Get-FileHash .\PcChecker.exe` in PowerShell).
 
 No, unless you turn on the Claude assistant and send a message. The other
 network calls are the update check (GitHub), driver downloads through Windows
-Update, and the Latency page's ping and DNS tests when you run them with
-*include network* on. See [PRIVACY.md](PRIVACY.md).
+Update, runtime installs you confirm on the Missing DLLs page, and the
+Latency page's ping and DNS tests when you run them with *include network*
+on. See [PRIVACY.md](PRIVACY.md).
 
 ### Which Windows versions work?
 
@@ -228,6 +229,24 @@ Before a package is removed it is copied to
 `%LOCALAPPDATA%\PcChecker\driver-backups`, so you can put it back with
 *Drivers → More → Install .inf*. Windows refuses to remove a driver a device
 still uses, and PC Checker never forces it.
+
+### Is there a safe website to download DLLs?
+
+No. Sites that offer single DLL files (d3dx9_43.dll, msvcp140.dll,
+xinput1_3.dll…) are not the makers of those files. Their downloads are not
+signed by Microsoft or the game's vendor, are often the wrong version or the
+wrong architecture (a 64-bit file where a 32-bit game needs a 32-bit one),
+and some carry malware. Copying one into System32 can also stop Windows
+Update and the real installer from fixing it later.
+
+Every one of those DLLs belongs to an official package: the DirectX
+End-User Runtime, a Visual C++ Redistributable, .NET Framework 3.5,
+DirectPlay, XNA, OpenAL or NVIDIA PhysX. The **Missing DLLs** page (Gaming)
+lists about 240 of them with their 32 and 64-bit state, and *Scan a game…*
+tells you exactly which ones a game needs. Pressing *Install* installs the
+whole package from Microsoft, NVIDIA or Creative after checking its digital
+signature; PC Checker never downloads or copies a single DLL file. See
+[FEATURES.md](FEATURES.md#missing-dlls).
 
 ### What does the Latency page actually measure?
 
