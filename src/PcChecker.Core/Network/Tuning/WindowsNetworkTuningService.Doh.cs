@@ -23,12 +23,15 @@ public sealed partial class WindowsNetworkTuningService
             .Select(t => t.Name)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
-        bool on = templates && targets.Count > 0 && missing.Count == 0;
+        var plain = UnencryptableServers();
+        bool on = templates && targets.Count > 0 && missing.Count == 0 && plain.Count == 0;
         string text = on
             ? $"Encrypted (DNS over HTTPS on for {string.Join(", ", targets.Select(t => t.Name).Distinct(StringComparer.OrdinalIgnoreCase))})"
             : templates && missing.Count > 0
                 ? $"Not encrypted yet: DNS over HTTPS is off for {string.Join(", ", missing)}"
-                : "Not encrypted";
+                : templates && targets.Count > 0 && plain.Count > 0
+                    ? $"Partly encrypted: {string.Join(", ", plain)} cannot use DNS over HTTPS"
+                    : "Not encrypted";
         return new ActionState(actionId, on, text);
     }
 
@@ -98,7 +101,11 @@ public sealed partial class WindowsNetworkTuningService
 
         await FlushDnsCacheAsync(ct).ConfigureAwait(false);
         string adapters = string.Join(", ", targets.Select(t => t.Name).Distinct(StringComparer.OrdinalIgnoreCase));
-        return OperationResult.Ok($"DNS lookups from {adapters} to {string.Join(", ", servers)} are now encrypted. If Settings does not show it yet, turn the adapter off and on again or restart the PC.");
+        var plain = UnencryptableServers();
+        string rest = plain.Count == 0
+            ? string.Empty
+            : $" Lookups sent to {string.Join(", ", plain)} stay unencrypted; use \"Use a fast public DNS server\" to replace them.";
+        return OperationResult.Ok($"DNS lookups from {adapters} to {string.Join(", ", servers)} are now encrypted.{rest} If Settings does not show it yet, turn the adapter off and on again or restart the PC.");
     }
 
     private static async Task<OperationResult> RestoreDohAsync(IReadOnlyDictionary<string, string?>? previous, CancellationToken ct)
@@ -174,14 +181,20 @@ public sealed partial class WindowsNetworkTuningService
         return map;
     }
 
-    /// <summary>DNS servers in use that belong to a known DoH provider.</summary>
+    /// <summary>DNS servers in use (IPv4 and IPv6) that belong to a known DoH provider.</summary>
     private static IReadOnlyList<string> DohCapableServers() =>
-        ActiveInterfaces().SelectMany(a => a.Dns).Distinct().Where(s => NetworkTuningCatalog.DohTemplateFor(s) is not null).ToList();
+        ActiveInterfaces().SelectMany(a => a.Dns.Concat(a.Dns6)).Distinct().Where(s => NetworkTuningCatalog.DohTemplateFor(s) is not null).ToList();
 
-    /// <summary>Each connected adapter paired with every DoH-capable DNS server it uses.</summary>
+    /// <summary>"Wi-Fi (2a02:8070::1)" for each DNS server in use that has no known DoH template, so its lookups stay plain.</summary>
+    private static IReadOnlyList<string> UnencryptableServers() =>
+        ActiveInterfaces()
+            .SelectMany(a => a.Dns.Concat(a.Dns6).Distinct().Where(s => NetworkTuningCatalog.DohTemplateFor(s) is null).Select(s => $"{a.Name} ({s})"))
+            .ToList();
+
+    /// <summary>Each connected adapter paired with every DoH-capable DNS server it uses (IPv4 and IPv6).</summary>
     private static IReadOnlyList<(string InterfaceId, string Name, string Server)> DohTargets() =>
         ActiveInterfaces()
-            .SelectMany(a => a.Dns.Distinct()
+            .SelectMany(a => a.Dns.Concat(a.Dns6).Distinct()
                 .Where(s => NetworkTuningCatalog.DohTemplateFor(s) is not null && DohInterfaceSettings.KeyFor(a.Id, s) is not null)
                 .Select(s => (a.Id, a.Name, s)))
             .ToList();

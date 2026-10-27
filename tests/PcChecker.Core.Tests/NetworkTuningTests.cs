@@ -306,6 +306,36 @@ public class NetshCommandBuilderTests
     }
 }
 
+public class DnsCommandsTests
+{
+    [Fact]
+    public void Ipv6_servers_are_set_only_where_ipv6_dns_is_in_use()
+    {
+        var cloudflare = NetworkTuningCatalog.DefaultDnsProvider;
+        Assert.Equal(["1.1.1.1", "1.0.0.1"], DnsCommands.ServersFor(cloudflare, adapterUsesIpv6Dns: false));
+        Assert.Equal(["1.1.1.1", "1.0.0.1", "2606:4700:4700::1111", "2606:4700:4700::1001"], DnsCommands.ServersFor(cloudflare, adapterUsesIpv6Dns: true));
+        Assert.Equal(
+            "Set-DnsClientServerAddress -InterfaceIndex 7 -ServerAddresses @('1.1.1.1','2606:4700:4700::1111') -ErrorAction Stop",
+            DnsCommands.Set(7, ["1.1.1.1", "2606:4700:4700::1111"]));
+    }
+
+    [Fact]
+    public void Restore_puts_back_both_address_families()
+    {
+        string reset = "Set-DnsClientServerAddress -InterfaceIndex 7 -ResetServerAddresses -ErrorAction Stop";
+        Assert.Equal(reset, DnsCommands.Restore(7, string.Empty, string.Empty));
+        Assert.Equal(reset + "; Set-DnsClientServerAddress -InterfaceIndex 7 -ServerAddresses @('10.0.0.53','10.0.0.54') -ErrorAction Stop",
+            DnsCommands.Restore(7, "10.0.0.53,10.0.0.54", string.Empty));
+        Assert.Equal(reset + "; Set-DnsClientServerAddress -InterfaceIndex 7 -ServerAddresses @('fd00::53') -ErrorAction Stop",
+            DnsCommands.Restore(7, string.Empty, "fd00::53"));
+
+        // Captures from before IPv6 was recorded restore IPv4 only, as before.
+        Assert.Equal(reset, DnsCommands.Restore(7, string.Empty, null));
+        Assert.Equal("Set-DnsClientServerAddress -InterfaceIndex 7 -ServerAddresses @('10.0.0.53') -ErrorAction Stop", DnsCommands.Restore(7, "10.0.0.53", null));
+        Assert.Equal(["1.1.1.1", "1.0.0.1"], DnsCommands.Split("1.1.1.1, 1.0.0.1"));
+    }
+}
+
 public class NetAdapterCommandsTests
 {
     [Fact]
@@ -369,6 +399,22 @@ public class NetworkTuningCatalogTests
         Assert.Null(NetworkTuningCatalog.MatchDnsProvider(["192.168.1.1"]));
         Assert.Null(NetworkTuningCatalog.MatchDnsProvider([]));
         Assert.Equal("https://dns.google/dns-query", NetworkTuningCatalog.DohTemplateFor("8.8.4.4"));
+    }
+
+    [Fact]
+    public void Ipv6_dns_from_the_router_means_the_provider_is_not_fully_in_use()
+    {
+        string[] cloudflare = ["1.1.1.1", "1.0.0.1"];
+        Assert.Equal("cloudflare", NetworkTuningCatalog.MatchDnsProvider(cloudflare, [])!.Id);
+        Assert.Equal("cloudflare", NetworkTuningCatalog.MatchDnsProvider(cloudflare, ["2606:4700:4700::1111", "2606:4700:4700::1001"])!.Id);
+        Assert.Equal("cloudflare", NetworkTuningCatalog.MatchDnsProvider(cloudflare, ["fec0:0:0:ffff::1", "fec0:0:0:ffff::2"])!.Id);
+        Assert.Null(NetworkTuningCatalog.MatchDnsProvider(cloudflare, ["2a02:8070::53"]));
+        Assert.Null(NetworkTuningCatalog.MatchDnsProvider(cloudflare, ["2001:4860:4860::8888"]));
+        Assert.True(NetworkTuningCatalog.IsPlaceholderIpv6Dns("fec0:0:0:ffff::3"));
+        Assert.False(NetworkTuningCatalog.IsPlaceholderIpv6Dns("fe80::1"));
+        Assert.Equal("https://dns.quad9.net/dns-query", NetworkTuningCatalog.DohTemplateFor("2620:FE::FE"));
+        Assert.Equal("https://cloudflare-dns.com/dns-query", NetworkTuningCatalog.DohTemplateFor("2606:4700:4700::1001"));
+        Assert.Null(NetworkTuningCatalog.DohTemplateFor("2a02:8070::53"));
     }
 
     [Fact]

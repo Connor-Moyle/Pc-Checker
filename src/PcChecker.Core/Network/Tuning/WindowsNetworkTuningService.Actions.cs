@@ -14,6 +14,7 @@ public sealed partial class WindowsNetworkTuningService
 {
     private const string Tcpip6ParametersKey = @"SYSTEM\CurrentControlSet\Services\Tcpip6\Parameters";
     private const string TcpipInterfacesKey = @"SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces";
+    private const string Tcpip6InterfacesKey = @"SYSTEM\CurrentControlSet\Services\Tcpip6\Parameters\Interfaces";
 
     public async Task<ActionState> GetStateAsync(string actionId, CancellationToken cancellationToken)
     {
@@ -79,11 +80,12 @@ public sealed partial class WindowsNetworkTuningService
                         return new ActionState(actionId, null, "No connected adapter");
                     }
 
-                    var providers = adapters.Select(a => NetworkTuningCatalog.MatchDnsProvider(a.Dns)).ToList();
+                    // IPv6 servers count too: Windows also asks the ones a router hands out.
+                    var providers = adapters.Select(a => NetworkTuningCatalog.MatchDnsProvider(a.Dns, a.Dns6)).ToList();
                     bool all = providers.All(p => p is not null);
                     string text = all
                         ? string.Join(", ", providers.Select(p => p!.Name).Distinct())
-                        : string.Join("; ", adapters.Select(a => $"{a.Name}: {(a.Dns.Count == 0 ? "none" : string.Join(", ", a.Dns))}{(IsAutomaticDns(a.Id) ? " (automatic)" : string.Empty)}"));
+                        : string.Join("; ", adapters.Select(a => $"{a.Name}: {(a.Dns.Count + a.Dns6.Count == 0 ? "none" : string.Join(", ", a.Dns.Concat(a.Dns6)))}{(IsAutomaticDns(a.Id) ? " (automatic)" : string.Empty)}"));
                     return new ActionState(actionId, all, text);
                 }
 
@@ -281,8 +283,9 @@ public sealed partial class WindowsNetworkTuningService
             case TuningActionIds.DnsFast:
                 foreach (var adapter in ActiveInterfaces())
                 {
-                    // An empty NameServer means "automatic" (from DHCP); a value is a list the user typed in.
+                    // An empty NameServer means "automatic" (from DHCP or the router); a value is a list the user typed in.
                     map[$"{adapter.Id}|NameServer"] = LatencyProbes.ReadString(RegistryHive.LocalMachine, $@"{TcpipInterfacesKey}\{adapter.Id}", "NameServer") ?? string.Empty;
+                    map[$"{adapter.Id}|NameServer6"] = LatencyProbes.ReadString(RegistryHive.LocalMachine, $@"{Tcpip6InterfacesKey}\{adapter.Id}", "NameServer") ?? string.Empty;
                 }
 
                 break;
@@ -406,10 +409,12 @@ public sealed partial class WindowsNetworkTuningService
             return OperationResult.Fail("No connected network adapter was found.");
         }
 
-        var commands = adapters.Select(a => $"Set-DnsClientServerAddress -InterfaceIndex {a.Index} -ServerAddresses @({PowerShellRunner.Quote(provider.Primary)},{PowerShellRunner.Quote(provider.Secondary)}) -ErrorAction Stop");
+        // Adapters that use IPv6 DNS servers get the provider's IPv6 pair too, or Windows would keep asking those.
+        var commands = adapters.Select(a => DnsCommands.Set(a.Index, DnsCommands.ServersFor(provider, a.Dns6.Count > 0)));
         var run = await PowerShellRunner.RunAsync(string.Join("; ", commands) + "; Clear-DnsClientCache", TimeSpan.FromSeconds(60), ct).ConfigureAwait(false);
+        bool ipv6 = adapters.Any(a => a.Dns6.Count > 0) && provider.Servers6.Count > 0;
         return run.Success
-            ? OperationResult.Ok($"{string.Join(", ", adapters.Select(a => a.Name))} now use{(adapters.Count == 1 ? "s" : string.Empty)} {provider.Name} ({provider.Primary}, {provider.Secondary}).")
+            ? OperationResult.Ok($"{string.Join(", ", adapters.Select(a => a.Name))} now use{(adapters.Count == 1 ? "s" : string.Empty)} {provider.Name} ({string.Join(", ", ipv6 ? provider.Servers.Concat(provider.Servers6) : provider.Servers)}).")
             : OperationResult.Fail("Windows refused to change the DNS servers: " + FirstLine(run.StdErr, run.StdOut));
     }
 
@@ -417,10 +422,14 @@ public sealed partial class WindowsNetworkTuningService
     {
         var commands = new List<string>();
         var active = ActiveInterfaces(includeAll: true);
+        // Captures made before IPv6 was recorded have no "|NameServer6" value; those restore IPv4 only (null).
         var targets = previous is { Count: > 0 }
-            ? previous.Where(p => p.Key.EndsWith("|NameServer", StringComparison.OrdinalIgnoreCase)).Select(p => (Id: p.Key[..p.Key.IndexOf('|')], Servers: p.Value ?? string.Empty)).ToList()
-            : active.Where(a => NetworkTuningCatalog.MatchDnsProvider(a.Dns) is not null).Select(a => (a.Id, Servers: string.Empty)).ToList();
-        foreach (var (id, servers) in targets)
+            ? previous.Where(p => p.Key.EndsWith("|NameServer", StringComparison.OrdinalIgnoreCase))
+                .Select(p => (Id: p.Key[..p.Key.IndexOf('|')], Servers: p.Value ?? string.Empty,
+                    Servers6: previous.TryGetValue(p.Key + "6", out var v6) ? v6 ?? string.Empty : null))
+                .ToList()
+            : active.Where(a => NetworkTuningCatalog.MatchDnsProvider(a.Dns) is not null).Select(a => (a.Id, Servers: string.Empty, Servers6: (string?)null)).ToList();
+        foreach (var (id, servers, servers6) in targets)
         {
             var adapter = active.FirstOrDefault(a => a.Id.Equals(id, StringComparison.OrdinalIgnoreCase));
             if (adapter.Id is null)
@@ -428,10 +437,7 @@ public sealed partial class WindowsNetworkTuningService
                 continue; // The adapter is gone; nothing to restore.
             }
 
-            var list = servers.Split([',', ' ', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            commands.Add(list.Length == 0
-                ? $"Set-DnsClientServerAddress -InterfaceIndex {adapter.Index} -ResetServerAddresses -ErrorAction Stop"
-                : $"Set-DnsClientServerAddress -InterfaceIndex {adapter.Index} -ServerAddresses @({string.Join(",", list.Select(PowerShellRunner.Quote))}) -ErrorAction Stop");
+            commands.Add(DnsCommands.Restore(adapter.Index, servers, servers6));
         }
 
         if (commands.Count == 0)
@@ -443,10 +449,13 @@ public sealed partial class WindowsNetworkTuningService
         return run.Success ? OperationResult.Ok("The previous DNS servers are back.") : OperationResult.Fail("Windows refused to restore the DNS servers: " + FirstLine(run.StdErr, run.StdOut));
     }
 
-    /// <summary>Connected adapters with an IPv4 gateway (the ones that reach the internet).</summary>
-    private static IReadOnlyList<(string Id, int Index, string Name, IReadOnlyList<string> Dns)> ActiveInterfaces(bool includeAll = false)
+    /// <summary>
+    /// Connected adapters with an IPv4 gateway (the ones that reach the internet), with their IPv4 and IPv6 DNS servers
+    /// (without the fec0:0:0:ffff:: placeholders Windows lists when no IPv6 server is configured).
+    /// </summary>
+    private static IReadOnlyList<(string Id, int Index, string Name, IReadOnlyList<string> Dns, IReadOnlyList<string> Dns6)> ActiveInterfaces(bool includeAll = false)
     {
-        var list = new List<(string, int, string, IReadOnlyList<string>)>();
+        var list = new List<(string, int, string, IReadOnlyList<string>, IReadOnlyList<string>)>();
         try
         {
             foreach (var nic in NetworkInterface.GetAllNetworkInterfaces())
@@ -479,7 +488,8 @@ public sealed partial class WindowsNetworkTuningService
                 }
 
                 var dns = props.DnsAddresses.Where(a => a.AddressFamily == AddressFamily.InterNetwork).Select(a => a.ToString()).ToList();
-                list.Add((nic.Id, index, nic.Name, dns));
+                var dns6 = props.DnsAddresses.Where(a => a.AddressFamily == AddressFamily.InterNetworkV6 && !a.IsIPv6SiteLocal).Select(a => a.ToString()).ToList();
+                list.Add((nic.Id, index, nic.Name, dns, dns6));
             }
         }
         catch

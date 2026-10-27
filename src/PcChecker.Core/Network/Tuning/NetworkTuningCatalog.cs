@@ -1,3 +1,5 @@
+using System.Net;
+using System.Net.Sockets;
 using PcChecker.Core.Optimization;
 
 namespace PcChecker.Core.Network.Tuning;
@@ -58,9 +60,12 @@ public static class NetworkTuningCatalog
 
     public static IReadOnlyList<DnsProvider> DnsProviders { get; } =
     [
-        new("cloudflare", "Cloudflare", "1.1.1.1", "1.0.0.1", "https://cloudflare-dns.com/dns-query", "Usually the fastest; does not sell or log your lookups long-term."),
-        new("google", "Google Public DNS", "8.8.8.8", "8.8.4.4", "https://dns.google/dns-query", "Fast and reliable everywhere."),
-        new("quad9", "Quad9", "9.9.9.9", "149.112.112.112", "https://dns.quad9.net/dns-query", "Blocks known malware and phishing sites; run by a non-profit."),
+        new("cloudflare", "Cloudflare", "1.1.1.1", "1.0.0.1", "https://cloudflare-dns.com/dns-query", "Usually the fastest; does not sell or log your lookups long-term.",
+            "2606:4700:4700::1111", "2606:4700:4700::1001"),
+        new("google", "Google Public DNS", "8.8.8.8", "8.8.4.4", "https://dns.google/dns-query", "Fast and reliable everywhere.",
+            "2001:4860:4860::8888", "2001:4860:4860::8844"),
+        new("quad9", "Quad9", "9.9.9.9", "149.112.112.112", "https://dns.quad9.net/dns-query", "Blocks known malware and phishing sites; run by a non-profit.",
+            "2620:fe::fe", "2620:fe::9"),
     ];
 
     public static DnsProvider DefaultDnsProvider => DnsProviders[0];
@@ -122,9 +127,40 @@ public static class NetworkTuningCatalog
         return DnsProviders.FirstOrDefault(p => list.All(s => p.Servers.Contains(s)));
     }
 
-    /// <summary>The DNS-over-HTTPS template for a server address, when it belongs to a known provider.</summary>
-    public static string? DohTemplateFor(string server) =>
-        DnsProviders.FirstOrDefault(p => p.Servers.Contains(server.Trim()))?.DohTemplate;
+    /// <summary>
+    /// The provider of an adapter that uses <paramref name="ipv4Servers"/> and <paramref name="ipv6Servers"/>: the IPv4
+    /// servers must match it, and every IPv6 server (other than Windows' fec0:0:0:ffff:: placeholders) must be the same
+    /// provider's, because Windows also sends lookups to the IPv6 servers a router hands out. Null when none matches.
+    /// </summary>
+    public static DnsProvider? MatchDnsProvider(IEnumerable<string> ipv4Servers, IEnumerable<string> ipv6Servers)
+    {
+        var provider = MatchDnsProvider(ipv4Servers);
+        if (provider is null)
+        {
+            return null;
+        }
+
+        var own = provider.Servers6.Select(NormalizeAddress).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return ipv6Servers.Where(s => !string.IsNullOrWhiteSpace(s) && !IsPlaceholderIpv6Dns(s)).All(s => own.Contains(NormalizeAddress(s))) ? provider : null;
+    }
+
+    /// <summary>True for the site-local fec0:0:0:ffff::1/2/3 addresses Windows lists when no IPv6 DNS server is configured.</summary>
+    public static bool IsPlaceholderIpv6Dns(string? server) =>
+        IPAddress.TryParse(server?.Trim(), out var address) && address.AddressFamily == AddressFamily.InterNetworkV6 && address.IsIPv6SiteLocal;
+
+    /// <summary>The DNS-over-HTTPS template for a server address (IPv4 or IPv6), when it belongs to a known provider.</summary>
+    public static string? DohTemplateFor(string server)
+    {
+        string normalized = NormalizeAddress(server);
+        return DnsProviders.FirstOrDefault(p => p.Servers.Concat(p.Servers6).Any(s => NormalizeAddress(s).Equals(normalized, StringComparison.OrdinalIgnoreCase)))?.DohTemplate;
+    }
+
+    /// <summary>The canonical text of an IP address ("2620:FE::FE" → "2620:fe::fe"); other text is only trimmed.</summary>
+    private static string NormalizeAddress(string server)
+    {
+        string text = server?.Trim() ?? string.Empty;
+        return IPAddress.TryParse(text, out var address) ? address.ToString() : text;
+    }
 
     /// <summary>Converts a Get-NetTCPSetting AutoTuningLevelLocal value to the netsh keyword (null when unknown).</summary>
     public static string? AutoTuningToNetsh(string? level) => level?.Trim().ToLowerInvariant() switch

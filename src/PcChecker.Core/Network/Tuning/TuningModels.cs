@@ -52,9 +52,13 @@ public sealed record AdapterAdvancedProperty(
 public sealed record AdvisorContext(bool IsWifi, bool IsLaptop, bool SameSsidOn5GhzVisible, bool SameSsidOn6GhzVisible, bool Band24Congested, int AccessPointsForSsid);
 
 /// <summary>A public DNS provider PC Checker can switch to.</summary>
-public sealed record DnsProvider(string Id, string Name, string Primary, string Secondary, string DohTemplate, string Note)
+public sealed record DnsProvider(string Id, string Name, string Primary, string Secondary, string DohTemplate, string Note, string? Primary6 = null, string? Secondary6 = null)
 {
+    /// <summary>The IPv4 servers.</summary>
     public IReadOnlyList<string> Servers => [Primary, Secondary];
+
+    /// <summary>The IPv6 servers (empty when the provider has none listed).</summary>
+    public IReadOnlyList<string> Servers6 => new[] { Primary6, Secondary6 }.OfType<string>().ToList();
 }
 
 public enum QuickImproveKind
