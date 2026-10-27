@@ -239,9 +239,9 @@ public sealed partial class ServicesViewModel : ViewModelBase
             return;
         }
 
-        string confirm = Loc.F("Set {0} to {1}?", row.DisplayName, ServiceStartupMapping.Label(startupType));
+        string confirm = Loc.F("Set {0} to {1}?", row.DisplayName, ServiceListRow.StartupLabel(startupType));
         string undo = Loc.F("It is now {0}. The change is recorded in the Action Journal on the Logs page with the previous type, so you can set it back here.",
-            ServiceStartupMapping.Label(row.Details.StartupType));
+            ServiceListRow.StartupLabel(row.Details.StartupType));
         string body = reason is null ? undo : reason + "\n\n" + undo;
         bool risky = startupType is ServiceStartupType.Disabled || reason is not null;
         if (!await _dialogs.ConfirmAsync(confirm, body, Loc.T("Change"), isDanger: risky))
