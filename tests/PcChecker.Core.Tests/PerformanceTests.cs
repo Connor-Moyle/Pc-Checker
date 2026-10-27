@@ -1,6 +1,7 @@
 using PcChecker.Core.Common;
 using PcChecker.Core.Optimization;
 using PcChecker.Core.Performance;
+using PcChecker.Core.Power;
 using Xunit;
 
 namespace PcChecker.Core.Tests;
@@ -64,6 +65,20 @@ public class SlowdownRulesTests
     {
         Assert.Contains(SlowdownRules.Evaluate(Healthy() with { ActivePowerPlan = "Power saver" }), f => f.Id == "power.saver");
         Assert.DoesNotContain(SlowdownRules.Evaluate(Healthy() with { ActivePowerPlan = "Power saver", OnBattery = true }), f => f.Id == "power.saver");
+    }
+
+    [Fact]
+    public void Translated_power_plan_names_are_recognised_by_their_guid()
+    {
+        var saver = Healthy() with { ActivePowerPlan = "Économie d'énergie", ActivePowerPlanId = PowerPlanParser.PowerSaver };
+        Assert.Contains(SlowdownRules.Evaluate(saver), f => f.Id == "power.saver");
+        Assert.DoesNotContain(SlowdownRules.Evaluate(saver with { OnBattery = true }), f => f.Id == "power.saver");
+
+        var balanced = Healthy() with { ActivePowerPlan = "Ausbalanciert", ActivePowerPlanId = PowerPlanParser.Balanced, HasBattery = false };
+        Assert.Contains(SlowdownRules.Evaluate(balanced), f => f.Id == "power.balanced.desktop");
+
+        var high = Healthy() with { ActivePowerPlan = "Höchstleistung", ActivePowerPlanId = PowerPlanParser.HighPerformance, HasBattery = false };
+        Assert.DoesNotContain(SlowdownRules.Evaluate(high), f => f.Id is "power.saver" or "power.balanced.desktop");
     }
 
     [Fact]

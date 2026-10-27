@@ -1,4 +1,5 @@
 using PcChecker.Core.Common;
+using PcChecker.Core.Power;
 
 namespace PcChecker.Core.Performance;
 
@@ -111,7 +112,7 @@ public static class SlowdownRules
         }
 
         // Power
-        if (facts.ActivePowerPlan is { } plan && plan.Contains("saver", StringComparison.OrdinalIgnoreCase) && facts.OnBattery != true)
+        if (PowerPlanParser.IsPlan(facts.ActivePowerPlanId, facts.ActivePowerPlan, PowerPlanParser.PowerSaver, "saver") && facts.OnBattery != true)
         {
             findings.Add(new("power.saver", FindingCategory.Power, Severity.Medium, "Power saver plan is active while plugged in",
                 "The Power saver plan limits CPU speed to save energy.", "Lower performance", ["power.balanced", "power.highperformance"], false));
@@ -220,7 +221,7 @@ public static class SlowdownRules
         }
 
         // Desktop-specific power choices
-        if (facts.HasBattery == false && facts.ActivePowerPlan is { } desktopPlan && desktopPlan.Contains("Balanced", StringComparison.OrdinalIgnoreCase))
+        if (facts.HasBattery == false && PowerPlanParser.IsPlan(facts.ActivePowerPlanId, facts.ActivePowerPlan, PowerPlanParser.Balanced, "Balanced"))
         {
             findings.Add(new("power.balanced.desktop", FindingCategory.Power, Severity.Low, "Balanced power plan on a desktop PC",
                 "The Balanced plan lowers CPU clocks when idle and takes a moment to ramp back up. A desktop does not need to save battery.",

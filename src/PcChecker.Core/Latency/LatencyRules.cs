@@ -1,5 +1,6 @@
 using PcChecker.Core.Common;
 using PcChecker.Core.Optimization;
+using PcChecker.Core.Power;
 
 namespace PcChecker.Core.Latency;
 
@@ -51,7 +52,9 @@ public static class LatencyRules
                 "Turning it on can lower input latency slightly on recent NVIDIA GPUs.", LatencyActionIds.HagsOn, RiskLevel.Safe, false));
         }
 
-        if (facts.PowerPlan is { } plan && (plan.Contains("Balanced", StringComparison.OrdinalIgnoreCase) || plan.Contains("Power saver", StringComparison.OrdinalIgnoreCase)))
+        if ((PowerPlanParser.IsPlan(facts.PowerPlanId, facts.PowerPlan, PowerPlanParser.Balanced, "Balanced")
+                || PowerPlanParser.IsPlan(facts.PowerPlanId, facts.PowerPlan, PowerPlanParser.PowerSaver, "Power saver"))
+            && (facts.PowerPlan ?? (facts.PowerPlanId is { } planId ? PowerPlanParser.DescribeKnown(planId) : null)) is { } plan)
         {
             list.Add(new("latency.powerplan.balanced", Severity.Low, $"{plan} power plan",
                 "This plan lets the CPU clock down between frames. High performance keeps it ready.", "power.highperformance", RiskLevel.Safe, false));

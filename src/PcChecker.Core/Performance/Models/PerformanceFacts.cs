@@ -13,6 +13,9 @@ public sealed record PerformanceFacts
     public double MemoryUsedPercent { get; init; }
     public long MemoryTotalBytes { get; init; }
     public string? ActivePowerPlan { get; init; }
+
+    /// <summary>GUID of the active power plan; the rules compare this, because the plan name is translated.</summary>
+    public Guid? ActivePowerPlanId { get; init; }
     public bool? FastStartupEnabled { get; init; }
     public bool? HibernationEnabled { get; init; }
     public bool? VisualEffectsBestAppearance { get; init; }

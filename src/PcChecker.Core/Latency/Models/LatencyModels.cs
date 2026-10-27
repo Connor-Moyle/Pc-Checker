@@ -31,6 +31,9 @@ public sealed record LatencyReport(
     DateTimeOffset Captured,
     IReadOnlyList<string> Warnings)
 {
+    /// <summary>GUID of the active power plan; the rules compare this, because <see cref="PowerPlan"/> is translated.</summary>
+    public Guid? PowerPlanId { get; init; }
+
     public static LatencyReport Empty(string? warning = null) =>
         new(null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, [], [], 0, DateTimeOffset.Now, warning is null ? [] : [warning]);
 }

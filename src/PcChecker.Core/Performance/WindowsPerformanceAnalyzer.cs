@@ -80,6 +80,7 @@ public sealed class WindowsPerformanceAnalyzer : IPerformanceAnalyzer
             MemoryTotalBytes = totalMemory,
             CommitUsedPercent = commitPercent,
             ActivePowerPlan = scheme?.Name,
+            ActivePowerPlanId = scheme?.Id,
             FastStartupEnabled = WindowsSystemProbe.FastStartupEnabled(),
             HibernationEnabled = WindowsSystemProbe.HibernationEnabled(),
             VisualEffectsBestAppearance = visualFx is null ? null : visualFx == 1,

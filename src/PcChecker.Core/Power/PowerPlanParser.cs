@@ -52,6 +52,14 @@ public static partial class PowerPlanParser
         return plans.Count == 0 ? null : plans[0] with { IsActive = true };
     }
 
+    /// <summary>
+    /// True when the plan is the well-known plan <paramref name="knownId"/>. powercfg translates plan names
+    /// ("Ausbalanciert", "Économie d'énergie"), so the GUID decides; the English name is only a fallback for an unknown
+    /// GUID or a copied plan that kept the English name.
+    /// </summary>
+    public static bool IsPlan(Guid? id, string? name, Guid knownId, string englishName) =>
+        id == knownId || (!string.IsNullOrEmpty(name) && name.Contains(englishName, StringComparison.OrdinalIgnoreCase));
+
     /// <summary>Plain-English description of the well-known plans; null for custom ones.</summary>
     public static string? DescribeKnown(Guid id)
     {

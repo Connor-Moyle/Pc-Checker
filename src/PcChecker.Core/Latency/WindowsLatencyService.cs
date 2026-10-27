@@ -77,7 +77,7 @@ public sealed class WindowsLatencyService : ILatencyService
 
         // 3. Power plan settings.
         progress?.Report(new ProgressUpdate("Reading power plan settings", 65));
-        var (_, planName) = await LatencyProbes.ReadActiveSchemeAsync(cancellationToken).ConfigureAwait(false);
+        var (planId, planName) = await LatencyProbes.ReadActiveSchemeAsync(cancellationToken).ConfigureAwait(false);
         if (planName is null)
         {
             warnings.Add("powercfg did not report the active power plan.");
@@ -134,7 +134,10 @@ public sealed class WindowsLatencyService : ILatencyService
             counters.Dpc, counters.Isr, counters.DpcsPerSec, counters.InterruptsPerSec,
             timer?.CurrentMs, timer?.MinMs,
             hpetForced, dynamicTickDisabled, hags, planName, coreParking, usbSuspend, aspmEnabled,
-            gameMode, pointerPrecision, pollingHz, dnsMs, network, [], 0, DateTimeOffset.Now, warnings);
+            gameMode, pointerPrecision, pollingHz, dnsMs, network, [], 0, DateTimeOffset.Now, warnings)
+        {
+            PowerPlanId = planId,
+        };
         var findings = LatencyRules.BuildFindings(facts, hasNvidia, nicPowerSaving, adapterStates);
         Last = facts with { Findings = findings, Score = LatencyRules.Score(findings) };
         _logger.LogInformation("Latency check finished in {Elapsed:0.0} s: score {Score}, {Findings} findings, {Warnings} warnings.",
