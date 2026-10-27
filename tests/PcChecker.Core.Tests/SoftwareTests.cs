@@ -138,7 +138,7 @@ public class UninstallCommandBuilderTests
         var p = InstalledProgram.Create("q", "Quiet App", uninstallString: "\"C:\\A\\u.exe\"", quietUninstallString: "\"C:\\A\\u.exe\" /silent");
         var (file, args) = UninstallCommandBuilder.Build(p, quiet: true)!.Value;
         Assert.Equal(@"C:\A\u.exe", file);
-        Assert.Equal("/silent", args);
+        Assert.Equal("/silent /norestart", args);
         // quiet:false must ignore the quiet string.
         Assert.Equal((@"C:\A\u.exe", string.Empty), UninstallCommandBuilder.Build(p, quiet: false)!.Value);
     }
@@ -158,6 +158,25 @@ public class UninstallCommandBuilderTests
         Assert.DoesNotContain("/norestart", UninstallCommandBuilder.Build(property, quiet: true)!.Value.Arguments);
         // Not msiexec: untouched.
         Assert.Equal("/S", UninstallCommandBuilder.EnsureNoRestart(@"C:\x\uninstall.exe", "/S"));
+    }
+
+    [Fact]
+    public void Quiet_bundle_strings_get_norestart_so_a_burn_bundle_never_reboots_unattended()
+    {
+        var python = InstalledProgram.Create("b", "Python 3.12.4 (64-bit)",
+            uninstallString: "\"C:\\ProgramData\\Package Cache\\{12345678-1234-1234-1234-123456789ABC}\\python-3.12.4-amd64.exe\" /uninstall",
+            quietUninstallString: "\"C:\\ProgramData\\Package Cache\\{12345678-1234-1234-1234-123456789ABC}\\python-3.12.4-amd64.exe\" /uninstall /quiet");
+        var (file, args) = UninstallCommandBuilder.Build(python, quiet: true)!.Value;
+        Assert.Equal(@"C:\ProgramData\Package Cache\{12345678-1234-1234-1234-123456789ABC}\python-3.12.4-amd64.exe", file);
+        Assert.Equal("/uninstall /quiet /norestart", args);
+
+        Assert.Equal("/uninstall /passive /norestart", UninstallCommandBuilder.EnsureNoRestart(@"C:\x\vc_redist.x64.exe", "/uninstall /passive"));
+        Assert.Equal("/uninstall /q /norestart", UninstallCommandBuilder.EnsureNoRestart(@"C:\x\bundle.exe", "/uninstall /q"));
+        Assert.Equal("/uninstall /quiet /norestart", UninstallCommandBuilder.EnsureNoRestart(@"C:\x\bundle.exe", "/uninstall /quiet /norestart"));
+        Assert.Equal("/uninstall /quiet /forcerestart", UninstallCommandBuilder.EnsureNoRestart(@"C:\x\bundle.exe", "/uninstall /quiet /forcerestart"));
+        // Not quiet, or the quiet switch belongs to msiexec inside an InstallShield /v"..." pass-through: untouched.
+        Assert.Equal("/uninstall", UninstallCommandBuilder.EnsureNoRestart(@"C:\x\bundle.exe", "/uninstall"));
+        Assert.Equal("-runfromtemp /s /v\"/qn\"", UninstallCommandBuilder.EnsureNoRestart(@"C:\x\setup.exe", "-runfromtemp /s /v\"/qn\""));
     }
 
     [Fact]

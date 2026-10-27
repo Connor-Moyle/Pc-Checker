@@ -104,14 +104,18 @@ public static partial class UninstallCommandBuilder
     }
 
     /// <summary>
-    /// A quiet msiexec command without <c>/norestart</c> (or a REBOOT= property) lets Windows Installer restart the PC
-    /// unattended; add the switch so an uninstall never reboots the machine on its own.
+    /// A quiet uninstall without <c>/norestart</c> can restart the PC unattended: Windows Installer does so for a quiet
+    /// msiexec command (unless a REBOOT= property is set), and WiX Burn bundles and most other bootstrappers do so when
+    /// run with <c>/quiet</c>, <c>/passive</c>, <c>/q</c> or <c>/silent</c>. Add the switch so an uninstall never
+    /// reboots the machine on its own.
     /// </summary>
     public static string EnsureNoRestart(string fileName, string arguments)
     {
         bool msi = fileName.Contains("msiexec", StringComparison.OrdinalIgnoreCase) || arguments.Contains("msiexec", StringComparison.OrdinalIgnoreCase);
-        bool quiet = arguments.Contains("/q", StringComparison.OrdinalIgnoreCase) || arguments.Contains("/quiet", StringComparison.OrdinalIgnoreCase) || arguments.Contains("/passive", StringComparison.OrdinalIgnoreCase);
-        if (!msi || !quiet)
+        bool quiet = msi
+            ? arguments.Contains("/q", StringComparison.OrdinalIgnoreCase) || arguments.Contains("/quiet", StringComparison.OrdinalIgnoreCase) || arguments.Contains("/passive", StringComparison.OrdinalIgnoreCase)
+            : HasBundleQuietSwitch(arguments);
+        if (!quiet)
         {
             return arguments;
         }
@@ -126,6 +130,18 @@ public static partial class UninstallCommandBuilder
 
         return string.IsNullOrWhiteSpace(arguments) ? "/norestart" : arguments + " /norestart";
     }
+
+    /// <summary>
+    /// True when a non-msiexec command carries a standalone quiet switch of the kind Burn and similar bootstrappers
+    /// accept. Only whole arguments count, so an msiexec switch passed through inside <c>/v"/qn"</c> (InstallShield) or
+    /// an Inno Setup <c>/SILENT</c> next to its own <c>/NORESTART</c> is left alone.
+    /// </summary>
+    private static bool HasBundleQuietSwitch(string arguments) =>
+        arguments.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+            .Any(token => token.Equals("/quiet", StringComparison.OrdinalIgnoreCase)
+                          || token.Equals("/passive", StringComparison.OrdinalIgnoreCase)
+                          || token.Equals("/q", StringComparison.OrdinalIgnoreCase)
+                          || token.Equals("/silent", StringComparison.OrdinalIgnoreCase));
 
     /// <summary>Guesses the installer technology from the uninstall command.</summary>
     public static InstallerKind GuessInstaller(string? uninstallString, string? fileName = null)
