@@ -24,13 +24,22 @@ public sealed class ChangeGuard : IChangeGuard, IChangeBatchRunner
     private readonly IActionJournal _journal;
     private readonly ISettingsService _settings;
     private readonly ILogger<ChangeGuard> _logger;
+    private readonly IChangeUndoTracker? _undo;
 
     public ChangeGuard(IRestorePointService restorePoints, IActionJournal journal, ISettingsService settings, ILogger<ChangeGuard> logger)
+        : this(restorePoints, journal, settings, logger, null)
+    {
+    }
+
+    /// <summary>With <paramref name="undo"/>, successful reversible changes that say how to undo them are offered for undo.</summary>
+    public ChangeGuard(IRestorePointService restorePoints, IActionJournal journal, ISettingsService settings, ILogger<ChangeGuard> logger,
+        IChangeUndoTracker? undo)
     {
         _restorePoints = restorePoints;
         _journal = journal;
         _settings = settings;
         _logger = logger;
+        _undo = undo;
     }
 
     public async Task<OperationResult> RunGuardedAsync(string description, ChangeOptions options,
@@ -115,7 +124,42 @@ public sealed class ChangeGuard : IChangeGuard, IChangeBatchRunner
 
         var outcome = (result.Success ? "Succeeded: " : "Failed: ") + result.Message;
         await RecordAsync(options, description, outcome, sequence).ConfigureAwait(false);
+        if (result.Success)
+        {
+            OfferUndo(description, options, batch is not null);
+        }
+
         return result;
+    }
+
+    /// <summary>
+    /// Registers the change for the success notification's Undo button when it is reversible, says how to undo it
+    /// (<see cref="ChangeOptions.Undo"/> or an open <see cref="ChangeUndo.Offer"/>), is not part of a batch and is not
+    /// itself an undo.
+    /// </summary>
+    private void OfferUndo(string description, ChangeOptions options, bool inBatch)
+    {
+        if (_undo is null || !options.Reversible || inBatch || ChangeUndo.IsSuppressed)
+        {
+            return;
+        }
+
+        var scope = options.Undo is null ? ChangeUndo.Current : null;
+        var undo = options.Undo ?? scope?.Undo;
+        if (undo is null)
+        {
+            return;
+        }
+
+        try
+        {
+            _undo.Register(new UndoableChange(Guid.NewGuid(), scope?.Id ?? Guid.NewGuid(), description, options.Module, options.Target, DateTimeOffset.Now, undo));
+            scope?.MarkRegistered();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Could not offer an undo for {Description}.", description);
+        }
     }
 
     public async Task<ChangeBatchOutcome> RunBatchAsync(string description, bool createRestorePoint, Func<CancellationToken, Task> work,

@@ -103,9 +103,27 @@ public sealed class OptimizationActionRunner
         try
         {
             _logger.LogInformation("{Verb} optimization {Action}.", revert ? "Reverting" : "Applying", action.Id);
-            result = revert
-                ? await _optimization.RevertAsync(action.Id, cancellationToken)
-                : await _optimization.ApplyAsync(action.Id, cancellationToken);
+            if (revert)
+            {
+                result = await _optimization.RevertAsync(action.Id, cancellationToken);
+            }
+            else if (confirm && action.Reversible)
+            {
+                // One tweak applied on its own: the "Applied" notification offers Undo for a few seconds.
+                result = await UndoOffers.RunAsync(
+                    () => _optimization.ApplyAsync(action.Id, cancellationToken),
+                    async undoCt =>
+                    {
+                        var back = await _optimization.RevertAsync(action.Id, undoCt);
+                        DispatcherHelper.PostToUi(() => ActionCompleted?.Invoke(this, new OptimizationRunResult(action.Id, true, back)));
+                        return back;
+                    },
+                    action.Title);
+            }
+            else
+            {
+                result = await _optimization.ApplyAsync(action.Id, cancellationToken);
+            }
         }
         catch (OperationCanceledException)
         {

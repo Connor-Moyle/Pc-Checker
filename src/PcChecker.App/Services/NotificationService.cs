@@ -1,17 +1,29 @@
 using System.Windows;
+using System.Windows.Controls;
+using PcChecker.Core.Restore;
 using Wpf.Ui;
 using Wpf.Ui.Controls;
 
 namespace PcChecker.App.Services;
 
-/// <summary>Shows notifications through the WPF-UI snackbar. Falls back to the log when no presenter is attached yet.</summary>
+/// <summary>
+/// Shows notifications through the WPF-UI snackbar. Falls back to the log when no presenter is attached yet. A success
+/// notification that follows a reversible change offers "Undo" for a few seconds (see <see cref="IChangeUndoTracker"/>).
+/// </summary>
 public sealed class NotificationService : INotificationService
 {
     private readonly ISnackbarService _snackbar;
+    private readonly IChangeUndoTracker? _undo;
 
     public NotificationService(ISnackbarService snackbar)
+        : this(snackbar, null)
+    {
+    }
+
+    public NotificationService(ISnackbarService snackbar, IChangeUndoTracker? undo)
     {
         _snackbar = snackbar;
+        _undo = undo;
     }
 
     public void Show(string title, string message, NotificationKind kind = NotificationKind.Info, TimeSpan? duration = null)
@@ -24,9 +36,12 @@ public sealed class NotificationService : INotificationService
             return;
         }
 
+        // Decide now, while the change is fresh; the snackbar itself may be shown a moment later.
+        var undoable = kind == NotificationKind.Success ? _undo?.TakeOffer(DateTimeOffset.Now) : null;
+
         void Post()
         {
-            if (_snackbar.GetSnackbarPresenter() is null)
+            if (_snackbar.GetSnackbarPresenter() is not { } presenter)
             {
                 return;
             }
@@ -38,7 +53,14 @@ public sealed class NotificationService : INotificationService
                 NotificationKind.Error => (ControlAppearance.Danger, SymbolRegular.ErrorCircle24),
                 _ => (ControlAppearance.Secondary, SymbolRegular.Info24),
             };
-            _snackbar.Show(title, message, appearance, new SymbolIcon(symbol), duration ?? TimeSpan.FromSeconds(4));
+
+            if (undoable is null || _undo is null)
+            {
+                _snackbar.Show(title, message, appearance, new SymbolIcon(symbol), duration ?? TimeSpan.FromSeconds(4));
+                return;
+            }
+
+            ShowWithUndo(presenter, title, message, appearance, symbol, undoable);
         }
 
         if (dispatcher.CheckAccess())
@@ -49,5 +71,53 @@ public sealed class NotificationService : INotificationService
         {
             dispatcher.BeginInvoke(Post);
         }
+    }
+
+    /// <summary>The success snackbar with an Undo button that runs the change's undo once, within the undo window.</summary>
+    private void ShowWithUndo(SnackbarPresenter presenter, string title, string message, ControlAppearance appearance, SymbolRegular symbol, UndoableChange change)
+    {
+        var undoButton = new Wpf.Ui.Controls.Button
+        {
+            Content = Localization.Loc.T("Undo"),
+            Icon = new SymbolIcon(SymbolRegular.ArrowUndo24),
+            Margin = new Thickness(16, 0, 0, 0),
+            VerticalAlignment = VerticalAlignment.Center,
+            ToolTip = Localization.Loc.T("Take this change back. The undo is recorded in the Action Journal too."),
+        };
+        System.Windows.Automation.AutomationProperties.SetName(undoButton, Localization.Loc.F("Undo: {0}", change.Description));
+
+        var text = new Wpf.Ui.Controls.TextBlock { Text = message, TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center };
+        var content = new Grid();
+        content.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        content.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        Grid.SetColumn(undoButton, 1);
+        content.Children.Add(text);
+        content.Children.Add(undoButton);
+
+        var snackbar = new Snackbar(presenter)
+        {
+            Title = title,
+            Content = content,
+            Appearance = appearance,
+            Icon = new SymbolIcon(symbol),
+            Timeout = UndoOfferRules.UndoWindow,
+        };
+
+        undoButton.Click += async (_, _) =>
+        {
+            undoButton.IsEnabled = false;
+            _ = presenter.HideCurrent();
+            var result = await _undo!.UndoAsync(change.Id, DateTimeOffset.Now, CancellationToken.None);
+            if (result.Success)
+            {
+                Show(Localization.Loc.T("Undone"), Localization.Loc.F("{0} was taken back.", change.Description));
+            }
+            else
+            {
+                Show(Localization.Loc.T("Could not undo"), result.Message, NotificationKind.Error, TimeSpan.FromSeconds(8));
+            }
+        };
+
+        snackbar.Show();
     }
 }
