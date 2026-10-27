@@ -1,6 +1,8 @@
 using System.Diagnostics;
+using System.Net;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace PcChecker.Core.Common;
 
@@ -14,8 +16,17 @@ public sealed record PowerShellResult(int ExitCode, string StdOut, string StdErr
 /// Runs Windows PowerShell commands non-interactively and captures their output.
 /// Uses <c>powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command</c>.
 /// </summary>
-public static class PowerShellRunner
+public static partial class PowerShellRunner
 {
+    /// <summary>The first line Windows PowerShell writes when it serializes the error stream as CLIXML.</summary>
+    public const string CliXmlMarker = "#< CLIXML";
+
+    [GeneratedRegex(@"<S S=""Error"">(.*?)</S>", RegexOptions.Singleline | RegexOptions.CultureInvariant)]
+    private static partial Regex CliXmlErrorString();
+
+    [GeneratedRegex(@"_x([0-9A-Fa-f]{4})_", RegexOptions.CultureInvariant)]
+    private static partial Regex CliXmlCharEscape();
+
     public static readonly TimeSpan DefaultTimeout = TimeSpan.FromMinutes(2);
 
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -82,7 +93,7 @@ public static class PowerShellRunner
         }
 
         int exitCode = timedOut ? -2 : SafeExitCode(process);
-        return new PowerShellResult(exitCode, stdout.ToString().TrimEnd(), stderr.ToString().TrimEnd(), timedOut);
+        return new PowerShellResult(exitCode, stdout.ToString().TrimEnd(), DecodeCliXml(stderr.ToString()).TrimEnd(), timedOut);
     }
 
     /// <summary>
@@ -139,6 +150,38 @@ public static class PowerShellRunner
     /// </summary>
     public static string WithUtf8OutputPrelude(string command) =>
         "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; " + command;
+
+    /// <summary>
+    /// With <c>-EncodedCommand</c> and a redirected error stream, Windows PowerShell writes errors (and progress
+    /// records) as a CLIXML blob after a <c>#&lt; CLIXML</c> line instead of plain text. Returns the error messages as
+    /// plain lines, drops progress and other records, and keeps any plain text written before the blob. Text without
+    /// the marker is returned unchanged.
+    /// </summary>
+    public static string DecodeCliXml(string? stderr)
+    {
+        if (string.IsNullOrEmpty(stderr))
+        {
+            return string.Empty;
+        }
+
+        int marker = stderr.IndexOf(CliXmlMarker, StringComparison.Ordinal);
+        if (marker < 0)
+        {
+            return stderr;
+        }
+
+        var text = new StringBuilder();
+        foreach (Match match in CliXmlErrorString().Matches(stderr, marker))
+        {
+            var xmlDecoded = WebUtility.HtmlDecode(match.Groups[1].Value);
+            text.Append(CliXmlCharEscape().Replace(xmlDecoded, m => ((char)Convert.ToInt32(m.Groups[1].Value, 16)).ToString()));
+        }
+
+        var lines = (stderr[..marker] + "\n" + text)
+            .Replace("\r\n", "\n", StringComparison.Ordinal)
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        return string.Join(Environment.NewLine, lines);
+    }
 
     /// <summary>Escapes a string for use inside a single-quoted PowerShell literal.</summary>
     public static string Quote(string value) => "'" + value.Replace("'", "''") + "'";

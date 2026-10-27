@@ -164,6 +164,35 @@ public class PowerShellRunnerTests
     }
 
     [Fact]
+    public void DecodeCliXml_turns_serialized_errors_into_plain_lines_and_drops_progress()
+    {
+        const string stderr =
+            "#< CLIXML\r\n" +
+            "<Objs Version=\"1.1.0.1\" xmlns=\"http://schemas.microsoft.com/powershell/2004/04\">" +
+            "<Obj S=\"progress\" RefId=\"0\"><TN RefId=\"0\"><T>System.Management.Automation.PSCustomObject</T></TN><MS><I64 N=\"SourceId\">1</I64>" +
+            "<PR N=\"Record\"><AV>Preparing modules for first use.</AV><AI>0</AI><Nil /><PI>-1</PI><PC>-1</PC><T>Completed</T><SR>-1</SR><SD> </SD></PR></MS></Obj>" +
+            "<S S=\"Error\">Remove-AppxPackage : Deployment failed with HRESULT: 0x80073CFA, Removal failed. Please contact your software vendor. &amp; more_x000D__x000A_</S>" +
+            "<S S=\"Error\">(Exception from HRESULT: 0x80073CFA) for package_x005F_name &lt;x&gt;_x000D__x000A_</S>" +
+            "<S S=\"Error\">    + CategoryInfo          : WriteError_x000D__x000A_</S>" +
+            "</Objs>";
+
+        var lines = PowerShellRunner.DecodeCliXml(stderr).Split(Environment.NewLine);
+        Assert.Equal(3, lines.Length);
+        Assert.Equal("Remove-AppxPackage : Deployment failed with HRESULT: 0x80073CFA, Removal failed. Please contact your software vendor. & more", lines[0]);
+        Assert.Equal("(Exception from HRESULT: 0x80073CFA) for package_name <x>", lines[1]);
+        Assert.Equal("+ CategoryInfo          : WriteError", lines[2]);
+    }
+
+    [Fact]
+    public void DecodeCliXml_keeps_plain_text_and_drops_a_progress_only_blob()
+    {
+        Assert.Equal("Access is denied.", PowerShellRunner.DecodeCliXml("Access is denied."));
+        Assert.Equal(string.Empty, PowerShellRunner.DecodeCliXml(null));
+        Assert.Equal(string.Empty, PowerShellRunner.DecodeCliXml("#< CLIXML\r\n<Objs Version=\"1.1.0.1\"><Obj S=\"progress\" RefId=\"0\"></Obj></Objs>"));
+        Assert.Equal("native tool said no", PowerShellRunner.DecodeCliXml("native tool said no\r\n#< CLIXML\r\n<Objs Version=\"1.1.0.1\"></Objs>"));
+    }
+
+    [Fact]
     public async Task RunAsync_degrades_gracefully_off_windows()
     {
         if (OperatingSystem.IsWindows())

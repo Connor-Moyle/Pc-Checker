@@ -155,7 +155,7 @@ public sealed class WindowsUninstallService : IUninstallService
         if (!result.Success)
         {
             var detail = string.IsNullOrWhiteSpace(result.StdErr) ? $"PowerShell exit code {result.ExitCode}" : result.StdErr.Split('\n')[0].Trim();
-            if (detail.Contains("0x80073CFA", StringComparison.OrdinalIgnoreCase) || detail.Contains("cannot be removed", StringComparison.OrdinalIgnoreCase))
+            if (result.StdErr.Contains("0x80073CFA", StringComparison.OrdinalIgnoreCase) || result.StdErr.Contains("cannot be removed", StringComparison.OrdinalIgnoreCase))
             {
                 return OperationResult.Fail($"{program.Name} is a system app that Windows does not allow to be removed.");
             }
