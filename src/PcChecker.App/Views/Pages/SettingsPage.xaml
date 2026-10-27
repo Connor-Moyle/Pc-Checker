@@ -100,6 +100,17 @@
               </ui:CardControl.Header>
               <ui:ToggleSwitch IsChecked="{Binding AdvancedMode}" />
             </ui:CardControl>
+            <ui:CardControl Style="{StaticResource Row}" Icon="{ui:SymbolIcon AppFolder24}"
+                            Visibility="{Binding CanInstallApp, Converter={StaticResource BoolToVisibility}}">
+              <ui:CardControl.Header>
+                <StackPanel>
+                  <ui:TextBlock Text="Install in Program Files" />
+                  <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Text="{Binding AppInstallHint}" />
+                </StackPanel>
+              </ui:CardControl.Header>
+              <ui:Button Content="Install" Command="{Binding InstallAppCommand}"
+                         ToolTip="Copies PC Checker to a folder only administrators can change and opens it from there. Asks first." />
+            </ui:CardControl>
             <ui:CardControl Style="{StaticResource Row}" Icon="{ui:SymbolIcon TaskListLtr24}">
               <ui:CardControl.Header>
                 <StackPanel>

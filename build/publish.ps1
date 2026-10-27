@@ -12,11 +12,16 @@
 
 .EXAMPLE
     .\build\publish.ps1 -Version 0.2.0-beta.1 -Screenshots
+
+.EXAMPLE
+    .\build\publish.ps1 -Version 0.2.0 -Runtime win-arm64 -OutputRoot artifacts-arm64
+    The Windows on Arm build (released as PcChecker-arm64.exe).
 #>
 [CmdletBinding()]
 param(
     [string]$Version,
     [string]$Configuration = "Release",
+    [ValidateSet("win-x64", "win-arm64")]
     [string]$Runtime = "win-x64",
     [string]$OutputRoot = "artifacts",
     [switch]$SkipTests,

@@ -257,7 +257,8 @@ public sealed class WindowsTaskManagerReplacementService : ITaskManagerReplaceme
         if (UserWritable(_exePath) || UserWritable(System.IO.Path.GetDirectoryName(_exePath)))
         {
             return "PC Checker's install folder can be changed by standard users, which could let another program take "
-                + "Task Manager's place, so this option stays off. Reinstall PC Checker with its installer to fix the folder's permissions.";
+                + "Task Manager's place, so this option stays off. Move PcChecker.exe to a folder only administrators can change, such as "
+                + "C:\\Program Files\\PC Checker (\"Install in Program Files\" in Settings does this), and start it from there.";
         }
 
         return null;

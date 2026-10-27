@@ -129,6 +129,7 @@ public static class ServiceRegistration
         Add<IPowerService, WindowsPowerService, DemoPowerService>(services, demo);
         Add<IHistoryService, WindowsHistoryService, DemoHistoryService>(services, demo);
         Add<IAppUpdateService, GitHubExeUpdateService, DemoAppUpdateService>(services, demo);
+        Add<IAppInstallService, WindowsAppInstallService, DemoAppInstallService>(services, demo);
         Add<IPcAssistantService, ClaudeAssistantService, DemoPcAssistantService>(services, demo);
         Add<IFanControlService, LibreHardwareFanControlService, DemoFanControlService>(services, demo);
         Add<IPawnIoService, WindowsPawnIoService, DemoPawnIoService>(services, demo);

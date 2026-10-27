@@ -137,9 +137,6 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     public void NavigateTo<TPage>() where TPage : class => _navigation.Navigate(typeof(TPage));
 
     [RelayCommand]
-    private void GoToDashboard() => NavigateTo<DashboardPage>();
-
-    [RelayCommand]
     private void GoToSettings() => NavigateTo<SettingsPage>();
 
     [RelayCommand]

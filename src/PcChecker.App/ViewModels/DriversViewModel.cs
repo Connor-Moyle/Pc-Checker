@@ -336,9 +336,6 @@ public sealed partial class DriversViewModel : ViewModelBase
         UnsignedOnly = false;
     }
 
-    [RelayCommand]
-    private void DismissResult() => LastResultMessage = null;
-
     private async Task ScanAsyncCore(IProgress<ProgressUpdate>? progress, CancellationToken ct)
     {
         var result = await _drivers.ScanInstalledAsync(progress, ct);

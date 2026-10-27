@@ -83,7 +83,8 @@ public static class TaskExecutableRules
             ? "the file"
             : $"\"{weakPath}\"")
         + " can be changed without administrator rights, so another program could replace PcChecker.exe and get administrator rights without a UAC prompt. "
-        + "Move PcChecker.exe to a folder only administrators can change, such as C:\\Program Files\\PC Checker, start it from there and try again.";
+        + "Move PcChecker.exe to a folder only administrators can change, such as C:\\Program Files\\PC Checker "
+        + "(\"Install in Program Files\" in Settings does this), start it from there and try again.";
 
     private static bool GrantsUntrusted(TaskPathSecurity path, FileSystemRights dangerous) =>
         path.Rules.Any(r => r.IsAllow && !r.InheritOnly && !IsTrusted(r.Sid) && (r.Rights & dangerous) != 0);

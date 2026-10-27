@@ -241,7 +241,8 @@ public static class TaskManagerReplacement
         IsInstalledLocation(exePath, programFilesRoots)
             ? null
             : "This option is only available when PC Checker is installed in Program Files. Running it from a "
-              + "download or user folder could let another program take Task Manager's place, so it stays off.";
+              + "download or user folder could let another program take Task Manager's place, so it stays off. "
+              + "Use \"Install in Program Files\" above to put PC Checker there.";
 
     private static bool IsPcCheckerExe(string path)
     {

@@ -277,6 +277,8 @@
                 ToolTip="When on, Ctrl+Shift+Esc opens PC Checker here. You confirm first; change it any time in Settings." />
       <MenuItem Header="Open Windows Task Manager" Command="{Binding OpenWindowsTaskManagerCommand}"
                 ToolTip="While PC Checker replaces Task Manager, this turns that option off first and then opens Windows Task Manager." />
+      <MenuItem Header="Startup apps" Command="{Binding OpenStartupAppsCommand}"
+                ToolTip="Programs that start with Windows and how much each slows start-up (Apps &amp; Drivers › Startup)." />
     </ContextMenu>
   </Page.Resources>
 

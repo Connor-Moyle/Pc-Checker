@@ -92,6 +92,22 @@ public class ExeUpdateTests
     }
 
     [Fact]
+    public void ExpectedSha256_takes_the_line_that_names_the_asset()
+    {
+        const string arm = "1111111111111111111111111111111111111111111111111111111111111111";
+        const string body = "## Checksums\n\n**SHA-256 (PcChecker.exe):** ``" + Hash + "``\n\n**SHA-256 (PcChecker-arm64.exe):** ``" + arm + "``\n";
+        Assert.Equal(arm, ExeUpdateRules.ExpectedSha256(new GitHubReleaseAsset("PcChecker-arm64.exe", "u", 1, null), body));
+        Assert.Equal(Hash, ExeUpdateRules.ExpectedSha256(new GitHubReleaseAsset("PcChecker.exe", "u", 1, null), body));
+    }
+
+    [Fact]
+    public void ExpectedSha256_never_uses_the_hash_of_another_build()
+    {
+        const string body = "**SHA-256 (PcChecker.exe):** `" + Hash + "`";
+        Assert.Null(ExeUpdateRules.ExpectedSha256(new GitHubReleaseAsset("PcChecker-arm64.exe", "u", 1, null), body));
+    }
+
+    [Fact]
     public void ExpectedSha256_is_null_without_a_valid_checksum()
     {
         var asset = new GitHubReleaseAsset("PcChecker.exe", "u", 1, "sha256:nothex");
