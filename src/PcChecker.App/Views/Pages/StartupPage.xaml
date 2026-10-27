@@ -108,6 +108,9 @@
       <ComboBox ItemsSource="{Binding StartModes}" SelectedItem="{Binding SelectedStartMode, Mode=TwoWay}" MinWidth="170" Margin="0,2"
                 ToolTip="Automatic: starts with Windows. Manual: starts only when something needs it. Disabled: never starts." />
     </DataTemplate>
+    <Style x:Key="Tile" TargetType="controls:StatCard">
+      <Setter Property="Margin" Value="0" />
+    </Style>
   </Page.Resources>
 
   <Grid Style="{StaticResource PageRoot}">
@@ -117,12 +120,23 @@
       <RowDefinition Height="*" />
     </Grid.RowDefinitions>
 
-    <controls:SectionHeader Grid.Row="0" Title="Startup" Subtitle="What runs when you sign in, which services start with Windows, and how the PC boots.">
+    <controls:SectionHeader Grid.Row="0" Title="Startup"
+                            Subtitle="{Binding LastRefreshedText, TargetNullValue='What runs at sign-in, which services start with Windows, and how the PC boots.'}">
       <controls:SectionHeader.Actions>
         <StackPanel Orientation="Horizontal">
-          <ui:TextBlock Text="{Binding LastRefreshedText}" Style="{StaticResource Muted}" VerticalAlignment="Center" Margin="0,0,12,0" />
-          <ui:Button Content="Windows Startup settings" Icon="{ui:SymbolIcon Open24}" Command="{Binding OpenStartupSettingsCommand}" Margin="0,0,8,0"
-                     ToolTip="Opens Settings → Apps → Startup" />
+          <ui:DropDownButton Content="More" Icon="{ui:SymbolIcon MoreHorizontal24}" Margin="0,0,8,0">
+            <ui:DropDownButton.Flyout>
+              <ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+                <MenuItem Header="Windows Startup settings" Command="{Binding OpenStartupSettingsCommand}"
+                          ToolTip="Opens Settings → Apps → Startup" />
+                <MenuItem Header="Task Scheduler" Command="{Binding OpenTaskSchedulerCommand}" />
+                <MenuItem Header="System Configuration (msconfig)" Command="{Binding OpenSystemConfigurationCommand}" />
+                <Separator />
+                <MenuItem Header="Open backup folder" Command="{Binding OpenBackupFolderCommand}"
+                          ToolTip="Where removed startup entries and shortcuts are kept" />
+              </ContextMenu>
+            </ui:DropDownButton.Flyout>
+          </ui:DropDownButton>
           <ui:Button Content="Refresh" Appearance="Primary" Icon="{ui:SymbolIcon ArrowSync24}" Command="{Binding RefreshCommand}" />
         </StackPanel>
       </controls:SectionHeader.Actions>
@@ -142,18 +156,6 @@
     <ScrollViewer Grid.Row="2" Style="{StaticResource PageScroll}">
       <StackPanel>
 
-        <!-- Headline numbers -->
-        <UniformGrid Columns="4" Margin="0,0,0,12">
-          <controls:StatCard Title="Apps at sign-in" Value="{Binding EnabledAppCount}" Unit="{Binding TotalAppCount, StringFormat='of {0}'}" Icon="Power24"
-                             Accent="{StaticResource AccentCyanBrush}" Subtitle="Enabled registry and Startup folder entries" Margin="0,0,12,0" />
-          <controls:StatCard Title="Heavy at startup" Value="{Binding HighImpactCount}" Icon="Gauge24"
-                             Accent="{StaticResource AccentOrangeBrush}" Subtitle="Launchers and sync tools known to slow sign-in" Margin="0,0,12,0" />
-          <controls:StatCard Title="Logon tasks" Value="{Binding EnabledTaskCount}" Unit="{Binding TaskCount, StringFormat='of {0}'}" Icon="CalendarClock24"
-                             Accent="{StaticResource AccentPurpleBrush}" Subtitle="Scheduled tasks that run at logon or boot" Margin="0,0,12,0" />
-          <controls:StatCard Title="Last boot took" Value="{Binding BootDurationText}" Icon="Timer24"
-                             Accent="{StaticResource AccentGreenBrush}" Subtitle="{Binding BootDurationNote}" />
-        </UniformGrid>
-
         <!-- Warnings -->
         <ItemsControl ItemsSource="{Binding Warnings}" Margin="0,0,0,4" Visibility="{Binding HasWarnings, Converter={StaticResource BoolToVisibility}}">
           <ItemsControl.ItemTemplate>
@@ -165,7 +167,7 @@
                     <ColumnDefinition Width="*" />
                   </Grid.ColumnDefinitions>
                   <Border Grid.Column="0" Background="{Binding Severity, Converter={StaticResource SeverityToBrush}}" CornerRadius="4,0,0,4" />
-                  <StackPanel Grid.Column="1" Margin="14,10">
+                  <StackPanel Grid.Column="1" Margin="16,10">
                     <ui:TextBlock FontTypography="BodyStrong" Text="{Binding Title}" />
                     <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding Detail}" TextWrapping="Wrap" />
                   </StackPanel>
@@ -175,21 +177,34 @@
           </ItemsControl.ItemTemplate>
         </ItemsControl>
 
+        <!-- Summary -->
+        <controls:AdaptiveGrid MinItemWidth="200" MaxColumns="4" Margin="0,0,0,12">
+          <controls:StatCard Style="{StaticResource Tile}" Title="Apps at sign-in" Value="{Binding EnabledAppCount}" Unit="{Binding TotalAppCount, StringFormat='of {0}'}" Icon="Power24"
+                             Accent="{StaticResource AccentCyanBrush}" Subtitle="Run keys and Startup folders" />
+          <controls:StatCard Style="{StaticResource Tile}" Title="Heavy at startup" Value="{Binding HighImpactCount}" Icon="Gauge24"
+                             Accent="{StaticResource AccentOrangeBrush}" Subtitle="Known to slow sign-in" />
+          <controls:StatCard Style="{StaticResource Tile}" Title="Logon tasks" Value="{Binding EnabledTaskCount}" Unit="{Binding TaskCount, StringFormat='of {0}'}" Icon="CalendarClock24"
+                             Accent="{StaticResource AccentPurpleBrush}" Subtitle="Run at sign-in or boot" />
+          <controls:StatCard Style="{StaticResource Tile}" Title="Last boot took" Value="{Binding BootDurationText}" Icon="Timer24"
+                             Accent="{StaticResource AccentGreenBrush}" Subtitle="{Binding BootDurationNote}" />
+        </controls:AdaptiveGrid>
+
         <!-- Startup apps -->
         <ui:Card Style="{StaticResource CardSpacing}">
           <StackPanel>
-            <Grid Margin="0,0,0,10">
+            <Grid Margin="0,0,0,8">
               <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
               </Grid.ColumnDefinitions>
-              <StackPanel Grid.Column="0">
+              <StackPanel Grid.Column="0" Margin="0,0,12,0">
                 <StackPanel Orientation="Horizontal">
-                  <ui:TextBlock Style="{StaticResource CardTitle}" Text="Startup apps" Margin="0,0,8,8" />
+                  <ui:TextBlock Style="{StaticResource CardTitle}" Text="Startup apps" Margin="0,0,8,4" />
                   <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding AppsSummary}" VerticalAlignment="Top" Margin="0,2,0,0" />
                 </StackPanel>
                 <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap"
-                              Text="Programs listed in the Run keys of the registry and in the Startup folders. Turning one off does not uninstall it; it just stops starting by itself." />
+                              Text="Turning one off does not uninstall it; it just stops starting by itself."
+                              ToolTip="Programs listed in the Run keys of the registry and in the Startup folders." />
               </StackPanel>
               <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top">
                 <ui:TextBox Width="220" PlaceholderText="Search apps, tasks, services" Icon="{ui:SymbolIcon Search24}" Margin="0,0,8,0"
@@ -198,7 +213,7 @@
               </StackPanel>
             </Grid>
 
-            <Border Visibility="{Binding ShowAddForm, Converter={StaticResource BoolToVisibility}}" Margin="0,0,0,10" Padding="12" CornerRadius="6"
+            <Border Visibility="{Binding ShowAddForm, Converter={StaticResource BoolToVisibility}}" Margin="0,0,0,12" Padding="12" CornerRadius="6"
                     Background="{DynamicResource ControlFillColorSecondaryBrush}">
               <Grid>
                 <Grid.ColumnDefinitions>
@@ -233,18 +248,19 @@
         <!-- Logon tasks -->
         <ui:Card Style="{StaticResource CardSpacing}">
           <StackPanel>
-            <Grid Margin="0,0,0,10">
+            <Grid Margin="0,0,0,8">
               <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
               </Grid.ColumnDefinitions>
-              <StackPanel Grid.Column="0">
+              <StackPanel Grid.Column="0" Margin="0,0,12,0">
                 <StackPanel Orientation="Horizontal">
-                  <ui:TextBlock Style="{StaticResource CardTitle}" Text="Scheduled logon tasks" Margin="0,0,8,8" />
+                  <ui:TextBlock Style="{StaticResource CardTitle}" Text="Scheduled logon tasks" Margin="0,0,8,4" />
                   <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding TasksSummary}" VerticalAlignment="Top" Margin="0,2,0,0" />
                 </StackPanel>
                 <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap"
-                              Text="Task Scheduler jobs that trigger at sign-in or boot. Updaters from Google, Microsoft Edge and OneDrive live here; they are harmless but not essential." />
+                              Text="Task Scheduler jobs that run at sign-in or boot."
+                              ToolTip="Updaters from Google, Microsoft Edge and OneDrive live here; they are harmless but not essential." />
               </StackPanel>
               <ui:ToggleSwitch Grid.Column="1" Content="Show Windows tasks" IsChecked="{Binding ShowWindowsTasks}" VerticalAlignment="Top"
                                ToolTip="Also list tasks published by Microsoft" />
@@ -265,13 +281,14 @@
           </StackPanel>
         </ui:Card>
 
-        <!-- Winlogon anomalies (advanced) -->
+        <!-- Winlogon anomalies -->
         <ui:Card Style="{StaticResource CardSpacing}" BorderBrush="{StaticResource AccentRedBrush}" BorderThickness="1"
                  Visibility="{Binding HasWinlogonAnomalies, Converter={StaticResource BoolToVisibility}}">
           <StackPanel>
             <ui:TextBlock Style="{StaticResource CardTitle}" Text="Unusual logon settings (advanced)" />
             <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,8"
-                          Text="Windows normally starts explorer.exe as the shell and userinit.exe at sign-in. A different value here runs something before your desktop appears and is often left by malware. PC Checker only reports it." />
+                          Text="Something other than the Windows default runs at sign-in. This is often left by malware."
+                          ToolTip="Windows normally starts explorer.exe as the shell and userinit.exe at sign-in. A different value here runs something before your desktop appears. PC Checker only reports it." />
             <ItemsControl ItemsSource="{Binding WinlogonAnomalies}">
               <ItemsControl.ItemTemplate>
                 <DataTemplate>
@@ -286,15 +303,137 @@
           </StackPanel>
         </ui:Card>
 
-        <!-- Services (advanced) -->
-        <ui:Card Style="{StaticResource CardSpacing}" Visibility="{Binding IsAdvancedMode, Converter={StaticResource BoolToVisibility}}">
+        <!-- Boot options: collapsed; the header shows when Safe Mode or a memory test is armed for the next start. -->
+        <ui:CardExpander Margin="0,0,0,12" ContentPadding="16" IsExpanded="False" Icon="{ui:SymbolIcon Power24}">
+          <ui:CardExpander.Header>
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
+              <StackPanel Grid.Column="0">
+                <ui:TextBlock FontTypography="BodyStrong" Text="Boot options" />
+                <ui:TextBlock Style="{StaticResource Muted}" Text="Fast startup, boot menu, Safe Mode and restarting into the firmware." TextWrapping="Wrap" />
+              </StackPanel>
+              <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,8,0">
+                <Border Style="{StaticResource Pill}" Background="{StaticResource AccentRedBrush}" Margin="0,0,6,0"
+                        Visibility="{Binding SafeModeNextBoot, Converter={StaticResource BoolToVisibility}}">
+                  <TextBlock Style="{StaticResource PillText}" Text="SAFE MODE ARMED" />
+                </Border>
+                <Border Style="{StaticResource Pill}" Background="{StaticResource AccentPurpleBrush}"
+                        Visibility="{Binding MemoryDiagnosticScheduled, Converter={StaticResource BoolToVisibility}}">
+                  <TextBlock Style="{StaticResource PillText}" Text="MEMORY TEST SCHEDULED" />
+                </Border>
+              </StackPanel>
+            </Grid>
+          </ui:CardExpander.Header>
           <StackPanel>
-            <StackPanel Orientation="Horizontal">
-              <ui:TextBlock Style="{StaticResource CardTitle}" Text="Services that start with Windows" Margin="0,0,8,8" />
-              <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding ServiceCount, StringFormat='{}{0} automatic services'}" VerticalAlignment="Top" Margin="0,2,0,0" />
+            <Grid Margin="0,0,0,12">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+              <StackPanel Grid.Column="0">
+                <ui:TextBlock Style="{StaticResource Muted}" Text="Last started" />
+                <ui:TextBlock Text="{Binding LastBootText}" FontWeight="SemiBold" />
+              </StackPanel>
+              <StackPanel Grid.Column="1">
+                <ui:TextBlock Style="{StaticResource Muted}" Text="Default entry" />
+                <ui:TextBlock Text="{Binding BootDescription}" FontWeight="SemiBold" />
+              </StackPanel>
+            </Grid>
+
+            <Separator Margin="0,0,0,8" />
+
+            <!-- Fast startup -->
+            <Grid Margin="0,4">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
+              <StackPanel Grid.Column="0" Margin="0,0,16,0"
+                          ToolTip="Pros: quicker cold boot. Cons: shutdown is not a full reset, and dual-boot setups can see disk problems. Restart (not Shut down) always does a full reset either way.">
+                <ui:TextBlock Text="Fast startup" FontWeight="SemiBold" />
+                <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding FastStartupSummary}" TextWrapping="Wrap" />
+              </StackPanel>
+              <ui:ToggleSwitch Grid.Column="1" IsChecked="{Binding FastStartup, Mode=OneWay}" Command="{Binding ToggleFastStartupCommand}" VerticalAlignment="Center" />
+            </Grid>
+
+            <!-- Boot menu timeout -->
+            <Grid Margin="0,8">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
+              <StackPanel Grid.Column="0" Margin="0,0,16,0">
+                <ui:TextBlock Text="Boot menu wait (seconds)" FontWeight="SemiBold" />
+                <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap"
+                              Text="Only matters with more than one operating system. 3 is plenty."
+                              ToolTip="How long the boot menu stays on screen when more than one operating system is installed. Windows defaults to 30." />
+              </StackPanel>
+              <ui:NumberBox Grid.Column="1" Value="{Binding BootTimeoutSeconds, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Minimum="0" Maximum="999" SmallChange="1"
+                            SpinButtonPlacementMode="Inline" ClearButtonEnabled="False" Width="150" Margin="0,0,8,0" VerticalAlignment="Center" />
+              <ui:Button Grid.Column="2" Content="Apply" Icon="{ui:SymbolIcon Checkmark24}" Command="{Binding ApplyBootTimeoutCommand}" IsEnabled="{Binding BootTimeoutChanged}" VerticalAlignment="Center" />
+            </Grid>
+
+            <!-- Safe mode -->
+            <Grid Margin="0,4">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
+              <StackPanel Grid.Column="0" Margin="0,0,16,0">
+                <ui:TextBlock Text="Start in Safe Mode next time" FontWeight="SemiBold" />
+                <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap"
+                              Text="Stays on until you switch it off again."
+                              ToolTip="Loads Windows with basic drivers and no startup apps, for removing a bad driver or program. Windows keeps starting in Safe Mode until you switch this off again." />
+              </StackPanel>
+              <ui:ToggleSwitch Grid.Column="1" IsChecked="{Binding SafeModeNextBoot, Mode=OneWay}" Command="{Binding ToggleSafeModeCommand}" VerticalAlignment="Center" />
+            </Grid>
+
+            <!-- Memory diagnostic -->
+            <Grid Margin="0,4">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
+              <StackPanel Grid.Column="0" Margin="0,0,16,0">
+                <ui:TextBlock Text="Memory test at next restart" FontWeight="SemiBold" />
+                <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap"
+                              Text="Schedule it on the Memory page."
+                              ToolTip="Windows Memory Diagnostic checks your RAM before Windows loads. Schedule it, and run quicker in-Windows tests, on the Memory page." />
+              </StackPanel>
+              <ui:Button Grid.Column="1" Content="Open Memory page" Icon="{ui:SymbolIcon ArrowRight24}" Command="{Binding GoToMemoryPageCommand}" VerticalAlignment="Center" />
+            </Grid>
+
+            <Separator Margin="0,8" />
+
+            <!-- Restart actions: the risky ones, last. -->
+            <WrapPanel>
+              <ui:Button Content="Restart to UEFI / BIOS" Appearance="Danger" Icon="{ui:SymbolIcon DeveloperBoard24}" Command="{Binding RestartToUefiCommand}" Margin="0,0,8,8"
+                         ToolTip="Restarts straight into the firmware settings (XMP/EXPO, fan curves, boot order). 10-second countdown with cancel." />
+              <ui:Button Content="Advanced startup" Appearance="Danger" Icon="{ui:SymbolIcon Wrench24}" Command="{Binding RestartToAdvancedStartupCommand}" Margin="0,0,8,8"
+                         ToolTip="Restarts into the Windows recovery menu (Startup Repair, System Restore, Safe Mode options)." />
+              <ui:TextBlock Style="{StaticResource Caption}" VerticalAlignment="Center" Margin="4,0,0,8"
+                            Text="Both ask first and give you 10 seconds to cancel." />
+            </WrapPanel>
+            <ui:TextBlock Style="{StaticResource Caption}" Margin="0,2,0,0" Visibility="{Binding LegacyBootMenu, Converter={StaticResource BoolToVisibility}}"
+                          Text="This PC uses the legacy (text) boot menu; F8 at startup opens the old boot options." />
+          </StackPanel>
+        </ui:CardExpander>
+
+        <!-- Services (advanced) -->
+        <ui:CardExpander Margin="0,0,0,12" ContentPadding="16" IsExpanded="False" Icon="{ui:SymbolIcon Settings24}"
+                         Visibility="{Binding IsAdvancedMode, Converter={StaticResource BoolToVisibility}}">
+          <ui:CardExpander.Header>
+            <StackPanel>
+              <ui:TextBlock FontTypography="BodyStrong" Text="Services that start with Windows" />
+              <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding ServiceCount, StringFormat='{}{0} automatic services. Change the start mode with the drop-down.'}" TextWrapping="Wrap"
+                            ToolTip="Core Windows services are marked Protected and cannot be stopped from starting; 'Careful' ones can, with a note about what you lose." />
             </StackPanel>
-            <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,10"
-                          Text="Background services set to start automatically. Change the start mode with the drop-down. Core Windows services are marked Protected and cannot be stopped from starting; 'Careful' ones can, with a note about what you lose." />
+          </ui:CardExpander.Header>
+          <StackPanel>
             <ui:DataGrid Style="{StaticResource StartupGrid}" ItemsSource="{Binding Services}"
                          Visibility="{Binding HasNoServices, Converter={StaticResource InverseBoolToVisibility}}">
               <ui:DataGrid.Columns>
@@ -317,135 +456,7 @@
             <controls:EmptyState Icon="Settings24" Title="No automatic services found" Message="Nothing matches your search."
                                  Visibility="{Binding HasNoServices, Converter={StaticResource BoolToVisibility}}" MinHeight="120" />
           </StackPanel>
-        </ui:Card>
-
-        <!-- Boot options -->
-        <ui:Card Style="{StaticResource CardSpacing}">
-          <StackPanel>
-            <ui:TextBlock Style="{StaticResource CardTitle}" Text="Boot options" />
-            <Grid Margin="0,0,0,12">
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="*" />
-              </Grid.ColumnDefinitions>
-              <StackPanel Grid.Column="0">
-                <ui:TextBlock Style="{StaticResource Muted}" Text="Last started" />
-                <ui:TextBlock Text="{Binding LastBootText}" FontWeight="SemiBold" />
-              </StackPanel>
-              <StackPanel Grid.Column="1">
-                <ui:TextBlock Style="{StaticResource Muted}" Text="Startup took" />
-                <ui:TextBlock Text="{Binding BootDurationText}" FontWeight="SemiBold" />
-              </StackPanel>
-              <StackPanel Grid.Column="2">
-                <ui:TextBlock Style="{StaticResource Muted}" Text="Default entry" />
-                <ui:TextBlock Text="{Binding BootDescription}" FontWeight="SemiBold" />
-              </StackPanel>
-            </Grid>
-
-            <Separator Margin="0,0,0,8" />
-
-            <!-- Fast startup -->
-            <Grid Margin="0,4">
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-              </Grid.ColumnDefinitions>
-              <StackPanel Grid.Column="0" Margin="0,0,16,0">
-                <ui:TextBlock Text="Fast startup" FontWeight="SemiBold" />
-                <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding FastStartupSummary}" TextWrapping="Wrap" />
-                <ui:TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap"
-                              Text="Pros: quicker cold boot. Cons: shutdown is not a full reset, and dual-boot setups can see disk problems. Restart (not Shut down) always does a full reset either way." />
-              </StackPanel>
-              <ui:ToggleSwitch Grid.Column="1" IsChecked="{Binding FastStartup, Mode=OneWay}" Command="{Binding ToggleFastStartupCommand}" VerticalAlignment="Center" />
-            </Grid>
-
-            <!-- Boot menu timeout -->
-            <Grid Margin="0,8">
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="Auto" />
-              </Grid.ColumnDefinitions>
-              <StackPanel Grid.Column="0" Margin="0,0,16,0">
-                <ui:TextBlock Text="Boot menu wait (seconds)" FontWeight="SemiBold" />
-                <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap"
-                              Text="How long the boot menu stays on screen when more than one operating system is installed. Windows defaults to 30; 3 is plenty." />
-              </StackPanel>
-              <ui:NumberBox Grid.Column="1" Value="{Binding BootTimeoutSeconds, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Minimum="0" Maximum="999" SmallChange="1"
-                            SpinButtonPlacementMode="Inline" ClearButtonEnabled="False" Width="150" Margin="0,0,8,0" VerticalAlignment="Center" />
-              <ui:Button Grid.Column="2" Content="Apply" Icon="{ui:SymbolIcon Checkmark24}" Command="{Binding ApplyBootTimeoutCommand}" IsEnabled="{Binding BootTimeoutChanged}" VerticalAlignment="Center" />
-            </Grid>
-
-            <!-- Safe mode -->
-            <Grid Margin="0,4">
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-              </Grid.ColumnDefinitions>
-              <StackPanel Grid.Column="0" Margin="0,0,16,0">
-                <StackPanel Orientation="Horizontal">
-                  <ui:TextBlock Text="Start in Safe Mode next time" FontWeight="SemiBold" Margin="0,0,8,0" />
-                  <Border Style="{StaticResource Pill}" Background="{StaticResource AccentRedBrush}" Visibility="{Binding SafeModeNextBoot, Converter={StaticResource BoolToVisibility}}">
-                    <TextBlock Style="{StaticResource PillText}" Text="ARMED" />
-                  </Border>
-                </StackPanel>
-                <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap"
-                              Text="Loads Windows with basic drivers and no startup apps, for removing a bad driver or program. Windows keeps starting in Safe Mode until you switch this off again." />
-              </StackPanel>
-              <ui:ToggleSwitch Grid.Column="1" IsChecked="{Binding SafeModeNextBoot, Mode=OneWay}" Command="{Binding ToggleSafeModeCommand}" VerticalAlignment="Center" />
-            </Grid>
-
-            <!-- Memory diagnostic -->
-            <Grid Margin="0,4">
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-              </Grid.ColumnDefinitions>
-              <StackPanel Grid.Column="0" Margin="0,0,16,0">
-                <StackPanel Orientation="Horizontal">
-                  <ui:TextBlock Text="Memory test at next restart" FontWeight="SemiBold" Margin="0,0,8,0" />
-                  <Border Style="{StaticResource Pill}" Background="{StaticResource AccentPurpleBrush}" Visibility="{Binding MemoryDiagnosticScheduled, Converter={StaticResource BoolToVisibility}}">
-                    <TextBlock Style="{StaticResource PillText}" Text="SCHEDULED" />
-                  </Border>
-                </StackPanel>
-                <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap"
-                              Text="Windows Memory Diagnostic checks your RAM before Windows loads. Schedule it, and run quicker in-Windows tests, on the Memory page." />
-              </StackPanel>
-              <ui:Button Grid.Column="1" Content="Open Memory page" Icon="{ui:SymbolIcon ArrowRight24}" Command="{Binding GoToMemoryPageCommand}" VerticalAlignment="Center" />
-            </Grid>
-
-            <Separator Margin="0,8" />
-
-            <!-- Restart actions -->
-            <WrapPanel>
-              <ui:Button Content="Restart to UEFI / BIOS" Appearance="Danger" Icon="{ui:SymbolIcon DeveloperBoard24}" Command="{Binding RestartToUefiCommand}" Margin="0,0,8,8"
-                         ToolTip="Restarts straight into the firmware settings (XMP/EXPO, fan curves, boot order). 10-second countdown with cancel." />
-              <ui:Button Content="Advanced startup" Appearance="Danger" Icon="{ui:SymbolIcon Wrench24}" Command="{Binding RestartToAdvancedStartupCommand}" Margin="0,0,8,8"
-                         ToolTip="Restarts into the Windows recovery menu (Startup Repair, System Restore, Safe Mode options)." />
-              <ui:TextBlock Style="{StaticResource Caption}" VerticalAlignment="Center" Margin="4,0,0,8"
-                            Text="Both ask first and give you a 10-second countdown to cancel." />
-            </WrapPanel>
-            <ui:TextBlock Style="{StaticResource Caption}" Margin="0,2,0,0" Visibility="{Binding LegacyBootMenu, Converter={StaticResource BoolToVisibility}}"
-                          Text="This PC uses the legacy (text) boot menu; F8 at startup opens the old boot options." />
-          </StackPanel>
-        </ui:Card>
-
-        <!-- Related tools -->
-        <ui:Card Style="{StaticResource CardSpacing}">
-          <StackPanel>
-            <ui:TextBlock Style="{StaticResource CardTitle}" Text="Windows tools" />
-            <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,8"
-                          Text="The built-in Windows tools for the same jobs, if you prefer them or need something PC Checker does not cover." />
-            <WrapPanel>
-              <ui:Button Content="Startup Apps settings" Icon="{ui:SymbolIcon Apps24}" Command="{Binding OpenStartupSettingsCommand}" Margin="0,0,8,8" />
-              <ui:Button Content="Task Scheduler" Icon="{ui:SymbolIcon CalendarClock24}" Command="{Binding OpenTaskSchedulerCommand}" Margin="0,0,8,8" />
-              <ui:Button Content="System Configuration (msconfig)" Icon="{ui:SymbolIcon Settings24}" Command="{Binding OpenSystemConfigurationCommand}" Margin="0,0,8,8" />
-              <ui:Button Content="Backup folder" Icon="{ui:SymbolIcon FolderOpen24}" Command="{Binding OpenBackupFolderCommand}" Margin="0,0,8,8"
-                         ToolTip="Where removed startup entries and shortcuts are kept" />
-            </WrapPanel>
-          </StackPanel>
-        </ui:Card>
+        </ui:CardExpander>
       </StackPanel>
     </ScrollViewer>
 
