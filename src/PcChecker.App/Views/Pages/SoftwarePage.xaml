@@ -85,7 +85,7 @@
       <controls:StatCard Title="Programs" Value="{Binding ProgramCount}" Icon="Apps24" Accent="{StaticResource AccentCyanBrush}" Subtitle="{Binding LastScanText}" Margin="6,0" />
       <controls:StatCard Title="Store apps" Value="{Binding StoreAppCount}" Icon="StoreMicrosoft24" Accent="{StaticResource AccentPurpleBrush}" Subtitle="From the Microsoft Store" Margin="6,0" />
       <controls:StatCard Title="Bundles detected" Value="{Binding BundleCount}" Icon="BoxMultiple24" Accent="{StaticResource AccentOrangeBrush}" Subtitle="Programs that arrived together" Margin="6,0" />
-      <controls:StatCard Title="Total size known" Value="{Binding TotalSizeText}" Icon="HardDrive24" Accent="{StaticResource AccentGreenBrush}" Subtitle="{Binding SizeKnownText}" Margin="6,0" />
+      <controls:StatCard Title="Total size known" Value="{Binding TotalSizeText}" Icon="HardDrive20" Accent="{StaticResource AccentGreenBrush}" Subtitle="{Binding SizeKnownText}" Margin="6,0" />
     </UniformGrid>
 
     <!-- Filter bar. -->

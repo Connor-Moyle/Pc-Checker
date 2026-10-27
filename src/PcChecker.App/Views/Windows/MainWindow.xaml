@@ -49,7 +49,7 @@
         <ui:NavigationViewItemHeader Text="Hardware" />
         <ui:NavigationViewItem Content="Hardware" Icon="{ui:SymbolIcon DeveloperBoard24}" TargetPageType="{x:Type pages:HardwarePage}" />
         <ui:NavigationViewItem Content="Health" Icon="{ui:SymbolIcon Heart24}" TargetPageType="{x:Type pages:HealthPage}" />
-        <ui:NavigationViewItem Content="Storage" Icon="{ui:SymbolIcon HardDrive24}" TargetPageType="{x:Type pages:StoragePage}" />
+        <ui:NavigationViewItem Content="Storage" Icon="{ui:SymbolIcon HardDrive20}" TargetPageType="{x:Type pages:StoragePage}" />
         <ui:NavigationViewItem Content="Memory" Icon="{ui:SymbolIcon Memory16}" TargetPageType="{x:Type pages:MemoryPage}" />
         <ui:NavigationViewItem Content="Displays" Icon="{ui:SymbolIcon Desktop24}" TargetPageType="{x:Type pages:DisplaysPage}" />
         <ui:NavigationViewItem Content="Audio" Icon="{ui:SymbolIcon Speaker224}" TargetPageType="{x:Type pages:AudioPage}" />

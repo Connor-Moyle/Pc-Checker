@@ -104,7 +104,7 @@ public sealed partial class OptimizeViewModel : ViewModelBase
         var gaming = new OptimizationGroup("Gaming", "Give games priority and remove overlays that cost frames.", SymbolRegular.XboxController24, false);
         AddRows(gaming, catalog.Where(a => a.Category == OptimizationCatalog.GamingCategory && !a.AdvancedOnly), selectable: true);
 
-        var storage = new OptimizationGroup("Storage", "Keep drives fast and free up space.", SymbolRegular.HardDrive24, false);
+        var storage = new OptimizationGroup("Storage", "Keep drives fast and free up space.", SymbolRegular.HardDrive20, false);
         AddRows(storage, catalog.Where(a => a.Category == OptimizationCatalog.StorageCategory && !a.AdvancedOnly), selectable: false);
 
         Groups.Add(safe);

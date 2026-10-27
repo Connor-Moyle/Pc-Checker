@@ -48,7 +48,7 @@
         </DataTrigger>
       </Style.Triggers>
     </Style>
-    <Style x:Key="StartupGrid" TargetType="ui:DataGrid">
+    <Style x:Key="StartupGrid" TargetType="ui:DataGrid" BasedOn="{StaticResource DefaultUiDataGridStyle}">
       <Setter Property="AutoGenerateColumns" Value="False" />
       <Setter Property="IsReadOnly" Value="False" />
       <Setter Property="CanUserAddRows" Value="False" />

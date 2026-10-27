@@ -71,7 +71,7 @@ public sealed partial class SensorGroupViewModel : ObservableObject
         HardwareKind.Gpu => SymbolRegular.VideoClip24,
         HardwareKind.Memory => SymbolRegular.Memory16,
         HardwareKind.Motherboard => SymbolRegular.DeveloperBoardLightning20,
-        HardwareKind.Storage => SymbolRegular.HardDrive24,
+        HardwareKind.Storage => SymbolRegular.HardDrive20,
         HardwareKind.Network => SymbolRegular.Wifi124,
         HardwareKind.Psu => SymbolRegular.PlugConnected24,
         HardwareKind.Cooler => SymbolRegular.Drop24,

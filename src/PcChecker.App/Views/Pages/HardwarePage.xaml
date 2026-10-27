@@ -98,7 +98,7 @@
                          Value="{Binding Overview.Gpu, FallbackValue=—}" Subtitle="{Binding Overview.GpuDetail}" />
       <controls:StatCard Margin="6,0" Title="Memory" Icon="Memory16" Accent="{StaticResource AccentPurpleBrush}"
                          Value="{Binding Overview.Memory, FallbackValue=—}" Subtitle="{Binding Overview.MemoryDetail}" />
-      <controls:StatCard Margin="6,0" Title="Storage" Icon="HardDrive24" Accent="{StaticResource AccentOrangeBrush}"
+      <controls:StatCard Margin="6,0" Title="Storage" Icon="HardDrive20" Accent="{StaticResource AccentOrangeBrush}"
                          Value="{Binding Overview.Storage, FallbackValue=—}" Subtitle="{Binding Overview.StorageDetail}" />
       <controls:StatCard Margin="6,0" Title="Windows" Icon="Window24" Accent="{StaticResource AccentYellowBrush}"
                          Value="{Binding Overview.Os, FallbackValue=—}" Subtitle="{Binding Overview.OsDetail}" />

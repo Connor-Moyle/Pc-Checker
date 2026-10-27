@@ -24,7 +24,7 @@
       <Setter Property="FontWeight" Value="SemiBold" />
       <Setter Property="Foreground" Value="White" />
     </Style>
-    <Style x:Key="ToolButton" TargetType="ui:Button">
+    <Style x:Key="ToolButton" TargetType="ui:Button" BasedOn="{StaticResource DefaultUiButtonStyle}">
       <Setter Property="Margin" Value="0,0,8,8" />
     </Style>
 

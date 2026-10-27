@@ -96,7 +96,7 @@
               <ColumnDefinition Width="*" />
               <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
-            <ui:SymbolIcon Grid.Column="0" Symbol="HardDrive24" FontSize="28" Margin="0,0,12,0" VerticalAlignment="Top"
+            <ui:SymbolIcon Grid.Column="0" Symbol="HardDrive20" FontSize="28" Margin="0,0,12,0" VerticalAlignment="Top"
                            Foreground="{Binding Status, Converter={StaticResource HealthStatusToBrush}}" />
             <StackPanel Grid.Column="1">
               <ui:TextBlock FontTypography="BodyStrong" Text="{Binding Model}" TextWrapping="Wrap" />
@@ -298,7 +298,7 @@
             <ColumnDefinition Width="*" />
             <ColumnDefinition Width="*" />
           </Grid.ColumnDefinitions>
-          <ui:CardAction Grid.Column="0" Margin="0,0,6,0" Icon="{ui:SymbolIcon HardDrive24}" Command="{Binding OpenStoragePageCommand}">
+          <ui:CardAction Grid.Column="0" Margin="0,0,6,0" Icon="{ui:SymbolIcon HardDrive20}" Command="{Binding OpenStoragePageCommand}">
             <StackPanel>
               <ui:TextBlock FontTypography="BodyStrong" Text="Storage tools" />
               <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Text="Surface scan, check disk repairs and speed benchmarks." />
@@ -348,7 +348,7 @@
         </ui:CardExpander>
 
         <!-- Drives -->
-        <ui:CardExpander Margin="0,0,0,12" IsExpanded="True" Icon="{ui:SymbolIcon HardDrive24}" ContentPadding="16">
+        <ui:CardExpander Margin="0,0,0,12" IsExpanded="True" Icon="{ui:SymbolIcon HardDrive20}" ContentPadding="16">
           <ui:CardExpander.Header>
             <StackPanel>
               <ui:TextBlock FontTypography="BodyStrong" Text="{Binding DrivesHeader}" />
@@ -358,7 +358,7 @@
           <StackPanel>
             <ItemsControl ItemsSource="{Binding Disks}" ItemTemplate="{StaticResource DiskTemplate}"
                           Visibility="{Binding HasDisks, Converter={StaticResource BoolToVisibility}}" />
-            <controls:EmptyState Icon="HardDrive24" Title="No drives reported"
+            <controls:EmptyState Icon="HardDrive20" Title="No drives reported"
                                  Message="Windows did not list any fixed drives, or the drive health check could not run. Run PC Checker as administrator."
                                  Visibility="{Binding HasDisks, Converter={StaticResource InverseBoolToVisibility}}" />
           </StackPanel>

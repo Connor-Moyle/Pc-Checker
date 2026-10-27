@@ -116,14 +116,14 @@ public sealed partial class HardwareItemViewModel : ObservableObject
 
     private static SymbolRegular IconFor(HardwareItem item) => item switch
     {
-        ComputerSystemInfo => SymbolRegular.DesktopTower24,
+        ComputerSystemInfo => SymbolRegular.DeveloperBoard24,
         OperatingSystemInfo => SymbolRegular.Window24,
         BiosInfo => SymbolRegular.DeveloperBoardSearch24,
         MotherboardInfo => SymbolRegular.DeveloperBoard24,
         CpuInfo => SymbolRegular.TopSpeed24,
         GpuInfo => SymbolRegular.Games24,
         MemoryModuleInfo => SymbolRegular.Memory16,
-        PhysicalDiskInfo => SymbolRegular.HardDrive24,
+        PhysicalDiskInfo => SymbolRegular.HardDrive20,
         LogicalDriveInfo => SymbolRegular.Storage24,
         NetworkAdapterInfo n => n.AdapterType is "Wi-Fi" ? SymbolRegular.Wifi124 : n.AdapterType is "Bluetooth" ? SymbolRegular.Bluetooth24 : SymbolRegular.Router24,
         MonitorInfo => SymbolRegular.Desktop24,

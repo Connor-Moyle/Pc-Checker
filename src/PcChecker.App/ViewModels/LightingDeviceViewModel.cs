@@ -99,7 +99,7 @@ public sealed partial class LightingDeviceViewModel : ObservableObject
         OpenRgbDeviceTypes.Headset or OpenRgbDeviceTypes.HeadsetStand => SymbolRegular.Headset24,
         OpenRgbDeviceTypes.Gamepad => SymbolRegular.XboxController24,
         OpenRgbDeviceTypes.Speaker => SymbolRegular.Speaker224,
-        _ => SymbolRegular.DesktopTower24,
+        _ => SymbolRegular.DeveloperBoard24,
     };
 
     public bool SupportsColor => SelectedMode?.HasColor ?? false;

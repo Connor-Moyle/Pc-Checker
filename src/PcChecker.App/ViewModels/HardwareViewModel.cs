@@ -42,11 +42,11 @@ public sealed partial class HardwareViewModel : ViewModelBase
 
         Categories =
         [
-            new("system", "System", SymbolRegular.DesktopTower24, "Computer model, Windows version, BIOS and motherboard."),
+            new("system", "System", SymbolRegular.DeveloperBoard24, "Computer model, Windows version, BIOS and motherboard."),
             new("cpu", "Processor", SymbolRegular.TopSpeed24, "The CPU: cores, clock speeds, cache and features."),
             new("gpu", "Graphics", SymbolRegular.Games24, "Graphics cards and integrated graphics, video memory and drivers."),
             new("memory", "Memory", SymbolRegular.Memory16, "Each RAM module, its size, type, speed and slot."),
-            new("storage", "Storage", SymbolRegular.HardDrive24, "Physical disks (SSD/HDD) with their partitions, plus every drive letter."),
+            new("storage", "Storage", SymbolRegular.HardDrive20, "Physical disks (SSD/HDD) with their partitions, plus every drive letter."),
             new("network", "Network", SymbolRegular.Router24, "Ethernet, Wi-Fi and Bluetooth adapters with addresses and drivers."),
             new("displays", "Displays", SymbolRegular.Desktop24, "Connected monitors as reported by their EDID data."),
             new("audio", "Audio", SymbolRegular.Speaker224, "Sound cards, headsets and audio controllers."),

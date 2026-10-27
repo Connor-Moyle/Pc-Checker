@@ -36,7 +36,7 @@
     <controls:SectionHeader Grid.Row="0" Title="Performance" Subtitle="What is slowing this PC down and what to do about it.">
       <controls:SectionHeader.Actions>
         <StackPanel Orientation="Horizontal">
-          <ui:Button Content="Export" Icon="{ui:SymbolIcon DocumentArrowDown24}" Command="{Binding ExportCommand}" Margin="0,0,8,0"
+          <ui:Button Content="Export" Icon="{ui:SymbolIcon DocumentArrowDown20}" Command="{Binding ExportCommand}" Margin="0,0,8,0"
                      ToolTip="Save the findings and snapshot as a Markdown or JSON file." />
           <ui:Button Content="Scan for slowdowns" Appearance="Primary" Icon="{ui:SymbolIcon ArrowSync24}" Command="{Binding ScanCommand}" />
         </StackPanel>

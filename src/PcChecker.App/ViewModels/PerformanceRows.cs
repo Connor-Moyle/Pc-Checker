@@ -94,7 +94,7 @@ public sealed partial class FindingItem : ObservableObject
         FindingCategory.Services => SymbolRegular.Server24,
         FindingCategory.Processes => SymbolRegular.DesktopPulse24,
         FindingCategory.Memory => SymbolRegular.Memory16,
-        FindingCategory.Storage => SymbolRegular.HardDrive24,
+        FindingCategory.Storage => SymbolRegular.HardDrive20,
         FindingCategory.Power => SymbolRegular.Flash24,
         FindingCategory.Visuals => SymbolRegular.PaintBrush24,
         FindingCategory.Network => SymbolRegular.Globe24,
