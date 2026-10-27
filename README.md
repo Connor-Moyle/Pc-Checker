@@ -3,8 +3,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Connor-Moyle/test-pcchecker/actions/workflows/ci.yml"><img src="https://github.com/Connor-Moyle/test-pcchecker/actions/workflows/ci.yml/badge.svg" alt="CI status"></a>
-  <a href="https://github.com/Connor-Moyle/test-pcchecker/releases/latest"><img src="https://img.shields.io/github/v/release/Connor-Moyle/test-pcchecker?include_prereleases&label=release" alt="Latest release"></a>
+  <a href="https://github.com/Connor-Moyle/Pc-Checker/actions/workflows/ci.yml"><img src="https://github.com/Connor-Moyle/Pc-Checker/actions/workflows/ci.yml/badge.svg" alt="CI status"></a>
+  <a href="https://github.com/Connor-Moyle/Pc-Checker/releases/latest"><img src="https://img.shields.io/github/v/release/Connor-Moyle/Pc-Checker?include_prereleases&label=release" alt="Latest release"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT license"></a>
   <img src="https://img.shields.io/badge/platform-Windows%2011%20%7C%2010%2022H2-0078d4" alt="Windows 11 and Windows 10 22H2">
   <img src="https://img.shields.io/badge/.NET-8.0-512bd4" alt=".NET 8">
@@ -36,11 +36,11 @@ point and written to a journal with an undo hint.
 
 ## Download
 
-**[Download PcChecker.exe](https://github.com/Connor-Moyle/test-pcchecker/releases/latest/download/PcChecker.exe)**
+**[Download PcChecker.exe](https://github.com/Connor-Moyle/Pc-Checker/releases/latest/download/PcChecker.exe)**
 and double-click it. That is the whole install: one file, nothing to set up, and .NET is built in. Run it from
 your Downloads folder, a tools folder or a USB stick.
 
-Every release on the [Releases page](https://github.com/Connor-Moyle/test-pcchecker/releases) is that single
+Every release on the [Releases page](https://github.com/Connor-Moyle/Pc-Checker/releases) is that single
 `PcChecker.exe`, with its SHA-256 checksum in the release notes. The app **updates itself**: when a new version is
 out it downloads the new exe, checks the checksum, swaps it in and restarts (Settings → Updates; pick the Beta
 channel to get pre-releases).
@@ -242,8 +242,8 @@ are in [docs/CLAUDE-INTEGRATION.md](docs/CLAUDE-INTEGRATION.md).
 ## Building from source
 
 ```powershell
-git clone https://github.com/Connor-Moyle/test-pcchecker.git
-cd test-pcchecker
+git clone https://github.com/Connor-Moyle/Pc-Checker.git
+cd Pc-Checker
 dotnet build PcChecker.sln -c Release
 dotnet test PcChecker.sln -c Release
 dotnet run --project src/PcChecker.App
@@ -292,7 +292,7 @@ Bug reports, ideas and pull requests are welcome. Start with
 [CONTRIBUTING.md](CONTRIBUTING.md) and the
 [Code of Conduct](CODE_OF_CONDUCT.md). Hardware reports are especially useful:
 if a fan, sensor, GPU or RGB device is not detected, open a
-[driver or hardware issue](https://github.com/Connor-Moyle/test-pcchecker/issues/new?template=driver_or_hardware_issue.yml)
+[driver or hardware issue](https://github.com/Connor-Moyle/Pc-Checker/issues/new?template=driver_or_hardware_issue.yml)
 with your log export. Security problems go through [SECURITY.md](SECURITY.md),
 not the public tracker.
 

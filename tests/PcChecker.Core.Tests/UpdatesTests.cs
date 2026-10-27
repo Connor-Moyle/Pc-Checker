@@ -130,7 +130,7 @@ public class UpdatesTests
     [Fact]
     public void Update_links_point_at_the_project()
     {
-        Assert.StartsWith("https://github.com/Connor-Moyle/test-pcchecker", UpdateLinks.ReleasesPage);
-        Assert.StartsWith("https://api.github.com/repos/Connor-Moyle/test-pcchecker/releases", UpdateLinks.ReleasesApi);
+        Assert.StartsWith("https://github.com/Connor-Moyle/Pc-Checker", UpdateLinks.ReleasesPage);
+        Assert.StartsWith("https://api.github.com/repos/Connor-Moyle/Pc-Checker/releases", UpdateLinks.ReleasesApi);
     }
 }

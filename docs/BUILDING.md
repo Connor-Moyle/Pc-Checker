@@ -15,8 +15,8 @@
 ## Build
 
 ```powershell
-git clone https://github.com/Connor-Moyle/test-pcchecker.git
-cd test-pcchecker
+git clone https://github.com/Connor-Moyle/Pc-Checker.git
+cd Pc-Checker
 dotnet build PcChecker.sln -c Release
 ```
 

@@ -182,6 +182,6 @@ configuration) may be controlled by policy and will fail with an explanation.
 ### How do I report a bug or a device that is not detected?
 
 Export diagnostics from the Logs page and open a
-[bug report](https://github.com/Connor-Moyle/test-pcchecker/issues/new?template=bug_report.yml)
+[bug report](https://github.com/Connor-Moyle/Pc-Checker/issues/new?template=bug_report.yml)
 or a
-[driver or hardware issue](https://github.com/Connor-Moyle/test-pcchecker/issues/new?template=driver_or_hardware_issue.yml).
+[driver or hardware issue](https://github.com/Connor-Moyle/Pc-Checker/issues/new?template=driver_or_hardware_issue.yml).

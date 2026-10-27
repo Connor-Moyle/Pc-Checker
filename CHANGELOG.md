@@ -100,5 +100,5 @@ Initial release.
   itself from GitHub Releases with Stable and Beta channels and verifies every
   download against its published SHA-256.
 
-[Unreleased]: https://github.com/Connor-Moyle/test-pcchecker/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/Connor-Moyle/test-pcchecker/releases/tag/v0.1.0
+[Unreleased]: https://github.com/Connor-Moyle/Pc-Checker/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/Connor-Moyle/Pc-Checker/releases/tag/v0.1.0

@@ -177,6 +177,6 @@ motherboard or system vendor's support page.
 
 If the app says *Not supported* for something that other software can
 control, open a
-[driver or hardware issue](https://github.com/Connor-Moyle/test-pcchecker/issues/new?template=driver_or_hardware_issue.yml)
+[driver or hardware issue](https://github.com/Connor-Moyle/Pc-Checker/issues/new?template=driver_or_hardware_issue.yml)
 with the model names, what the page said and your diagnostics export. That is
 how the matrix grows.

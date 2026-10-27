@@ -19,7 +19,7 @@ Please do **not** open a public issue for a security problem.
 
 Use GitHub's private vulnerability reporting instead:
 **Security → Report a vulnerability** on the repository page, or go straight to
-<https://github.com/Connor-Moyle/test-pcchecker/security/advisories/new>.
+<https://github.com/Connor-Moyle/Pc-Checker/security/advisories/new>.
 
 Include:
 

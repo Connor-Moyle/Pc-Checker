@@ -5,10 +5,10 @@ namespace PcChecker.Core.Updates;
 /// <summary>Well-known addresses for the project's releases.</summary>
 public static class UpdateLinks
 {
-    public const string Repository = "https://github.com/Connor-Moyle/test-pcchecker";
+    public const string Repository = "https://github.com/Connor-Moyle/Pc-Checker";
     public const string ReleasesPage = Repository + "/releases";
     public const string LatestReleasePage = Repository + "/releases/latest";
-    public const string ReleasesApi = "https://api.github.com/repos/Connor-Moyle/test-pcchecker/releases";
+    public const string ReleasesApi = "https://api.github.com/repos/Connor-Moyle/Pc-Checker/releases";
 }
 
 /// <summary>Pure rules for deciding whether a release is an update and for shaping <see cref="AppUpdateInfo"/>.</summary>

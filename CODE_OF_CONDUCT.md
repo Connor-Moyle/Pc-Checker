@@ -61,10 +61,10 @@ representative at an online or offline event.
 Instances of abusive, harassing, or otherwise unacceptable behavior may be
 reported to the community leaders responsible for enforcement by opening an
 issue on the
-[issue tracker](https://github.com/Connor-Moyle/test-pcchecker/issues) with
+[issue tracker](https://github.com/Connor-Moyle/Pc-Checker/issues) with
 "Conduct" in the title. If the report concerns something you would rather not
 post publicly, open a private
-[security advisory](https://github.com/Connor-Moyle/test-pcchecker/security/advisories/new)
+[security advisory](https://github.com/Connor-Moyle/Pc-Checker/security/advisories/new)
 instead; it is only visible to the maintainers.
 
 All complaints will be reviewed and investigated promptly and fairly.

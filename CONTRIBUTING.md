@@ -9,8 +9,8 @@ ideas, documentation fixes and code are all welcome.
   things live.
 - Read [SAFETY.md](docs/SAFETY.md). PC Checker changes real systems; every
   destructive action has rules it must follow.
-- Search the [issue tracker](https://github.com/Connor-Moyle/test-pcchecker/issues)
-  and [Discussions](https://github.com/Connor-Moyle/test-pcchecker/discussions)
+- Search the [issue tracker](https://github.com/Connor-Moyle/Pc-Checker/issues)
+  and [Discussions](https://github.com/Connor-Moyle/Pc-Checker/discussions)
   before opening a new issue.
 
 ## Reporting a bug

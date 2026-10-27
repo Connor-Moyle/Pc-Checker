@@ -1,11 +1,11 @@
 blank_issues_enabled: false
 contact_links:
   - name: Questions and ideas
-    url: https://github.com/Connor-Moyle/test-pcchecker/discussions
+    url: https://github.com/Connor-Moyle/Pc-Checker/discussions
     about: Ask how something works or float an idea before filing a request.
   - name: Frequently asked questions
-    url: https://github.com/Connor-Moyle/test-pcchecker/blob/main/docs/FAQ.md
+    url: https://github.com/Connor-Moyle/Pc-Checker/blob/main/docs/FAQ.md
     about: Administrator prompt, SmartScreen, missing sensors, OpenRGB, AMD overclocking, overlay and more.
   - name: Security report
-    url: https://github.com/Connor-Moyle/test-pcchecker/security/advisories/new
+    url: https://github.com/Connor-Moyle/Pc-Checker/security/advisories/new
     about: Report a vulnerability privately. Please do not open a public issue.
