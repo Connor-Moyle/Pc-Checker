@@ -82,8 +82,6 @@
           <controls:StatCard Style="{StaticResource Tile}" Title="GPU temperature" Value="{Binding GpuTempText}" Unit="°C" Icon="Games24" Accent="{Binding GpuTempBrush}" Subtitle="{Binding GpuSubtitle}" />
           <controls:StatCard Style="{StaticResource Tile}" Title="Memory in use" Value="{Binding RamText}" Unit="%" Icon="Memory16" Accent="{Binding RamBrush}" Subtitle="{Binding RamSubtitle}" />
           <controls:StatCard Style="{StaticResource Tile}" Title="Power draw" Value="{Binding PowerText}" Unit="W" Icon="Flash24" Accent="{DynamicResource AccentPurpleBrush}" Subtitle="{Binding PowerSubtitle}" />
-          <controls:StatCard Style="{StaticResource Tile}" Title="Disk space" Value="{Binding DiskFreeText}" Icon="HardDrive20" Accent="{Binding DiskBrush}" Subtitle="{Binding DiskFreeSubtitle}" />
-          <controls:StatCard Style="{StaticResource Tile}" Title="Power draw" Value="{Binding PowerText}" Unit="W" Icon="Flash24" Accent="{DynamicResource AccentPurpleBrush}" Subtitle="{Binding PowerSubtitle}" />
         </controls:AdaptiveGrid>
 
         <!-- Check-up strip -->
