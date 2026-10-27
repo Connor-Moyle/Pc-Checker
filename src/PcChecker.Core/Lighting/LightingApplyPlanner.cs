@@ -213,12 +213,16 @@ public static class LightingApplyPlanner
         return Math.Clamp(ledCount, zone.LedsMin!.Value, zone.LedsMax!.Value);
     }
 
-    /// <summary>Maps a 0–100 slider position onto the mode's speed range.</summary>
+    /// <summary>
+    /// Maps a 0–100 slider position onto the mode's speed range: 0 % is the mode's slowest speed (speed_min) and 100 %
+    /// its fastest (speed_max). Many controllers report an inverted range (speed_min above speed_max); that is
+    /// interpolated the same way.
+    /// </summary>
     public static int SpeedFromPercent(RgbMode mode, int percent)
     {
         int min = mode.MinSpeed ?? 0;
         int max = mode.MaxSpeed ?? 100;
-        if (max <= min)
+        if (max == min)
         {
             return min;
         }
@@ -227,17 +231,17 @@ public static class LightingApplyPlanner
         return (int)Math.Round(min + (max - min) * f);
     }
 
-    /// <summary>Maps a mode speed back onto a 0–100 slider.</summary>
+    /// <summary>Maps a mode speed back onto a 0–100 slider (the inverse of <see cref="SpeedFromPercent"/>).</summary>
     public static int PercentFromSpeed(RgbMode mode, int speed)
     {
         int min = mode.MinSpeed ?? 0;
         int max = mode.MaxSpeed ?? 100;
-        if (max <= min)
+        if (max == min)
         {
             return 0;
         }
 
-        return (int)Math.Round(100.0 * (Math.Clamp(speed, min, max) - min) / (max - min));
+        return (int)Math.Round(100.0 * (Math.Clamp(speed, Math.Min(min, max), Math.Max(min, max)) - min) / (max - min));
     }
 
     /// <summary>

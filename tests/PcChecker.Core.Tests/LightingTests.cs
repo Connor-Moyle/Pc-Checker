@@ -354,6 +354,21 @@ public class LightingTests
     }
 
     [Fact]
+    public void Inverted_speed_range_maps_the_slider_from_speed_min_to_speed_max()
+    {
+        // OpenRGB controllers often report speed_min above speed_max; the slider must still move the effect.
+        var inverted = OpenRgbDeviceMapper.MapMode(2, "Breathing", ModeFlags.HasSpeed, speedMin: 4, speedMax: 0);
+        Assert.Equal(4, LightingApplyPlanner.SpeedFromPercent(inverted, 0));
+        Assert.Equal(2, LightingApplyPlanner.SpeedFromPercent(inverted, 50));
+        Assert.Equal(0, LightingApplyPlanner.SpeedFromPercent(inverted, 100));
+        Assert.Equal(0, LightingApplyPlanner.PercentFromSpeed(inverted, 4));
+        Assert.Equal(50, LightingApplyPlanner.PercentFromSpeed(inverted, 2));
+        Assert.Equal(100, LightingApplyPlanner.PercentFromSpeed(inverted, 0));
+        Assert.Equal(100, LightingApplyPlanner.PercentFromSpeed(inverted, -3));
+        Assert.Equal(1, LightingApplyPlanner.ClampSpeed(inverted, LightingApplyPlanner.SpeedFromPercent(inverted, 80)));
+    }
+
+    [Fact]
     public void Effective_colour_applies_brightness_and_fill_builds_led_arrays()
     {
         var c = new RgbColor(200, 100, 50);
