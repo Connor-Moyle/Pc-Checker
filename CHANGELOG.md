@@ -14,6 +14,12 @@ All notable changes to PC Checker are recorded here. The format follows
   every copy but the newest or oldest. Selected items go to the Recycle Bin
   after a confirmation with their size; Windows, program and profile folders
   are never offered, and every move is journaled.
+- **Processes** (Monitor › Processes): a live list of running programs with
+  CPU, memory, disk, GPU, publisher and signature, user and start time, a
+  plain-English *what is this?* for more than 120 well-known processes,
+  sorting, search and grouping by app, and informational flags for programs
+  that may be unwanted. End task, end process tree and set priority are
+  confirmed and journaled; critical Windows processes are never offered.
 
 ## [0.3.0] - 2026-10-27
 

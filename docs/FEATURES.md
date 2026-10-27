@@ -10,7 +10,7 @@ them as tabs above the content:
 
 ```
 Home            Dashboard
-Monitor         Temperatures · Power
+Monitor         Temperatures · Power · Processes
 Hardware        Overview · Health · Storage · Memory
 Devices         Displays · Audio · Keyboard & Mouse
 Cooling & RGB   Fans · Lighting
@@ -96,6 +96,47 @@ often expose very few sensors, and virtual machines almost none.
 Limitations: the total is the sum of known sensors plus a baseline when there
 is no PSU sensor; the page labels it *Estimated* in that case. A PC with no
 CPU or GPU power sensors shows dashes.
+
+### Processes
+
+A live list of every running program, refreshed every 2 seconds while the
+page is open (**Pause / Resume** in the header).
+
+- **Tiles**: total CPU use, memory in use, the number of processes and
+  programs, and the busiest program right now.
+- **Columns**: name with icon and a plain-English *what is this?* line, PID,
+  CPU, memory (private working set, the figure Task Manager shows), disk read
+  and write per second, GPU (all graphics engines of the program added up,
+  where the driver reports them), publisher with its signature state, user,
+  start time and file. Click a header to sort; search by name, PID,
+  publisher or folder; *Group by app* puts every process of a program under
+  one line with its totals (expand it to see them).
+- ***What is this?***: a built-in catalogue explains more than 120 well-known
+  Windows, Defender, driver (NVIDIA, AMD, Intel, Realtek), launcher (Steam,
+  Epic, Battle.net, EA, Ubisoft), browser, chat and hardware-utility
+  processes. Unknown programs show their signed publisher instead.
+- **Publisher**: each program file gets an offline Authenticode check (its
+  own signature, then the Windows catalogs) once per session.
+- **Flags** (information only): a warning sign marks programs that run from a
+  Temp or AppData folder without a valid signature, unknown and unsigned
+  programs using a lot of CPU, GPU or memory, and programs with a Windows
+  name running from outside the Windows folder. *Only flagged* filters the
+  list. PC Checker never acts on a flag by itself.
+- **Actions** (header, *More* and right-click), each confirmed first: *End
+  task* (for a group, every process of the program), *End process tree*,
+  *Set priority* (Realtime only in Advanced mode, with a warning), *Open
+  file location*, *Search the name online* and *Copy details*. Ending and
+  re-prioritising are recorded in the Action Journal; no restore point is
+  made because no Windows setting changes.
+
+Never offered: ending or re-prioritising System, Registry, Memory
+Compression, smss, csrss, wininit, winlogon, services, lsass and PC Checker
+itself.
+
+Limitations: protected processes and programs of other accounts may refuse
+to be ended or show no path, user or memory figure. The GPU column is empty
+when the graphics driver has no *GPU Engine* performance counters. CPU and
+disk figures are averages over the last refresh.
 
 ### Overlay
 

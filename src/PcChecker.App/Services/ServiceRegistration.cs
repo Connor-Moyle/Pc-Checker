@@ -29,6 +29,7 @@ using PcChecker.Core.Optimization;
 using PcChecker.Core.Overclocking;
 using PcChecker.Core.Performance;
 using PcChecker.Core.Power;
+using PcChecker.Core.Processes;
 using PcChecker.Core.RegistryHealth;
 using PcChecker.Core.Reports;
 using PcChecker.Core.Restore;
@@ -108,6 +109,7 @@ public static class ServiceRegistration
         Add<INetworkTuningService, WindowsNetworkTuningService, DemoNetworkTuningService>(services, demo);
         Add<INetworkService, WindowsNetworkService, DemoNetworkService>(services, demo);
         Add<IStartupService, WindowsStartupService, DemoStartupService>(services, demo);
+        Add<IProcessService, WindowsProcessService, DemoProcessService>(services, demo);
         Add<IRestartScheduler, WindowsRestartScheduler, DemoRestartScheduler>(services, demo);
         Add<IMousePollingMeter, RawInputPollingMeter, DemoMousePollingMeter>(services, demo);
         Add<IRegistryHealthService, WindowsRegistryHealthService, DemoRegistryHealthService>(services, demo);
@@ -151,6 +153,7 @@ public static class ServiceRegistration
         services.AddSingleton<DashboardViewModel>().AddSingleton<DashboardPage>();
         services.AddSingleton<SensorsViewModel>().AddSingleton<SensorsPage>();
         services.AddSingleton<PowerViewModel>().AddSingleton<PowerPage>();
+        services.AddSingleton<ProcessesViewModel>().AddSingleton<ProcessesPage>();
         services.AddSingleton<OverlayViewModel>().AddSingleton<OverlayPage>();
         services.AddSingleton<HardwareViewModel>().AddSingleton<HardwarePage>();
         services.AddSingleton<HealthViewModel>().AddSingleton<HealthPage>();

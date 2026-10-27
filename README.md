@@ -127,6 +127,7 @@ limitations, is in [docs/FEATURES.md](docs/FEATURES.md).
 |---|---|
 | **Temperatures** | Live readings for every sensor your hardware exposes (CPU, GPU, drives, motherboard/VRM, memory, PSU, AIO), with gauges, min/max/average, sparklines, thresholds and alerts. Advanced mode shows every sensor kind (loads, clocks, fans, voltages). |
 | **Power** | Per-component watts where sensors exist, an estimated total (clearly marked as an estimate when there is no PSU sensor), battery discharge, session energy and cost at your electricity price, and power-plan switching. |
+| **Processes** | Live list of running programs (every 2 s, pausable) with CPU, memory, disk, GPU, publisher and a plain-English *what is this?*; sort, search and group by app; flags possibly unwanted programs; end task or tree, set priority, open the file location, search online. Critical Windows processes are never offered. |
 
 ### Hardware
 

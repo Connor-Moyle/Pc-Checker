@@ -122,6 +122,23 @@ follows, so you know what to expect and contributors know what to build.
 - *Safe mode next boot* and *Restart to UEFI* are confirmed, explain the way
   back, and the restart has a countdown you can cancel.
 
+## Process rules
+
+- Ending a program, ending a process tree and changing a priority are
+  confirmed and recorded in the Action Journal. They make no restore point,
+  because no Windows setting changes; ending a program cannot be undone.
+- System, Registry, Memory Compression, smss, csrss, wininit, winlogon,
+  services, lsass and PC Checker itself are never offered. *End process
+  tree* leaves such processes running if they appear in the tree, and only
+  counts a process as a child when it started after its parent (Windows
+  reuses process ids).
+- Before ending or re-prioritising, the app checks that the process id still
+  belongs to the same run of the program (same start time).
+- Realtime priority is only offered in Advanced mode, with a warning that it
+  can freeze the PC.
+- Flags for possibly unwanted programs are information only; nothing is
+  ended or removed because of them.
+
 ## Memory rules
 
 - The in-app memory test only uses memory that is currently free and never
