@@ -33,7 +33,7 @@ public sealed partial class ServiceListRow : ObservableObject
 
     public bool IsRunning => Details.IsRunning;
 
-    public bool IsCritical => ServiceSafetyRules.IsCritical(Details.Name);
+    public bool IsCritical => ServiceSafetyRules.IsLocked(Details);
 
     public string? SafeToSetManualNote => ServiceSafetyRules.SafeToSetManualNote(Details);
 

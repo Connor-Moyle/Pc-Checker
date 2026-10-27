@@ -15,11 +15,14 @@ public enum PipeCommand
 
     /// <summary>Bring the window to the front (sent by a second launch).</summary>
     Show,
+
+    /// <summary>Bring the window to the front on the Processes tab (sent by <c>--taskmgr</c> when the app is already open).</summary>
+    ShowProcesses,
 }
 
 /// <summary>
-/// One-line text protocol on the named pipe <c>PcChecker.Jobs.&lt;session&gt;.&lt;user SID&gt;</c>: the client writes <c>run &lt;job&gt;</c> or
-/// <c>show</c>, the server answers <c>ok</c>, <c>busy</c> or <c>refused</c>. The pipe only accepts the current user.
+/// One-line text protocol on the named pipe <c>PcChecker.Jobs.&lt;session&gt;.&lt;user SID&gt;</c>: the client writes <c>run &lt;job&gt;</c>,
+/// <c>show</c> or <c>show processes</c>, the server answers <c>ok</c>, <c>busy</c> or <c>refused</c>. The pipe only accepts the current user.
 /// </summary>
 public static class ScheduledJobPipe
 {
@@ -76,9 +79,12 @@ public static class ScheduledJobPipe
     public const string ReplyBusy = "busy";
     public const string ReplyRefused = "refused";
 
-    public static string Format(PipeRequest request) => request.Command == PipeCommand.Show
-        ? "show"
-        : "run " + ScheduledJobIds.Id(request.Job ?? throw new ArgumentException("A run request needs a job.", nameof(request)));
+    public static string Format(PipeRequest request) => request.Command switch
+    {
+        PipeCommand.Show => "show",
+        PipeCommand.ShowProcesses => "show processes",
+        _ => "run " + ScheduledJobIds.Id(request.Job ?? throw new ArgumentException("A run request needs a job.", nameof(request))),
+    };
 
     /// <summary>Parses a request line; returns null for anything unexpected.</summary>
     public static PipeRequest? Parse(string? line)
@@ -87,6 +93,11 @@ public static class ScheduledJobPipe
         if (parts.Length == 1 && parts[0].Equals("show", StringComparison.OrdinalIgnoreCase))
         {
             return new PipeRequest(PipeCommand.Show, null);
+        }
+
+        if (parts.Length == 2 && parts[0].Equals("show", StringComparison.OrdinalIgnoreCase) && parts[1].Equals("processes", StringComparison.OrdinalIgnoreCase))
+        {
+            return new PipeRequest(PipeCommand.ShowProcesses, null);
         }
 
         if (parts.Length == 2 && parts[0].Equals("run", StringComparison.OrdinalIgnoreCase) && ScheduledJobIds.TryParse(parts[1], out var job))

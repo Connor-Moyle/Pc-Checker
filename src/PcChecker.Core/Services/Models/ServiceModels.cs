@@ -66,6 +66,12 @@ public sealed record ServiceDetails(
     /// <summary>True while the service is running (or pausing/continuing).</summary>
     public bool IsRunning => State is ServiceRunState.Running or ServiceRunState.ContinuePending or ServiceRunState.PausePending or ServiceRunState.Paused;
 
+    /// <summary>
+    /// True when an organization manages this service by policy (Windows Update under a Group Policy or WSUS), so
+    /// PC Checker treats it as protected.
+    /// </summary>
+    public bool ManagedByPolicy { get; init; }
+
     /// <summary>A short, plain description used when the service has none.</summary>
     public string DescriptionOrFallback => string.IsNullOrWhiteSpace(Description)
         ? "No description provided by this service."

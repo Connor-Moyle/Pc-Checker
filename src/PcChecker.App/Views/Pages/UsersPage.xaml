@@ -43,6 +43,26 @@
         </Border>
       </StackPanel>
     </DataTemplate>
+
+    <!-- Right-click menu on the list (the same actions as the selected-user card). -->
+    <ContextMenu x:Key="UserActions" x:Shared="False"
+                 DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+      <MenuItem Header="Disconnect" Command="{Binding DisconnectCommand}" InputGestureText="Ctrl+D"
+                ToolTip="Lock this user's desktop; their programs keep running">
+        <MenuItem.Icon>
+          <controls:IconGlyph Symbol="PlugDisconnected24" />
+        </MenuItem.Icon>
+      </MenuItem>
+      <MenuItem Header="Sign out" Command="{Binding SignOffCommand}" InputGestureText="Del"
+                ToolTip="Close this user's programs and sign them out (you confirm first)">
+        <MenuItem.Icon>
+          <controls:IconGlyph Symbol="SignOut24" />
+        </MenuItem.Icon>
+      </MenuItem>
+      <Separator />
+      <MenuItem Header="Switch user" Command="{Binding SwitchUserCommand}"
+                ToolTip="Lock this PC and show the sign-in screen so someone else can sign in" />
+    </ContextMenu>
   </Page.Resources>
 
   <Grid Style="{StaticResource PageRoot}">
@@ -84,8 +104,14 @@
                           Text="Each person's processor and memory totals add up every program in their session." />
             <ui:DataGrid AutomationProperties.Name="Signed-in users" Style="{StaticResource UserGrid}"
                          ItemsSource="{Binding Users}" SelectedItem="{Binding SelectedUser, Mode=TwoWay}"
+                         ContextMenu="{StaticResource UserActions}"
+                         PreviewMouseRightButtonDown="OnGridRightButtonDown"
                          IsReadOnly="True" KeyboardNavigation.TabNavigation="Once"
                          Visibility="{Binding HasNoRows, Converter={StaticResource InverseBoolToVisibility}}">
+              <ui:DataGrid.InputBindings>
+                <KeyBinding Key="Delete" Command="{Binding SignOffCommand}" />
+                <KeyBinding Key="D" Modifiers="Control" Command="{Binding DisconnectCommand}" />
+              </ui:DataGrid.InputBindings>
               <ui:DataGrid.Columns>
                 <DataGridTemplateColumn Header="User" Width="1.6*" MinWidth="180" CellTemplate="{StaticResource UserNameCell}" />
                 <DataGridTextColumn Header="ID" Width="60" Binding="{Binding SessionIdText}" ElementStyle="{StaticResource TextCell}" />

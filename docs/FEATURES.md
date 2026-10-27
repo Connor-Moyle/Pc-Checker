@@ -224,19 +224,26 @@ Manager APIs — never by parsing `sc.exe` text.
 - **Actions** (right-click or the selected-service card): Start, Stop,
   Restart, Pause and Continue where the service allows it; change the startup
   type; open the Services console (`services.msc`); open the service's file;
-  search the name online; **Go to the process** (opens the Processes tab
-  filtered to that PID); and **Show dependencies** (what the service depends
-  on and what depends on it). A Restart stops the service and everything that
-  depends on it in order, then starts them again in reverse.
+  search the name online; **Go to the process** (opens the Processes tab with
+  that process selected); and **Show dependencies** (what the service depends
+  on and what depends on it). Actions a service does not allow are greyed out.
+  A Restart stops the running services that depend on it in order, waits for
+  each to stop, restarts the service and then starts them again in reverse;
+  services that were already stopped are left alone, and the restart is
+  refused when it would stop a locked service. Failures are explained in plain
+  words (for example "Other running services depend on this one").
 - **Safety**: a built-in list of core services (Remote Procedure Call, DCOM,
   Local Session Manager, WMI, Event Log, Plug and Play, Power, the Base
   Filtering Engine, the firewall, Defender and more) can never be stopped or
-  set to Manual or Disabled, each with a one-line reason. Protection-related
-  services such as Windows Update warn before being disabled. A known
+  set to Manual or Disabled, each with a one-line reason. Windows Update is
+  locked the same way when an organization manages it by policy (WSUS or
+  update rules); otherwise it and other protection-related services warn
+  before being stopped or disabled. A known
   background service (updaters and peripheral helpers) gets a "safe to set to
-  Manual" note. Every change is confirmed and journaled through the change
-  guard with the previous startup type, so it can be undone from the Action
-  Journal.
+  Manual" note. Every action is confirmed and journaled through the change
+  guard. A startup-type change records the previous type in the Action
+  Journal, so it can be set back from the Services page; start, stop and
+  restart last until the next restart of Windows.
 
 Limitations: the per-service group comes from the service's registry key and
 the dependency lists from the Service Control Manager, so either can be empty
@@ -261,8 +268,9 @@ APIs, with the totals of what each person is running.
   Start menu so you are not cut off part-way through something.
 
 Limitations: per-user processor use is measured over a short sample, so it is
-an estimate; the sign-in time is taken from the user's earliest process when
-Windows does not report it.
+an estimate. The sign-in time is the one Windows records for the session;
+only when Windows does not report one is it estimated from the user's earliest
+process.
 
 ### Replace Task Manager
 
@@ -274,16 +282,29 @@ Options *Debugger* value for `taskmgr.exe`. When Windows launches Task Manager
 
 - **Where**: Settings → General, and the Processes page *More* menu.
 - **Only when installed safely**: the option is only available when PC Checker
-  runs from Program Files. A user-writable copy could let another program take
-  Task Manager's elevated slot, so the option stays off and explains why.
-- **Safe and reversible**: turning it on is confirmed and journaled; any value
-  that was there before is saved and put back when the option is turned off.
+  runs from Program Files and neither the program nor its folder can be
+  changed by standard users. A user-writable copy could let another program
+  take Task Manager's elevated slot, so the option stays off and explains why.
+- **Safe and reversible**: turning it on and off is confirmed and journaled.
+  When another program (such as Process Explorer) is already set in Task
+  Manager's place, the confirmation names it; its value is saved and put back
+  when the option is turned off.
 - **Self-healing**: at every start PC Checker checks the value still points at
-  this copy; a leftover setting pointing at a PC Checker that no longer exists
-  (after an uninstall or move) is cleaned up automatically.
-- **Opening the real Task Manager**: because the redirection is what the option
-  does, Windows Task Manager only opens while the option is off; PC Checker
-  offers a one-click *Turn off and open Windows Task Manager* for that.
+  this copy. A leftover setting pointing at a PC Checker that no longer exists
+  (after an uninstall or move) is cleaned up automatically; one pointing at
+  another copy that still exists is never changed silently: PC Checker offers
+  to open this copy instead (also from the Settings row).
+- **Opening the real Task Manager**: while the option is on, Windows starts PC
+  Checker for every launch of Task Manager and there is no public way around
+  that, so Windows Task Manager only opens while the option is off. *Open
+  Windows Task Manager* on the Processes *More* menu explains this and turns
+  the option off and opens Task Manager in one click.
+- **Already open**: Ctrl+Shift+Esc with PC Checker already running brings the
+  open window to the front on the Processes tab.
+
+Limitations: PC Checker asks for administrator rights, so on accounts without
+them Windows shows a sign-in prompt instead of Task Manager while the option is
+on.
 
 ### History
 

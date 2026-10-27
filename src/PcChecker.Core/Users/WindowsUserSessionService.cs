@@ -43,7 +43,7 @@ public sealed class WindowsUserSessionService : IUserSessionService
                     var state = SessionStateMapper.FromWts(raw.State);
                     usage.TryGetValue(raw.SessionId, out var u);
                     sessions.Add(new UserSession(raw.SessionId, raw.UserName, raw.Domain, state, raw.ClientName,
-                        u.LogonTime, raw.SessionId == currentSession)
+                        SessionStateMapper.ChooseLogonTime(raw.LogonTime, u.LogonTime), raw.SessionId == currentSession)
                     {
                         CpuPercent = Math.Round(u.CpuPercent, 1),
                         MemoryBytes = u.MemoryBytes,

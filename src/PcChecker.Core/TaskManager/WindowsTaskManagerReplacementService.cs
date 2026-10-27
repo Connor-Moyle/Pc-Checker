@@ -41,17 +41,30 @@ public sealed class WindowsTaskManagerReplacementService : ITaskManagerReplaceme
             return TaskManagerReplacementStatus.Off;
         }
 
-        string? value = ReadDebuggerValue();
-        bool owned = TaskManagerReplacement.OwnsValue(value, _exePath);
-        bool pointsElsewhere = !owned && TaskManagerReplacement.ParseDebuggerValue(value) is { HasSwitch: true };
-        string? ineligible = TaskManagerReplacement.IneligibleReason(_exePath, _programFilesRoots);
+        string? value;
+        try
+        {
+            value = ReadDebuggerValue();
+        }
+        catch (Exception ex) when (IsRegistryFailure(ex))
+        {
+            _logger.LogWarning(ex, "The Task Manager Debugger value could not be read.");
+            value = null;
+        }
+
+        var kind = TaskManagerReplacement.Classify(value, _exePath, System.IO.File.Exists);
+        bool owned = kind == DebuggerValueKind.Ours;
+        string? ineligible = IneligibleReason();
         return new TaskManagerReplacementStatus(
             Enabled: owned,
             OwnedByUs: owned,
             Eligible: ineligible is null,
             IneligibleReason: ineligible,
-            PointsElsewhere: pointsElsewhere,
-            CurrentValue: value);
+            PointsElsewhere: kind == DebuggerValueKind.OtherCopy,
+            CurrentValue: value)
+        {
+            Kind = kind,
+        };
     }
 
     public Task<OperationResult> EnableAsync(CancellationToken cancellationToken)
@@ -61,27 +74,45 @@ public sealed class WindowsTaskManagerReplacementService : ITaskManagerReplaceme
             return Task.FromResult(OperationResult.Fail("This option is only available on Windows."));
         }
 
-        if (TaskManagerReplacement.IneligibleReason(_exePath, _programFilesRoots) is { } reason)
+        if (IneligibleReason() is { } reason)
         {
             return Task.FromResult(OperationResult.Fail(reason));
         }
 
-        string? previous = ReadDebuggerValue();
-        var options = new ChangeOptions(false, false, Module, "Replace Task Manager", Reversible: true,
-            UndoHint: "Turn 'Replace Task Manager' off on the Settings page to restore Windows Task Manager.");
+        string? previous;
+        try
+        {
+            previous = ReadDebuggerValue();
+        }
+        catch (Exception ex) when (IsRegistryFailure(ex))
+        {
+            return Task.FromResult(OperationResult.Fail($"The current setting could not be read: {ex.Message}", ex));
+        }
 
-        return _guard.RunGuardedAsync("Turn on: open PC Checker instead of Task Manager", options, ct =>
+        var kind = TaskManagerReplacement.Classify(previous, _exePath, System.IO.File.Exists);
+        var options = new ChangeOptions(false, false, Module, "Replace Task Manager", Reversible: true,
+            UndoHint: kind == DebuggerValueKind.ThirdParty
+                ? $"Turn 'Replace Task Manager' off on the Settings page to restore the previous value: {previous}"
+                : "Turn 'Replace Task Manager' off on the Settings page to restore Windows Task Manager.");
+        string description = kind == DebuggerValueKind.OtherCopy
+            ? "Point 'Replace Task Manager' at this copy of PC Checker"
+            : "Turn on: open PC Checker instead of Task Manager";
+
+        return _guard.RunGuardedAsync(description, options, ct =>
         {
             try
             {
-                // Keep any value that was there (unless it is already ours) so it can be restored later.
-                if (!string.IsNullOrEmpty(previous) && !TaskManagerReplacement.OwnsValue(previous, _exePath))
+                // Keep a third-party value (Process Explorer, ...) so turning the option off puts it back. A value left by
+                // another PC Checker copy is not kept: the backup it made, if any, stays in place.
+                if (kind == DebuggerValueKind.ThirdParty)
                 {
                     SaveBackup(previous!);
                 }
 
                 WriteDebuggerValue(TaskManagerReplacement.BuildDebuggerValue(_exePath));
-                return Task.FromResult(OperationResult.Ok("Ctrl+Shift+Esc and every other way of opening Task Manager now opens PC Checker on the Processes tab."));
+                return Task.FromResult(OperationResult.Ok(kind == DebuggerValueKind.OtherCopy
+                    ? "Task Manager now opens this copy of PC Checker on the Processes tab."
+                    : "Ctrl+Shift+Esc and every other way of opening Task Manager now opens PC Checker on the Processes tab."));
             }
             catch (Exception ex) when (IsRegistryFailure(ex))
             {
@@ -102,15 +133,30 @@ public sealed class WindowsTaskManagerReplacementService : ITaskManagerReplaceme
             return Task.FromResult(OperationResult.Fail("This option is only available on Windows."));
         }
 
-        string? current = ReadDebuggerValue();
-        if (!TaskManagerReplacement.OwnsValue(current, _exePath) && !string.IsNullOrEmpty(current)
-            && TaskManagerReplacement.ParseDebuggerValue(current) is { HasSwitch: false })
+        string? current;
+        try
         {
+            current = ReadDebuggerValue();
+        }
+        catch (Exception ex) when (IsRegistryFailure(ex))
+        {
+            return Task.FromResult(OperationResult.Fail($"The current setting could not be read: {ex.Message}", ex));
+        }
+
+        if (TaskManagerReplacement.Classify(current, _exePath, System.IO.File.Exists) == DebuggerValueKind.ThirdParty)
+        {
+            if (openTaskManager)
+            {
+                return Task.FromResult(OperationResult.Fail(
+                    "Another program is set to open in place of Task Manager, so Windows Task Manager cannot be opened from here."));
+            }
+
             return Task.FromResult(OperationResult.Fail(
                 "Another program is set as Task Manager's debugger, not PC Checker, so PC Checker will not change it."));
         }
 
-        var options = new ChangeOptions(false, false, Module, "Replace Task Manager", Reversible: false, UndoHint: null);
+        var options = new ChangeOptions(false, false, Module, "Replace Task Manager", Reversible: true,
+            UndoHint: "Turn 'Replace Task Manager' on again on the Settings page.");
         return _guard.RunGuardedAsync("Turn off: open Windows Task Manager again", options, ct =>
         {
             try
@@ -119,7 +165,7 @@ public sealed class WindowsTaskManagerReplacementService : ITaskManagerReplaceme
                 var message = "Windows Task Manager opens normally again.";
                 if (openTaskManager)
                 {
-                    var open = ShellLauncher.Open("taskmgr.exe");
+                    var open = ShellLauncher.Open(System.IO.Path.Combine(Environment.SystemDirectory, "Taskmgr.exe"));
                     message = open.Success
                         ? "Turned the option off and opened Windows Task Manager."
                         : "Turned the option off. Windows Task Manager could not be opened automatically; press Ctrl+Shift+Esc.";
@@ -134,42 +180,113 @@ public sealed class WindowsTaskManagerReplacementService : ITaskManagerReplaceme
         }, null, cancellationToken);
     }
 
-    public Task<string?> ReconcileOnStartAsync(CancellationToken cancellationToken)
+    public Task<TaskManagerStartCheck> ReconcileOnStartAsync(CancellationToken cancellationToken)
     {
         if (!PlatformGuard.IsWindows)
         {
-            return Task.FromResult<string?>(null);
+            return Task.FromResult(TaskManagerStartCheck.Nothing);
         }
 
-        return Task.Run<string?>(() =>
+        return Task.Run(() =>
         {
             try
             {
                 string? current = ReadDebuggerValue();
-                if (TaskManagerReplacement.IsStaleOwnedValue(current, _exePath, System.IO.File.Exists))
+                switch (TaskManagerReplacement.Classify(current, _exePath, System.IO.File.Exists))
                 {
-                    RestoreOrClear();
-                    _logger.LogInformation("Removed a stale 'Replace Task Manager' value left by a PC Checker that no longer exists.");
-                    return "A leftover 'Replace Task Manager' setting from an old PC Checker was cleaned up.";
-                }
+                    case DebuggerValueKind.Stale:
+                        // PC Checker was uninstalled or moved: the value would start a missing file, so Task Manager
+                        // would not open at all. It carries --taskmgr, so it is ours to remove.
+                        RestoreOrClear();
+                        _logger.LogInformation("Removed a stale 'Replace Task Manager' value left by a PC Checker that no longer exists.");
+                        return new TaskManagerStartCheck("A leftover 'Replace Task Manager' setting from an old PC Checker was cleaned up, so Windows Task Manager opens again.", null);
 
-                // The value points at this exe with --taskmgr but is spelled differently, or at another existing copy.
-                if (TaskManagerReplacement.ParseDebuggerValue(current) is { HasSwitch: true } parsed
-                    && !TaskManagerReplacement.OwnsValue(current, _exePath)
-                    && !System.IO.File.Exists(parsed.ExePath))
-                {
-                    RestoreOrClear();
-                    return "A 'Replace Task Manager' setting pointing at a missing PC Checker was cleaned up.";
-                }
+                    case DebuggerValueKind.OtherCopy:
+                        // Another copy that still exists: never change it silently, offer to point it here instead.
+                        return new TaskManagerStartCheck(null, TaskManagerReplacement.ParseDebuggerValue(current)?.ExePath);
 
-                return null;
+                    default:
+                        return TaskManagerStartCheck.Nothing;
+                }
             }
             catch (Exception ex) when (IsRegistryFailure(ex))
             {
                 _logger.LogWarning(ex, "The 'Replace Task Manager' setting could not be checked at start.");
-                return null;
+                return TaskManagerStartCheck.Nothing;
             }
         }, cancellationToken);
+    }
+
+    /// <summary>
+    /// Null when the option may be turned on here: PC Checker runs from Program Files and neither the exe nor its folder
+    /// can be changed by a standard user. Otherwise a plain reason.
+    /// </summary>
+    private string? IneligibleReason()
+    {
+        if (TaskManagerReplacement.IneligibleReason(_exePath, _programFilesRoots) is { } reason)
+        {
+            return reason;
+        }
+
+        if (UserWritable(_exePath) || UserWritable(System.IO.Path.GetDirectoryName(_exePath)))
+        {
+            return "PC Checker's install folder can be changed by standard users, which could let another program take "
+                + "Task Manager's place, so this option stays off. Reinstall PC Checker with its installer to fix the folder's permissions.";
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// True when Users, Authenticated Users, Everyone or Interactive may write, append, delete or change the permissions
+    /// of the file or folder. Unknown (no access to read the permissions) counts as writable, to stay safe.
+    /// </summary>
+    private bool UserWritable(string? path)
+    {
+        if (string.IsNullOrEmpty(path) || !OperatingSystem.IsWindows())
+        {
+            return false;
+        }
+
+        try
+        {
+            System.Security.AccessControl.FileSystemSecurity security = System.IO.Directory.Exists(path)
+                ? new System.IO.DirectoryInfo(path).GetAccessControl()
+                : new System.IO.FileInfo(path).GetAccessControl();
+            var rules = security.GetAccessRules(true, true, typeof(System.Security.Principal.SecurityIdentifier));
+            var broad = new[]
+            {
+                new System.Security.Principal.SecurityIdentifier(System.Security.Principal.WellKnownSidType.BuiltinUsersSid, null),
+                new System.Security.Principal.SecurityIdentifier(System.Security.Principal.WellKnownSidType.AuthenticatedUserSid, null),
+                new System.Security.Principal.SecurityIdentifier(System.Security.Principal.WellKnownSidType.WorldSid, null),
+                new System.Security.Principal.SecurityIdentifier(System.Security.Principal.WellKnownSidType.InteractiveSid, null),
+            };
+            const System.Security.AccessControl.FileSystemRights Dangerous =
+                System.Security.AccessControl.FileSystemRights.WriteData
+                | System.Security.AccessControl.FileSystemRights.AppendData
+                | System.Security.AccessControl.FileSystemRights.Delete
+                | System.Security.AccessControl.FileSystemRights.ChangePermissions
+                | System.Security.AccessControl.FileSystemRights.TakeOwnership;
+            foreach (System.Security.AccessControl.FileSystemAccessRule rule in rules)
+            {
+                if (rule.AccessControlType == System.Security.AccessControl.AccessControlType.Allow
+                    && rule.IdentityReference is System.Security.Principal.SecurityIdentifier sid
+                    && broad.Contains(sid)
+                    && (rule.FileSystemRights & Dangerous) != 0
+                    && (rule.PropagationFlags & System.Security.AccessControl.PropagationFlags.InheritOnly) == 0)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or System.IO.IOException or InvalidOperationException
+            or System.Security.Principal.IdentityNotMappedException or PlatformNotSupportedException)
+        {
+            _logger.LogDebug(ex, "Could not read the permissions of {Path}.", path);
+            return true;
+        }
     }
 
     private void RestoreOrClear()

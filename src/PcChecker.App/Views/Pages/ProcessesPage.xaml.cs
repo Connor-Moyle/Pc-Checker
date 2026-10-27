@@ -22,11 +22,24 @@ public partial class ProcessesPage
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
+        ViewModel.SelectionRequested += OnSelectionRequested;
         ViewModel.StartLive();
         ViewModel.RefreshTaskManagerReplacement();
+
+        // Arrived from "Go to the process": show the selected row.
+        if (ViewModel.SelectedRow is { } selected)
+        {
+            Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded, () => ProcessGrid.ScrollIntoView(selected));
+        }
     }
 
-    private void OnUnloaded(object sender, RoutedEventArgs e) => ViewModel.StopLive();
+    private void OnUnloaded(object sender, RoutedEventArgs e)
+    {
+        ViewModel.SelectionRequested -= OnSelectionRequested;
+        ViewModel.StopLive();
+    }
+
+    private void OnSelectionRequested(object? sender, RunningProcessRow row) => ProcessGrid.ScrollIntoView(row);
 
     /// <summary>The view model sorts (the list is rebuilt every refresh); the grid only shows the arrow.</summary>
     private void OnGridSorting(object sender, DataGridSortingEventArgs e)

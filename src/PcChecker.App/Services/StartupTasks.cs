@@ -1,5 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using PcChecker.App.Localization;
+using PcChecker.Core.TaskManager;
 
 namespace PcChecker.App.Services;
 
@@ -33,7 +35,8 @@ public static class StartupTasks
 
     /// <summary>
     /// Checks the "Replace Task Manager" setting at start: a stale value pointing at a PC Checker that no longer
-    /// exists is cleaned up (the setting owns it), and the user is told when that happens.
+    /// exists is cleaned up (the setting owns it) and the user is told; a value pointing at another PC Checker copy that
+    /// still exists is never changed silently: the user is offered to point it at this copy.
     /// </summary>
     private static async Task ReconcileTaskManagerReplacementAsync(IServiceProvider services, bool interactive, ILogger? logger)
     {
@@ -44,18 +47,35 @@ public static class StartupTasks
 
         try
         {
-            var replacement = services.GetService(typeof(PcChecker.Core.TaskManager.ITaskManagerReplacementService))
-                as PcChecker.Core.TaskManager.ITaskManagerReplacementService;
-            if (replacement is null)
+            if (services.GetService(typeof(ITaskManagerReplacementService)) is not ITaskManagerReplacementService replacement)
             {
                 return;
             }
 
-            var note = await replacement.ReconcileOnStartAsync(CancellationToken.None);
-            if (interactive && !string.IsNullOrWhiteSpace(note)
-                && services.GetService(typeof(INotificationService)) is INotificationService notifications)
+            var check = await replacement.ReconcileOnStartAsync(CancellationToken.None);
+            if (!interactive)
             {
-                notifications.Info("Task Manager", note!);
+                return;
+            }
+
+            var notifications = services.GetService(typeof(INotificationService)) as INotificationService;
+            if (!string.IsNullOrWhiteSpace(check.Note))
+            {
+                notifications?.Info(Loc.T("Task Manager"), check.Note!);
+            }
+
+            if (check.OtherCopyPath is { } other)
+            {
+                bool windowShown = System.Windows.Application.Current?.MainWindow is { IsVisible: true, WindowState: not System.Windows.WindowState.Minimized };
+                if (windowShown && services.GetService(typeof(IDialogService)) is IDialogService dialogs && notifications is not null)
+                {
+                    await TaskManagerReplacementPrompts.OfferRepointAsync(replacement, dialogs, notifications, other);
+                }
+                else
+                {
+                    notifications?.Warning(Loc.T("Task Manager"),
+                        Loc.F("Task Manager opens another copy of PC Checker: {0}. Fix it in Settings.", other));
+                }
             }
         }
         catch (Exception ex)

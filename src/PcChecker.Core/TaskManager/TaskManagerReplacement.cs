@@ -1,5 +1,24 @@
 namespace PcChecker.Core.TaskManager;
 
+/// <summary>What the Task Manager Debugger value currently is, from PC Checker's point of view.</summary>
+public enum DebuggerValueKind
+{
+    /// <summary>No value: Windows Task Manager opens.</summary>
+    None,
+
+    /// <summary>Points at this PcChecker.exe with <c>--taskmgr</c>.</summary>
+    Ours,
+
+    /// <summary>Points at a different PC Checker copy that still exists (an old install folder, another spelling).</summary>
+    OtherCopy,
+
+    /// <summary>Carries <c>--taskmgr</c> but its file no longer exists: a leftover that may be cleaned up.</summary>
+    Stale,
+
+    /// <summary>Another program (Process Explorer, System Informer, ...) is set in Task Manager's place.</summary>
+    ThirdParty,
+}
+
 /// <summary>
 /// Pure logic for the "open PC Checker instead of Windows Task Manager" option. Like Sysinternals Process Explorer,
 /// it works through the Image File Execution Options "Debugger" value for <c>taskmgr.exe</c>: when Windows launches
@@ -114,6 +133,31 @@ public static class TaskManagerReplacement
     }
 
     /// <summary>
+    /// Sorts a Debugger value into <see cref="DebuggerValueKind"/>. A value with <c>--taskmgr</c> is treated as a PC
+    /// Checker value (only this option writes that switch), so a moved or reinstalled copy can be repointed.
+    /// </summary>
+    public static DebuggerValueKind Classify(string? value, string exePath, Func<string, bool> fileExists)
+    {
+        ArgumentNullException.ThrowIfNull(fileExists);
+        if (ParseDebuggerValue(value) is not { } parsed)
+        {
+            return DebuggerValueKind.None;
+        }
+
+        if (!parsed.HasSwitch)
+        {
+            return DebuggerValueKind.ThirdParty;
+        }
+
+        if (!fileExists(parsed.ExePath))
+        {
+            return DebuggerValueKind.Stale;
+        }
+
+        return PathsEqual(parsed.ExePath, exePath) ? DebuggerValueKind.Ours : DebuggerValueKind.OtherCopy;
+    }
+
+    /// <summary>
     /// True when PC Checker runs from a location that is not writable by a standard user, which is the only place the
     /// option may be turned on: an installer under Program Files. A user-writable location would let someone drop a
     /// different exe there and have Windows run it elevated in place of Task Manager.
@@ -167,5 +211,59 @@ public static class TaskManagerReplacement
     private static bool PathsEqual(string a, string b) =>
         Normalize(a).Equals(Normalize(b), StringComparison.OrdinalIgnoreCase);
 
-    private static string Normalize(string path) => path.Trim().Trim('"').Replace('/', '\\').TrimEnd('\\');
+    private static string Normalize(string path) => CollapseDotSegments(path.Trim().Trim('"').Replace('/', '\\')).TrimEnd('\\');
+
+    /// <summary>
+    /// Resolves <c>.</c> and <c>..</c> segments in a Windows path without touching the disk (so it behaves the same on
+    /// the Linux test runner), so <c>C:\Program Files\..\Users\x</c> is not mistaken for a Program Files path. A
+    /// <c>..</c> that would climb above the drive root is dropped, as Windows does.
+    /// </summary>
+    public static string CollapseDotSegments(string path)
+    {
+        if (string.IsNullOrEmpty(path))
+        {
+            return string.Empty;
+        }
+
+        var text = path.Replace('/', '\\');
+        string prefix = string.Empty;
+        if (text.StartsWith(@"\\", StringComparison.Ordinal))
+        {
+            prefix = @"\\";
+            text = text[2..];
+        }
+        else if (text.Length >= 2 && text[1] == ':')
+        {
+            prefix = text[..2] + (text.Length > 2 && text[2] == '\\' ? "\\" : string.Empty);
+            text = text[prefix.Length..];
+        }
+        else if (text.StartsWith('\\'))
+        {
+            prefix = "\\";
+            text = text[1..];
+        }
+
+        var parts = new List<string>();
+        foreach (var part in text.Split('\\'))
+        {
+            if (part.Length == 0 || part == ".")
+            {
+                continue;
+            }
+
+            if (part == "..")
+            {
+                if (parts.Count > 0)
+                {
+                    parts.RemoveAt(parts.Count - 1);
+                }
+
+                continue;
+            }
+
+            parts.Add(part);
+        }
+
+        return prefix + string.Join('\\', parts);
+    }
 }

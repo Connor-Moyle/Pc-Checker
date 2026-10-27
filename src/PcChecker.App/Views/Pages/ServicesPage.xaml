@@ -58,17 +58,17 @@
     <!-- The same actions in the header More menu and the list's right-click menu. -->
     <ContextMenu x:Key="ServiceActions" x:Shared="False"
                  DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
-      <MenuItem Header="Start" Command="{Binding StartCommand}">
+      <MenuItem Header="Start" Command="{Binding StartCommand}" InputGestureText="Ctrl+S">
         <MenuItem.Icon>
           <controls:IconGlyph Symbol="Play24" />
         </MenuItem.Icon>
       </MenuItem>
-      <MenuItem Header="Stop" Command="{Binding StopCommand}">
+      <MenuItem Header="Stop" Command="{Binding StopCommand}" InputGestureText="Del">
         <MenuItem.Icon>
           <controls:IconGlyph Symbol="Stop24" />
         </MenuItem.Icon>
       </MenuItem>
-      <MenuItem Header="Restart" Command="{Binding RestartCommand}">
+      <MenuItem Header="Restart" Command="{Binding RestartCommand}" InputGestureText="Ctrl+R">
         <MenuItem.Icon>
           <controls:IconGlyph Symbol="ArrowClockwise24" />
         </MenuItem.Icon>
@@ -179,6 +179,11 @@
                          IsReadOnly="True" KeyboardNavigation.TabNavigation="Once"
                          PreviewMouseRightButtonDown="OnGridRightButtonDown"
                          Visibility="{Binding HasNoRows, Converter={StaticResource InverseBoolToVisibility}}">
+              <ui:DataGrid.InputBindings>
+                <KeyBinding Key="Delete" Command="{Binding StopCommand}" />
+                <KeyBinding Key="S" Modifiers="Control" Command="{Binding StartCommand}" />
+                <KeyBinding Key="R" Modifiers="Control" Command="{Binding RestartCommand}" />
+              </ui:DataGrid.InputBindings>
               <ui:DataGrid.Columns>
                 <DataGridTemplateColumn Header="Name" Width="2.2*" MinWidth="240" CellTemplate="{StaticResource NameCell}" />
                 <DataGridTextColumn Header="Status" Width="90" Binding="{Binding StatusText}" ElementStyle="{StaticResource TextCell}" />
@@ -236,7 +241,7 @@
             <ui:TextBlock TextWrapping="Wrap" Margin="0,0,0,8"
                           Text="Core Windows services (sign-in, networking, security, Plug and Play and the like) are locked here, because stopping or disabling them can crash the PC or leave you without network or protection." />
             <ui:TextBlock TextWrapping="Wrap"
-                          Text="Every start, stop and start-type change is recorded in the Action Journal on the Logs page, with the previous value, so it can be undone." />
+                          Text="Every action is confirmed first and recorded in the Action Journal on the Logs page. A start-type change records the previous type, so you can set it back here; starting, stopping and restarting only last until the next restart of Windows." />
           </StackPanel>
         </ui:CardExpander>
       </StackPanel>

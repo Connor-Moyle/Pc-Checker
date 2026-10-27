@@ -370,6 +370,8 @@ public sealed partial class ProcessesViewModel : ViewModelBase
         {
             RefreshSelectionState();
         }
+
+        TrySelectPendingProcess();
     }
 
     /// <summary>Makes <paramref name="rows"/> equal to <paramref name="target"/> with moves instead of a reset.</summary>

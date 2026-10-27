@@ -9,7 +9,10 @@ public sealed class DemoTaskManagerReplacementService : ITaskManagerReplacementS
 
     public TaskManagerReplacementStatus GetStatus() =>
         new(_enabled, OwnedByUs: _enabled, Eligible: true, IneligibleReason: null, PointsElsewhere: false,
-            CurrentValue: _enabled ? "\"C:\\Program Files\\PC Checker\\PcChecker.exe\" --taskmgr" : null);
+            CurrentValue: _enabled ? "\"C:\\Program Files\\PC Checker\\PcChecker.exe\" --taskmgr" : null)
+        {
+            Kind = _enabled ? DebuggerValueKind.Ours : DebuggerValueKind.None,
+        };
 
     public Task<OperationResult> EnableAsync(CancellationToken cancellationToken)
     {
@@ -29,5 +32,6 @@ public sealed class DemoTaskManagerReplacementService : ITaskManagerReplacementS
         return Task.FromResult(OperationResult.Ok("Turned the option off and opened Windows Task Manager (demo)."));
     }
 
-    public Task<string?> ReconcileOnStartAsync(CancellationToken cancellationToken) => Task.FromResult<string?>(null);
+    public Task<TaskManagerStartCheck> ReconcileOnStartAsync(CancellationToken cancellationToken) =>
+        Task.FromResult(TaskManagerStartCheck.Nothing);
 }

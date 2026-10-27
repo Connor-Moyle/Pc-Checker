@@ -14,7 +14,7 @@ internal static class UserSessionNative
 {
     private static readonly IntPtr CurrentServer = IntPtr.Zero;
 
-    internal readonly record struct RawSession(int SessionId, int State, string UserName, string? Domain, string? ClientName);
+    internal readonly record struct RawSession(int SessionId, int State, string UserName, string? Domain, string? ClientName, DateTimeOffset? LogonTime);
 
     internal readonly record struct SessionUsage(double CpuPercent, long MemoryBytes, int ProcessCount, DateTimeOffset? LogonTime);
 
@@ -35,7 +35,7 @@ internal static class UserSessionNative
                 string user = Query(info.SessionId, WTS_INFO_CLASS.WTSUserName) ?? string.Empty;
                 string? domain = Query(info.SessionId, WTS_INFO_CLASS.WTSDomainName);
                 string? client = Query(info.SessionId, WTS_INFO_CLASS.WTSClientName);
-                list.Add(new RawSession(info.SessionId, info.State, user, Empty(domain), Empty(client)));
+                list.Add(new RawSession(info.SessionId, info.State, user, Empty(domain), Empty(client), QueryLogonTime(info.SessionId)));
             }
         }
         finally
@@ -48,7 +48,7 @@ internal static class UserSessionNative
 
     /// <summary>
     /// Measures, with a short two-sample pass, each session's summed processor use, memory and process count, and the
-    /// earliest process start time (used as a stand-in for the logon time).
+    /// earliest process start time (a fallback for the sign-in time, used only when Windows does not report it).
     /// </summary>
     internal static Dictionary<int, SessionUsage> MeasureSessionUsage(CancellationToken cancellationToken)
     {
@@ -186,6 +186,30 @@ internal static class UserSessionNative
         }
     }
 
+    /// <summary>The sign-in time Windows records for the session (WTSSessionInfo), or null when it reports none.</summary>
+    private static DateTimeOffset? QueryLogonTime(int sessionId)
+    {
+        if (!WTSQuerySessionInformation(CurrentServer, sessionId, WTS_INFO_CLASS.WTSSessionInfo, out var buffer, out int bytes) || buffer == IntPtr.Zero)
+        {
+            return null;
+        }
+
+        try
+        {
+            if (bytes < Marshal.SizeOf<WTSINFOW>())
+            {
+                return null;
+            }
+
+            var info = Marshal.PtrToStructure<WTSINFOW>(buffer);
+            return SessionStateMapper.LogonTimeFromFileTime(info.LogonTime);
+        }
+        finally
+        {
+            WTSFreeMemory(buffer);
+        }
+    }
+
     private static string? Empty(string? value) => string.IsNullOrWhiteSpace(value) ? null : value;
 
     private enum WTS_INFO_CLASS
@@ -193,6 +217,31 @@ internal static class UserSessionNative
         WTSUserName = 5,
         WTSDomainName = 7,
         WTSClientName = 10,
+        WTSSessionInfo = 24,
+    }
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    private struct WTSINFOW
+    {
+        public int State;
+        public int SessionId;
+        public int IncomingBytes;
+        public int OutgoingBytes;
+        public int IncomingFrames;
+        public int OutgoingFrames;
+        public int IncomingCompressedBytes;
+        public int OutgoingCompressedBytes;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)]
+        public string WinStationName;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 17)]
+        public string Domain;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 21)]
+        public string UserName;
+        public long ConnectTime;
+        public long DisconnectTime;
+        public long LastInputTime;
+        public long LogonTime;
+        public long CurrentTime;
     }
 
     [StructLayout(LayoutKind.Sequential)]

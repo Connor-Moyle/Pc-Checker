@@ -65,6 +65,7 @@ public sealed partial class ServicesViewModel : ViewModelBase
     [NotifyCanExecuteChangedFor(nameof(SearchOnlineCommand))]
     [NotifyCanExecuteChangedFor(nameof(GoToProcessCommand))]
     [NotifyCanExecuteChangedFor(nameof(ShowDependenciesCommand))]
+    [NotifyCanExecuteChangedFor(nameof(SetStartupCommand))]
     private ServiceListRow? _selectedRow;
 
     [ObservableProperty]
@@ -87,10 +88,8 @@ public sealed partial class ServicesViewModel : ViewModelBase
 
     public bool HasSelection => SelectedRow is not null;
 
-    public bool CanControl => SelectedRow is not null && !SelectedRow.IsCritical;
-
     /// <summary>The plain reason the selected service is protected, or null.</summary>
-    public string? SelectedReason => SelectedRow is null ? null : ServiceSafetyRules.CriticalReason(SelectedRow.Name);
+    public string? SelectedReason => SelectedRow is null ? null : ServiceSafetyRules.LockedReason(SelectedRow.Details);
 
     public bool HasSelectedReason => SelectedReason is not null;
 
@@ -104,6 +103,7 @@ public sealed partial class ServicesViewModel : ViewModelBase
             _all = await _services.GetServicesAsync(ct);
             RebuildRows();
             UpdateSummary();
+            NotifySelectionCommands();
             StatusText = Loc.F("{0} services", _all.Count);
         }, Loc.T("Reading services…"));
 
@@ -177,28 +177,50 @@ public sealed partial class ServicesViewModel : ViewModelBase
         ThirdPartyText = _all.Count(s => !s.IsMicrosoft).ToString(System.Globalization.CultureInfo.CurrentCulture);
     }
 
-    private bool HasCreatableSelection() => SelectedRow is not null;
+    private bool HasSelectionForCommand() => SelectedRow is not null;
 
-    [RelayCommand(CanExecute = nameof(HasCreatableSelection))]
-    private Task Start() => RunActionAsync(row => _services.StartAsync(row.Details, CancellationToken.None), confirm: false);
+    private bool CanStart() => SelectedRow is { } row && ServiceSafetyRules.CanStart(row.Details).Allowed;
 
-    [RelayCommand(CanExecute = nameof(HasCreatableSelection))]
+    private bool CanStop() => SelectedRow is { } row && ServiceSafetyRules.CanStop(row.Details).Allowed;
+
+    private bool CanRestart() => SelectedRow is { } row && row.Details.State == ServiceRunState.Running && ServiceSafetyRules.CanStop(row.Details).Allowed;
+
+    private bool CanPause() => SelectedRow is { } row && ServiceSafetyRules.CanPause(row.Details).Allowed;
+
+    private bool CanContinue() => SelectedRow is { } row && ServiceSafetyRules.CanContinue(row.Details).Allowed;
+
+    private bool CanSetStartup(ServiceStartupType startupType) =>
+        SelectedRow is { } row && row.Details.StartupType != startupType && ServiceSafetyRules.CanSetStartup(row.Details, startupType).Allowed;
+
+    private bool HasProcess() => SelectedRow?.Details.Pid is not null;
+
+    [RelayCommand(CanExecute = nameof(CanStart))]
+    private Task Start() => RunActionAsync(row => _services.StartAsync(row.Details, CancellationToken.None),
+        Loc.T("Start service?"), row => Loc.F("Start {0}?", row.DisplayName), Loc.T("Start"), isDanger: false);
+
+    [RelayCommand(CanExecute = nameof(CanStop))]
     private Task Stop() => RunActionAsync(row => _services.StopAsync(row.Details, CancellationToken.None),
-        confirm: true, title: Loc.T("Stop service?"),
-        message: row => Loc.F("Stop {0}? Anything that relies on it stops working until it runs again.", row.DisplayName));
+        Loc.T("Stop service?"),
+        row => WithWarning(Loc.F("Stop {0}? Anything that relies on it stops working until it runs again.", row.DisplayName), row),
+        Loc.T("Stop"), isDanger: true);
 
-    [RelayCommand(CanExecute = nameof(HasCreatableSelection))]
+    [RelayCommand(CanExecute = nameof(CanRestart))]
     private Task Restart() => RunActionAsync(row => _services.RestartAsync(row.Details, CancellationToken.None),
-        confirm: true, title: Loc.T("Restart service?"),
-        message: row => Loc.F("Restart {0}? It stops and starts again, along with anything that depends on it.", row.DisplayName));
+        Loc.T("Restart service?"),
+        row => WithWarning(Loc.F("Restart {0}? It stops and starts again, along with the running services that depend on it.", row.DisplayName), row),
+        Loc.T("Restart"), isDanger: true);
 
-    [RelayCommand(CanExecute = nameof(HasCreatableSelection))]
-    private Task Pause() => RunActionAsync(row => _services.PauseAsync(row.Details, CancellationToken.None), confirm: false);
+    [RelayCommand(CanExecute = nameof(CanPause))]
+    private Task Pause() => RunActionAsync(row => _services.PauseAsync(row.Details, CancellationToken.None),
+        Loc.T("Pause service?"), row => Loc.F("Pause {0}? It stays loaded but stops working until you continue it.", row.DisplayName),
+        Loc.T("Pause"), isDanger: false);
 
-    [RelayCommand(CanExecute = nameof(HasCreatableSelection))]
-    private Task Continue() => RunActionAsync(row => _services.ContinueAsync(row.Details, CancellationToken.None), confirm: false);
+    [RelayCommand(CanExecute = nameof(CanContinue))]
+    private Task Continue() => RunActionAsync(row => _services.ContinueAsync(row.Details, CancellationToken.None),
+        Loc.T("Continue service?"), row => Loc.F("Let {0} continue working?", row.DisplayName),
+        Loc.T("Continue"), isDanger: false);
 
-    [RelayCommand(CanExecute = nameof(HasCreatableSelection))]
+    [RelayCommand(CanExecute = nameof(CanSetStartup))]
     private async Task SetStartup(ServiceStartupType startupType)
     {
         if (SelectedRow is not { } row)
@@ -206,7 +228,7 @@ public sealed partial class ServicesViewModel : ViewModelBase
             return;
         }
 
-        var (allowed, reason) = ServiceSafetyRules.CanSetStartup(row.Name, startupType);
+        var (allowed, reason) = ServiceSafetyRules.CanSetStartup(row.Details, startupType);
         if (!allowed)
         {
             await _dialogs.ShowMessageAsync(Loc.T("Not allowed"), reason ?? Loc.T("This start type cannot be set."));
@@ -214,10 +236,11 @@ public sealed partial class ServicesViewModel : ViewModelBase
         }
 
         string confirm = Loc.F("Set {0} to {1}?", row.DisplayName, ServiceStartupMapping.Label(startupType));
-        string body = reason is null
-            ? Loc.T("You can undo this from the Action Journal on the Logs page.")
-            : reason + "\n\n" + Loc.T("You can undo this from the Action Journal on the Logs page.");
-        if (!await _dialogs.ConfirmAsync(confirm, body, Loc.T("Change")))
+        string undo = Loc.F("It is now {0}. The change is recorded in the Action Journal on the Logs page with the previous type, so you can set it back here.",
+            ServiceStartupMapping.Label(row.Details.StartupType));
+        string body = reason is null ? undo : reason + "\n\n" + undo;
+        bool risky = startupType is ServiceStartupType.Disabled || reason is not null;
+        if (!await _dialogs.ConfirmAsync(confirm, body, Loc.T("Change"), isDanger: risky))
         {
             return;
         }
@@ -225,10 +248,13 @@ public sealed partial class ServicesViewModel : ViewModelBase
         await RunGuardedActionAsync(() => _services.SetStartupTypeAsync(row.Details, startupType, CancellationToken.None));
     }
 
+    private static string WithWarning(string message, ServiceListRow row) =>
+        ServiceSafetyRules.SecurityWarning(row.Name) is { } warning ? message + "\n\n" + warning : message;
+
     [RelayCommand]
     private void OpenServicesConsole() => Report(_services.OpenServicesConsole());
 
-    [RelayCommand(CanExecute = nameof(HasCreatableSelection))]
+    [RelayCommand(CanExecute = nameof(HasSelectionForCommand))]
     private void OpenFileLocation()
     {
         if (SelectedRow is { } row)
@@ -237,7 +263,7 @@ public sealed partial class ServicesViewModel : ViewModelBase
         }
     }
 
-    [RelayCommand(CanExecute = nameof(HasCreatableSelection))]
+    [RelayCommand(CanExecute = nameof(HasSelectionForCommand))]
     private void SearchOnline()
     {
         if (SelectedRow is { } row)
@@ -246,7 +272,7 @@ public sealed partial class ServicesViewModel : ViewModelBase
         }
     }
 
-    [RelayCommand(CanExecute = nameof(HasCreatableSelection))]
+    [RelayCommand(CanExecute = nameof(HasProcess))]
     private void GoToProcess()
     {
         if (SelectedRow?.Details.Pid is not { } pid)
@@ -257,12 +283,8 @@ public sealed partial class ServicesViewModel : ViewModelBase
 
         try
         {
-            var processes = App.Services.GetService(typeof(ProcessesViewModel)) as ProcessesViewModel;
-            if (processes is not null)
-            {
-                processes.SearchText = pid.ToString(System.Globalization.CultureInfo.InvariantCulture);
-            }
-
+            // Selects the row (clearing any search) and then shows the Processes tab.
+            (App.Services.GetService(typeof(ProcessesViewModel)) as ProcessesViewModel)?.SelectProcess(pid);
             (App.Services.GetService(typeof(Wpf.Ui.INavigationService)) as Wpf.Ui.INavigationService)?
                 .Navigate(typeof(Views.Pages.ProcessesPage));
         }
@@ -272,7 +294,7 @@ public sealed partial class ServicesViewModel : ViewModelBase
         }
     }
 
-    [RelayCommand(CanExecute = nameof(HasCreatableSelection))]
+    [RelayCommand(CanExecute = nameof(HasSelectionForCommand))]
     private async Task ShowDependencies()
     {
         if (SelectedRow is not { } row)
@@ -296,16 +318,15 @@ public sealed partial class ServicesViewModel : ViewModelBase
         }
     }
 
-    private async Task RunActionAsync(Func<ServiceListRow, Task<Core.Common.OperationResult>> action, bool confirm,
-        string? title = null, Func<ServiceListRow, string>? message = null)
+    private async Task RunActionAsync(Func<ServiceListRow, Task<Core.Common.OperationResult>> action, string title,
+        Func<ServiceListRow, string> message, string confirmText, bool isDanger)
     {
         if (SelectedRow is not { } row)
         {
             return;
         }
 
-        if (confirm && title is not null && message is not null
-            && !await _dialogs.ConfirmAsync(title, message(row), Loc.T("Continue"), isDanger: true))
+        if (!await _dialogs.ConfirmAsync(title, message(row), confirmText, isDanger))
         {
             return;
         }
@@ -322,6 +343,7 @@ public sealed partial class ServicesViewModel : ViewModelBase
             _all = await _services.GetServicesAsync(CancellationToken.None);
             RebuildRows();
             UpdateSummary();
+            NotifySelectionCommands();
         }, Loc.T("Working…"));
     }
 
@@ -335,6 +357,20 @@ public sealed partial class ServicesViewModel : ViewModelBase
         {
             _notifications.Error(Loc.T("Could not complete"), result.Message);
         }
+    }
+
+    /// <summary>The selected row's state may have changed in place: re-check which actions apply.</summary>
+    private void NotifySelectionCommands()
+    {
+        StartCommand.NotifyCanExecuteChanged();
+        StopCommand.NotifyCanExecuteChanged();
+        RestartCommand.NotifyCanExecuteChanged();
+        PauseCommand.NotifyCanExecuteChanged();
+        ContinueCommand.NotifyCanExecuteChanged();
+        SetStartupCommand.NotifyCanExecuteChanged();
+        GoToProcessCommand.NotifyCanExecuteChanged();
+        OnPropertyChanged(nameof(SelectedReason));
+        OnPropertyChanged(nameof(HasSelectedReason));
     }
 
     protected override void OnBusyError(Exception exception) => _logger.LogError(exception, "Services page operation failed.");

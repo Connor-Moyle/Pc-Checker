@@ -71,6 +71,9 @@ public sealed partial class UsersViewModel : ViewModelBase
         RunBusyAsync(async ct =>
         {
             var sessions = await _users.GetSessionsAsync(ct);
+
+            // Clearing the list makes the grid's two-way binding null the selection, so remember it first.
+            int? selectedSession = SelectedUser?.Session.SessionId;
             Users.Clear();
             foreach (var session in sessions)
             {
@@ -82,10 +85,7 @@ public sealed partial class UsersViewModel : ViewModelBase
             StatusText = sessions.Count == 1
                 ? Loc.T("1 person is signed in")
                 : Loc.F("{0} people are signed in", sessions.Count);
-            if (SelectedUser is not null)
-            {
-                SelectedUser = Users.FirstOrDefault(u => u.Session.SessionId == SelectedUser.Session.SessionId);
-            }
+            SelectedUser = selectedSession is { } id ? Users.FirstOrDefault(u => u.Session.SessionId == id) : null;
         }, Loc.T("Reading signed-in users…"));
 
     [RelayCommand]

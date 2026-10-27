@@ -154,9 +154,11 @@
       </MenuItem>
       <Separator />
       <MenuItem Header="Open PC Checker instead of Task Manager"
-                IsCheckable="True" IsChecked="{Binding IsTaskManagerReplaced, Mode=OneWay}"
+                IsChecked="{Binding IsTaskManagerReplaced, Mode=OneWay}"
                 Command="{Binding ToggleReplaceTaskManagerCommand}"
-                ToolTip="When on, Ctrl+Shift+Esc opens PC Checker here. Change it any time in Settings." />
+                ToolTip="When on, Ctrl+Shift+Esc opens PC Checker here. You confirm first; change it any time in Settings." />
+      <MenuItem Header="Open Windows Task Manager" Command="{Binding OpenWindowsTaskManagerCommand}"
+                ToolTip="While PC Checker replaces Task Manager, this turns that option off first and then opens Windows Task Manager." />
     </ContextMenu>
   </Page.Resources>
 

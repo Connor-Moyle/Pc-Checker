@@ -49,28 +49,28 @@ public sealed class DemoServiceManagementService : IServiceManagementService
     }
 
     public Task<OperationResult> StartAsync(ServiceDetails service, CancellationToken cancellationToken) =>
-        SetState(service, ServiceRunState.Running, $"{service.DisplayName} is now running.");
+        Checked(ServiceSafetyRules.CanStart(service), service, ServiceRunState.Running, $"{service.DisplayName} is now running.");
 
-    public Task<OperationResult> StopAsync(ServiceDetails service, CancellationToken cancellationToken)
-    {
-        var (allowed, reason) = ServiceSafetyRules.CanStop(service);
-        return allowed
-            ? SetState(service, ServiceRunState.Stopped, $"{service.DisplayName} is now stopped.")
-            : Task.FromResult(OperationResult.Fail(reason ?? "This service cannot be stopped."));
-    }
+    public Task<OperationResult> StopAsync(ServiceDetails service, CancellationToken cancellationToken) =>
+        Checked(ServiceSafetyRules.CanStop(service), service, ServiceRunState.Stopped, $"{service.DisplayName} is now stopped.");
 
     public Task<OperationResult> RestartAsync(ServiceDetails service, CancellationToken cancellationToken) =>
-        SetState(service, ServiceRunState.Running, $"{service.DisplayName} was restarted.");
+        Checked(ServiceSafetyRules.CanStop(service), service, ServiceRunState.Running, $"{service.DisplayName} was restarted.");
 
     public Task<OperationResult> PauseAsync(ServiceDetails service, CancellationToken cancellationToken) =>
-        SetState(service, ServiceRunState.Paused, $"{service.DisplayName} is paused.");
+        Checked(ServiceSafetyRules.CanPause(service), service, ServiceRunState.Paused, $"{service.DisplayName} is paused.");
 
     public Task<OperationResult> ContinueAsync(ServiceDetails service, CancellationToken cancellationToken) =>
-        SetState(service, ServiceRunState.Running, $"{service.DisplayName} has resumed.");
+        Checked(ServiceSafetyRules.CanContinue(service), service, ServiceRunState.Running, $"{service.DisplayName} has resumed.");
+
+    private Task<OperationResult> Checked((bool Allowed, string? Reason) check, ServiceDetails service, ServiceRunState state, string message) =>
+        check.Allowed
+            ? SetState(service, state, message)
+            : Task.FromResult(OperationResult.Fail(check.Reason ?? "This action is not available for this service."));
 
     public Task<OperationResult> SetStartupTypeAsync(ServiceDetails service, ServiceStartupType startupType, CancellationToken cancellationToken)
     {
-        var (allowed, reason) = ServiceSafetyRules.CanSetStartup(service.Name, startupType);
+        var (allowed, reason) = ServiceSafetyRules.CanSetStartup(service, startupType);
         if (!allowed)
         {
             return Task.FromResult(OperationResult.Fail(reason ?? "This start type cannot be set."));

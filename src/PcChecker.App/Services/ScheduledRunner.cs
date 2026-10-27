@@ -50,9 +50,10 @@ public sealed class ScheduledRunner : IDisposable
 
     /// <summary>
     /// Starts answering the job pipe: <c>run &lt;job&gt;</c> starts the job in the background (demo mode refuses, so a
-    /// real scheduled run then runs on its own), <c>show</c> calls <paramref name="showWindow"/> on the UI thread.
+    /// real scheduled run then runs on its own), <c>show</c> calls <paramref name="showWindow"/> on the UI thread and
+    /// <c>show processes</c> calls <paramref name="showProcesses"/> (or <paramref name="showWindow"/> when not given).
     /// </summary>
-    public void StartListening(Action showWindow)
+    public void StartListening(Action showWindow, Action? showProcesses = null)
     {
         ArgumentNullException.ThrowIfNull(showWindow);
         if (_pipe is not null)
@@ -66,6 +67,12 @@ public sealed class ScheduledRunner : IDisposable
             if (request.Command == PipeCommand.Show)
             {
                 DispatcherHelper.PostToUi(showWindow);
+                return ScheduledJobPipe.ReplyOk;
+            }
+
+            if (request.Command == PipeCommand.ShowProcesses)
+            {
+                DispatcherHelper.PostToUi(showProcesses ?? showWindow);
                 return ScheduledJobPipe.ReplyOk;
             }
 

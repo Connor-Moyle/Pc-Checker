@@ -79,25 +79,114 @@ public static class ServiceSafetyRules
     public static string? SecurityWarning(string? name) =>
         name is not null && SecuritySensitive.TryGetValue(name, out var reason) ? reason : null;
 
-    /// <summary>Whether the service may be stopped, with the reason when it may not.</summary>
+    /// <summary>The reason shown for a service an organization manages by policy.</summary>
+    public const string PolicyManagedReason =
+        "Windows Update is managed by your organization's policy on this PC, so PC Checker leaves it alone.";
+
+    /// <summary>True for a service that may not be stopped or set to Manual/Disabled here (critical or policy-managed).</summary>
+    public static bool IsLocked(ServiceDetails service)
+    {
+        ArgumentNullException.ThrowIfNull(service);
+        return service.ManagedByPolicy || IsCritical(service.Name);
+    }
+
+    /// <summary>The plain reason a service is locked, or null.</summary>
+    public static string? LockedReason(ServiceDetails service)
+    {
+        ArgumentNullException.ThrowIfNull(service);
+        return CriticalReason(service.Name) ?? (service.ManagedByPolicy ? PolicyManagedReason : null);
+    }
+
+    /// <summary>
+    /// True when the Windows Update policy key holds settings (a WSUS server, automatic-update rules), meaning an
+    /// organization manages updates. <paramref name="policyValueNames"/> are the value names under
+    /// <c>HKLM\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate</c> and its <c>AU</c> subkey.
+    /// </summary>
+    public static bool IsUpdatePolicyManaged(IEnumerable<string>? policyValueNames) =>
+        policyValueNames?.Any(n => !string.IsNullOrWhiteSpace(n)) == true;
+
+    /// <summary>The service names that only become protected when a policy manages them.</summary>
+    public static bool IsPolicyProtectable(string? name) => string.Equals(name, "wuauserv", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>Whether the service may be started, with the reason when it may not.</summary>
+    public static (bool Allowed, string? Reason) CanStart(ServiceDetails service)
+    {
+        ArgumentNullException.ThrowIfNull(service);
+        if (service.State != ServiceRunState.Stopped)
+        {
+            return (false, service.IsRunning ? "This service is already running." : "This service is busy starting or stopping.");
+        }
+
+        if (service.StartupType == ServiceStartupType.Disabled)
+        {
+            return (false, "This service is disabled. Set its start type to Manual or Automatic first.");
+        }
+
+        return (true, null);
+    }
+
+    /// <summary>Whether the service may be stopped, with the reason when it may not and a warning when it may.</summary>
     public static (bool Allowed, string? Reason) CanStop(ServiceDetails service)
     {
         ArgumentNullException.ThrowIfNull(service);
-        if (IsCritical(service.Name))
+        if (IsLocked(service))
         {
-            return (false, CriticalReason(service.Name));
+            return (false, LockedReason(service));
+        }
+
+        if (service.State == ServiceRunState.Stopped)
+        {
+            return (false, "This service is already stopped.");
         }
 
         if (!service.CanStop)
         {
-            return (false, "This service does not allow being stopped on its own; it stops with the component that owns it.");
+            return (false, service.State is ServiceRunState.Running or ServiceRunState.Paused
+                ? "This service does not allow being stopped on its own; it stops with the component that owns it."
+                : "This service is busy starting or stopping. Try again in a moment.");
         }
 
         return (true, SecurityWarning(service.Name));
     }
 
+    /// <summary>Whether the service may be paused: it must be running and accept pause and continue.</summary>
+    public static (bool Allowed, string? Reason) CanPause(ServiceDetails service)
+    {
+        ArgumentNullException.ThrowIfNull(service);
+        if (IsLocked(service))
+        {
+            return (false, LockedReason(service));
+        }
+
+        if (service.State != ServiceRunState.Running)
+        {
+            return (false, "Only a running service can be paused.");
+        }
+
+        return service.CanPauseContinue ? (true, null) : (false, "This service does not support pausing.");
+    }
+
+    /// <summary>Whether a paused service may be continued.</summary>
+    public static (bool Allowed, string? Reason) CanContinue(ServiceDetails service)
+    {
+        ArgumentNullException.ThrowIfNull(service);
+        if (service.State != ServiceRunState.Paused)
+        {
+            return (false, "Only a paused service can be continued.");
+        }
+
+        return service.CanPauseContinue ? (true, null) : (false, "This service does not support pausing.");
+    }
+
     /// <summary>Whether the start type may be changed to <paramref name="target"/>, with the reason when it may not.</summary>
-    public static (bool Allowed, string? Reason) CanSetStartup(string? name, ServiceStartupType target)
+    public static (bool Allowed, string? Reason) CanSetStartup(ServiceDetails service, ServiceStartupType target)
+    {
+        ArgumentNullException.ThrowIfNull(service);
+        return CanSetStartup(service.Name, target, service.ManagedByPolicy);
+    }
+
+    /// <summary>Whether the start type may be changed to <paramref name="target"/>, with the reason when it may not.</summary>
+    public static (bool Allowed, string? Reason) CanSetStartup(string? name, ServiceStartupType target, bool managedByPolicy = false)
     {
         if (!ServiceStartupMapping.IsSettable(target))
         {
@@ -108,6 +197,11 @@ public static class ServiceSafetyRules
         if (stopsStartup && IsCritical(name))
         {
             return (false, CriticalReason(name));
+        }
+
+        if (stopsStartup && managedByPolicy)
+        {
+            return (false, PolicyManagedReason);
         }
 
         string? warning = stopsStartup ? SecurityWarning(name) : null;

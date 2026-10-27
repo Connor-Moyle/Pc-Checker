@@ -58,4 +58,25 @@ public static class SessionStateMapper
         ArgumentNullException.ThrowIfNull(session);
         return session.IsSignedIn && session.State is SessionState.Active or SessionState.Connected or SessionState.Disconnected;
     }
+
+    /// <summary>
+    /// The sign-in time from WTSINFO.LogonTime (a FILETIME in UTC). Zero, negative or out-of-range values mean Windows
+    /// did not report one, which gives null.
+    /// </summary>
+    public static DateTimeOffset? LogonTimeFromFileTime(long fileTime)
+    {
+        if (fileTime <= 0 || fileTime > DateTime.MaxValue.ToFileTimeUtc())
+        {
+            return null;
+        }
+
+        return new DateTimeOffset(DateTime.FromFileTimeUtc(fileTime), TimeSpan.Zero);
+    }
+
+    /// <summary>
+    /// Picks the sign-in time to show: the one Windows reports, else the earliest start of a process in the session
+    /// (an estimate, used only when Windows does not report it).
+    /// </summary>
+    public static DateTimeOffset? ChooseLogonTime(DateTimeOffset? reported, DateTimeOffset? earliestProcessStart) =>
+        reported ?? earliestProcessStart;
 }
