@@ -6,6 +6,10 @@ All notable changes to PC Checker are recorded here. The format follows
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-27
+
+A Task Manager replacement (Processes, Live usage, Services, Users), every fan, drive and RGB device found correctly, debloat tweaks that really apply, drivers from the makers themselves, Windows Update roll back, PawnIO from inside the app, and much wider debloat, cleanup and AMD coverage.
+
 ### Added
 - **Task manager → Services**: every Windows service with its display name,
   service name, description, status, startup type (Automatic, Automatic
@@ -537,7 +541,8 @@ Initial release.
   itself from GitHub Releases with Stable and Beta channels and verifies every
   download against its published SHA-256.
 
-[Unreleased]: https://github.com/Connor-Moyle/Pc-Checker/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/Connor-Moyle/Pc-Checker/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/Connor-Moyle/Pc-Checker/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/Connor-Moyle/Pc-Checker/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/Connor-Moyle/Pc-Checker/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/Connor-Moyle/Pc-Checker/compare/v0.1.1...v0.2.0
