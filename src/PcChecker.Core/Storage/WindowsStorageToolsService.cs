@@ -191,7 +191,7 @@ public sealed partial class WindowsStorageToolsService : IStorageToolsService, I
 
         var devices = new List<StorageDevice>();
         using var searcher = new ManagementObjectSearcher(new ManagementScope(StorageScope),
-            new ObjectQuery("SELECT DeviceId, FriendlyName, SerialNumber, FirmwareVersion, Size, MediaType, BusType, HealthStatus FROM MSFT_PhysicalDisk"));
+            new ObjectQuery("SELECT DeviceId, FriendlyName, SerialNumber, FirmwareVersion, Size, MediaType, BusType, HealthStatus, SpindleSpeed FROM MSFT_PhysicalDisk"));
         foreach (ManagementBaseObject d in searcher.Get())
         {
             int number = ToInt(d["DeviceId"]) ?? -1;
@@ -201,17 +201,15 @@ public sealed partial class WindowsStorageToolsService : IStorageToolsService, I
             }
 
             string bus = StorageCodes.BusType(ToInt(d["BusType"]));
-            string media = StorageCodes.MediaType(ToInt(d["MediaType"]));
-            if (media == "Unknown" && bus == "NVMe")
-            {
-                media = "SSD";
-            }
+            // MediaType 0 (Unspecified) falls back to the bus (NVMe) and the spindle speed (0 = SSD).
+            var decision = DriveMediaRules.Decide(ToInt(d["MediaType"]), ToInt(d["BusType"]), null, ToLong(d["SpindleSpeed"]), Clean(d["FriendlyName"]));
+            string media = DriveMediaRules.Label(decision.Media);
 
             var volumes = volumesByDisk.TryGetValue(number, out var v) ? v.OrderBy(x => x).ToList() : [];
             devices.Add(new StorageDevice(
                 number,
                 Clean(d["FriendlyName"]) ?? $"Disk {number}",
-                Clean(d["SerialNumber"]),
+                DriveSerial.Clean(Clean(d["SerialNumber"])),
                 Clean(d["FirmwareVersion"]),
                 ToLong(d["Size"]) ?? 0,
                 media,
@@ -263,7 +261,7 @@ public sealed partial class WindowsStorageToolsService : IStorageToolsService, I
             devices.Add(new StorageDevice(
                 number,
                 Clean(d["Model"]) ?? $"Disk {number}",
-                Clean(d["SerialNumber"]),
+                DriveSerial.Clean(Clean(d["SerialNumber"])),
                 Clean(d["FirmwareRevision"]),
                 ToLong(d["Size"]) ?? 0,
                 StorageCodes.MediaTypeFromText(Clean(d["MediaType"]), bus),

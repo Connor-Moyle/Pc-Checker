@@ -26,14 +26,22 @@ public sealed partial class WindowsHardwareInventoryService
             }
         }
 
+        var matched = new HashSet<WmiRow>();
         foreach (var drive in drives)
         {
             var index = drive.Int("Index");
-            var serial = drive.Str("SerialNumber")?.Trim();
             var model = drive.Str("Model");
-            var match = physical.FirstOrDefault(p => p.Int("DeviceId") == index)
-                ?? physical.FirstOrDefault(p => serial is not null && string.Equals(p.Str("SerialNumber")?.Trim(), serial, StringComparison.OrdinalIgnoreCase))
-                ?? physical.FirstOrDefault(p => model is not null && string.Equals(p.Str("FriendlyName"), model, StringComparison.OrdinalIgnoreCase));
+            var rawSerial = drive.Str("SerialNumber");
+            var match = physical.FirstOrDefault(p => !matched.Contains(p) && p.Int("DeviceId") == index)
+                ?? physical.FirstOrDefault(p => !matched.Contains(p) && Storage.DriveSerial.SameDrive(p.Str("SerialNumber"), rawSerial))
+                ?? physical.FirstOrDefault(p => !matched.Contains(p) && model is not null && string.Equals(p.Str("FriendlyName"), model, StringComparison.OrdinalIgnoreCase));
+            if (match is not null)
+            {
+                matched.Add(match);
+            }
+
+            // Win32_DiskDrive can return the ATA serial byte-swapped or hex-encoded; MSFT_PhysicalDisk has it right.
+            var serial = Storage.DriveSerial.Clean(rawSerial, match?.Str("SerialNumber"));
 
             var parts = partitions
                 .Where(p => p.Int("DiskIndex") == index)
@@ -52,7 +60,7 @@ public sealed partial class WindowsHardwareInventoryService
                 })
                 .ToArray();
 
-            var mediaType = HardwareMappings.StorageMediaTypeName(match?.Int("MediaType")) ?? HardwareMappings.GuessMediaType(model, drive.Str("MediaType"), drive.Str("PNPDeviceID"));
+            var mediaType = MediaTypeFor(match, model) ?? HardwareMappings.GuessMediaType(model, drive.Str("MediaType"), drive.Str("PNPDeviceID"));
             var busType = HardwareMappings.StorageBusTypeName(match?.Int("BusType"));
             var name = match?.Str("FriendlyName") ?? model ?? drive.Str("Caption") ?? "Disk";
             inventory.PhysicalDisks.Add(new PhysicalDiskInfo(
@@ -74,6 +82,29 @@ public sealed partial class WindowsHardwareInventoryService
                 drive.ToProperties(("PhysicalDisk", match))));
         }
 
+        // Drives inside a Storage Spaces pool are hidden from Win32_DiskDrive; list them from the storage namespace.
+        foreach (var member in physical.Where(p => !matched.Contains(p) && IsPoolMember(p)))
+        {
+            var model = member.Str("FriendlyName") ?? member.Str("Model");
+            inventory.PhysicalDisks.Add(new PhysicalDiskInfo(
+                model ?? "Disk",
+                HardwareMappings.VendorFromText(ManufacturerFromModel(model)),
+                null,
+                null,
+                model,
+                Storage.DriveSerial.Clean(member.Str("SerialNumber")),
+                member.Str("FirmwareVersion"),
+                null,
+                MediaTypeFor(member, model),
+                HardwareMappings.StorageBusTypeName(member.Int("BusType")),
+                member.Long("Size"),
+                HardwareMappings.StorageHealthName(member.Int("HealthStatus")),
+                member.Int("SpindleSpeed"),
+                null,
+                [],
+                member.ToProperties()));
+        }
+
         foreach (var disk in logical)
         {
             var id = disk.Str("DeviceID") ?? "?:";
@@ -89,6 +120,23 @@ public sealed partial class WindowsHardwareInventoryService
                 disk.Bool("Compressed"),
                 disk.ToProperties()));
         }
+    }
+
+    /// <summary>MSFT_PhysicalDisk.CannotPoolReason contains 2 ("In a pool").</summary>
+    private static bool IsPoolMember(WmiRow physical) =>
+        physical.Raw("CannotPoolReason") is Array reasons && reasons.Cast<object?>().Any(r => r is not null && Convert.ToInt32(r, System.Globalization.CultureInfo.InvariantCulture) == Storage.DriveInventoryJoin.CannotPoolInPool);
+
+    /// <summary>"HDD", "SSD", "SCM" or "Memory card" from MSFT_PhysicalDisk (media type, bus, spindle speed), or null.</summary>
+    private static string? MediaTypeFor(WmiRow? physical, string? model)
+    {
+        if (physical is null)
+        {
+            return null;
+        }
+
+        long? spindle = physical.Long("SpindleSpeed");
+        var decision = Storage.DriveMediaRules.Decide(physical.Int("MediaType"), physical.Int("BusType"), null, spindle, model);
+        return decision.Media == Storage.DriveMedia.Unknown ? null : Storage.DriveMediaRules.Label(decision.Media);
     }
 
     private static string? ManufacturerFromModel(string? model)
