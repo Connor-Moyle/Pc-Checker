@@ -11,6 +11,7 @@ using PcChecker.Core.Audio;
 using PcChecker.Core.Cleanup;
 using PcChecker.Core.Common;
 using PcChecker.Core.Debloat;
+using PcChecker.Core.DiskSpace;
 using PcChecker.Core.Displays;
 using PcChecker.Core.Drivers;
 using PcChecker.Core.Fans;
@@ -89,6 +90,7 @@ public static class ServiceRegistration
         Add<IOptimizationService, WindowsOptimizationService, DemoOptimizationService>(services, demo);
         Add<ITempFileScanner, WindowsTempFileScanner, DemoTempFileScanner>(services, demo);
         Add<ITempFileCleaner, WindowsTempFileCleaner, DemoTempFileCleaner>(services, demo);
+        Add<IDiskSpaceService, WindowsDiskSpaceService, DemoDiskSpaceService>(services, demo);
         Add<IWindowsFeatureService, WindowsFeatureService, DemoWindowsFeatureService>(services, demo);
         Add<IRestorePointService, WindowsRestorePointService, DemoRestorePointService>(services, demo);
         Add<IOverclockService, WindowsOverclockService, DemoOverclockService>(services, demo);
@@ -166,6 +168,7 @@ public static class ServiceRegistration
         services.AddSingleton<WindowsFeaturesViewModel>().AddSingleton<WindowsFeaturesPage>();
         services.AddSingleton<DebloatViewModel>().AddSingleton<DebloatPage>();
         services.AddSingleton<CleanupViewModel>().AddSingleton<CleanupPage>();
+        services.AddSingleton<DiskSpaceViewModel>().AddSingleton<DiskSpacePage>();
         services.AddSingleton<RegistryViewModel>().AddSingleton<RegistryPage>();
         services.AddSingleton<PerformanceViewModel>().AddSingleton<PerformancePage>();
         services.AddSingleton<OptimizeViewModel>().AddSingleton<OptimizePage>();

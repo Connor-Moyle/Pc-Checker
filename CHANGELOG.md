@@ -7,7 +7,13 @@ All notable changes to PC Checker are recorded here. The format follows
 ## [Unreleased]
 
 ### Added
-- Nothing yet.
+- **Disk space** (Clean up → Disk space): see what fills a drive or folder
+  with a fast, cancellable scan, drill into folders sorted by size, and list
+  the largest files, a breakdown by file type and big files unused for a
+  year. A duplicate finder confirms identical files by SHA-256 and can tick
+  every copy but the newest or oldest. Selected items go to the Recycle Bin
+  after a confirmation with their size; Windows, program and profile folders
+  are never offered, and every move is journaled.
 
 ## [0.3.0] - 2026-10-27
 

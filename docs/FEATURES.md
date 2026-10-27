@@ -494,6 +494,44 @@ Safety rules: never outside the category roots, never through junctions or
 symbolic links, never files modified in the last 60 minutes (configurable),
 never `desktop.ini`, and browser caches are skipped while the browser runs.
 
+### Disk space
+
+- **Drives**: every fixed drive as a card with a used/free bar. Click one to
+  measure it, or *Choose folder…* to measure a single folder. The scan reads
+  with several threads at once and can be cancelled; it never changes
+  anything.
+- **Summary**: what was scanned, the space used, the largest folder and the
+  number of files and folders. A note explains gaps: folders Windows keeps
+  private, space Windows reports that no file accounts for, links that were
+  not followed and OneDrive online-only files (counted, but they take no
+  space).
+- **Folders**: the sub-folders of the current folder, largest first, with a
+  bar for their share. Click a name to go deeper; the breadcrumb and the up
+  button go back. The files directly in a folder show as one line.
+- **Largest files**, **File types** (video, images, games, archives and disk
+  images, installers, Windows and programs, other) and **Old files** (big
+  files nobody opened or changed for a year; size and age are options).
+- **Duplicates**: *Find duplicates* compares the files from the last scan by
+  size, then a quick SHA-256 of the first and last 64 KB, then a full SHA-256.
+  Groups are listed by wasted space; *Keep newest* and *Keep oldest* tick
+  every other copy. Hard links to the same data count once.
+- **Actions** on every row: *Show in File Explorer* and *Copy path*. Tick
+  files or folders in any list and *Move to Recycle Bin*; the confirmation
+  lists the items and their total size, and warns about game folders and
+  OneDrive items.
+
+Safety rules: items only ever go to the Recycle Bin, never straight to
+deletion, and only on drives inside the PC (removable and network drives have
+no Recycle Bin). If Windows cannot recycle an item it asks before deleting it.
+The Windows folder, Program Files, ProgramData, the profile folders
+themselves (and their AppData folders), Windows.old, restore points, the
+Recycle Bin, the page and hibernation files, files marked System and PC
+Checker's own folders cannot be ticked, nor can any folder that contains one
+of them. Junctions and symbolic links are never followed, and each item is
+checked again right before it moves. Every move is written to the Action
+Journal; no restore point is made because the Recycle Bin is the undo. The
+space comes back when the Recycle Bin is emptied (Cleanup page).
+
 ### Registry
 
 - **Honest intro**: registry "errors" rarely slow Windows down; the page

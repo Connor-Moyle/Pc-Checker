@@ -61,6 +61,25 @@ follows, so you know what to expect and contributors know what to build.
   trade-off. Windows.old is only reported; removing it goes through Windows'
   own Storage settings or Disk Cleanup.
 
+## Disk space rules
+
+- Scans and the duplicate search only read. Junctions, symbolic links and
+  mounted folders are never followed.
+- Selected items are moved to the Recycle Bin one by one, never deleted
+  outright, and only on drives inside the PC. If an item is too big for the
+  Recycle Bin, Windows asks before deleting it for good.
+- Never offered: the Windows folder, Program Files, ProgramData, Windows.old,
+  the folder that holds the user profiles, each profile, everything directly
+  in a profile (Documents, Downloads, AppData…), the AppData Local, LocalLow
+  and Roaming folders, restore points (System Volume Information), the
+  Recycle Bin, boot and recovery folders, the page, swap and hibernation
+  files, files marked System and PC Checker's own folders, and any folder
+  that contains one of them.
+- Each item is checked again right before it moves: it must still exist, not
+  be a link and not sit inside a linked folder.
+- Every move is journaled. No restore point is created: the Recycle Bin is
+  the undo.
+
 ## Registry rules
 
 - Only entries that provably point at something missing are reported: the
@@ -223,7 +242,8 @@ local machine.
   only Administrators can change, so another program cannot slip its own
   command into a task that runs with administrator rights.
 - Delete user documents, pictures, downloads or anything outside its category
-  roots
+  roots on its own (the Disk space page only moves what you tick to the
+  Recycle Bin)
 - Change settings it did not show you first
 - Apply a hardware value outside the limits in Settings or the driver's range
 - Send data anywhere without your knowledge (see [PRIVACY.md](PRIVACY.md))

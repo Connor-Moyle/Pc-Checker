@@ -37,6 +37,7 @@ Every project targets `net8.0-windows10.0.19041.0`. `EnableWindowsTargeting` is 
 | `Performance` | `IPerformanceAnalyzer`, `PerformanceFacts`, `SlowdownRules` |
 | `Optimization` | `IOptimizationService`, `OptimizationCatalog`, `RiskLevel` |
 | `Cleanup` | `ITempFileScanner`, `ITempFileCleaner`, `CleanupCatalog`, `CleanupSafety` |
+| `DiskSpace` | `IDiskSpaceService`, `DiskTreeScanner` (parallel folder sizes), `DuplicateHasher`, `DiskSpaceAggregation`, `FileTypeClassifier`, `DiskSpaceProtection`, `DuplicateFinder` |
 | `WindowsFeatures` | `IWindowsFeatureService`, `InboxAppCatalog` |
 | `Restore` | `IRestorePointService`, `IChangeGuard`, `ChangeGuard` |
 | `Overclocking` | `IOverclockService`, profiles and plans, `OverclockSafetyValidator`, `OverclockPlanParser` |
