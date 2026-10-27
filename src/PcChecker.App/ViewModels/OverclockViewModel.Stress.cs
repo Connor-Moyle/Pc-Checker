@@ -242,7 +242,7 @@ public sealed partial class OverclockViewModel
             else
             {
                 var result = await _overclock.RunStressTestAsync(SelectedStressTarget, seconds, AbortCpuTemp, AbortGpuTemp, progress, _stressCts.Token);
-                ShowStressResult(result, null);
+                ShowStressResult(result, null, result.AbortedByWatchdog && (await CurrentlyAppliedAsync()).IsStock);
             }
         }
         catch (OperationCanceledException)
@@ -356,7 +356,7 @@ public sealed partial class OverclockViewModel
 
     private void ShowStressOutcome(StressTestOutcome outcome)
     {
-        ShowStressResult(outcome.Result, outcome.Verdict);
+        ShowStressResult(outcome.Result, outcome.Verdict, outcome.OverclockReverted);
         StressReasons.Clear();
         foreach (var reason in outcome.Verdict.Reasons)
         {
@@ -378,7 +378,7 @@ public sealed partial class OverclockViewModel
         }
     }
 
-    private void ShowStressResult(StressTestResult result, StressVerdict? verdict)
+    private void ShowStressResult(StressTestResult result, StressVerdict? verdict, bool overclockReverted)
     {
         StressResult = result;
         StressSummary = result.Summary;
@@ -387,13 +387,22 @@ public sealed partial class OverclockViewModel
         {
             StressTitle = verdict?.Title ?? "Stopped by the watchdog";
             StressSeverity = InfoBarSeverity.Error;
-            _notifications.Warning("Stress test aborted", IsProfileApplied
-                ? "A temperature limit was reached; the overclock was reverted."
-                : "A temperature limit was reached and the test stopped.");
-            if (IsProfileApplied)
+            if (IsProfileApplied && !overclockReverted)
             {
-                ActiveProfileName = null;
-                LoadIntoSliders(OverclockProfile.Stock());
+                // The revert failed, so the overclock is still live: say so instead of showing stock values.
+                ErrorMessage = "A temperature limit was reached, but the overclock could not be reverted. Press Reset to defaults.";
+                _notifications.Error("Stress test aborted", ErrorMessage);
+            }
+            else
+            {
+                _notifications.Warning("Stress test aborted", IsProfileApplied
+                    ? "A temperature limit was reached; the overclock was reverted."
+                    : "A temperature limit was reached and the test stopped.");
+                if (IsProfileApplied)
+                {
+                    ActiveProfileName = null;
+                    LoadIntoSliders(OverclockProfile.Stock());
+                }
             }
         }
         else if (result.Passed)
