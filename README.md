@@ -43,7 +43,8 @@ and pick one:
 |---|---|---|
 | `PcChecker-win-Setup.exe` | Installer. Installs per user, adds a Start menu entry and **updates itself** from GitHub Releases. | You want the normal experience. |
 | `PcChecker-<version>-portable-win-x64.zip` | A single `PcChecker.exe` you can run from anywhere (a USB stick, a tools folder). Tells you when a new version is out but does not update itself. | You do not want to install anything. |
-| `SHA256SUMS.txt` | Checksums for every file above. | You want to verify a download. |
+| `SHA256SUMS.txt` | Checksums for every release file. | You want to verify a download. |
+| `PcChecker-<version>-full.nupkg`, `*-delta.nupkg`, `RELEASES`, `releases.win.json`, `assets.win.json` | Update packages and feed files. The installed app downloads these by itself when it updates. | Never; you do not need to download them. |
 
 **Requirements**
 

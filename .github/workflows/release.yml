@@ -92,6 +92,7 @@ jobs:
           --packTitle "PC Checker"
           --packAuthors "PC Checker contributors"
           --icon src/PcChecker.App/Assets/icon.ico
+          --noPortable
           --outputDir Releases
 
       - name: Zip the portable build

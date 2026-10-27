@@ -84,7 +84,7 @@ try {
             if (Test-Path $releasesDir) { Remove-Item $releasesDir -Recurse -Force }
             vpk pack --packId PcChecker --packVersion $Version --packDir $publishDir --mainExe PcChecker.exe `
                 --packTitle "PC Checker" --packAuthors "PC Checker contributors" `
-                --icon src/PcChecker.App/Assets/icon.ico --outputDir $releasesDir
+                --icon src/PcChecker.App/Assets/icon.ico --noPortable --outputDir $releasesDir
             if ($LASTEXITCODE -ne 0) { throw "vpk pack failed." }
         }
     }
