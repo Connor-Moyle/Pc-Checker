@@ -31,6 +31,7 @@ public sealed partial class SettingsViewModel : ViewModelBase
     private readonly IScheduledTaskService _scheduledTasks;
     private readonly IScheduledJobStore _jobStore;
     private readonly ScheduledRunner _scheduledRunner;
+    private readonly WelcomeService _welcome;
     private readonly object _saveGate = new();
     private CancellationTokenSource? _saveDebounce;
     private bool _savePending;
@@ -66,9 +67,10 @@ public sealed partial class SettingsViewModel : ViewModelBase
 
     public SettingsViewModel(ISettingsService settings, IAppUpdateService updates, INotificationService notifications,
         IDialogService dialogs, ILogService logs, INavigationService navigation, ILogger<SettingsViewModel> logger,
-        IScheduledTaskService scheduledTasks, IScheduledJobStore jobStore, ScheduledRunner scheduledRunner)
+        IScheduledTaskService scheduledTasks, IScheduledJobStore jobStore, ScheduledRunner scheduledRunner, WelcomeService welcome)
         : base(settings)
     {
+        _welcome = welcome;
         _scheduledTasks = scheduledTasks;
         _jobStore = jobStore;
         _scheduledRunner = scheduledRunner;
@@ -318,6 +320,10 @@ public sealed partial class SettingsViewModel : ViewModelBase
 
     [RelayCommand]
     private void OpenLogsFolder() => Open(_logs.LogDirectory);
+
+    /// <summary>Settings → About → Show welcome again.</summary>
+    [RelayCommand]
+    private Task ShowWelcomeAsync() => _welcome.ShowAsync();
 
     [RelayCommand]
     private void OpenRepository() => Open(UpdateLinks.Repository);

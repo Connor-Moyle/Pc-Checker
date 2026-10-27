@@ -1,0 +1,49 @@
+using static PcChecker.Core.Shell.SearchText;
+
+namespace PcChecker.Core.Shell;
+
+/// <summary>
+/// Extra words that find a page in quick search ("uninstall" finds Apps). Keyed by the page key from the navigation
+/// catalog; a page without an entry is still found by its title and section.
+/// </summary>
+public static class PageSearchKeywords
+{
+    private static readonly Dictionary<string, string> Map = new(StringComparer.Ordinal)
+    {
+        ["dashboard"] = T("home overview score summary"),
+        ["temperatures"] = T("sensors heat cpu gpu temp hot thermal"),
+        ["power"] = T("watts energy battery power plan"),
+        ["hardware"] = T("devices specs system information cpu gpu motherboard"),
+        ["health"] = T("smart errors problems crashes score"),
+        ["storage"] = T("disk drive ssd hdd benchmark chkdsk trim"),
+        ["memory"] = T("ram xmp expo page file"),
+        ["displays"] = T("monitor screen resolution refresh rate hdr brightness"),
+        ["audio"] = T("sound speakers microphone volume"),
+        ["input"] = T("mouse keyboard pointer polling rate dpi"),
+        ["fans"] = T("fan curve cooling speed rpm"),
+        ["lighting"] = T("rgb leds openrgb colours colors"),
+        ["software"] = T("programs uninstall installed apps"),
+        ["drivers"] = T("driver updates device manager"),
+        ["old-drivers"] = T("unused drivers driver store leftovers"),
+        ["startup"] = T("boot autostart services fast startup"),
+        ["windows-features"] = T("optional features capabilities inbox apps"),
+        ["cleanup"] = T("junk temp files cache free space"),
+        ["debloat"] = T("bloatware privacy telemetry ads copilot tweaks"),
+        ["registry"] = T("leftover entries regedit"),
+        ["performance"] = T("slow slowdown speed scan processes"),
+        ["optimize"] = T("tweaks faster game mode visual effects"),
+        ["overclock"] = T("oc gpu cpu clocks stress test"),
+        ["overlay-settings"] = T("fps counter in game osd"),
+        ["latency"] = T("dpc input lag ping stutter"),
+        ["network"] = T("wifi wi fi internet speed test packet loss dns"),
+        ["assistant"] = T("claude ai chat help questions"),
+        ["logs"] = T("log journal history diagnostics"),
+        ["settings"] = T("options preferences configuration"),
+    };
+
+    /// <summary>The page keys that have extra words.</summary>
+    public static IEnumerable<string> Keys => Map.Keys;
+
+    /// <summary>The extra words for <paramref name="pageKey"/>, or an empty string.</summary>
+    public static string For(string pageKey) => Map.TryGetValue(pageKey, out var words) ? words : string.Empty;
+}

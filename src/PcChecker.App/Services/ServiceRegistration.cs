@@ -152,6 +152,9 @@ public static class ServiceRegistration
         services.AddSingleton<TrayIconService>();
 
         // Shell
+        services.AddSingleton<QuickActionRunner>();
+        services.AddSingleton<WelcomeService>();
+        services.AddSingleton<QuickSearchViewModel>();
         services.AddSingleton<MainWindowViewModel>();
         services.AddSingleton<MainWindow>();
         services.AddSingleton<OverlayWindow>();

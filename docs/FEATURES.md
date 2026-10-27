@@ -968,7 +968,7 @@ auto-connect), Latency (ping targets and count), Overclock limits (GPU core
 and memory offset, highest GPU power limit, highest GPU and CPU
 temperature), Memory and Startup warnings, Claude, Data and privacy
 (open settings and log folders, reset settings, export diagnostics) and
-About (version, licences, GitHub link). A note shows when the app is running
+About (version, licences, GitHub link, *Show welcome again*). A note shows when the app is running
 in demo mode. Overlay options are on the Overlay page, logging options on the
 Logs page and cleanup categories on the Cleanup page.
 
@@ -1095,6 +1095,52 @@ Limitations: tasks run in your Windows session, so Task Scheduler skips a run
 while you are signed out or the PC is off or asleep; the next scheduled time
 runs as normal. In demo mode nothing is scheduled ("Demo mode: schedules are
 not created") and the page shows sample results.
+
+---
+
+## Quick search and welcome
+
+### Quick search
+
+Press **Ctrl+K** anywhere in the window, or click *Search* at the top of the
+navigation pane, to open a search box over the page.
+
+- **What it finds**: every page and tab, every option on the Settings page
+  (plus a few that live on their own pages: the overlay hotkey and opacity,
+  the logging level, hiding serial numbers in logs and the cleanup dry run),
+  and quick actions: *Run a full scan*, *Clean temporary files*, *Check for
+  driver updates*, *Optimize this PC*, *Export a full report*, *Show or hide
+  the overlay*, *Run a latency check*, *Run a disk benchmark*, *Check health
+  now*, *Run a speed check*, *Check for PC Checker updates* and *Show the
+  welcome again*.
+- **Matching**: case, accents and punctuation do not matter. It matches the
+  whole title, the start of it, every word you type at the start of (or inside)
+  a word, the initials ("wf" for Windows Features, "km" for Keyboard & Mouse)
+  and letters in order from the start of a word. A page is also found by its
+  section ("monitor power") and by everyday words ("uninstall" finds Apps,
+  "junk" finds Cleanup). In a translated interface both the translated and the
+  English words work.
+- **Recent first**: the items you opened last (up to eight, kept in settings)
+  are listed first when the box is empty, followed by the quick actions, and
+  are lifted above similar matches while you type.
+- **Keys**: Up and Down move the highlight, Page Up and Page Down jump, Enter
+  opens, Esc (or a click outside the box) closes. Ctrl+K again also closes it.
+- **What opening does**: a page or tab opens; a setting opens its page, opens
+  the collapsed section it is in, scrolls it into view and flashes it briefly;
+  a quick action opens its page and presses the same button you would, so its
+  confirmation dialog and safety steps still apply (a disk benchmark, for
+  example, still asks first). Nothing changes the PC without asking.
+
+### Welcome
+
+The first time PC Checker opens, a short welcome explains what it does in three
+lines, lets you choose the language (it applies after a restart, with a
+*Restart now* button) and explains Advanced mode with a switch for it. Choose
+*Run a full scan* to start straight away or *Look around first* to close it.
+It appears once: never in screenshot runs or `--scheduled` runs, and not for
+people upgrading from an earlier version (their settings file already exists).
+**Settings → About → Show welcome again** (or *Show the welcome again* in quick
+search) brings it back.
 
 ---
 

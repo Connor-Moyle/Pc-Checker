@@ -7,7 +7,7 @@ using Wpf.Ui;
 
 namespace PcChecker.App.ViewModels;
 
-/// <summary>State for the shell window: version, advanced mode and navigation helpers.</summary>
+/// <summary>State for the shell window: version, advanced mode, quick search and navigation helpers.</summary>
 public sealed partial class MainWindowViewModel : ViewModelBase
 {
     private readonly INavigationService _navigation;
@@ -35,10 +35,11 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
     private bool _syncingTabs;
 
-    public MainWindowViewModel(ISettingsService settings, INavigationService navigation, IAppUpdateService updates)
+    public MainWindowViewModel(ISettingsService settings, INavigationService navigation, IAppUpdateService updates, QuickSearchViewModel quickSearch)
         : base(settings)
     {
         _navigation = navigation;
+        QuickSearch = quickSearch;
         _appVersion = "v" + updates.CurrentVersion;
         _advancedModeEnabled = settings.Current.General.AdvancedMode;
         settings.Changed += (_, s) => Services.DispatcherHelper.PostToUi(() =>
@@ -54,6 +55,9 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             }
         });
     }
+
+    /// <summary>The Ctrl+K palette; also opened by the search box at the top of the navigation pane.</summary>
+    public QuickSearchViewModel QuickSearch { get; }
 
     public IReadOnlyList<Services.NavigationEntry> Tabs => CurrentSection?.Pages ?? [];
 

@@ -144,6 +144,7 @@ public sealed class JsonSettingsService : ISettingsService
     private static AppSettings Repair(AppSettings s)
     {
         s.General ??= new GeneralSettings();
+        s.General.RecentSearchItems ??= [];
         s.Updates ??= new UpdateSettings();
         s.RestorePoints ??= new RestorePointSettings();
         s.Monitoring ??= new MonitoringSettings();

@@ -1,0 +1,52 @@
+<UserControl x:Class="PcChecker.App.Views.Dialogs.WelcomeContent"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+             xmlns:vm="clr-namespace:PcChecker.App.ViewModels"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             d:DataContext="{d:DesignInstance vm:SettingsViewModel}"
+             mc:Ignorable="d">
+  <!-- Body of the first-start welcome dialog. Bound to SettingsViewModel, so the language and Advanced mode choices
+       save the same way as on the Settings page. -->
+  <StackPanel MaxWidth="520">
+    <ui:TextBlock TextWrapping="Wrap" Margin="0,0,0,4"
+                  Text="PC Checker looks after this PC in one place:" />
+    <BulletDecorator Margin="4,4,0,0">
+      <BulletDecorator.Bullet>
+        <ui:SymbolIcon Symbol="Heart24" FontSize="16" Margin="0,0,8,0" />
+      </BulletDecorator.Bullet>
+      <ui:TextBlock TextWrapping="Wrap" Text="Checks health, temperatures, drivers and what slows it down." />
+    </BulletDecorator>
+    <BulletDecorator Margin="4,6,0,0">
+      <BulletDecorator.Bullet>
+        <ui:SymbolIcon Symbol="Broom24" FontSize="16" Margin="0,0,8,0" />
+      </BulletDecorator.Bullet>
+      <ui:TextBlock TextWrapping="Wrap" Text="Cleans up junk and tunes Windows, fans, lighting and games." />
+    </BulletDecorator>
+    <BulletDecorator Margin="4,6,0,0">
+      <BulletDecorator.Bullet>
+        <ui:SymbolIcon Symbol="ShieldCheckmark24" FontSize="16" Margin="0,0,8,0" />
+      </BulletDecorator.Bullet>
+      <ui:TextBlock TextWrapping="Wrap" Text="Asks before every change, makes a restore point and keeps a journal so you can undo." />
+    </BulletDecorator>
+
+    <ui:TextBlock FontTypography="BodyStrong" Margin="0,16,0,4" Text="Language" />
+    <ComboBox HorizontalAlignment="Left" MinWidth="240"
+              ItemsSource="{Binding Languages}" SelectedItem="{Binding SelectedLanguage}" DisplayMemberPath="Display"
+              AutomationProperties.Name="Language" />
+    <ui:InfoBar Severity="Informational" Title="Restart to switch language" IsClosable="False" Margin="0,6,0,0"
+                Message="PC Checker shows the new language after it restarts."
+                IsOpen="{Binding LanguageRestartNeeded, Mode=OneWay}">
+      <ui:Button Content="Restart now" Appearance="Primary" Command="{Binding RestartForLanguageCommand}" Margin="0,4" />
+    </ui:InfoBar>
+
+    <ui:TextBlock FontTypography="BodyStrong" Margin="0,16,0,4" Text="Advanced mode" />
+    <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap"
+                  Text="Off, every page shows the safe, everyday tools. On, pages also show advanced sections and riskier actions. You can switch it any time at the bottom of the menu." />
+    <ui:ToggleSwitch Margin="0,8,0,0" Content="Advanced mode" IsChecked="{Binding AdvancedMode}" />
+
+    <ui:TextBlock Style="{StaticResource Caption}" Margin="0,16,0,0" TextWrapping="Wrap"
+                  Text="Tip: press Ctrl+K to find any page, setting or action." />
+  </StackPanel>
+</UserControl>

@@ -892,6 +892,8 @@
               <ui:Button Content="Project on GitHub" Icon="{ui:SymbolIcon Open24}" Command="{Binding OpenRepositoryCommand}" Margin="0,0,8,6" />
               <ui:Button Content="Releases" Icon="{ui:SymbolIcon Open24}" Command="{Binding OpenReleasesPageCommand}" Margin="0,0,8,6" />
               <ui:Button Content="Show licence texts" Icon="{ui:SymbolIcon DocumentText24}" Command="{Binding ShowLicenseTextsCommand}" Margin="0,0,8,6" />
+              <ui:Button Content="Show welcome again" Icon="{ui:SymbolIcon HandWave24}" Command="{Binding ShowWelcomeCommand}" Margin="0,0,8,6"
+                         ToolTip="The short introduction from the first start: what PC Checker does, the language and Advanced mode." />
             </WrapPanel>
             <Expander IsExpanded="False">
               <Expander.Header>

@@ -19,8 +19,9 @@ translation is always shown in English, never as a blank or a key.
 
 - `src/PcChecker.App/Localization/strings.txt` lists every English string
   the interface uses, one per line. `build/extract-strings.py` writes it from
-  the XAML pages, the navigation catalog and any C# text wrapped in
-  `Loc.T("…")` or `Loc.F("…", …)`. CI fails when the list is out of date, so
+  the XAML pages, the navigation catalog, any C# text wrapped in
+  `Loc.T("…")` or `Loc.F("…", …)`, and the quick search catalogs in
+  `src/PcChecker.Core/Shell`, where text is marked with `T("…")`. CI fails when the list is out of date, so
   run the script after changing interface text:
 
   ```

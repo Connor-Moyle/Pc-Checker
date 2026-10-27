@@ -63,6 +63,15 @@ public sealed class GeneralSettings
     public double? WindowWidth { get; set; }
     public double? WindowHeight { get; set; }
     public bool WindowMaximized { get; set; }
+
+    /// <summary>
+    /// Whether the first-start welcome was shown: null in settings from before it existed (resolved at startup by
+    /// <c>WelcomeRules.ResolveSeen</c>), false until a new user has seen it, true afterwards.
+    /// </summary>
+    public bool? WelcomeSeen { get; set; }
+
+    /// <summary>Quick search items opened most recently, newest first (index ids such as "page:drivers").</summary>
+    public List<string> RecentSearchItems { get; set; } = [];
 }
 
 public enum UpdateChannel

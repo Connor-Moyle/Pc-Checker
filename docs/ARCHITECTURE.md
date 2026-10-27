@@ -58,6 +58,7 @@ Every project targets `net8.0-windows10.0.19041.0`. `EnableWindowsTargeting` is 
 | `Latency` | `ILatencyService`, `LatencyReport`, `LatencyRules`, `BcdEditParser`, `PowerCfgQueryParser`, `LatencyActionIds` |
 | `Processes` | `IProcessService`, `ProcessCatalog`, `ProcessRateTracker`, `ProcessMath`, `ProcessSorting`, `CriticalProcessRules`, `ProcessSuspicionRules`, `SignatureCache` |
 | `Startup` | `IStartupService`, `BootConfig`, `StartupEnumerator` (shared with Performance) |
+| `Shell` | Quick search (`FuzzyMatcher`, `QuickSearchIndex`, `QuickSearchRanker`, `RecentItems`, the settings, quick action and page keyword catalogs) and `WelcomeRules` for the first-start welcome |
 | `Scheduling` | `IScheduledTaskService` (schtasks), `ScheduledJobExecutor`, `IScheduledJobStore`, the `PcChecker.Jobs` pipe, `SchtasksCommandBuilder`, `SchtasksCsvParser`, `ScheduleRules`, `JobResultSummarizer`, tray text and popup placement helpers |
 
 Inside each folder you will find the same shapes:
@@ -81,7 +82,7 @@ The split matters: anything that reads or changes the system goes behind an inte
 * `Program.cs` starts the `App`; a self-updated copy is started with `--wait-pid` so it waits for the old process to close.
 * `App.xaml.cs` enforces a single instance, parses the command line (`AppOptions`), loads settings, configures logging, builds the dependency-injection container through `ServiceRegistration.Register`, applies the theme, wires global exception handlers that log and show a plain-language dialog, and starts the `ScreenshotRunner` when asked.
 * `Services/ServiceRegistration.cs` is the **only** place that maps interfaces to implementations. It takes the `AppMode` and registers `Windows*` or `Demo*` classes accordingly. Module action providers are registered on the lines marked `// providers:`.
-* `Views/Windows/MainWindow.xaml` is the shell: title bar, section menu built from `NavigationCatalog`, section tabs, snackbar and dialog hosts. Its `Navigated` handler calls `EnsureInitializedAsync` on the target page's view model.
+* `Views/Windows/MainWindow.xaml` is the shell: title bar, section menu built from `NavigationCatalog`, section tabs, the quick search palette (`Controls/QuickSearchPalette`, `QuickSearchViewModel`, Ctrl+K), snackbar and dialog hosts. Its `Navigated` handler calls `EnsureInitializedAsync` on the target page's view model. Quick actions run through `Services/QuickActionRunner`, which opens the page and executes the page's own command; `Services/WelcomeService` shows the first-start welcome.
 * `Tray/` — `TrayIconService` (H.NotifyIcon: tooltip, temperature icon, menu, notifications, minimize/close to tray) and the compact `TrayPopupWindow`. `Services/ScheduledRunner.cs` runs `--scheduled` jobs headless, answers the job pipe and finds tasks that point at a moved `PcChecker.exe`.
 * `Views/Pages/*Page.xaml` — one page per feature. A page's code-behind only receives its view model, sets `DataContext` and calls `InitializeComponent()`.
 * `ViewModels/*ViewModel.cs` — one per page, all deriving from `ViewModelBase`.

@@ -4,7 +4,8 @@ src/PcChecker.App/Localization/strings.txt. Translators fill in src/PcChecker.Ap
 (English text -> translated text); anything missing stays English.
 
 Sources: literal XAML attributes that hold interface text, setters of those properties, section and page names in
-NavigationCatalog.cs, and C# string literals passed to Loc.T(...) or Loc.F(...).
+NavigationCatalog.cs, C# string literals passed to Loc.T(...) or Loc.F(...), and the quick search catalogs in
+src/PcChecker.Core/Shell, where interface text is marked with T("...").
 
 Usage: python3 build/extract-strings.py [--check]   (--check fails when strings.txt is out of date)
 """
@@ -13,12 +14,14 @@ import html, pathlib, re, sys
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 APP = ROOT / "src" / "PcChecker.App"
 OUT = APP / "Localization" / "strings.txt"
+CORE_SHELL = ROOT / "src" / "PcChecker.Core" / "Shell"
 TEXT_ATTRS = ("Text", "ToolTip", "Content", "Title", "Header", "Message", "Subtitle", "PlaceholderText",
               "Description", "Label", "Unit", "Caption", "Reason", "ActionText")
 ATTR = re.compile(r'\b(?:[a-zA-Z]+:)?(?:[A-Z][A-Za-z]*\.)?(' + "|".join(TEXT_ATTRS) + r')="([^"]*)"')
 SETTER = re.compile(r'<Setter\s+Property="(?:[A-Za-z]+\.)?(' + "|".join(TEXT_ATTRS) + r')"\s+Value="([^"]*)"')
 CODE = re.compile(r'\bLoc\.[TF]\(\s*"((?:[^"\\]|\\.)*)"')
 CATALOG = re.compile(r'\b(?:Section|Footer|Page)\("([^"]+)"')
+MARKED = re.compile(r'(?<![\w.])T\(\s*"((?:[^"\\]|\\.)*)"')
 
 
 def wanted(text: str) -> bool:
@@ -53,6 +56,9 @@ def collect():
             found.add(unescape_csharp(match.group(1)))
         if path.name == "NavigationCatalog.cs":
             found.update(m.group(1) for m in CATALOG.finditer(source))
+    for path in CORE_SHELL.glob("*.cs"):
+        for match in MARKED.finditer(path.read_text(encoding="utf-8")):
+            found.add(bytes(match.group(1), "utf-8").decode("unicode_escape"))
     for extra in ("Cancel", "OK", "Continue"):
         found.add(extra)
     return sorted(found, key=lambda s: (s.casefold(), s))

@@ -1,4 +1,5 @@
 using System.Windows;
+using System.Windows.Input;
 using System.Windows.Threading;
 using PcChecker.App.Services;
 using PcChecker.App.ViewModels;
@@ -10,16 +11,17 @@ using Wpf.Ui.Controls;
 
 namespace PcChecker.App.Views.Windows;
 
-/// <summary>Shell window: title bar, side navigation, snackbar and dialog hosts.</summary>
+/// <summary>Shell window: title bar, side navigation, quick search, snackbar and dialog hosts.</summary>
 public partial class MainWindow : FluentWindow
 {
     private readonly INavigationService _navigation;
     private readonly ISnackbarService _snackbar;
     private readonly IContentDialogService _dialogs;
     private readonly ISettingsService _settings;
+    private readonly WelcomeService _welcome;
 
     public MainWindow(MainWindowViewModel viewModel, IPageService pageService, INavigationService navigation,
-        ISnackbarService snackbar, IContentDialogService dialogs, ISettingsService settings)
+        ISnackbarService snackbar, IContentDialogService dialogs, ISettingsService settings, WelcomeService welcome)
     {
         ViewModel = viewModel;
         DataContext = viewModel;
@@ -27,6 +29,7 @@ public partial class MainWindow : FluentWindow
         _snackbar = snackbar;
         _dialogs = dialogs;
         _settings = settings;
+        _welcome = welcome;
 
         InitializeComponent();
         BuildMenu();
@@ -47,6 +50,29 @@ public partial class MainWindow : FluentWindow
         }
 
         _navigation.Navigate(typeof(DashboardPage));
+
+        // First start only (never in screenshot or scheduled runs); after the Dashboard has had its first layout.
+        Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, () => _ = _welcome.ShowOnFirstStartAsync());
+    }
+
+    /// <summary>Ctrl+K opens quick search from anywhere in the window, or closes it again; not while a dialog is open.</summary>
+    private void OnPreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.K || Keyboard.Modifiers != ModifierKeys.Control || DialogHost.Content is not null)
+        {
+            return;
+        }
+
+        e.Handled = true;
+        var search = ViewModel.QuickSearch;
+        if (search.IsOpen)
+        {
+            search.CloseCommand.Execute(null);
+        }
+        else
+        {
+            search.OpenCommand.Execute(null);
+        }
     }
 
     /// <summary>One menu item per section; pages inside a section are reached through the tabs above the content.</summary>

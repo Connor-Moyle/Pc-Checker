@@ -15,6 +15,7 @@ using PcChecker.Core.Scheduling;
 using PcChecker.Core.History;
 using PcChecker.Core.Sensors;
 using PcChecker.Core.Settings;
+using PcChecker.Core.Shell;
 
 namespace PcChecker.App;
 
@@ -129,7 +130,13 @@ public partial class App : Application
         var settings = options.IsDemo
             ? new JsonSettingsService(Path.Combine(JsonSettingsService.DefaultDirectory(), "demo"))
             : new JsonSettingsService();
+        bool settingsFileExisted = File.Exists(settings.SettingsFilePath);
         settings.LoadAsync().GetAwaiter().GetResult();
+        if (!options.IsHeadless)
+        {
+            // Settings from before the welcome existed belong to an existing user; a missing file means a first start.
+            settings.Current.General.WelcomeSeen = WelcomeRules.ResolveSeen(settings.Current.General.WelcomeSeen, settingsFileExisted);
+        }
 
         var logService = new SerilogLogService(settings.Current.Logging);
         settings.Changed += (_, s) => logService.Reconfigure(s.Logging);

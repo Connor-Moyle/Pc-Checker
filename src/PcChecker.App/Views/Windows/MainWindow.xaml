@@ -3,6 +3,7 @@
                  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                  xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
                  xmlns:local="clr-namespace:PcChecker.App.Views.Windows"
+                 xmlns:controls="clr-namespace:PcChecker.App.Controls"
                  xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
                  xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
                  mc:Ignorable="d"
@@ -13,7 +14,8 @@
                  WindowBackdropType="Mica"
                  ExtendsContentIntoTitleBar="True"
                  WindowCornerPreference="Round"
-                 Loaded="OnLoaded">
+                 Loaded="OnLoaded"
+                 PreviewKeyDown="OnPreviewKeyDown">
   <Grid>
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto" />
@@ -49,6 +51,24 @@
                    AutomationProperties.Name="Pages in this section" />
         </Border>
       </ui:NavigationView.Header>
+      <!-- Looks like a search box; opens the quick search palette (also Ctrl+K). -->
+      <ui:NavigationView.PaneHeader>
+        <ui:Button Margin="8,4,8,8" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
+                   Command="{Binding QuickSearch.OpenCommand}"
+                   ToolTip="Find any page, setting or action (Ctrl+K)"
+                   AutomationProperties.Name="Search">
+          <Grid>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="Auto" />
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <ui:SymbolIcon Grid.Column="0" Symbol="Search24" FontSize="16" Margin="0,0,8,0" VerticalAlignment="Center" />
+            <ui:TextBlock Grid.Column="1" Text="Search" Opacity="0.75" VerticalAlignment="Center" />
+            <ui:TextBlock Grid.Column="2" Style="{StaticResource Caption}" Text="Ctrl+K" Margin="8,0,0,0" VerticalAlignment="Center" />
+          </Grid>
+        </ui:Button>
+      </ui:NavigationView.PaneHeader>
       <ui:NavigationView.PaneFooter>
         <StackPanel Margin="12,4,12,8">
           <ui:ToggleSwitch Content="Advanced mode"
@@ -59,6 +79,8 @@
         </StackPanel>
       </ui:NavigationView.PaneFooter>
     </ui:NavigationView>
+
+    <controls:QuickSearchPalette x:Name="QuickSearchPalette" Grid.Row="1" DataContext="{Binding QuickSearch}" />
 
     <ContentPresenter x:Name="DialogHost" Grid.Row="0" Grid.RowSpan="2" />
     <ui:SnackbarPresenter x:Name="SnackbarPresenter" Grid.Row="1" VerticalAlignment="Bottom" Margin="0,0,0,16" />

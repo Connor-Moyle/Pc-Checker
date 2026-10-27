@@ -40,6 +40,15 @@ All notable changes to PC Checker are recorded here. The format follows
   last 100 installs with failures explained, pause for 1–5 weeks and resume
   the way Settings does, active hours, and links to the Settings pages.
   Settings managed by Group Policy or device management are shown read-only.
+- **Quick search**: Ctrl+K, or *Search* at the top of the navigation pane,
+  finds any page, tab or setting and runs quick actions (full scan, clean
+  temporary files, check drivers, optimize, export a report, toggle the
+  overlay, latency check, disk benchmark and more). Fuzzy matching on words
+  and initials, recent items first, and translated titles match too. Choosing
+  a setting scrolls it into view.
+- **Welcome**: a short introduction on the first start with the language
+  choice, Advanced mode explained, and *Run a full scan* or *Look around
+  first*. Bring it back from Settings → About → *Show welcome again*.
 
 ## [0.3.0] - 2026-10-27
 
