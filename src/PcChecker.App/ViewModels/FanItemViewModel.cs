@@ -28,6 +28,7 @@ public sealed partial class FanItemViewModel : ObservableObject
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ModeText))]
+    [NotifyPropertyChangedFor(nameof(ModeHint))]
     [NotifyPropertyChangedFor(nameof(IsSoftwareControlled))]
     private FanMode _mode;
 
