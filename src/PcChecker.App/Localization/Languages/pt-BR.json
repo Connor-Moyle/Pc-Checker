@@ -1171,7 +1171,7 @@
  "Reclaimable space": "Espaço recuperável",
  "Recommended": "Recomendado",
  "Recommended. Adds a few seconds before the first change of the day.": "Recomendado. Adiciona alguns segundos antes da primeira alteração do dia.",
- "Recommended. Otherwise a manual speed stays set after PC Checker exits.": "Recomendado. Caso contrário, uma velocidade manual continua definida após o PC Checker ser fechado.",
+ "Recommended. Fans go back to the motherboard when PC Checker closes either way; with this off, the active profile is re-applied the next time PC Checker starts.": "Recomendado. Os ventiladores voltam para a placa-mãe ao fechar o PC Checker de qualquer forma; com isto desativado, o perfil ativo é reaplicado na próxima vez que o PC Checker iniciar.",
  "Record more or less from one part of the app without changing the rest.": "Registrar mais ou menos de uma parte do aplicativo sem alterar o restante.",
  "Refresh": "Atualizar",
  "Refresh apps": "Atualizar aplicativos",

@@ -98,9 +98,9 @@ public sealed partial class LibreHardwareFanControlService
     /// same process. Those fans are kept under software control (Balanced curve, overheating protection on) and the
     /// marker remembers them until the PC restarts. Fans that cannot be found keep the marker too, so a later start can
     /// still recover them. A marker flagged as a clean exit (the previous session ended normally with "revert on exit"
-    /// off) is handled quietly: the profile it names is re-applied so the curves and the safety loop take over again,
-    /// or the fans go back to automatic with an accurate message. Then the saved profile is applied when "apply on
-    /// startup" is on. Returns plain-English notices for the dashboard.
+    /// off) is handled quietly: closing the hardware monitor already handed the fans back to the firmware, so the profile
+    /// it names is simply re-applied and the curves and the safety loop take over again. Then the saved profile is
+    /// applied when "apply on startup" is on. Returns plain-English notices for the dashboard.
     /// </summary>
     public async Task<IReadOnlyList<string>> RunStartupAsync(CancellationToken cancellationToken)
     {
@@ -130,6 +130,8 @@ public sealed partial class LibreHardwareFanControlService
                         notices.Add(DescribeHeldAndUnconfirmed(recovery));
                     }
 
+                    // Closing the hardware monitor at exit already handed the fans back to the firmware (except those
+                    // held above), so there is nothing to revert: only the profile that was active is brought back.
                     var previousProfile = FindProfile(session.ProfileName);
                     if (previousProfile is not null)
                     {
@@ -137,38 +139,14 @@ public sealed partial class LibreHardwareFanControlService
                         if (reapply.Success)
                         {
                             reappliedProfile = previousProfile.Name;
-                            notices.Add($"Fan profile \"{previousProfile.Name}\" was still in charge of {session.FanIds.Count} fan(s) when PC Checker last closed (revert on exit is off), so it was re-applied.");
+                            notices.Add($"Fan profile \"{previousProfile.Name}\" was active when PC Checker last closed (revert on exit is off), so it was re-applied. The motherboard ran the fans while PC Checker was closed.");
                             _logger.LogInformation("Re-applied fan profile {Profile} left active by the previous session.", previousProfile.Name);
                         }
                         else
                         {
                             _logger.LogWarning("Could not re-apply fan profile {Profile} from the previous session: {Message}", previousProfile.Name, reapply.Message);
+                            notices.Add($"Fan profile \"{previousProfile.Name}\" was active when PC Checker last closed, but it could not be re-applied: {reapply.Message}");
                         }
-                    }
-
-                    if (reappliedProfile is null)
-                    {
-                        int reverted = UnderControlGate(() =>
-                        {
-                            int count = 0;
-                            foreach (var id in session.FanIds)
-                            {
-                                var entry = Find(id);
-                                if (entry is not null && ApplyDefault(entry).Success)
-                                {
-                                    count++;
-                                }
-                            }
-
-                            UpdateSessionFile();
-                            return count;
-                        });
-
-                        string text = reverted > 0
-                            ? $"{session.FanIds.Count} fan(s) were left under manual control when PC Checker last closed (revert on exit is off). {reverted} fan(s) were returned to automatic control at startup for safety; turn on \"Apply on startup\" to bring a profile back automatically."
-                            : "Fans were left under manual control when PC Checker last closed (revert on exit is off); they were already back under automatic control.";
-                        _logger.LogInformation("Previous session ended cleanly with fans under manual control: {Text}", text);
-                        notices.Add(text);
                     }
                 }
             }
@@ -177,7 +155,7 @@ public sealed partial class LibreHardwareFanControlService
                 _logger.LogWarning(ex, "Could not revert fans from the previous session.");
                 notices.Add(crashed
                     ? "PC Checker could not confirm the fans were returned to automatic control after the last unclean shutdown. Restart the PC to hand them back to the motherboard, or open the Fans page and click \"Revert all to automatic\"."
-                    : "PC Checker could not confirm the fans it left under manual control last time were returned to automatic. Open the Fans page and click \"Revert all to automatic\".");
+                    : "PC Checker could not restore the fan settings from the last session. Open the Fans page to check the fans.");
             }
         }
 
@@ -335,8 +313,10 @@ public sealed partial class LibreHardwareFanControlService
     }
 
     /// <summary>
-    /// Called at app exit: reverts to automatic when the setting says so; otherwise flags the session marker as a clean
-    /// exit so the next start does not mistake the fans it deliberately left alone for a crash.
+    /// Called at app exit: reverts to automatic when the setting says so, then flags the session marker as a clean exit
+    /// so the next start does not mistake it for a crash. Either way the fans end up under firmware control: closing the
+    /// hardware monitor (when the sensor service is disposed) restores every fan LibreHardwareMonitor changed. With the
+    /// setting off, the marker only lets the next start re-apply the profile that was active.
     /// </summary>
     public async Task ShutdownAsync()
     {

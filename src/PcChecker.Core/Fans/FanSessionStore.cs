@@ -8,7 +8,8 @@ namespace PcChecker.Core.Fans;
 /// Marker written to disk while any fan is under software control. If the app crashes, the next start finds the file,
 /// returns those fans to automatic control where the hardware allows it and tells the user. Deleted again as soon as
 /// every fan is automatic. When the app exits normally with "revert on exit" off, the marker stays but is flagged
-/// <see cref="CleanExit"/>, so the next start knows nothing crashed and can re-apply the profile. It also stays while
+/// <see cref="CleanExit"/>, so the next start knows nothing crashed and can re-apply the profile (the fans themselves
+/// went back to firmware control when the hardware monitor closed). It also stays while
 /// <see cref="NeedsRestartFanIds"/> lists fans the motherboard will not take back before the PC restarts.
 /// </summary>
 public sealed class FanSession
@@ -23,7 +24,10 @@ public sealed class FanSession
     /// <summary>Image name of the writing process (without extension), for the same reason.</summary>
     public string? ProcessName { get; set; }
 
-    /// <summary>True when the app exited normally while fans were still under software control (revert on exit was off).</summary>
+    /// <summary>
+    /// True when the app exited normally with a profile or manual speeds active (revert on exit was off). Closing the
+    /// hardware monitor still handed the fans back to the firmware; the flag only lets the next start re-apply the profile.
+    /// </summary>
     public bool CleanExit { get; set; }
 
     public string? ProfileName { get; set; }
@@ -278,8 +282,8 @@ public static class FanSessionStore
     }
 
     /// <summary>
-    /// Flags the current process's session as a normal exit (fans intentionally left under software control), so the
-    /// next start neither reports a crash nor loses track of which fans the app was driving.
+    /// Flags the current process's session as a normal exit, so the next start neither reports a crash nor loses track
+    /// of the profile that was active or of fans still waiting for a restart.
     /// </summary>
     public static void MarkCleanExit(string path)
     {

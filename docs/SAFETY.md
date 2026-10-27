@@ -125,8 +125,10 @@ follows, so you know what to expect and contributors know what to build.
 - If any temperature crosses its critical threshold while a manual or curve
   profile is active and the fan is below 100 %, the app forces 100 % and
   raises an alert.
-- Fans revert to automatic control when the app exits (configurable) and,
-  if the app crashed while controlling fans, on the next start. The one
+- Fans revert to automatic control when the app exits (always; with
+  *Revert to automatic on exit* off, the profile that was active is re-applied
+  at the next start) and, if the app crashed while controlling fans, on the
+  next start. The one
   exception: motherboard fan headers a crash left at a manual speed stay at
   that speed until the PC restarts, so the app keeps driving them (Balanced
   curve, overheating protection on) and says so until you restart.

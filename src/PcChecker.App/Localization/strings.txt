@@ -1170,7 +1170,7 @@ Recently used file data kept in RAM so it opens faster next time. Windows gives 
 Reclaimable space
 Recommended
 Recommended. Adds a few seconds before the first change of the day.
-Recommended. Otherwise a manual speed stays set after PC Checker exits.
+Recommended. Fans go back to the motherboard when PC Checker closes either way; with this off, the active profile is re-applied the next time PC Checker starts.
 Record more or less from one part of the app without changing the rest.
 Refresh
 Refresh apps

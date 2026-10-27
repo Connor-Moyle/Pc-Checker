@@ -28,6 +28,10 @@ All notable changes to PC Checker are recorded here. The format follows
 - The fan loop can no longer undo *Revert all to automatic* or a new manual
   speed that was set while a loop tick was running.
 - Power plan names are no longer garbled on non-English Windows.
+- With *Revert to automatic on exit* off, the app no longer claims fans were
+  left under its control after it closed: the motherboard always takes the
+  fans back when PC Checker closes, and the setting only re-applies the
+  active profile at the next start. Its description in Settings says so.
 
 ## [0.2.0] - 2026-10-27
 

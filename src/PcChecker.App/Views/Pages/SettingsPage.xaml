@@ -646,7 +646,7 @@
               <ui:CardControl.Header>
                 <StackPanel>
                   <ui:TextBlock Text="Hand fans back to the motherboard when the app closes" />
-                  <ui:TextBlock Style="{StaticResource Muted}" Text="Recommended. Otherwise a manual speed stays set after PC Checker exits." />
+                  <ui:TextBlock Style="{StaticResource Muted}" Text="Recommended. Fans go back to the motherboard when PC Checker closes either way; with this off, the active profile is re-applied the next time PC Checker starts." />
                 </StackPanel>
               </ui:CardControl.Header>
               <ui:ToggleSwitch IsChecked="{Binding FansRevertToAutoOnExit}" />

@@ -345,6 +345,22 @@ public class FansTests : IDisposable
         Assert.Equal(["/lpc/nct/control/0"], FanSessionStore.FansWithoutFirmwareControl(afterExit, rebooted: false));
     }
 
+    [Fact]
+    public async Task A_clean_exit_without_a_profile_is_not_reported_as_fans_left_under_control()
+    {
+        // Closing the hardware monitor hands every fan back, so a clean exit leaves nothing to revert or report.
+        var settings = new FakeSettingsService(_dir);
+        var path = FanSessionStore.DefaultPath(_dir);
+        FanSessionStore.Write(path, new FanSession { ProcessId = 0, CleanExit = true, FanIds = ["/lpc/nct/control/0"], BootUtc = FanSessionStore.CurrentBootUtc() });
+
+        using var sensors = new DemoSensorService();
+        using var svc = new LibreHardwareFanControlService(new RecordingHost(), sensors, settings, new PassThroughGuard(),
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<LibreHardwareFanControlService>.Instance);
+
+        Assert.Empty(await svc.RunStartupAsync(CancellationToken.None));
+        Assert.False(File.Exists(path));
+    }
+
     // ---- FanSafetyRules -----------------------------------------------------------------------------------------
 
     [Fact]
