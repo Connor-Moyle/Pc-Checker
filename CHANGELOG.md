@@ -13,7 +13,30 @@ All notable changes to PC Checker are recorded here. The format follows
   buttons, tooltips, dialogs and notifications are translated; scan results
   and log lines are still in English. See `docs/TRANSLATING.md`.
 
+### Changed
+- Sensors and fan control use LibreHardwareMonitor 0.9.6 with the signed
+  PawnIO driver, because Windows blocks the older WinRing0 driver. The
+  Temperatures and Fans pages explain how to install PawnIO when it is
+  missing.
+
 ### Fixed
+- A safety review of every action that changes the system fixed 62 problems
+  that would only show on a real PC, among them:
+  - driver *Roll back* now refuses protected or shared drivers and backs the
+    package up first; driver update checks use the Windows Update service;
+  - forgetting a Wi-Fi network with a wildcard-looking name can no longer
+    delete every saved network; network tuning and Cloudflare DNS keep each
+    adapter's previous settings (IPv6 too) so *Revert* restores them;
+  - power plans, powercfg, chkdsk and winget output are read correctly on
+    non-English Windows, with no duplicate power plans;
+  - overclock and fan sessions survive failed resets and crashes until
+    Windows restarts, partly applied Intel XTU profiles roll back, and
+    ryzenadj is only taken from folders that only administrators control;
+  - quiet uninstalls never restart the PC, temp files are re-checked when
+    deleted, registry backups are verified before they are restored, and
+    the page file is restored exactly on *Revert*;
+  - updates are verified again just before they install, and scheduled
+    tasks only run a PcChecker.exe that only administrators can change.
 - The FAQ no longer says Windows on Arm is unsupported; it has its own build.
 - Sensors and fan control use LibreHardwareMonitor 0.9.6, which reads the CPU
   and motherboard through the signed PawnIO driver instead of WinRing0, which

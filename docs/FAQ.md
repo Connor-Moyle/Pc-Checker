@@ -54,6 +54,11 @@ wrong, the restore point the app made is the way back.
 
 ### No temperatures are showing
 
+- CPU, motherboard and fan sensors need the free, signed **PawnIO** driver
+  (the sensor library moved to it because Windows blocks the older WinRing0
+  driver). If it is missing, the Temperatures and Fans pages say so and link
+  to [pawnio.eu](https://pawnio.eu); install it once and restart PC Checker.
+  GPU and drive temperatures work without it.
 - The sensor driver needs administrator rights.
 - CPU temperatures and the motherboard sensor chip (case and CPU fan headers)
   are read through the signed **PawnIO** driver, which is installed
