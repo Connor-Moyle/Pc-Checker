@@ -346,16 +346,30 @@ public static class LatencyProbes
         return run.ExitCode == 0 ? PowerCfgQueryParser.ParseIndexes(run.Output) : (null, null);
     }
 
+    /// <summary>The powercfg alias for the active power plan.</summary>
+    public const string CurrentScheme = "SCHEME_CURRENT";
+
+    /// <summary>The scheme argument for powercfg: a captured plan GUID when it is one, otherwise <see cref="CurrentScheme"/>. Pure.</summary>
+    public static string SchemeArgument(string? schemeId) =>
+        Guid.TryParse(schemeId, out var id) && id != Guid.Empty ? id.ToString("D") : CurrentScheme;
+
     /// <summary>Sets a power setting for both AC and DC in the active scheme and re-activates it.</summary>
     public static Task<OperationResult> SetPowerSettingAsync(string subgroup, string setting, int value, CancellationToken cancellationToken) =>
         SetPowerSettingAsync(subgroup, setting, value, value, cancellationToken);
 
     /// <summary>Sets separate AC and DC indexes of a power setting in the active scheme and re-activates it.</summary>
-    public static async Task<OperationResult> SetPowerSettingAsync(string subgroup, string setting, int acValue, int dcValue, CancellationToken cancellationToken)
+    public static Task<OperationResult> SetPowerSettingAsync(string subgroup, string setting, int acValue, int dcValue, CancellationToken cancellationToken) =>
+        SetPowerSettingAsync(CurrentScheme, subgroup, setting, acValue, dcValue, cancellationToken);
+
+    /// <summary>
+    /// Sets separate AC and DC indexes of a power setting in <paramref name="scheme"/> (a plan GUID or
+    /// <see cref="CurrentScheme"/>) and re-activates the active plan so a change to it takes effect.
+    /// </summary>
+    public static async Task<OperationResult> SetPowerSettingAsync(string scheme, string subgroup, string setting, int acValue, int dcValue, CancellationToken cancellationToken)
     {
         foreach (var (verb, value) in new[] { ("/setacvalueindex", acValue), ("/setdcvalueindex", dcValue) })
         {
-            var run = await RunAsync("powercfg.exe", $"{verb} SCHEME_CURRENT {subgroup} {setting} {value}", cancellationToken).ConfigureAwait(false);
+            var run = await RunAsync("powercfg.exe", $"{verb} {scheme} {subgroup} {setting} {value}", cancellationToken).ConfigureAwait(false);
             if (run.ExitCode != 0)
             {
                 return OperationResult.Fail($"powercfg {verb} failed: {Describe(run)}");

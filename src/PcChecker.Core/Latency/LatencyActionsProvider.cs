@@ -357,15 +357,15 @@ public sealed class LatencyActionsProvider : IOptimizationActionProvider
                 break;
 
             case LatencyActionIds.UsbSelectiveSuspendOff:
-                CapturePower(map, await LatencyProbes.ReadPowerSettingAsync(LatencyProbes.UsbSubgroup, LatencyProbes.UsbSelectiveSuspendSetting, ct).ConfigureAwait(false));
+                await CapturePowerAsync(map, LatencyProbes.UsbSubgroup, LatencyProbes.UsbSelectiveSuspendSetting, ct).ConfigureAwait(false);
                 break;
 
             case LatencyActionIds.PcieAspmOff:
-                CapturePower(map, await LatencyProbes.ReadPowerSettingAsync(LatencyProbes.PciSubgroup, LatencyProbes.PciAspmSetting, ct).ConfigureAwait(false));
+                await CapturePowerAsync(map, LatencyProbes.PciSubgroup, LatencyProbes.PciAspmSetting, ct).ConfigureAwait(false);
                 break;
 
             case LatencyActionIds.CoreParkingOff:
-                CapturePower(map, await LatencyProbes.ReadPowerSettingAsync(LatencyProbes.ProcessorSubgroup, LatencyProbes.CoreParkingMinCoresSetting, ct).ConfigureAwait(false));
+                await CapturePowerAsync(map, LatencyProbes.ProcessorSubgroup, LatencyProbes.CoreParkingMinCoresSetting, ct).ConfigureAwait(false);
                 break;
 
             case LatencyActionIds.NicPowerSavingOff:
@@ -425,8 +425,15 @@ public sealed class LatencyActionsProvider : IOptimizationActionProvider
         return map;
     }
 
-    private static void CapturePower(Dictionary<string, string?> map, (int? Ac, int? Dc) indexes)
+    /// <summary>
+    /// Records the AC/DC indexes of the active plan and which plan that is, so a revert writes them back into the same
+    /// plan even when the user has switched plans since.
+    /// </summary>
+    private static async Task CapturePowerAsync(Dictionary<string, string?> map, string subgroup, string setting, CancellationToken ct)
     {
+        var (scheme, _) = await LatencyProbes.ReadActiveSchemeAsync(ct).ConfigureAwait(false);
+        var indexes = await LatencyProbes.ReadPowerSettingAsync(subgroup, setting, ct).ConfigureAwait(false);
+        map["Scheme"] = scheme?.ToString("D");
         map["AC"] = indexes.Ac?.ToString();
         map["DC"] = indexes.Dc?.ToString();
     }
@@ -499,7 +506,8 @@ public sealed class LatencyActionsProvider : IOptimizationActionProvider
 
         int ac = int.TryParse(Previous(previous, "AC"), out int pa) ? pa : defaultValue;
         int dc = int.TryParse(Previous(previous, "DC"), out int pd) ? pd : defaultValue;
-        return LatencyProbes.SetPowerSettingAsync(subgroup, setting, ac, dc, ct);
+        // The values belong to the plan that was active when they were captured, which may no longer be the active one.
+        return LatencyProbes.SetPowerSettingAsync(LatencyProbes.SchemeArgument(Previous(previous, "Scheme")), subgroup, setting, ac, dc, ct);
     }
 
     /// <summary>
@@ -678,7 +686,7 @@ public sealed class LatencyActionsProvider : IOptimizationActionProvider
         LatencyActionIds.UsbSelectiveSuspendOff => "Power Options → USB settings → USB selective suspend → Enabled.",
         LatencyActionIds.NicPowerSavingOff => "Device Manager → network adapter → Power Management / Advanced tab.",
         LatencyActionIds.PcieAspmOff => "Power Options → PCI Express → Link State Power Management → Moderate.",
-        LatencyActionIds.CoreParkingOff => "powercfg /setacvalueindex SCHEME_CURRENT SUB_PROCESSOR CPMINCORES <previous value>",
+        LatencyActionIds.CoreParkingOff => "powercfg /setacvalueindex <Scheme> SUB_PROCESSOR CPMINCORES <AC> and /setdcvalueindex <Scheme> SUB_PROCESSOR CPMINCORES <DC>, using the previous values listed after this hint.",
         LatencyActionIds.PointerPrecisionOff => "Mouse settings → Additional mouse options → Pointer Options → Enhance pointer precision.",
         LatencyActionIds.GameModeOn => "Settings → Gaming → Game Mode.",
         LatencyActionIds.HpetOff => "bcdedit /deletevalue useplatformclock (the Windows default); only bcdedit /set useplatformclock true if HPET had been forced on before.",

@@ -398,6 +398,21 @@ public class LatencyCaptureStoreTests
     }
 }
 
+public class LatencyPowerSchemeTests
+{
+    [Theory]
+    [InlineData("381b4222-f694-41f0-9685-ff5bb260df2e", "381b4222-f694-41f0-9685-ff5bb260df2e")]
+    [InlineData("{8C5E7FDA-E8BF-4A96-9A85-A6E23A8C635C}", "8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c")]
+    [InlineData(null, "SCHEME_CURRENT")]
+    [InlineData("", "SCHEME_CURRENT")]
+    [InlineData("00000000-0000-0000-0000-000000000000", "SCHEME_CURRENT")]
+    [InlineData("SCHEME_MIN & del x", "SCHEME_CURRENT")]
+    public void Power_reverts_target_the_captured_plan(string? captured, string expected)
+    {
+        Assert.Equal(expected, LatencyProbes.SchemeArgument(captured));
+    }
+}
+
 public class NicPowerRulesTests
 {
     [Fact]
