@@ -3,6 +3,7 @@ using PcChecker.Core.Fans;
 using PcChecker.Core.Input;
 using PcChecker.Core.Lighting;
 using PcChecker.Core.Logging;
+using PcChecker.Core.Network;
 using PcChecker.Core.Overclocking;
 
 namespace PcChecker.Core.Settings;
@@ -26,6 +27,7 @@ public sealed class AppSettings
     public MemorySettings Memory { get; set; } = new();
     public LatencySettings Latency { get; set; } = new();
     public StartupSettings Startup { get; set; } = new();
+    public NetworkSettings Network { get; set; } = new();
 
     /// <summary>Returns a fresh instance with every value at its default.</summary>
     public static AppSettings CreateDefault() => new();

@@ -18,6 +18,7 @@ Apps & Drivers  Apps · Drivers · Startup · Windows Features
 Clean up        Cleanup
 Performance     Speed check · Optimize · Overclock
 Gaming          Overlay · Latency
+Network         Network
 Ask Claude      Ask Claude
 Footer          Logs · Settings
 ```
@@ -508,6 +509,47 @@ badge, current state, *Apply* and *Revert*:
 Limitations: the performance counters can be corrupt on some systems; the
 page shows the `lodctr /R` hint. Ping results depend on your network at that
 moment.
+
+### Network
+
+- **Connection summary**: active adapter, IP address, router and DNS servers,
+  link speed and Wi-Fi signal.
+- **Wi-Fi**: network name, band and channel, a signal gauge with the dBm
+  estimate, Wi-Fi standard, link rates and security, read from `netsh wlan`
+  by the shape of the output so localized Windows works. Findings in plain
+  English: weak or fair signal, crowded 2.4 GHz channel (with the least
+  crowded of 1/6/11), the same network available on 5/6 GHz, a link rate too
+  low for the standard, open/WEP/TKIP security, and Wi-Fi power saving (one
+  click fix). Windows 11 24H2 needs Location permission for the scan; the
+  page explains it and opens the right Settings page.
+- **Nearby networks** table and **channel congestion** bars per band.
+- **Speed test** (HTTP, `speed.cloudflare.com` by default): idle ping,
+  download and upload over four connections, ping under load and the
+  bufferbloat grade (A+ to F) with an explanation, data used, live progress
+  and Cancel. Not run automatically because it uses data.
+- **Packet loss test** (50, 100 or 500 pings to the router, 1.1.1.1 and
+  8.8.8.8): loss, average, jitter and 95th percentile per target, plus where
+  the loss starts (home network or provider).
+- **Tune Wi-Fi and network**: Wi-Fi power saving, "allow the computer to
+  turn off this device", TCP auto-tuning, ECN, RSS, a fast public DNS
+  provider and, in Advanced mode, DNS over HTTPS and prefer IPv4. Adapter
+  driver settings (preferred band, roaming aggressiveness, MIMO power save,
+  transmit power, wireless mode, channel width, Energy-Efficient Ethernet,
+  speed and duplex) with curated recommendations. Saved Wi-Fi networks:
+  order, auto-connect, metered, forget (backed up first). Every change asks
+  first, goes through the change guard and has **Revert**, also after a
+  restart.
+- **Quick improve Wi-Fi**: a checklist of the recommended changes that differ
+  from the current state, applied one by one, then a re-test with the
+  results before and after side by side.
+- **Better Wi-Fi without software**: router placement, band trade-offs, the
+  best channel to set on the router, firmware, mesh or Ethernet.
+- **Adapters** table with errors and discards, and **fix tools**: flush DNS,
+  renew IP, reset network stack (Advanced), Wi-Fi and network settings.
+
+Limitations: the router's channel and QoS can only be changed on the router;
+the nearby list is Windows' latest scan; speed results depend on the server
+and the time of day. See [NETWORK.md](NETWORK.md).
 
 ### Overclock
 

@@ -19,6 +19,8 @@ using PcChecker.Core.Latency;
 using PcChecker.Core.Lighting;
 using PcChecker.Core.Logging;
 using PcChecker.Core.Memory;
+using PcChecker.Core.Network;
+using PcChecker.Core.Network.Tuning;
 using PcChecker.Core.Optimization;
 using PcChecker.Core.Overclocking;
 using PcChecker.Core.Performance;
@@ -95,6 +97,8 @@ public static class ServiceRegistration
         Add<IAudioService, WindowsAudioService, DemoAudioService>(services, demo);
         Add<IInputService, WindowsInputService, DemoInputService>(services, demo);
         Add<ILatencyService, WindowsLatencyService, DemoLatencyService>(services, demo);
+        Add<INetworkTuningService, WindowsNetworkTuningService, DemoNetworkTuningService>(services, demo);
+        Add<INetworkService, WindowsNetworkService, DemoNetworkService>(services, demo);
         Add<IStartupService, WindowsStartupService, DemoStartupService>(services, demo);
         Add<IRestartScheduler, WindowsRestartScheduler, DemoRestartScheduler>(services, demo);
         Add<IMousePollingMeter, RawInputPollingMeter, DemoMousePollingMeter>(services, demo);
@@ -146,6 +150,7 @@ public static class ServiceRegistration
         services.AddSingleton<PerformanceViewModel>().AddSingleton<PerformancePage>();
         services.AddSingleton<OptimizeViewModel>().AddSingleton<OptimizePage>();
         services.AddSingleton<LatencyViewModel>().AddSingleton<LatencyPage>();
+        services.AddSingleton<NetworkViewModel>().AddSingleton<NetworkPage>();
         services.AddSingleton<OverclockViewModel>().AddSingleton<OverclockPage>();
         services.AddSingleton<AssistantViewModel>().AddSingleton<AssistantPage>();
         services.AddSingleton<LogsViewModel>().AddSingleton<LogsPage>();
