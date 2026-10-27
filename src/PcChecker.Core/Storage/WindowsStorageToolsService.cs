@@ -16,12 +16,14 @@ public sealed partial class WindowsStorageToolsService : IStorageToolsService, I
     private const string StorageScope = @"root\Microsoft\Windows\Storage";
     private readonly IChangeGuard _changeGuard;
     private readonly ILogger<WindowsStorageToolsService> _logger;
+    private readonly IDriveInventoryService? _drives;
     private IReadOnlyList<StorageDevice> _lastDevices = [];
 
-    public WindowsStorageToolsService(IChangeGuard changeGuard, ILogger<WindowsStorageToolsService> logger)
+    public WindowsStorageToolsService(IChangeGuard changeGuard, ILogger<WindowsStorageToolsService> logger, IDriveInventoryService? drives = null)
     {
         _changeGuard = changeGuard;
         _logger = logger;
+        _drives = drives;
     }
 
     public async Task<IReadOnlyList<StorageDevice>> GetDevicesAsync(CancellationToken cancellationToken)
@@ -29,6 +31,30 @@ public sealed partial class WindowsStorageToolsService : IStorageToolsService, I
         if (!PlatformGuard.IsWindows)
         {
             return [];
+        }
+
+        // The drive inventory lists every drive once (pool members, RAID, USB, offline and empty disks included) and
+        // never wakes a sleeping drive; the older readers below remain the fallback.
+        if (_drives is not null)
+        {
+            try
+            {
+                var drives = await _drives.GetDrivesAsync(DriveReadMode.Routine, cancellationToken).ConfigureAwait(false);
+                if (drives.Count > 0)
+                {
+                    _lastDevices = StorageDeviceMapper.ToStorageDevices(drives);
+                    _logger.LogInformation("Found {Count} drives.", _lastDevices.Count);
+                    return _lastDevices;
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Drive inventory failed; falling back to the storage namespace.");
+            }
         }
 
         var devices = await Task.Run(() =>

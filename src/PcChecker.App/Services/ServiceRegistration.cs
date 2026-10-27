@@ -121,6 +121,7 @@ public static class ServiceRegistration
         Add<IFanControlService, LibreHardwareFanControlService, DemoFanControlService>(services, demo);
         Add<IPawnIoService, WindowsPawnIoService, DemoPawnIoService>(services, demo);
         Add<ILightingService, OpenRgbLightingService, DemoLightingService>(services, demo);
+        Add<IDriveInventoryService, WindowsDriveInventoryService, DemoDriveInventoryService>(services, demo);
         Add<IStorageToolsService, WindowsStorageToolsService, DemoStorageToolsService>(services, demo);
         Add<IMemoryService, WindowsMemoryService, DemoMemoryService>(services, demo);
         Add<IBatteryService, WindowsBatteryService, DemoBatteryService>(services, demo);

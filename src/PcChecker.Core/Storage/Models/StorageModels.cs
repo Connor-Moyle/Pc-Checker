@@ -27,7 +27,14 @@ public sealed record StorageDevice(
     string BusType,
     HealthStatus Health,
     IReadOnlyList<string> Volumes,
-    bool IsSystemDisk);
+    bool IsSystemDisk)
+{
+    /// <summary>The full drive facts (media, link speed, SMART, verdict) when the drive inventory produced this entry.</summary>
+    public PhysicalDrive? Drive { get; init; }
+
+    /// <summary>False for drives Windows hides as disks (Storage Spaces pool members): they cannot be scanned or benchmarked.</summary>
+    public bool HasDiskNumber => Number >= 0;
+}
 
 public sealed record SurfaceScanProgress(
     long BlocksTotal,

@@ -91,7 +91,7 @@ public sealed partial class StorageViewModel
 
     partial void OnSelectedBlockSizeMbChanged(int value) => UpdateScanEstimate();
 
-    private bool CanStartScan() => SelectedDevice is not null && !IsAnyToolRunning && !IsBusy;
+    private bool CanStartScan() => SelectedDevice is { CanUseTools: true } && !IsAnyToolRunning && !IsBusy;
 
     [RelayCommand(CanExecute = nameof(CanStartScan))]
     private async Task StartScan()
@@ -252,6 +252,12 @@ public sealed partial class StorageViewModel
         if (device is null)
         {
             ScanEstimateText = "Select a drive to see how long a scan would take.";
+            return;
+        }
+
+        if (!device.CanUseTools)
+        {
+            ScanEstimateText = "Windows hides drives inside a storage pool, so they cannot be scanned on their own. Scan the storage space instead.";
             return;
         }
 

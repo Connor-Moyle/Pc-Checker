@@ -5,9 +5,9 @@ namespace PcChecker.Core.Storage;
 
 /// <summary>
 /// Demo drives for the sample gaming desktop, built through the same join and verdict code as the real inventory:
-/// a Samsung 990 PRO NVMe (C:), a Crucial MX500 SATA SSD (E:), a WD Black 4 TB 7200 RPM hard disk with 8 reallocated
-/// sectors (D:, Caution), a WD Elements USB hard disk that is asleep (F:), and a two-way mirror storage space (G:) made
-/// from two Seagate 2 TB drives. Pure .NET.
+/// a Samsung 990 PRO NVMe (C:, disk 0), a WD Black 4 TB 7200 RPM hard disk with 8 reallocated sectors (D:, disk 1,
+/// Caution), a Crucial MX500 SATA SSD (E:), a WD Elements USB hard disk that is asleep (F:), and a two-way mirror
+/// storage space (G:) made from two Seagate 2 TB drives. Pure .NET.
 /// </summary>
 public sealed class DemoDriveInventoryService : IDriveInventoryService
 {
@@ -57,16 +57,16 @@ public sealed class DemoDriveInventoryService : IDriveInventoryService
         var disks = new[]
         {
             new MsftDiskRow(0, DemoData.NvmeModel, "0025_38B1_4150_0001.", DemoData.NvmeBytes, DriveMediaRules.BusNvme, 2, IsBoot: true, HealthStatus: 0),
-            new MsftDiskRow(1, SataSsdModel, "2235E6A1B2C3", SataSsdBytes, 11, 2, HealthStatus: 0),
-            new MsftDiskRow(2, DemoData.HddModel, "WD-WX12D80K7E42", DemoData.HddBytes, 11, 2, HealthStatus: 0),
+            new MsftDiskRow(2, SataSsdModel, "2235E6A1B2C3", SataSsdBytes, 11, 2, HealthStatus: 0),
+            new MsftDiskRow(1, DemoData.HddModel, "WD-WX12D80K7E42", DemoData.HddBytes, 11, 2, HealthStatus: 0),
             new MsftDiskRow(3, UsbModel, "5857313641444C3934353237", UsbBytes, DriveMediaRules.BusUsb, 2, HealthStatus: 0),
             new MsftDiskRow(4, SpaceModel, "{6b2c4f1e-0d6a-4a52-9c41-2f6c1d3e5a77}", SpaceBytes, DriveMediaRules.BusSpaces, 2, HealthStatus: 0),
         };
         var physical = new[]
         {
             new MsftPhysicalDiskRow("0", DemoData.NvmeModel, "S6Z2NJ0R512345X", "4B2QJXD7", DemoData.NvmeBytes, 4, DriveMediaRules.BusNvme, 0, 0),
-            new MsftPhysicalDiskRow("1", SataSsdModel, "2235E6A1B2C3", "M3CR046", SataSsdBytes, 4, 11, 0, 0),
-            new MsftPhysicalDiskRow("2", DemoData.HddModel, "WD-WX12D80K7E42", "01.01A01", DemoData.HddBytes, 3, 11, 7200, 0),
+            new MsftPhysicalDiskRow("2", SataSsdModel, "2235E6A1B2C3", "M3CR046", SataSsdBytes, 4, 11, 0, 0),
+            new MsftPhysicalDiskRow("1", DemoData.HddModel, "WD-WX12D80K7E42", "01.01A01", DemoData.HddBytes, 3, 11, 7200, 0),
             new MsftPhysicalDiskRow("3", UsbModel, "WX61DA9L5472", "1026", UsbBytes, 0, DriveMediaRules.BusUsb, 0xFFFFFFFF, 0),
             new MsftPhysicalDiskRow("5", PoolMemberModel, "ZFL5A1B2", "0001", PoolMemberBytes, 3, 11, 7200, 0, [DriveInventoryJoin.CannotPoolInPool], "POOL-M1"),
             new MsftPhysicalDiskRow("6", PoolMemberModel, "ZFL5C3D4", "0001", PoolMemberBytes, 3, 11, 7200, 0, [DriveInventoryJoin.CannotPoolInPool], "POOL-M2"),
@@ -74,9 +74,9 @@ public sealed class DemoDriveInventoryService : IDriveInventoryService
         var win32 = new[]
         {
             new Win32DiskRow(0, DemoData.NvmeModel, "0025_38B1_4150_0001.", "4B2QJXD7", DemoData.NvmeBytes, "SCSI", "Fixed hard disk media", @"SCSI\DISK&VEN_NVME&PROD_SAMSUNG_SSD_990\5&DEMO0001&0&000000"),
-            new Win32DiskRow(1, SataSsdModel, "2235E6A1B2C3", "M3CR046", SataSsdBytes, "IDE", "Fixed hard disk media", @"SCSI\DISK&VEN_&PROD_CT1000MX500SSD1\4&DEMO0003&0&020000"),
+            new Win32DiskRow(2, SataSsdModel, "2235E6A1B2C3", "M3CR046", SataSsdBytes, "IDE", "Fixed hard disk media", @"SCSI\DISK&VEN_&PROD_CT1000MX500SSD1\4&DEMO0003&0&020000"),
             // Some Windows builds hand back the ATA serial byte-swapped; the join fixes it.
-            new Win32DiskRow(2, DemoData.HddModel, "W -DXW218DK0E724", "01.01A01", DemoData.HddBytes, "IDE", "Fixed hard disk media", @"SCSI\DISK&VEN_WDC&PROD_WD4005FZBX-00K5WB0\4&DEMO0002&0&010000"),
+            new Win32DiskRow(1, DemoData.HddModel, "W -DXW218DK0E724", "01.01A01", DemoData.HddBytes, "IDE", "Fixed hard disk media", @"SCSI\DISK&VEN_WDC&PROD_WD4005FZBX-00K5WB0\4&DEMO0002&0&010000"),
             new Win32DiskRow(3, UsbModel, "5857313641444C3934353237", "1026", UsbBytes, "USB", "External hard disk media", @"USBSTOR\DISK&VEN_WD&PROD_ELEMENTS_25A3&REV_1026\DEMO0004&0"),
             new Win32DiskRow(4, SpaceModel, null, null, SpaceBytes, "SCSI", "Fixed hard disk media", @"STORAGE\DISK\{DEMO-SPACE}"),
         };
@@ -86,8 +86,8 @@ public sealed class DemoDriveInventoryService : IDriveInventoryService
             new PartitionRow(0, null),
             new PartitionRow(0, "C"),
             new PartitionRow(0, null),
-            new PartitionRow(1, "E"),
-            new PartitionRow(2, "D"),
+            new PartitionRow(1, "D"),
+            new PartitionRow(2, "E"),
             new PartitionRow(3, "F"),
             new PartitionRow(4, "G"),
         };
@@ -107,9 +107,9 @@ public sealed class DemoDriveInventoryService : IDriveInventoryService
             {
                 0 => DriveFactsBuilder.Build(j, new DriveProbe(false, DrivePowerState.Active, null, "PCIe 4.0 x4"), SmartAccess.Read,
                     DriveFactsBuilder.FromNvmeLog(NvmeLog(), now, "NVMe health log"), "C:\\", monitoring.DiskWarnC, monitoring.DiskCritC),
-                1 => DriveFactsBuilder.Build(j, new DriveProbe(false, DrivePowerState.Active, Identity(SataSsdModel, 1, 3)), SmartAccess.Read,
+                2 => DriveFactsBuilder.Build(j, new DriveProbe(false, DrivePowerState.Active, Identity(SataSsdModel, 1, 3)), SmartAccess.Read,
                     DriveFactsBuilder.FromAtaSectors(SataSsdValues(), SataSsdThresholds(), SataSsdModel, now, "SMART"), "C:\\", monitoring.DiskWarnC, monitoring.DiskCritC),
-                2 => DriveFactsBuilder.Build(j, new DriveProbe(true, DrivePowerState.Active, Identity(DemoData.HddModel, 7200, 3)), SmartAccess.Read,
+                1 => DriveFactsBuilder.Build(j, new DriveProbe(true, DrivePowerState.Active, Identity(DemoData.HddModel, 7200, 3)), SmartAccess.Read,
                     DriveFactsBuilder.FromAtaSectors(HddValues(), HddThresholds(), DemoData.HddModel, now, "SMART"), "C:\\", monitoring.DiskWarnC, monitoring.DiskCritC),
                 3 => UsbDrive(j, now, usbAwake, monitoring),
                 _ => j.Role == DriveRole.StorageSpace
