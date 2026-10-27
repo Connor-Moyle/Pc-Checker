@@ -12,6 +12,7 @@
 0 % loss is normal. If your router already loses packets, the cause is in your home (often Wi-Fi). If only the internet targets lose packets, it is your provider.
 1 automatic backup, made {0}.
 1 change
+1 day left
 1 item
 1 oldest run on this PC removed (limit {0})
 1 process may be worth a closer look
@@ -28,6 +29,7 @@
 95 out of 100 packets came back faster than this. Shows occasional spikes the average hides.
 A backup of your current setup is saved automatically before every import or reset.
 A device that is not connected
+A driver update caused the problem?
 A fan profile from the Fans page
 A few are normal; repeats from one source are worth a look.
 A file-system repair cannot be cancelled once it has started; stopping chkdsk half-way leaves the volume dirty.
@@ -41,8 +43,9 @@ A preset only ticks boxes; nothing changes until you apply.
 A preset remembers which metrics are shown, their order, the corner, opacity, size and layout. Colours, font and the hotkey stay as they are.
 A profile remembers an effect, colour, speed and brightness for every device so you can switch setups in one click.
 A profile remembers the mode, speed or curve of every fan. Silent, Balanced and Performance are built in; save your own from the current settings.
-A restart will be needed after this update.
 A restore point is a snapshot of Windows system files and settings. If a change causes trouble, System Restore can take the PC back to it. Your documents are not affected.
+A restore point is created before the installer starts.
+A restore point is created first (per your settings) so you can go back if anything misbehaves. The screen may flicker while a display or audio driver installs.
 A restore point is created first. Each item is checked again right before it is removed, and anything that changed is kept. Registry keys and tasks can be put back from the restore list.
 A sample every {0}, kept for {1} days. Nothing leaves this PC.
 A scan only reads the registry. Choose the categories under What to check below; nothing changes until you confirm a fix.
@@ -125,6 +128,7 @@ Also on Optimize
 Also remove for all users and new accounts
 Also remove for other user accounts and new accounts
 Also toggled by pressing Shift five times.
+AMD
 An advanced change. Turn on Advanced mode to fix it from here, or open its page.
 Analyze
 Analyze again
@@ -157,10 +161,12 @@ Apply to CPU
 Apply to GPU
 Apply writes a profile to Windows after you confirm. Edit loads it into the Mouse and Keyboard cards so you can tweak it first.
 Applying safe tweaks
+Applying tweaks…
 Apps
 Apps & Drivers
 Apps at sign-in
 Apps playing sound
+Apps you installed and settings you changed since the upgrade may be gone and need reinstalling.
 Archives and disk images
 Arrangement
 As good as new
@@ -171,14 +177,15 @@ Ask about this PC… (Enter sends, Shift+Enter adds a line)
 Ask anything about this PC
 Ask Claude
 Ask Claude page
+Ask each time
 Ask me
 Ask the Windows Package Manager (winget) which programs have a newer version. Nothing is installed.
 Ask things like "why is my PC slow?" or "is this error serious?". Usage is billed to the key's Anthropic account; a typical question costs a fraction of a cent.
 Ask Windows Update which updates this PC is missing. Nothing is installed until you choose to.
 Asks before every change, makes a restore point and keeps a journal so you can undo.
 Asks Claude for a plan. Needs an Anthropic API key (Ask Claude page).
+Asks NVIDIA's driver service for your GeForce, RTX or Quadro card. Sends the card's device id only.
 Asks the router for a fresh address. The connection drops for a few seconds.
-Asks Windows Update for driver updates that are not installed yet. This can take a minute.
 Asks Windows Update for updates that are not installed yet. This can take a minute. Nothing is installed by a check.
 Asleep
 Asleep from full
@@ -195,12 +202,14 @@ Auto-connect
 Automatic
 Automatic: starts with Windows. Manual: starts only when something needs it. Disabled: never starts.
 autostart login sign in boot
+Available
 Available right now
 Available updates
 Average
 Average {0}, highest {1}, lowest {2}
 Back to defaults
 Back up all drivers…
+Back up your files first. They are normally kept, but going back replaces Windows itself.
 Back up your setup
 back up {0} to a .reg file, then remove them
 Back up…
@@ -222,6 +231,7 @@ Battery report saved
 Battery settings
 Before
 Before and after
+Before anything runs, the file's digital signature and certificate chain are checked and it must be signed by {0}. Otherwise it is deleted without running.
 Before you start:
 Before you start: fans get loud, laptops drain fast, and you can stop at any time
 Before you start: what overclocking means
@@ -274,7 +284,9 @@ Can freeze the whole PC while the program is busy
 Can lower ping in a few older games. It lives on the Latency page.
 Cancel
 Cancel restart
+Cancelled
 Cannot be fixed from here.
+Cannot be removed
 Cannot be undone from PC Checker. Reinstall from the Microsoft Store or microsoft.com.
 Capabilities
 Capabilities installed
@@ -327,7 +339,10 @@ Checked {0}. How worn your battery is and how long a charge lasts.
 Checked {0}. Nothing changes until you choose to fix it.
 Checked {0}. Traces that removed programs left behind.
 Checking again…
+Checking System Protection…
 Checking that the PC is idle…
+Checking the download…
+Checking the result…
 Checks every byte of RAM before Windows loads. Runs at the next restart, 5–20 minutes.
 Checks health, temperatures, drivers and what slows it down.
 Checks health, temporary files, drivers, Windows Update, startup apps, speed, recommended settings and old drivers. Nothing is changed by a check-up.
@@ -341,6 +356,7 @@ chkdsk X: /spotfix — a few seconds offline, fixes logged problems.
 Choose a fixed size or hand control back to Windows. Takes effect after a restart.
 Choose a folder to measure
 Choose a setup backup
+Choose a source
 Choose folder…
 Choose from the programs that are open right now (start the game first)
 Choose the temperatures that count as warm or too hot.
@@ -386,6 +402,7 @@ Colours
 Colours and effects are on the Lighting page.
 Committed
 Compare against your plan's speed at a quiet time.
+Compare on the vendor's page
 Compare the tests both runs completed below.
 Compare two runs
 Compared with {0} installed programs
@@ -400,12 +417,14 @@ Connection
 Continue
 Continue to tuning
 Contrast
+Controller
 Cool: 40 % at 30 °C rising to 100 % at 70 °C
 Cooling & RGB
 Copied
 Copies every third-party driver package to a folder you choose, so you can reinstall them after a reset.
 Copies the run on the cards as plain text, ready to paste into a message or forum post.
 Copies the whole report as plain text, ready to paste into an email or support ticket.
+Copilot, Recall, search and other Windows policies are read when you sign in. Sign out and back in when it suits you.
 Copy all shown
 Copy comparison
 Copy details
@@ -432,6 +451,7 @@ Could not end {0}
 Could not open the browser
 Could not open the folder
 Could not save
+Could not tell
 Count only; no fixed limit
 Counts the frames the game in front hands to Windows, the same way PresentMon does. More in “About the overlay” below.
 CPU
@@ -475,6 +495,7 @@ Data
 Date
 Date installed (newest first)
 Day of the week
+Days to keep the option to go back
 dBm (decibel-milliwatts) is the signal power reaching the adapter: closer to 0 is stronger. -50 dBm is excellent, -67 dBm is fine for calls and games, below -75 dBm is weak.
 dBm measures how much radio power reaches your adapter. It is negative, and closer to zero is stronger: -30 to -50 dBm is excellent, -50 to -67 good (fine for calls and games), -67 to -75 fair, below -75 weak. Windows shows a percentage instead; PC Checker converts it with the usual estimate (percent ÷ 2 − 100).
 dBm, channels, jitter, bufferbloat and what PC Checker deliberately does not change.
@@ -499,6 +520,7 @@ Delete this custom profile.
 delete {0} (only if still stopped and their program is still missing)
 Deletes the selected saved profile.
 Deliberately not offered
+Dell, HP, Lenovo, ASUS, MSI and GIGABYTE update tools and support pages for your model.
 Demo data
 Demo mode
 Describe a goal and get a staged plan you load into the sliders step by step.
@@ -553,15 +575,20 @@ Done
 Double-click here
 Double-click speed
 Download
+Download and install
+Download failed
 Download from the maker
 Download it, then ask to restart
 Download only
 Download OpenRGB
 Downloaded
+Downloading driver updates…
 Downloading update
-Downloads (if needed) and installs the ticked updates after creating a restore point when that option is on in Settings.
 Downloads (if needed) and installs the ticked updates one at a time, after a restore point when that option is on in Settings.
+Downloads (if needed) and installs the ticked Windows Update drivers after creating a restore point when that option is on in Settings. Vendor drivers and tools use each device's own button.
 Downloads and installs every update except the optional ones, after you confirm.
+Downloads and installs this driver through Windows Update, after a restore point.
+Downloads the maker's installer, checks its signature, creates a restore point and runs it. Asks first.
 Downloads the new version from GitHub, checks it and restarts PC Checker. Your settings are kept.
 DPC = deferred procedure call: work a driver postpones after an interrupt. High values mean a driver is hogging the CPU and audio or input can stutter.
 DPC and ISR
@@ -586,6 +613,7 @@ Driver updates leave the previous versions behind, and Windows keeps the drivers
 Driver-reported ranges
 Drivers
 Drivers are on the Drivers page. Optional updates are only installed when you tick them.
+Drivers are rolled back on the Drivers page: select the device, then use Device Manager's Roll Back Driver.
 drivers windows update outdated
 Drivers without a valid digital signature.
 Drives
@@ -640,13 +668,13 @@ Every 2 minutes
 Every 30 seconds
 Every 5 minutes
 Every access point this PC can hear, from Windows' latest scan.
-Every batch, app removals included, starts with a restore point and saves the current values, so reversible tweaks can be reverted here. Per-user settings go to the account PC Checker runs as. Risky steps such as turning off Defender or Windows Update are not offered (see the end of the page).
+Every batch, app removals included, starts with a restore point and saves the current values, so reversible tweaks can be reverted here. Per-user settings go to the account signed in to Windows. Risky steps such as turning off Defender or Windows Update are not offered (see the end of the page).
 Every change the app makes to this PC (optimizations, cleanups, driver installs, uninstalls, fan or lighting profiles) is listed here with what it was before and how to undo it.
 Every check came back clean. Nice.
 Every couple of seconds part of the result is read back and compared with the first run. A different value is an error: the same kind of mistake that shows up as artifacts in games.
 Every download is checked against its published SHA-256 before it is installed.
 Every fix is saved to a .reg file first. Restore puts the entries back.
-Every installed driver, the ones that need attention, and driver updates.
+Every installed driver, the ones that need attention, and updates from every source.
 Every minute
 Every part of the check-up came back fine. Run it again now and then, or after installing something new.
 Every part that reports its own power use. Parts without a sensor are covered by the estimate.
@@ -682,11 +710,15 @@ Export report…
 export save settings profiles to a file new pc
 Export selection…
 export {0} to XML, then delete them
+Extend
 Extend pause
+extra sensor
+Extra sensor on the drive. It runs hotter than the drive, so its limits are {0} °C higher.
 Extras you did not ask for can be removed. Runtime dependencies are best kept, because other programs need them.
 factory reset restore defaults
 Failed
 Failed only
+Failed:
 Fan control is not available on this PC
 fan control revert automatic exit
 Fan curve
@@ -701,7 +733,7 @@ Fans
 Fans page
 Fast startup
 Fast startup, boot menu, Safe Mode and restarting into the firmware.
-Fetches the ticked updates now so they install faster later.
+Fetches the ticked Windows Update drivers now so they install faster later.
 File
 File types
 Files
@@ -758,6 +790,7 @@ Follow temperature
 Follow Windows, or force light or dark. Applies straight away.
 Font
 Font size
+For a short time after a feature update, Windows can return to the version it had before.
 For example a 'Gaming' layout at 240 Hz and a 'Work' layout at 60 Hz.
 For example a run before and after Optimize or an overclock.
 For example “serial”, “DDR5” or “VEN_10DE”.
@@ -788,6 +821,8 @@ Full path of the program, for example C:\Tools\tool.exe
 Full scan
 Fullest drive
 Game profiles
+Game Ready
+Game Ready comes first for new games; Studio is tested with creative apps.
 Gamers usually turn this off.
 Games
 Gaming
@@ -795,7 +830,15 @@ gateway, 1.1.1.1, 8.8.8.8
 General
 Get a plan
 Get an API key at console.anthropic.com
+Go back
+Go back to the previous version of Windows
+Go back to the previous version of Windows?
+Go back…
 Go to Lighting
+Going back is possible for 1 more day.
+Going back is possible for {0} more days.
+Going back stays possible for {0} days after the upgrade.
+Going back stays possible until {0}.
 Good: router under 5 ms (15 ms on Wi-Fi), public DNS under 40 ms, jitter under 5 ms, no loss.
 GPU
 GPU board
@@ -832,6 +875,7 @@ Hardware categories
 Hardware events per second. Busy GPUs, NVMe drives and fast network adapters raise this normally.
 Hardware sensors are not available
 Hardware support
+Have you backed up your files?
 HDR
 HDR on
 Health
@@ -844,6 +888,8 @@ Hex colour
 Hex colours: #RRGGBB, or #AARRGGBB where AA is transparency (CC ≈ 80 %). Temperatures turn yellow at the warning level and red at the critical level set on the Temperatures page.
 HH:mm
 hidden background
+Hidden updates
+Hide
 hide background
 Hide every metric
 Hide lines below this level. Verbose shows everything.
@@ -853,6 +899,9 @@ Hide the drivers that ship with Windows.
 Hide the pointer while typing
 Hide these results and the summary above.
 Hide this finding until the next scan.
+Hide this update
+Hide this update too?
+Hide this update?
 High
 High confidence
 High dynamic range: brighter highlights and richer colours in supported games and videos.
@@ -932,6 +981,7 @@ Hue
 Hyper-V, .NET 3.5, WSL…
 Hysteresis (°C)
 Hz
+I have backed up, go back
 I understand the risks and I take responsibility for changes made from this page.
 ID
 Identical files
@@ -963,6 +1013,7 @@ In use
 in {0} folder
 in {0} folders
 In-game overlay
+Include in 'Install selected' (Windows Update choices only).
 Include in Apply selected / Revert selected.
 Include in “Apply all safe recommendations”.
 Include network test
@@ -979,11 +1030,16 @@ Initial size
 Initial size (MB)
 Input devices
 Inside the case
+Install
 Install .inf…
 Install all
 Install and restart
+Install driver updates?
 Install from Settings
 Install selected
+Install with winget
+Install {0} {1}?
+Install {0}?
 Installed
 Installed alongside
 Installed alongside this program
@@ -991,13 +1047,24 @@ Installed apps
 Installed apps (Settings app)
 Installed drivers
 Installed for this user only
+Installed from the maker
+Installed from Windows Update
 Installed games in Steam, Epic, Xbox and other libraries, and game data files.
 Installed programs
 Installed programs and Store apps, and a safe way to remove them.
+Installed updates
 Installed updates finish after a restart.
+Installed version unknown
+Installed {0}
+Installed {0} · {1}
 Installed, restart needed
+Installed. Search again to open it from here.
 Installers
+Installing driver updates…
 Installing updates accepts Microsoft's licence terms for them, as Windows Update does. The screen may flicker while a display driver installs.
+Installing {0}…
+Installs the tool with winget after you confirm.
+Intel
 Intensity
 Internet speed test
 Interrupt (ISR) time
@@ -1007,6 +1074,7 @@ introduction tour getting started
 IP address
 ISR = interrupt service routine: the first, very short reaction to a hardware event. High values point at a misbehaving device or driver.
 It also ends the {0} program(s) it started: {1}.
+It can take several minutes and cannot be stopped once it starts. Windows usually needs a restart to finish. Windows Update may install it again later; you can hide it afterwards so it does not.
 It has lost much of its capacity. A replacement from the laptop maker brings back the original run time.
 It has not started any other programs right now, so only it is ended.
 It installs the next time you choose Install in Settings → Updates, or press Update now again.
@@ -1031,6 +1099,8 @@ Keep it cool
 Keep newest
 Keep oldest
 Keep the newest
+Keep the option for
+Keep the option to go back longer?
 Keeps the newest line in view as it arrives.
 Keeps the pointer out of the way of the text you are writing.
 Kept: {0}
@@ -1041,7 +1111,6 @@ Keyboard and mouse lighting (RGB)
 Keyboard, mouse and headset
 Keys checked
 Keys, services, tasks, shortcuts
-Knowledge Base article: 
 Known to slow sign-in
 kWh
 Labels
@@ -1057,6 +1126,7 @@ Last boot took
 Last changed {0}
 Last check-up {0}: nothing to do.
 Last check-up {0}: {1} things to do, {2} can be fixed from the list.
+Last check. PC Checker now prepares Windows to go back. Windows does it while the PC restarts, which takes a while and cannot be stopped once it starts.\n\nSave and close everything, and make sure the PC stays plugged in.
 Last checked
 Last hour
 Last installed
@@ -1090,6 +1160,7 @@ Leftovers
 Leftovers found
 Leftovers removed
 Let the motherboard or graphics driver decide (the default).
+Lets Windows Update offer and install this update again.
 Level
 license third party open source
 Lighting
@@ -1100,6 +1171,7 @@ Lines appear here as the app works. If a filter is active, clear it to see every
 Lines kept in the live viewer
 Link rate
 Link speed
+Links Intel graphics, Wi-Fi and Bluetooth to their Intel download pages.
 Links that match the devices found on this PC.
 Listed below the charts
 Lists the recommended changes that differ from your current settings. Nothing changes until you confirm.
@@ -1255,11 +1327,15 @@ Network
 Network (SSID)
 Network adapters
 Network settings
+Never (open the vendor page)
 Never go below (%)
 Never included
 Never run yet
 Never touched: Windows and Microsoft folders, shared folders such as Common Files and Package Cache, NVIDIA, Intel, AMD and Realtek driver parts, game libraries, links (junctions) and anything outside those folders.
 new version upgrade
+Newer
+Newer driver available
+Newest
 Night light
 No
 No adapter settings could be read (they need Windows' NetAdapter tools and administrator rights).
@@ -1279,7 +1355,7 @@ No device in this category matches the search.
 No DirectX 11 graphics card was found for the built-in load. Tick the box below and use your own game or benchmark instead.
 No displays reported
 No displays reported yet.
-No driver updates waiting
+No driver updates found
 No drivers scanned yet
 No drives found
 No drives reported
@@ -1290,9 +1366,12 @@ No fans to show
 No files were found.
 No fixed drives were listed, or the check could not run. Try running PC Checker as administrator.
 No game profiles yet. Start a game, come back here and choose “Add running game”.
+No hidden updates
 No history yet
 No identical files of {0} or more.
 No installed programs found
+No installed updates found
+No installed updates were found.
 No installs to show
 No keyboards or mice listed yet. Press Detect again, or run a scan on the Hardware page.
 No latency check yet
@@ -1338,6 +1417,9 @@ No Wi-Fi connection
 None
 none new
 None of the parts in this file can be used by this version of PC Checker.
+None of the selected tweaks is applied, or they cannot be undone here.
+None of the selected updates finished downloading, so nothing was installed.
+None of the sources has anything for your devices. Graphics and peripheral makers also publish drivers on their own sites: see the links on the right.
 Normal
 Not a full security audit, just the essentials.
 Not analysed yet
@@ -1351,8 +1433,10 @@ Not everything was fixed
 Not everything was moved
 Not everything was removed
 Not in this run. Run this test on its own, or include it in the next full run.
+Not installed (download failed):
 Not now
 Not paused
+Not read yet
 Not run yet. The test measures download and upload speed and how much your ping rises while the line is busy (bufferbloat).
 Not scanned yet
 Not shipped with Windows
@@ -1383,12 +1467,14 @@ Nothing to compare with
 Nothing to do
 Nothing to fix here
 Nothing to fix. All measured values and settings look good for low latency.
+Nothing to go back to
 Nothing to import
 Nothing to play sound through was found. Check the cable or Bluetooth connection, then press Refresh.
 Nothing to restore yet.
 Nothing to show
 Nothing unusual happened in this period.
 Nothing unusual in this period
+Nothing was changed
 Nothing was moved
 Nothing was removed
 notification area system tray
@@ -1397,6 +1483,9 @@ Notify only when something needs attention
 Notify when a part passes its warning or critical temperature.
 Now
 Now: 
+NVIDIA
+NVIDIA driver type
+NVIDIA installer
 NVMe 3.0
 NVMe 4.0
 oc gpu cpu clocks stress test
@@ -1420,6 +1509,7 @@ Old files
 Old files: at least (MB)
 Old files: not used for (months)
 Old or unused driver packages
+Older
 Older days are deleted automatically, a day after you lower this. 90 days use a few megabytes.
 Older than 3 years
 On
@@ -1444,16 +1534,20 @@ One-off tool
 One-way
 Only devices with a Device Manager error code.
 Only flagged
+Only from the maker's own servers, and only files signed by the maker run.
 Only High is ticked. Check Medium and Low items before you add them.
 Only matters with more than one operating system. 3 is plenty.
 Only reported: it cannot be removed safely right now.
 Only when the game fills the screen
+Only your graphics card's device id is sent (to NVIDIA). Support pages open in your browser with your PC's model in the address. Changes apply to the next search.
+Only your session's File Explorer restarts, as you (not as administrator). The taskbar disappears for a second.
 Opacity
 Open
 Open backup folder
 Open backups folder
 Open Device Manager
 Open download page
+Open Drivers
 Open Event Viewer
 Open file location
 Open folder
@@ -1482,8 +1576,11 @@ Open System Restore
 Open Task Scheduler. PC Checker's tasks are in the "PC Checker" folder.
 Open the folder that contains this program
 Open the full report
+Open the installer
 Open the Recycle Bin
 Open the reports folder
+Open the vendor page
+Open the vendor page?
 Open the Windows tool
 Open this folder
 Open this folder in File Explorer
@@ -1499,6 +1596,7 @@ Opens in the taskbar instead of on top of your work (in the tray when Minimize t
 Opens Leftovers and looks for the folders, settings, tasks and shortcuts this program left. Nothing is removed until you choose to.
 Opens Settings → Apps → Startup
 Opens Settings → Bluetooth & devices → Mouse.
+Opens Settings → System → Recovery, where Windows offers to go back to the previous version after a feature update.
 Opens Settings → Time & language → Typing.
 Opens Settings → Windows Update → Advanced options: optional updates, delivery and restart settings.
 Opens Settings → Windows Update → Update history, where installed updates can also be uninstalled.
@@ -1509,6 +1607,7 @@ Opens the classic Disk Cleanup tool (cleanmgr).
 Opens the classic System Protection dialog where you can choose drives and disk space.
 Opens the Drivers page. A current Wi-Fi driver fixes many drop-outs and slow link rates.
 Opens the folder that holds the log files in File Explorer.
+Opens the maker's page in your browser.
 Opens the NVIDIA, AMD or Intel graphics app for colour, scaling and G-Sync / FreeSync options.
 Opens the Windows Disk Management console (partitions, drive letters, formatting).
 Opens the Windows Sound control panel: enhancements, exclusive mode, spatial sound and the default format live there.
@@ -1562,6 +1661,7 @@ Overlay layout, metrics, colours, hotkey and saved presets.
 Overlay shown
 Overview
 Owner
+Package: 
 Packages found
 Packet errors
 Packet loss test
@@ -1588,6 +1688,7 @@ Pausing is set by a policy on this PC, so it can only be changed there.
 PC Checker
 PC Checker could not get a tuning interface for this graphics card. The vendor's own program offers the same controls.
 PC Checker is already downloading the update.
+PC Checker is still busy on this page. Try again when it has finished.
 PC Checker logo
 PC Checker looks after this PC in one place:
 PC Checker overlay
@@ -1595,8 +1696,13 @@ PC Checker records temperatures, loads, power and free space in the background w
 PC Checker shows the new language after it restarts.
 PC Checker switches when the game has been in front for 2 seconds and puts everything back when the game closes. Switching to another window does not switch back.
 PC Checker was moved
+PC Checker will download (if needed) and install {0} driver update(s) from Windows Update:
+PC Checker will download {0} ({1}) for {2} from {3}.
+PC Checker will install {0} with the Windows Package Manager:
 PC Checker will not load the graphics card itself; it only watches temperatures and clocks while you run your own game or benchmark.
 PC Checker will not offer {0} again. Newer versions are still offered.
+PC Checker will remove "{0}" with DISM. A restore point is created first.
+PC Checker will remove "{0}" with wusa. A restore point is created first.
 PC Checker will run {0} and use the PC fully for about {1}. Fans may get loud; that is normal.
 PC Checker will, one after another:
 PC Checker will:
@@ -1606,6 +1712,8 @@ PC Checker {0} is available. Click to update.
 PC Checker {0} is available. You have {1}.
 PC Checker {0} is downloading. You can keep working; it restarts when you say so.
 PC Checker {0} is not offered because you chose Skip this version.
+PC maker
+PC maker tools
 Per-app volume
 Performance
 Period
@@ -1641,6 +1749,7 @@ Pings your router and two public servers to find lost packets.
 Pixels from the top-left corner of the screen.
 Placeholders: {Timestamp}, {Level}, {Category}, {Message}, {NewLine}, {Exception}.
 Plays a sound when Caps Lock, Num Lock or Scroll Lock is pressed.
+Please wait
 Plugged in
 plugged in
 Plugged in and charging.
@@ -1755,7 +1864,10 @@ Re-reads every device. Takes a few seconds.
 Re-run tests and compare
 Re-runs every check. Takes a few seconds.
 Read every (ms)
+Read from Get-HotFix, the Windows Update history and DISM. Select an update to see how it would be removed.
+Read installed updates
 Read the adapters, the Wi-Fi connection and the tuning settings again.
+Read the installed updates to remove one, hide updates Windows should not install, or go back to the previous version of Windows.
 Read the installed-programs lists from the registry and the Store.
 Read the list of restore points again.
 Readable
@@ -1768,7 +1880,9 @@ Reading {0}…
 Readings appear here as soon as the hardware monitor reports them.
 Reads every block without writing. Unreadable blocks mean the drive is failing.
 Reads every installed driver from Windows and flags problems, old or unsigned drivers.
+Reads the current Adrenalin release from AMD's driver page.
 Reads the files that share a size to confirm which are identical. Nothing is changed.
+Reads the installed updates, the hidden updates and the window to go back again.
 Reads the status and the history again. Does not check for new updates.
 Ready to download
 Ready to scan
@@ -1795,6 +1909,7 @@ Record history
 Record more or less from one part of the app without changing the rest.
 Recording is off
 Recording settings
+Recovery in Settings
 Refresh
 Refresh apps
 Refresh drives
@@ -1808,14 +1923,15 @@ Registry keys
 Registry leftovers rarely slow Windows down. Removing them tidies lists and fixes some broken menu entries. Only entries proven broken are changed, each is backed up first, and every fix can be undone under Backups.
 Reinstall from the Store
 Reinstalling and then uninstalling it properly, or the vendor's own removal tool, cleans these up the right way.
+Release date
 Release notes
-Released
 Released {0}
 Releases
 Releases page
 Reload tuning settings
 Remembered, with their own driver
 Remove
+Remove an update only when it causes a problem. Windows Update may install it again unless you hide it.
 Remove from startup
 Remove profile
 Remove saved key
@@ -1828,12 +1944,14 @@ Remove this entry from startup (a backup copy is kept)
 Remove this profile
 Remove this run from the history?
 Remove this run from the history…
+Removed with
 Removes the app from every user account on this PC and stops Windows pre-installing it for new accounts (Remove-AppxProvisionedPackage).
 Removes the conversation from this page. Nothing is stored on disk.
 Removes the program with its own uninstaller. You will be asked to confirm first.
 Removes the ticked categories. With Dry run on, only a report is produced.
 Removing leftovers…
 Removing the run…
+Removing {0}… This can take several minutes.
 Renew IP address
 Repair volume
 Repeat delay
@@ -1866,11 +1984,13 @@ Restart
 Restart audio service
 Restart Explorer
 Restart File Explorer to see the changes
+Restart later
 Restart needed
 Restart now
 Restart pending
 Restart to switch language
 Restart to UEFI / BIOS
+Restart Windows to finish.
 Restarts into the Windows recovery menu (Startup Repair, System Restore, Safe Mode options).
 Restarts straight into the firmware settings (XMP/EXPO, fan curves, boot order). 10-second countdown with cancel.
 Restore
@@ -1895,15 +2015,18 @@ Results of the last removal
 Results of the last run
 Resume
 Retry
+Returns this PC to the previous version of Windows after two confirmations. The PC restarts; back up your files first.
 Reversible
 Revert
 Revert all to automatic
 Revert to automatic on exit
+Reverting tweaks…
 Revolutions per minute: how fast the fan is spinning right now.
 RGB control talks to the OpenRGB SDK server.
 rgb leds openrgb colours colors
 RGB lighting for your PC and peripherals, through OpenRGB.
 Right now
+Roll back
 Rotate the picture for a monitor mounted on its side.
 Round trip time
 Round trip to the test server
@@ -2044,6 +2167,8 @@ Search sensors (name, part or type)…
 Search services
 Search the name online
 Search tweaks (e.g. Copilot, OneDrive)
+Searches Windows Update, NVIDIA, AMD, Intel and your PC maker for newer drivers. This can take a minute.
+Searching for driver updates…
 seconds
 Seconds per test
 Security
@@ -2062,6 +2187,7 @@ Send results back
 Sends a short hardware and findings summary so answers fit your PC.
 Sensor
 Sensor refresh (milliseconds)
+Sensor {0}
 sensors heat cpu gpu temp hot thermal
 Sent
 Sent to the monitor over DDC/CI (the same channel as its on-screen menu), or to Windows for a built-in panel.
@@ -2091,10 +2217,12 @@ Set up on the Ask Claude page
 Set {0} to {1} priority?
 Sets compression, SysMain and the page file together. Balanced restores the defaults.
 Sets every device to this one colour (switching each to a steady-colour effect).
+Sets how many days after the upgrade going back stays possible (up to 60), after you confirm.
 Setting
 Setting changes get a restore point first when that option is on in Settings; clearing the standby list does not, because Windows refills it on its own.
 Settings
 Settings and logs in one zip, for a bug report.
+Settings could not be saved:
 Settings file
 Settings from Device Manager → your adapter → Advanced. Only settings your adapter actually has are listed. Changing one restarts the adapter, so the connection drops for a few seconds.
 Settings of makers and products that are no longer installed. Backed up to a .reg file first.
@@ -2115,6 +2243,7 @@ Short temperature peaks are kept whatever you choose.
 shortcut keyboard fps overlay
 Shortcuts to programs that are gone. They go to the Recycle Bin.
 Show
+Show again
 Show alerts when a limit is crossed
 Show and hide
 Show bundled groups
@@ -2135,6 +2264,7 @@ Show the PC Checker icon in the tray
 Show the temperature as the tray icon
 Show the welcome again
 Show this folder in File Explorer
+Show this update again?
 Show welcome again
 Show Windows services
 Show Windows tasks
@@ -2153,6 +2283,7 @@ Shows the overlay with a dashed frame you can drag. Turn it off when it sits whe
 Shows this display's number on its screen for a few seconds.
 Shows this run on the result cards.
 Shows what each part changes, and you pick what to import.
+Sign out to see some changes
 Signal
 Signal quality as Windows reports it. dBm is the radio power: -50 is excellent, -67 is good for calls and games, below -75 is weak.
 Signal strength (dBm)
@@ -2160,6 +2291,8 @@ Signed
 Signer
 Silence this device without changing its volume.
 Silent
+Silent clean install
+Silent uses NVIDIA's own switches. A clean install resets NVIDIA settings. AMD's installer always opens.
 Simulate an overheating CPU (demo)
 Since Windows last started
 Since {0} ({1})
@@ -2208,6 +2341,7 @@ Some routers and networks block ping, so a single 'No reply' is not always a fau
 Some sensors are missing
 Some settings are set by policy
 Some tweaks are hidden
+Some updates may ask for a restart afterwards.
 Some values could not be measured
 Some Wi-Fi details could not be read
 Something other than the Windows default runs at sign-in. This is often left by malware.
@@ -2255,6 +2389,7 @@ Starting the benchmark…
 Starting the check-up…
 Starts at 100 and loses 8 points per warning and 30 per critical finding. A quick guide, not a verdict.
 Starts at sign-in, without a UAC prompt.
+Starts the installed tool.
 Starts with only the tray icon (the --tray switch). Click the icon to open the window.
 Startup
 Startup apps
@@ -2284,12 +2419,15 @@ Stopped early
 stopped early
 Stopped: {0} of {1} done.
 Stops and starts the Windows Audio service (Audiosrv). Fixes most 'no sound' problems without a reboot. Sound cuts out for a few seconds; you confirm first.
+Stops Windows Update from installing this update again after you remove it, until you show it again.
+Stops Windows Update from offering or installing this update until you show it again on the Roll back tab, like Microsoft's 'Show or hide updates' tool.
 Storage
 Storage Sense & temporary files
 Storage Sense can clean temporary files on a schedule.
 Storage tools
 Store apps
 Stress test with temperature watchdog
+Studio
 Suggested fix
 Supported hardware on this PC
 Surface scan — is every part of the drive readable?
@@ -2323,9 +2461,10 @@ task scheduler daily weekly automatic jobs
 Task Scheduler jobs that run at sign-in or boot.
 Task Scheduler: {0}
 taskbar
-Taskbar, Start and right-click menu changes need it. Nothing else closes.
+Taskbar, Start, File Explorer and right-click menu changes show after it. Nothing else closes.
 Tasks that start a program that is gone. Exported to XML first.
 TEMPERATURE
+Temperature
 Temperature alerts
 Temperature alerts as notifications
 Temperature limit (°C)
@@ -2360,10 +2499,14 @@ The API key, model and effort are set on the Ask Claude page.
 The app's live log, the journal of changes to this PC, and logging settings.
 The backup folder could not be created: {0}
 The band is the radio frequency (2.4, 5 or 6 GHz). The channel is the slice of that band your router uses; neighbours on the same or overlapping channels slow each other down.
+The batch was cancelled before anything was changed.
+The batch was cancelled before it started. Nothing was changed.
+The batch was stopped. {0} tweak(s) had already been changed and stay changed; the list shows each tweak's current state.
 The battery does not report its capacity
 The biggest single files, wherever they are.
 The capacity the battery had when new.
 The card slows itself down to stay under this temperature.
+The changes show the next time you sign in or restart Windows.
 The channel is set on the router, not on this PC.
 The charge hardly changed.
 The charge state could not be read.
@@ -2381,6 +2524,7 @@ The description is shown in System Restore so you can recognise the point later.
 The details are on the clipboard.
 The device is not ready: it is unplugged, disabled in Windows or missing.
 The drive test writes a temporary {0} MB file to {1} and deletes it afterwards.
+The drive's own temperature (NVMe composite or SMART). This is the value PC Checker reports for the drive.
 The energy a full battery holds today, in watt-hours.
 The files add up to {0} more than Windows reports in use: files that share their data (hard links in the Windows folder) are counted once per path, and compressed or sparse files at their full size.
 The fix was applied.
@@ -2391,6 +2535,7 @@ The green bars show the real sound level while this page is open; polling stops 
 The highlighted display is the main one.
 The hotter of CPU and GPU instead of the logo.
 The hottest drive
+The installer opens so you can follow its steps.
 The label shown in the overlay. Leave empty for the default.
 The language of PC Checker's menus and pages. Changes after a restart.
 The largest of them are listed under Largest files.
@@ -2407,6 +2552,10 @@ The main display holds the taskbar and Start menu, and new windows open on it.
 The marker in the middle is the reference PC (1,000 points). A full bar is 2,000 or more.
 The most the speed may change each second. Smaller steps sound smoother.
 The multiplier applied to every core, e.g. 53 = 5.3 GHz.
+The newest version any source offers for this device.
+The NVIDIA installer opens so you can choose its options.
+The NVIDIA installer runs silently (-s -noreboot).
+The NVIDIA installer runs silently as a clean install (-s -clean -noreboot); NVIDIA settings return to their defaults.
 The oemN.inf packages Windows has staged.
 The only battery Windows reports belongs to a UPS (battery backup) plugged in over USB. Its health and run time are shown by the UPS maker's own software.
 The order Windows tries them in, auto-connect and metered.
@@ -2417,6 +2566,8 @@ The overlay is click-through: it never takes the mouse away from the game.
 The overlay preset to load while the game runs
 The period the charts and events cover.
 The popup shows temperatures, load, power, the fan profile, the overlay and quick clean.
+The previous version is kept in the Windows.old folder. Storage Sense, Disk Cleanup or deleting Windows.old ends the option to go back.
+The previous version stays in the Windows.old folder until then and keeps using that disk space. Storage Sense, Disk Cleanup or removing Windows.old ends the option sooner.
 The process list could not be refreshed. It will try again in a moment.
 The radio standard both ends agreed on. Newer is faster: Wi-Fi 6/6E (802.11ax) and Wi-Fi 7 (802.11be) are current.
 The registry keys removed on {0} are put back from their .reg backup:\n\n{1}\n\nA restore point is created first.
@@ -2435,14 +2586,16 @@ The scheduled task {0} is registered again from the XML saved on {1}. It still p
 The score starts at 100 and drops for each finding by how much it slows the PC. Fix or ignore findings to see it change.
 The score starts at 100 and loses points for each finding: high-impact problems cost more than small tweaks.
 The score starts at 100 and loses points for every warning (−8) and critical finding (−30). It is a quick guide, not a verdict: read the items above.
+The screen may go black for a moment while a display driver changes; save your work first.
 The selected items need you: open their pages to deal with them.
+The selected tweaks are already applied or not available on this Windows.
 The short introduction from the first start: what PC Checker does, the language and Advanced mode.
 The speed the adapter and router negotiated (receive / send). Real throughput is usually 50-70 % of this.
 The System and Application logs contain no critical or error entries.
-The taskbar disappears for a second while File Explorer restarts.
 the test “{0}”
 The tests that finished were saved.
 The text could not be copied to the clipboard: {0}
+The time to go back has run out
 The update service is disabled, so no security fixes arrive.
 The watchdog stops the test (and resets any overclock) when the graphics card gets this hot.
 The watchdog stops the test (and resets any overclock) when the processor gets this hot.
@@ -2468,6 +2621,8 @@ Third-party components
 Third-party only
 Third-party services are listed first. Prefer Manual over Disabled so programs can still start a service they need.
 Third-party services first. Prefer Manual over Disabled.
+This accepts the package's licence and the winget source terms on your behalf. A restore point is created first (per your settings).
+This cannot be undone here. You can install the newer version again later from Windows Update.
 This cannot be undone; start the program again to get it back.
 This card is monitor-only here; the readouts, stress test and advisor still work.
 This copy cannot update itself. Download the new PcChecker.exe from the releases page.
@@ -2476,6 +2631,7 @@ This drive
 This file holds the same setup as this PC.
 This folder is empty.
 This is part of Windows. Windows may start it again, or parts of the desktop may misbehave until you sign out and in again.
+This is the monthly cumulative update; the servicing stack update that came with it stays, because Windows cannot remove that part.
 This line has an exception. Select it to read the details.
 This looks like a desktop PC, so there is nothing to wear out here.
 This one needs you: open its page to deal with it.
@@ -2489,15 +2645,19 @@ This PC uses the legacy (text) boot menu; F8 at startup opens the old boot optio
 This program arrived together with another install; see the details below.
 This run started in less than ideal conditions
 This run was stopped before every chosen test finished. Only the finished tests have scores.
+This takes away the security fixes in it, so only remove it if it causes a problem.
 This update asks questions while it installs, so install it from Windows Update in Settings.
+This update cannot be removed
 Threshold
 thresholds warn critical cpu gpu drive hot
 Tick all / none
 Tick files or folders in any list. Windows, program and profile folders cannot be ticked.
+Tick the devices whose chosen source is Windows Update. Vendor drivers and tools install from each device's own button.
 Tick the parts to import. Your current setup is backed up first, so you can undo the import.
 Tick the parts to put back to their defaults. Saved profiles in those parts are removed. Everything else stays as it is.
 Tick the safe tweaks you want and use “Apply all safe recommendations”, or apply them one at a time. Revert puts a setting back the way it was. Every change is confirmed first and recorded in the action journal.
 Tick the tweaks listed in a PC Checker selection file or a WinUtil export (.json). Nothing is changed until you apply.
+Tick the Windows Update drivers you want to download first.
 Tick what to remove. Files changed in the last hour are always kept.
 Tick what to show and use the arrows to set the order. A metric with no sensor on this PC shows “--”.
 Ticked for you
@@ -2532,6 +2692,7 @@ Toggle hotkey
 Toggle Keys
 Took {0}
 Tool output
+Tools from your PC's maker update drivers, BIOS and firmware made for this model.
 Top-left corner in desktop pixels; the main display starts at 0, 0.
 Total CPU
 Total data written to the drive over its life.
@@ -2577,6 +2738,7 @@ Turn this profile on or off without deleting it
 Turn Windows features on or off (classic)
 Turned off
 Turning off Nagle's algorithm can lower ping in a few older games. It lives on the Latency page with the other input-lag fixes, so it is not repeated here.
+Turning on System Protection…
 Turning one off does not uninstall it; it just stops starting by itself.
 Turns on each device's rainbow effect where it has one.
 Turns watts into money on the Power page. Find the rate on your energy bill.
@@ -2592,17 +2754,20 @@ Under 1 % loss is usually unnoticeable; 2 % or more is a real problem.
 Under 3 % is healthy
 under a second
 Undo
+Undo an update
 Undo the last change?
 Undo the last import or reset
 Undoing this changes PC Checker's tasks in Windows Task Scheduler:
 Undoing…
 Uninstall
 uninstall leftovers traces remnants orphaned folders
+Uninstall {0}?
 Uninstalled
 Uninstallers often leave folders, settings, services, scheduled tasks and shortcuts. A scan compares them with what is installed and says how sure it is about each one. Nothing is removed until you choose to.
 Unit
 Unknown
 Unknown part "{0}"
+unknown size
 Unreadable (bad block)
 Unreadable blocks
 Unreadable blocks found
@@ -2629,6 +2794,7 @@ Update now
 Update now downloads it from GitHub, checks it and restarts PC Checker. Your settings are kept.
 Update ready
 Update ready to install
+Update sources
 Update the Wi-Fi driver
 Updaters from Google, Microsoft Edge and OneDrive live here; they are harmless but not essential.
 Updates
@@ -2644,7 +2810,7 @@ Upgrades available via winget
 Upload
 Uptime
 Usage history
-Use 'Check for updates' to ask Windows Update for driver updates. Nothing is installed until you choose to.
+Use 'Check for updates' to search Windows Update, NVIDIA, AMD, Intel and your PC maker. Nothing is installed until you choose to.
 Use 'Scan drivers' to read every installed driver from Windows.
 Use a charge limit if you are often plugged in
 Use Ctrl, Alt, Shift or Win plus a key.
@@ -2655,6 +2821,7 @@ Use recommended size
 Use the minimum level everywhere
 Use this
 Use this device for voice chat and calls only; music and games keep the default device.
+Use this source for this device.
 Used
 Used by the Power page; 0.30 means 30 cents per kWh.
 Used for the cost figures. Session so far: 
@@ -2666,9 +2833,11 @@ Using the fixes safely
 Usually a program that was deleted instead of uninstalled.
 Values
 Variable refresh rate (G-Sync / FreeSync), Auto HDR, hardware-accelerated GPU scheduling and per-app GPU choice are switched here, not in PC Checker.
+Vendor downloads
 Vendor tools
 Verdict
 Version
+Version in the maker's own numbering.
 Version skipped
 Video
 Voltage
@@ -2699,7 +2868,7 @@ What DPC, ISR and timers mean, and tools that go deeper.
 What happened to each item, and where its backup copy is.
 What happened to each item, and where its backup is.
 What happened to each item. Every change is also in the Action Journal.
-What happened to each tweak. Problems are listed first.
+What happened to each tweak, checked again on this PC afterwards. Problems are listed first.
 What happened to each update, with the reason when one did not install.
 What is actually coming out of (or into) this device right now.
 What is checked, what is never touched, and what the confidence means.
@@ -2754,6 +2923,7 @@ Which tests to run, how long each takes, and a note for the next run.
 While downloading and uploading
 While the window is hidden. At most one per part every 10 minutes.
 whole folder
+Whose settings change
 Why each of them was not moved to the Recycle Bin.
 Why OpenRGB?
 Wi-Fi
@@ -2777,6 +2947,8 @@ Windows does this weekly; run it after deleting a lot of files.
 Windows drive
 Windows drive · {0}
 Windows Features
+Windows goes back to the previous version when it restarts. Save your work, then restart.
+Windows has changes waiting for a restart. Restart, then try removing the update again.
 Windows has not recorded any recent use yet.
 Windows has not recorded enough history yet. The chart fills in as the battery is used over the coming days.
 Windows has not written a blue screen dump on this PC.
@@ -2792,6 +2964,7 @@ Windows mouse settings
 Windows needs a restart to finish installing the new driver(s). Save your work first.
 Windows needs a restart to finish installing updates. Save your work first.
 Windows needs a restart to finish removing the old drivers. Save your work first.
+Windows needs a restart to finish removing the update. Save your work first.
 Windows needs a restart to finish some of the fixes. Save your work first.
 Windows needs Location permission to list Wi-Fi networks
 Windows normally skips new restore points for 24 hours after the last one.
@@ -2801,6 +2974,7 @@ Windows Performance Toolkit
 Windows plays or records through this device unless an app picks another one.
 Windows power plan
 Windows processes among them are left running.
+Windows replaces this version with the one it had before the last feature update. It takes a while and restarts the PC, possibly more than once.
 Windows reports {0} more in use than the files add up to: restore points, the file system's own records and unreadable folders.
 Windows Security
 Windows Security Center could not be queried. Open Windows Security to check manually.
@@ -2812,12 +2986,17 @@ Windows Storage settings can remove the previous Windows installation safely.
 Windows tries these from the top down when several are in range. Turn off auto-connect for hotspots you only use now and then, and mark capped connections as metered.
 Windows typing settings
 Windows Update
+Windows Update does not offer or install hidden updates. To hide one, select it on the Updates tab or after removing it here.
 Windows Update has no install history on this PC, or none matches the filter.
 Windows Update has no software updates waiting for this PC. Driver updates are on the Drivers page.
-Windows Update has nothing new for your devices. Graphics and peripheral makers often publish newer drivers on their own sites: see the links on the right.
+Windows Update may install {0} again the next time it checks. Hide it so it stays off this PC until you show it again (Roll back → Hidden updates)?\n\nIf Windows Update does not list it until after the restart, hide it then from the Updates tab.
 Windows Update only carries basic drivers. For graphics cards, chipsets and gaming peripherals, the manufacturer's site usually has the newest version.
 Windows Update stays on
+Windows Update will not offer or install "{0}" until you show it again (Roll back → Hidden updates).\n\nAny fixes in it stay missing while it is hidden, so only hide an update that causes a problem. This is the same as Microsoft's "Show or hide updates" tool.
+Windows Update will not offer or install {0} while it is hidden. This only matters once the update is removed; show it again any time under Hidden updates.
+Windows Update will offer "{0}" again and may install it the next time it checks.
 Windows usually retries a failed update. If it keeps failing, restart and check for updates again.
+Windows will need a restart to finish at least one of these updates.
 Windows writes its detailed battery report to your Documents folder (PC Checker Reports) and opens it in your browser.
 Windows' estimate of how long a full charge lasts in use, based on how this PC has been used.
 Windows' estimate of time in use from a full charge, for how the PC was used in that period.
@@ -2837,7 +3016,11 @@ Wrong results found so far. Any error means the hardware is not stable at these 
 XMP (Intel) and EXPO (AMD) are one-click BIOS profiles that run the memory at its advertised speed instead of the slow, safe default.
 Yes
 You are looking at sample data. These settings are stored in a separate demo file and never touch your real settings.
+You can download the driver from the maker's own page instead.
+You can go back
 You can restore them from the Recycle Bin. The space is only freed when the Recycle Bin is emptied (Cleanup page or the Recycle Bin itself).
+You need the password you used to sign in to the previous version.
+You will be asked once more before anything starts.
 You're up to date
 Your Claude API key and this PC's own state (window size, active fan and overclock profiles, overclock consent) are never taken from a file.
 Your Claude API key stays out: Windows protects it for this account on this PC only, so enter it again on a new PC. The recorded History data and logs are not included either.
@@ -2872,6 +3055,7 @@ Zones
 {0} CPU · {1}
 {0} damaged lines in the history files were skipped (for example after a crash or power cut).
 {0} days
+{0} days left
 {0} days stored, {1} on disk.
 {0} file
 {0} file in this folder
@@ -2889,8 +3073,10 @@ Zones
 {0} group of identical files
 {0} groups of identical files
 {0} h {1} min
+{0} hidden
 {0} high
 {0} in use, {1} asleep
+{0} installed · {1} can be removed
 {0} item
 {0} item selected
 {0} items
@@ -2910,6 +3096,7 @@ Zones
 {0} of {1} done. See the results below for the rest.
 {0} of {1} is in use · {2} free
 {0} of {1} tests
+{0} of {1} update(s) installed.
 {0} oldest runs on this PC removed (limit {1})
 {0} online-only file (OneDrive and similar) takes no space here and is not counted.
 {0} online-only files (OneDrive and similar) take no space here and are not counted.
