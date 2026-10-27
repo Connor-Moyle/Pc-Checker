@@ -7,7 +7,11 @@
 'Many' means more than this number of startup items
 +100 MHz core, +500 MHz memory, 105 % power.
 +50 MHz core, +200 MHz memory.
+, ±{0} %
 0 % loss is normal. If your router already loses packets, the cause is in your home (often Wi-Fi). If only the internet targets lose packets, it is your provider.
+1 process may be worth a closer look
+1 warning
+1 week
 100 means every check passed. Drives, battery, devices, recent errors and crashes all count.
 1000 = once a second. Lower is smoother but uses a little more CPU.
 1000 is once a second. Higher values use slightly less CPU.
@@ -31,20 +35,33 @@ A profile remembers an effect, colour, speed and brightness for every device so 
 A profile remembers the mode, speed or curve of every fan. Silent, Balanced and Performance are built in; save your own from the current settings.
 A restart will be needed after this update.
 A restore point is a snapshot of Windows system files and settings. If a change causes trouble, System Restore can take the PC back to it. Your documents are not affected.
+A sample every {0}, kept for {1} days. Nothing leaves this PC.
 A scan only reads the registry. Choose the categories under What to check below; nothing changes until you confirm a fix.
 A starting point, not a guarantee: stop at the first crash or artifact and go back one step.
 A tiny graph of the last minute next to each value.
 A vertical list or one horizontal strip.
+A warning sign means: it runs from a Temp or AppData folder without a valid signature, it uses a lot of the PC without being a known or signed program, or it has a Windows name but runs from another folder. It is a hint, not proof, and PC Checker never acts on it by itself.
 A Windows snapshot to go back to if a change causes trouble.
 About
 About latency
 About the overlay
+About the same as the reference PC
 About the score
+About these numbers
+About this history
+About this list
 About this result
+About {0} at your electricity price
+Above normal
+Above the reference PC
 Accessibility keys
 Across every category shown
+Action
 Action journal
 Active
+Active hours
+Active hours are set by a policy on this PC, so they can only be changed there.
+Active hours in Settings
 Active now
 Active now: 
 Active Windows power plan
@@ -63,21 +80,27 @@ Advanced fixes are shown
 Advanced graphics settings
 Advanced limits
 Advanced mode
+Advanced options in Settings
 Advanced startup
 Advanced: adds a driver package (.inf) from disk to Windows and installs it on matching devices.
 Advanced: remove a Store app from every user account on this PC (Remove-AppxPackage -AllUsers) instead of only yours. The confirmation dialog states the scope.
 Advanced: removes this device's third-party driver package so Windows falls back to its own driver. Only available for packages in the driver store (oemN.inf).
 Advisor
 After
+After a week the samples are combined into 15-minute points, and after 30 days into hourly points, so a year of history stays small. Gaps in a chart are times when the PC was off or PC Checker was closed.
 Age
 Alerts
 All
 All devices are working
 All hardware
 All one-click tweaks in one place.
+All programs together
 All sensors
+All tests
+All {0} processes of {1} close straight away. Anything unsaved in them is lost.
 All-core ratio (×100 MHz)
 Allow more than one restore point per day
+Already downloaded
 Also create one after changes succeed
 Also list tasks published by Microsoft
 Also on Optimize
@@ -87,6 +110,7 @@ Also toggled by pressing Shift five times.
 Analyze
 Analyze again
 Analyzes Wi-Fi, then runs the packet loss test and the speed test, one after another.
+and {0} more
 Answers questions about your scans in plain English. Needs an Anthropic API key.
 Antivirus, firewall and drive encryption.
 API key
@@ -116,6 +140,7 @@ Apps
 Apps & Drivers
 Apps at sign-in
 Apps playing sound
+Archives and disk images
 Arrangement
 As listed by pnputil /enum-drivers. These are what 'Back up all drivers' exports.
 As recommended
@@ -126,9 +151,12 @@ Ask Claude
 Ask Claude page
 Ask the Windows Package Manager (winget) which programs have a newer version. Nothing is installed.
 Ask things like "why is my PC slow?" or "is this error serious?". Usage is billed to the key's Anthropic account; a typical question costs a fraction of a cent.
+Ask Windows Update which updates this PC is missing. Nothing is installed until you choose to.
+Asks before every change, makes a restore point and keeps a journal so you can undo.
 Asks Claude for a plan. Needs an Anthropic API key (Ask Claude page).
 Asks the router for a fresh address. The connection drops for a few seconds.
 Asks Windows Update for driver updates that are not installed yet. This can take a minute.
+Asks Windows Update for updates that are not installed yet. This can take a minute. Nothing is installed by a check.
 Assistant
 At a glance
 At the current draw
@@ -136,11 +164,15 @@ At the warning value a reading turns yellow; at the critical value it turns red 
 Attach a summary of your latest scans so answers fit this PC.
 Attribute
 Audio
+auto download
+auto update
 Auto-connect
 Automatic
 Automatic: starts with Windows. Manual: starts only when something needs it. Disabled: never starts.
+autostart login sign in boot
 Available right now
 Average
+Average {0}, highest {1}, lowest {2}
 Back up all drivers…
 Background
 Background panel
@@ -155,15 +187,26 @@ Bands and channels
 Battery
 Before
 Before and after
+Before you start:
 Before you start: fans get loud, laptops drain fast, and you can stop at any time
 Before you start: what overclocking means
+Below normal
+Below the reference PC
+Benchmark
+Benchmark finished
+Benchmark stopped
+Benchmark this PC
 Benchmark — how fast is the drive?
 Best
 Beta releases may have rough edges.
+beta stable
+better
 Better Wi-Fi without software
 Between this PC and the router
 Bigger files give steadier numbers but take longer and need more free space.
+bloatware privacy telemetry ads copilot tweaks
 Block size
+boot autostart services fast startup
 Boot menu wait (seconds)
 Boot options
 Both ask first and give you 10 seconds to cancel.
@@ -181,11 +224,14 @@ Built-in GPU load unavailable
 Bundle cards and how uninstallers run.
 Bundles detected
 Busiest processes
+Busiest right now
 By component
+By Windows or by PC Checker
 Cached / standby
 Calculate sizes
 Calls
 Calls and chat apps (Teams, Discord, Zoom) use this device.
+Can freeze the whole PC while the program is busy
 Can lower ping in a few older games. It lives on the Latency page.
 Cancel
 Cancel restart
@@ -203,35 +249,49 @@ Changes are refused and stress tests stop above this.
 Changes take effect after a restart.
 Changes take effect immediately; no restart is needed.
 Changing one restarts the adapter for a few seconds.
+Changing the priority…
 Channel
 CHARGE
 Chat with Claude about this PC, using your latest scan results.
 Check again which tweaks are applied on this PC.
 Check disk (chkdsk)
 Check disk, repair and optimize
+check everything hardware health performance drivers apps
+Check for driver updates
+Check for PC Checker updates
 Check for updates
 Check for updates automatically
 Check for upgrades
+Check health now
 Check results for errors
 Check the settings
 Check these yourself
+Checked {0}.
+Checking that the PC is idle…
 Checks every byte of RAM before Windows loads. Runs at the next restart, 5–20 minutes.
+Checks health, temperatures, drivers and what slows it down.
 Checks that passed, so you know what was covered.
 Checks the ticked categories. A scan only reads the registry; nothing is changed.
 chkdsk X: /f /r — on the Windows drive it runs before Windows starts; a data volume is repaired now if nothing is using it, otherwise at the next restart. Can take hours.
 chkdsk X: /scan — online, read-only, no restart.
 chkdsk X: /spotfix — a few seconds offline, fixes logged problems.
 Choose a fixed size or hand control back to Windows. Takes effect after a restart.
+Choose a folder to measure
+Choose folder…
 Choose from the programs that are open right now (start the game first)
 Choose the temperatures that count as warm or too hot.
 Class
 Classic Mouse control panel
+claude ai chat help questions
+claude ai privacy context
 Claude builds the plan from your detected hardware and safety limits. Nothing is applied without your confirmation.
 Claude is not configured yet.
 Claude is thinking…
 Claude is writing your plan…
 Claude overclock advisor
+clean junk temp cache free space disk cleanup
 Clean up
+Cleans up junk and tunes Windows, fans, lighting and games.
 Cleanup
 Clear
 Clear chat
@@ -240,12 +300,15 @@ Clear search
 Clear standby list
 Clear view
 Clears the list of recently looked-up web addresses. Fixes sites that moved or fail to load after a network change.
+Click a column to sort. Right-click a program for more actions.
 Click to select this drive. The tools below work on the selected drive.
 Click to show only errors from this source; click again to clear.
 Click twice. The result tells you whether the gap fit inside the slider value above.
 Click “Detect fans” after making sure PC Checker runs as administrator. Laptops and many pre-built PCs keep their fans under firmware control.
 Close
 Close button keeps PC Checker in the tray
+Close games, browsers and downloads first, and leave the PC alone until it finishes.
+Close the selected program straight away (you confirm first)
 Closes the program immediately. Unsaved work is lost.
 Code
 Collapse all
@@ -255,7 +318,10 @@ Colours
 Colours and effects are on the Lighting page.
 Committed
 Compare against your plan's speed at a quiet time.
+Compare the tests both runs completed below.
+Compare two runs
 Complete charge/discharge cycles counted by the battery.
+Compression, a prime sieve, matrix maths and SHA-256 on one core. Drives how snappy apps and most games feel.
 Compute passes the graphics card finishes per second. It should stay steady; a falling rate under constant load hints at throttling.
 Connect
 Connect automatically when the Lighting page opens
@@ -266,28 +332,43 @@ Continue to tuning
 Contrast
 Cool: 40 % at 30 °C rising to 100 % at 70 °C
 Cooling & RGB
+Copied
 Copies every third-party driver package to a folder you choose, so you can reinstall them after a reset.
+Copies the run on the cards as plain text, ready to paste into a message or forum post.
 Copies the whole report as plain text, ready to paste into an email or support ticket.
 Copy all shown
+Copy comparison
+Copy details
 Copy entry
 Copy line
+Copy path
 Copy report
+Copy results
 Copy summary
 Copy the key path
+Copy this folder's path
 Copy this message
 Core clock offset (MHz)
 Core Windows services are marked Protected and cannot be stopped from starting; 'Careful' ones can, with a note about what you lose.
 Corners follow the monitor your mouse is on when the overlay is shown. Custom pins it to one spot you drag with “Edit position on screen”.
 Cost per day
 Cost per hour
+Could not change the priority of {0}
+Could not copy
+Could not end {0}
+Could not open the browser
+Could not open the folder
+Could not save
 Count only; no fixed limit
 Counts the frames the game in front hands to Windows, the same way PresentMon does. More in “About the overlay” below.
 CPU
 CPU clock
+CPU is a share of the whole processor. Memory is the private working set (what Task Manager shows). GPU adds up every graphics engine a program uses; it is empty when the graphics driver does not report it.
 CPU load
 CPU package
 CPU package temperature
 CPU temperature
+CPU temperature (peak)
 CPU temperature, last 60 s
 CPU tuning
 CPU use was sampled for two seconds during the scan.
@@ -299,6 +380,7 @@ Critical
 Critical (°C)
 Critical and error entries from the System and Application logs.
 Critical at
+Ctrl+K
 Ctrl+Shift+O
 Currency symbol
 Current
@@ -310,6 +392,7 @@ Curves and manual speeds never go below this unless you confirm.
 Custom
 Custom position
 CYCLES
+dark mode light mode colours colors
 Dashboard
 Data
 Date
@@ -352,22 +435,31 @@ Device Manager error codes
 Device Manager reports no problem codes.
 Devices
 Devices Device Manager flags, with the problem code explained.
+devices specs system information cpu gpu motherboard
 Devices Windows remembers but that are not plugged in right now, such as USB sticks, phones and old monitors. Device Manager hides these too; they are not counted as problems.
 Diagnostics
+Did not finish: the test stopped with an error.
+Did not finish: {0}
 Difference between the darkest and brightest parts of the picture (DDC/CI).
 Differences under 3 % count as the same.
+Digitally signed by this publisher
 Dims every device's current colour to this level. Effects that pick their own colours are not affected.
 Discard changes
 Discard your edits and show what Windows is using right now.
 Discards in / out
 Disconnect
 Disconnected devices
+disk drive ssd hdd benchmark chkdsk trim
 Disk Management
+Disk read
 Disk space
 Disk space Windows uses when RAM is full, and for crash reports.
+Disk write
 Dismiss
 Displays
+dns gateway router
 DNS lookup
+Documents, music, program files and everything else.
 Done
 Double-click here
 Double-click speed
@@ -376,9 +468,13 @@ Download from the maker
 Download only
 Download OpenRGB
 Download updates in the background
+Downloaded
 Downloads (if needed) and installs the ticked updates after creating a restore point when that option is on in Settings.
+Downloads (if needed) and installs the ticked updates one at a time, after a restore point when that option is on in Settings.
+Downloads and installs every update except the optional ones, after you confirm.
 DPC = deferred procedure call: work a driver postpones after an interrupt. High values mean a driver is hogging the CPU and audio or input can stutter.
 DPC and ISR
+dpc input lag ping stutter
 DPC time
 DPCs queued
 DPI, extra buttons, macros and on-board profiles live in the maker's software.
@@ -392,13 +488,19 @@ Driver ranges, your safety limits and the watchdog file.
 Driver store (third-party packages)
 Driver store not read yet
 Driver updates
+driver updates device manager
 Driver updates leave the previous versions behind, and Windows keeps the drivers of devices you unplugged long ago. A scan lists them by how safe they are to remove. Nothing is removed until you choose to.
 Driver-reported ranges
 Drivers
+Drivers are on the Drivers page. Optional updates are only installed when you tick them.
+drivers windows update outdated
 Drivers without a valid digital signature.
 Drives
 Dry run
 Dry run (only count, delete nothing)
+Duplicates
+Duplicates: files of at least (MB)
+e.g. Before overclock
 Each action asks first and is written to the action journal.
 Each app that played sound recently gets its own volume.
 Each change asks first, is recorded, and can be reverted.
@@ -406,6 +508,7 @@ Each fix asks before applying. Safe fixes can be undone from the Optimize page.
 Each hardware control with its identifier, mode and software value.
 Each package is backed up before it is removed, and anything still in use stays.
 Each setting shows what it does, its current value and what PC Checker recommends. Every change asks first, is recorded, and can be undone with Revert, even after a restart. Quick improve applies the recommended ones in one go.
+Each test repeats its work for the set time and reports the middle (median) result, after dropping repeats that were far off because something else used the PC. The result is divided by what a mid-range 2024 desktop reaches (a 6-core processor, DDR5 memory, a PCIe 4.0 SSD and a GeForce RTX 4060-class card) and multiplied by 1,000. So 1,500 means 50 % faster than that PC, and 800 means 20 % slower.
 Edit
 Edit position on screen
 Effect
@@ -417,8 +520,18 @@ Electricity price
 Electricity price per kWh
 Empties the in-app buffer. Log files on disk are not touched.
 Empty Recycle Bin now
+End process tree
 End task
+End this program and every program it started
+End {0} and the programs it started?
+End {0}?
+Ending a program or changing its priority is recorded in the Action Journal. Realtime priority is only offered in Advanced mode because it can freeze the PC.
+Ending {0} and the programs it started…
+Ending {0}…
+Ends the pause so Windows looks for updates again.
+energy cost money power bill
 Energy this session
+Energy used
 Enhance pointer precision (mouse acceleration)
 Enhancements, exclusive mode and the default format are per-device Windows settings: press Properties on a device, then open the Enhancements and Advanced tabs.
 Entries that were left alone or could not be removed, and why.
@@ -426,6 +539,10 @@ Errors
 Errors are damaged packets; discards are packets the adapter had to drop. Counters start at zero when Windows starts.
 Errors in / out
 Estimated power draw of the whole PC
+Every 15 minutes
+Every 2 minutes
+Every 30 seconds
+Every 5 minutes
 Every access point this PC can hear, from Windows' latest scan.
 Every batch, app removals included, starts with a restore point and saves the current values, so reversible tweaks can be reverted here. Per-user settings go to the account PC Checker runs as. Risky steps such as turning off Defender or Windows Update are not offered (see the end of the page).
 Every change the app makes to this PC (optimizations, cleanups, driver installs, uninstalls, fan or lighting profiles) is listed here with what it was before and how to undo it.
@@ -433,10 +550,12 @@ Every check came back clean. Nice.
 Every couple of seconds part of the result is read back and compared with the first run. A different value is an error: the same kind of mistake that shows up as artifacts in games.
 Every fix is saved to a .reg file first. Restore puts the entries back.
 Every installed driver, the ones that need attention, and driver updates.
+Every minute
 Every part that reports its own power use. Parts without a sensor are covered by the estimate.
 Every profile asks before it changes anything.
 Every property Windows reported for this device, exactly as returned (WMI and registry).
 Every removed package is copied here first, one folder per removal.
+Every run is kept on this PC. Show one on the cards, or compare two below.
 Every third-party driver package in the driver store is in use and current.
 Everyday: 30 % at 30 °C rising to 100 % at 80 °C
 Everything at once
@@ -444,20 +563,32 @@ Everything back to stock values in the sliders.
 Everything stays on this PC unless you export it or ask the assistant.
 Exactly what the overlay shows right now, over a sample game scene.
 Exception
+exit background
 Exit PC Checker
 Expand all
 Experimental
+expert riskier hidden options
 Explorer restart
 Export
 Export (zip)
+Export a full report
+Export CSV
 Export CSV…
 Export diagnostics
 Export driver list…
 Export JSON…
 Export report…
 Export selection…
+Extend pause
 Extras you did not ask for can be removed. Runtime dependencies are best kept, because other programs need them.
+factory reset restore defaults
+Failed
+Failed only
 Fan control is not available on this PC
+fan control revert automatic exit
+fan curve cooling speed rpm
+fan curve profile
+fan minimum speed floor
 Fan power (0–100 %)
 Fan profile
 Fans
@@ -467,18 +598,27 @@ Fast startup, boot menu, Safe Mode and restarting into the firmware.
 Fetch a new version right away and ask before restarting.
 Fetches the ticked updates now so they install faster later.
 File
+File types
+Files
 Files found
 Files in use, protected files, and anything that could not be removed.
+Files of {0} or more that nobody opened or changed for {1} months.
 Files on disk are not limited by this.
 Files to keep
 Files Windows writes when it blue-screens, dated by crash.
+Files with exactly the same content: matched by size, then a quick check, then byte for byte (SHA-256).
 Fills the Dashboard health score at startup (a few seconds).
+Films, clips and game recordings.
 Filter by source, message or event ID
 Filter Keys
 Filters by message, area or exception text. Updates as you type.
+Find any page, setting or action (Ctrl+K)
+Find duplicates
+Find duplicates compares the files from the last scan.
 Find entries that point at programs and files that are gone, and tidy them safely.
 Find junk files by category, preview them, then remove them safely.
 Find old and unused drivers
+Find temporary files to clean
 Findings
 Finds driver versions left behind by updates and drivers of devices that are no longer connected.
 Finds faulty modules and unstable XMP settings in minutes. Tests free memory only.
@@ -495,21 +635,27 @@ Fixed fan speed (%)
 Flip the switch to stop a program launching at sign-in. Nothing is uninstalled; you can turn it back on any time.
 Flush DNS
 Folder
+Folders
 Follow new lines
 Follow temperature
 Follow Windows, or force light or dark. Applies straight away.
 Font
 Font size
 For example a 'Gaming' layout at 240 Hz and a 'Work' layout at 60 Hz.
+For example a run before and after Optimize or an overclock.
 For example “serial”, “DDR5” or “VEN_10DE”.
 For left-handed use: the right button becomes the main click.
 For pointer schemes, cursor images and the hardware tab (main.cpl).
 Forget
 FPS counter
+fps counter in game osd
+fps counter in game overlay toggle
 Frame counting is not available
 Free for new programs
+Free space on {0}
 Free, open-source software (MIT licence) that checks, monitors and tunes a Windows PC.
 Frees cached file data immediately. Useful when a game stutters because the cache will not let go. Harmless.
+From
 From power on to desktop
 From the Microsoft Store
 From the repair tool that is running or just finished.
@@ -519,6 +665,7 @@ Full path of the program, for example C:\Tools\tool.exe
 Full scan
 Game profiles
 Gamers usually turn this off.
+Games
 Gaming
 gateway, 1.1.1.1, 8.8.8.8
 General
@@ -536,16 +683,20 @@ GPU memory clock
 GPU memory offset limit (± MHz)
 GPU power
 GPU temperature
+GPU temperature (peak)
 GPU temperature, last 60 s
 GPU tuning
 GPU tuning: use the vendor's software
 GPU work rate
 Grade
+graph chart duration
 Graphics
 Graphics card
 Graphics card core temperature
 Graphics card to load
+Graphics compute
 Graphics control panel
+Group by app
 Hand every fan back to the motherboard or graphics driver.
 Hand fans back to the motherboard when the app closes
 Hands fans back to the firmware when you close the app (recommended).
@@ -563,6 +714,8 @@ Heavy at startup
 Hex colour
 Hex colours: #RRGGBB, or #AARRGGBB where AA is transparency (CC ≈ 80 %). Temperatures turn yellow at the warning level and red at the critical level set on the Temperatures page.
 HH:mm
+hidden background
+hide background
 Hide every metric
 Hide lines below this level. Verbose shows everything.
 Hide overlay
@@ -571,15 +724,25 @@ Hide the drivers that ship with Windows.
 Hide the pointer while typing
 Hide these results and the summary above.
 Hide this finding until the next scan.
+High
 High dynamic range: brighter highlights and richer colours in supported games and videos.
 High performance keeps the CPU at full speed while you play
+High priority can make other programs, sound and the mouse stutter while this program is busy.
 Highest CPU temperature (°C)
 Highest GPU power limit (%)
 Highest GPU temperature (°C)
+History
+History ({0} failed)
 History kept (minutes)
+History page
+History: {0}
 Hold a key here to feel the delay and rate
 Hold the fan at one fixed speed.
+Holds back all updates for up to five weeks, like Settings does.
 Home
+home overview score summary
+Hottest CPU
+Hottest GPU
 Hottest:
 Hover for temperatures, click for a compact popup, right-click for a menu.
 How busy the graphics card is
@@ -589,13 +752,16 @@ How far back the temperature graphs go.
 How far the pointer travels for a given hand movement. 6/11 is the Windows default.
 How far the temperature must drop before the fan slows down again. Stops the fan from hunting up and down.
 How fast a held key repeats once it starts.
+How fast a large block of memory can be copied, using several cores.
 How fast data comes in: streaming, downloads, web pages. 8 Mbps = 1 megabyte per second.
 How fast data goes out: video calls, cloud backups, streaming your games.
 How fast the adapter talks to the router. Your internet speed can be lower: it is limited by your plan and the provider.
 How hard the graphics card works. Heavy is the most thorough and the hottest.
 How long a key must be held before it starts repeating.
+How long each processor, memory and graphics test repeats its work (10–20 s). Longer runs give steadier scores. The drive test takes what it needs.
 How long the boot menu stays on screen when more than one operating system is installed. Windows defaults to 30.
 How long the drive has been switched on in total.
+How long the processor waits for one value from memory. Lower is better.
 How long to sample, and whether to test the network.
 How long to watch the driver and interrupt counters. Longer gives a steadier average.
 How many deferred calls drivers queue per second. Only a problem when DPC time is high too.
@@ -617,16 +783,19 @@ How often the sensors are read. 1000 ms is a good default.
 How often the system timer ticks. Games ask Windows for 0.5–1 ms while they run; a coarser value at idle is normal.
 How quickly the text cursor blinks. Windows default is 530 ms.
 How quickly your PC reacts, and one-click fixes for what slows it down.
+How the scores work
 How to tune the CPU in the BIOS (plain English)
 How to undo
 How Windows lays out your displays.
 How winget upgrade works
+html json markdown save share
 Hue
 Hyper-V, .NET 3.5, WSL…
 Hysteresis (°C)
 Hz
 I understand the risks and I take responsibility for changes made from this page.
 ID
+Identical files
 Identifier
 Identify
 Identify display
@@ -635,11 +804,18 @@ Ignore
 Ignore the game in a smaller window.
 Ignore the game while it runs in a smaller window, for example in its launcher or while you tweak settings.
 Ignores brief or repeated key presses.
+Images
 Impact
 Impact: 
 Import selection…
+Important
+In every group, ticks all copies except the most recently changed one.
+In every group, ticks all copies except the oldest one.
 In OpenRGB: SDK Server → Start Server. Or use More → Start OpenRGB server on this page.
+In this folder and below
 In use
+in {0} folder
+in {0} folders
 In-game overlay
 Include in Apply selected / Revert selected.
 Include in “Apply all safe recommendations”.
@@ -647,13 +823,16 @@ Include network test
 Include this category in the next scan
 Include this category when cleaning
 Include this entry when fixing
+Include this when moving items to the Recycle Bin
 Information suits everyday use; Debug and Verbose write much more.
 Initial size
 Initial size (MB)
 Input devices
 Inside the case
 Install .inf…
+Install all
 Install and restart
+Install from Settings
 Install selected
 Installed
 Installed alongside
@@ -662,23 +841,40 @@ Installed apps
 Installed apps (Settings app)
 Installed builds only.
 Installed drivers
+Installed games in Steam, Epic, Xbox and other libraries, and game data files.
 Installed programs and Store apps, and a safe way to remove them.
+Installed, restart needed
+Installers
 Intensity
 Internet speed test
 Interrupt (ISR) time
 Interrupts
+introduction tour first start getting started
+introduction tour getting started
 IP address
 ISR = interrupt service routine: the first, very short reaction to a hardware event. High values point at a misbehaving device or driver.
+It also ends the {0} program(s) it started: {1}.
+It has not started any other programs right now, so only it is ended.
+It is recorded in the Action Journal (Logs page). No restore point is needed because nothing in Windows' settings changes.
+Items that were kept
+Items you remove here wait in the Recycle Bin until it is emptied.
 Jitter
 Jitter: how much the ping changes from one request to the next. Under 5 ms is smooth; above 30 ms calls and games stutter.
 Jobs that run by themselves, even while PC Checker is closed.
 Journal
+json folder location
 JSON format (one object per line, for log tools)
 Jumps onto OK / Yes when a dialog opens. Most people leave this off.
+junk temp files cache free space
+KB
 Keep history (min)
+Keep history for (days)
+Keep newest
+Keep oldest
 Keep the newest
 Keeps the newest line in view as it arrives.
 Keeps the pointer out of the way of the text you are writing.
+Kept: {0}
 Keyboard
 Keyboard & Mouse
 Keyboard and mouse lighting (RGB)
@@ -686,13 +882,30 @@ Keyboard, mouse and headset
 Keys checked
 Knowledge Base article: 
 Known to slow sign-in
+kWh
 Labels
 Language
+Largest files
+Largest folder
+Last 24 hours
 Last 30 days
+Last 7 days
+Last 90 days
 Last boot took
+Last checked
+Last hour
+Last installed
 Last scan
 Last started
 Last startup
+Last successful install
+Last used 1 month ago
+Last used 1 year ago
+Last used today
+Last used yesterday
+Last used {0} days ago
+Last used {0} months ago
+Last used {0} years ago
 Latency
 Latency checks
 Latency is the delay between something happening (you click, a packet arrives, a sound should play) and the PC reacting. A few extra milliseconds are invisible on the desktop but show up as audio crackle, stuttery games and a mouse that feels 'floaty'.
@@ -705,9 +918,11 @@ Layout
 Learn: what these numbers mean
 Leave everything on the minimum level unless support asks for a specific area.
 Leave the default unless a log tool needs a specific layout.
+leftover entries regedit
 Leftovers found
 Let the motherboard or graphics driver decide (the default).
 Level
+license third party open source
 Lighting
 Lighting (OpenRGB)
 Like the Windows volume mixer. Apps that are closed disappear from the list.
@@ -716,6 +931,7 @@ Lines kept in the live viewer
 Link rate
 Link speed
 Links that match the devices found on this PC.
+Listed below the charts
 Lists the recommended changes that differ from your current settings. Nothing changes until you confirm.
 Live levels
 Live log
@@ -727,6 +943,7 @@ Load
 Load into the editors without applying.
 Load the Windows defaults into the sliders. Nothing changes until you press Apply.
 Load this step
+Loading benchmark history…
 Loads Windows with basic drivers and no startup apps, for removing a bad driver or program. Windows keeps starting in Safe Mode until you switch this off again.
 Loads, clocks, fans, voltages, power and data counters.
 Location
@@ -734,16 +951,23 @@ Log
 Log every sensor sample (very chatty)
 Log files
 Log folder
+log journal history diagnostics
 Logging settings
+logging verbosity debug
 Logon tasks
 Logs
+logs location
+Look around first
 Looking at the running programs…
+Looking for duplicate files…
 Looks fine
 Looks for driver versions that newer ones replaced, drivers nothing uses, and devices that are no longer connected. Nothing is removed by a scan.
 Loss
 Lost packets cause rubber-banding in games, robotic voices in calls and stalls in video.
+Low
 Low is fastest and cheapest; High thinks longer.
 Low memory means less than this % free
+Low priority means the program only gets the processor when nothing else wants it, so it may run much slower.
 Main display
 Make a program of your choice start when you sign in
 Make Windows and every app use this device.
@@ -758,23 +982,31 @@ Matched by file name, in any folder.
 Max
 Maximum size
 Maximum size (MB)
+Maybe
 MB/s
 Mbps
 Measure (5 s)
 Measure driver (DPC) load, timer resolution, mouse polling and network ping, and see which settings add delay.
 Measure each program's install folder. Takes a moment on large drives; you can cancel.
+Measure one folder instead of a whole drive.
 Measure speed first
+Measure this drive
+Measured {0} at {1:t} in {2}.
 Measurement
 Measures driver load, timers, power saving, mouse polling and, if chosen in Options, the network.
 Measures every category again. Nothing is deleted by a scan.
+Measures the drive or folder again. Nothing is changed by a scan.
 Megabits per second
 Memory
 Memory (RAM) in use
+Memory bandwidth
 Memory clock offset (MHz)
 Memory compression
 Memory compression squeezes idle memory pages so more programs stay in RAM. On is the Windows default.
 Memory errors found
 Memory in use
+Memory is the private working set, the same figure Task Manager shows. Disk columns are bytes read and written per second.
+Memory latency
 Memory page
 Memory profiles
 Memory promised to programs. It can exceed physical RAM because the page file on disk backs the rest.
@@ -787,18 +1019,22 @@ Metered
 Metrics
 MHz
 Microsoft Store
+Microsoft's article about this update
 Mild
 Min
 Minimize to the tray
 Minimum fan speed (%)
 Minimum level
+minute
 Missing: 
 Mode
 Model
 Model and behaviour
 Moderate
 Modified
+money dollar euro pound
 Monitor
+monitor screen resolution refresh rate hdr brightness
 Monitoring
 Monitoring, alerts and the overlay keep running.
 More
@@ -807,10 +1043,16 @@ More pointer options
 Most serious first, each with what to do.
 Motherboard headers, memory, graphics card, coolers, fans and strips.
 Mouse
+mouse keyboard pointer polling rate dpi
 Mouse polling
 Mouse polling rate
 Move down
+Move to Recycle Bin
+Move to the Recycle Bin?
 Move up
+Moved to the Recycle Bin
+Moves the ticked items to the Recycle Bin after you confirm. You can restore them from there.
+Moving to the Recycle Bin…
 ms
 Mute
 Nagle's algorithm (for some online games)
@@ -829,13 +1071,16 @@ Network adapters
 Network settings
 Never go below (%)
 Never run yet
+new version upgrade
 Night light
+No
 No adapter settings could be read (they need Windows' NetAdapter tools and administrator rights).
 No alerts. Every temperature has stayed within its limits.
 No apps are playing sound right now. Start some music or a video and press Refresh apps.
 No automatic services found
 No backups yet. One is created automatically the first time you fix something.
 No battery
+No big files have gone unused that long.
 No built-in apps match
 No capabilities match
 No changes made yet. Everything the app changes is listed here with a way back.
@@ -854,15 +1099,20 @@ No errors found
 No errors in the last 7 days
 No errors match the filter.
 No fans to show
+No files were found.
 No fixed drives were listed, or the check could not run. Try running PC Checker as administrator.
 No game profiles yet. Start a game, come back here and choose “Add running game”.
+No history yet
+No identical files of {0} or more.
 No installed programs found
+No installs to show
 No keyboards or mice listed yet. Press Detect again, or run a scan on the Hardware page.
 No latency check yet
 No layouts saved yet.
 No leftovers found
 No log lines to show
 No logon tasks to show
+No matching programs
 No metrics selected
 No microphones
 No optional features match
@@ -871,31 +1121,48 @@ No playback devices
 No power readings
 No power supply telemetry here, so the total adds a typical allowance to the CPU and GPU sensors. Expect within about 15% of a wall meter.
 No problems found
+No readings
+No readings in this period
+no real change
 No recording device was found. Plug in a microphone or headset, then press Refresh.
 No reliability events
 No reliability records for the last 30 days, or they could not be read.
 No RGB devices to show yet
 No saved Wi-Fi networks were found.
 No scan yet
+No score
 No slowdowns found. This PC is set up well.
 No sound devices
 No sound, crackling, or a missing device? Try these in order.
 No speed test yet: measure first if you want a before/after speed comparison.
 No startup apps found
 No startup programs were found. The Startup page lists everything once it has scanned.
+No sub-folders
 No temperature sensors yet
+No test finished, so nothing was saved.
+No test produced a score. The cards say why.
+No valid digital signature
 No valid signature
 No Wi-Fi connection
 None
+Normal
 Not a full security audit, just the essentials.
 Not analysed yet
 Not checked yet
+not compared
+Not everything could be read
+Not everything was moved
 Not everything was removed
+Not in this run. Run this test on its own, or include it in the next full run.
+Not paused
 Not run yet. The test measures download and upload speed and how much your ping rises while the line is busy (bufferbloat).
 Not scanned yet
 Not shipped with Windows
 Not tested
+Notable events
+Note for the next run
 Notes from the scan
+Nothing found. Try another word, or fewer letters.
 Nothing in the checked categories points at a missing program, file or folder. There is nothing to do.
 Nothing in the Run keys or Startup folders matches your search.
 Nothing is sent until you ask a question. Each question carries only your text plus the scan summary shown under "What is shared", and you can turn that off. Serial numbers are masked when the Logging setting "Redact serial numbers" is on. The key is stored encrypted for your Windows account and never leaves this PC except to authenticate with Anthropic.
@@ -904,20 +1171,32 @@ Nothing logged. Good news.
 Nothing matches your filter
 Nothing matches your search.
 Nothing needs your attention right now.
+Nothing recorded in this period
+Nothing running matches your search or filter.
+Nothing selected
+Nothing stored yet.
 Nothing to clean up
 Nothing to fix. All measured values and settings look good for low latency.
 Nothing to play sound through was found. Check the cable or Bluetooth connection, then press Refresh.
 Nothing to show
+Nothing unusual happened in this period.
+Nothing unusual in this period
+Nothing was moved
+notification area system tray
+notifications quiet
 Notify only when something needs attention
 Notify when a part passes its warning or critical temperature.
 Now
 Now: 
 NVMe 3.0
 NVMe 4.0
+oc gpu cpu clocks stress test
 of 100
+of {0}
 Off by default so a bad profile cannot follow you into every session.
 Off gives a general chat with nothing about your machine attached.
 Off keeps your profiles but stops switching.
+Off, every page shows the safe, everyday tools. On, pages also show advanced sections and riskier actions. You can switch it any time at the bottom of the menu.
 Off: a notification after every scheduled run.
 Off: apps are removed for your account only. On: they are removed for everyone on this PC and won't be installed for new accounts.
 Offered by:
@@ -926,7 +1205,11 @@ OK
 Old and unused drivers…
 Old backups
 Old drivers
+Old files
+Old files: at least (MB)
+Old files: not used for (months)
 Old or unused driver packages
+Older days are deleted automatically, a day after you lower this. 90 days use a few megabytes.
 Older than 3 years
 On
 On the monitor under your mouse, or Custom.
@@ -936,11 +1219,13 @@ On: Windows Task Scheduler runs this job. Off: the task is removed.
 Once, shortly after the app opens. Nothing installs without asking.
 One of the changes you applied finishes after Windows restarts. Save your work and restart when convenient.
 One screen per notch
+One small file per day. Nothing is sent anywhere.
 One-click bundles of mouse and keyboard settings.
 One-click, reversible tweaks for a faster PC.
 One-off tool
 One-way
 Only devices with a Device Manager error code.
+Only flagged
 Only matters with more than one operating system. 3 is plenty.
 Only when the game fills the screen
 Opacity
@@ -949,7 +1234,9 @@ Open backup folder
 Open Device Manager
 Open download page
 Open Event Viewer
+Open file location
 Open folder
+Open history folder
 Open in the taskbar instead of on top of your work.
 Open install folder
 Open journal file
@@ -971,16 +1258,25 @@ Open Storage settings
 Open System Restore
 Open Task Scheduler. PC Checker's tasks are in the "PC Checker" folder.
 Open the folder that contains this program
+Open the Recycle Bin
 Open the reports folder
 Open the Windows tool
+Open this folder
 Open this folder in File Explorer
 Open Wi-Fi settings
+Opened recently
+openrgb host rgb
 OpenRGB must run with its SDK server on. For products it does not support, the maker's own app still works:
+openrgb port rgb
+openrgb rgb auto connect
 OpenRGB uses 6742 unless you changed it.
 Opens in the taskbar instead of on top of your work (in the tray when Minimize to the tray is on).
 Opens Settings → Apps → Startup
 Opens Settings → Bluetooth & devices → Mouse.
 Opens Settings → Time & language → Typing.
+Opens Settings → Windows Update → Advanced options: optional updates, delivery and restart settings.
+Opens Settings → Windows Update → Update history, where installed updates can also be uninstalled.
+Opens Settings → Windows Update → Update history, where updates can also be uninstalled.
 Opens the classic Disk Cleanup tool (cleanmgr) for system items.
 Opens the classic Disk Cleanup tool (cleanmgr).
 Opens the classic System Protection dialog where you can choose drives and disk space.
@@ -994,32 +1290,49 @@ Opens the Windows Update page in Settings that lists optional driver updates.
 Opens Windows display settings, where you drag displays into a different order.
 Opens Windows Settings → System → Sound (spatial audio, mono audio, app defaults).
 Opens Windows System Restore so you can go back to a restore point listed here.
+Opens Windows Update in the Settings app.
 Opens Windows' own Registry Editor (regedit). Copy a key path below and paste it into its address bar.
 OpenSSH, languages, viewers…
 Optimize
 Optimize (TRIM / defragment)
 Optimize now
+Optimize this PC
 Optimize-Volume -ReTrim for SSDs, -Defrag for hard disks.
 Optional features (Settings app)
 Optional features are parts of Windows you can switch on (such as Hyper-V or .NET 3.5). Capabilities are small add-ons Windows downloads on demand (such as the OpenSSH client). Built-in apps are the Store apps that came with Windows. Removing an app only affects that app; you can get it back from the Microsoft Store.
+optional features capabilities inbox apps
 Optional features on
 Optional updates
+Optional: Windows does not install this on its own. Tick it to include it.
 Options
+options preferences configuration
 Orientation
 Original name
+Other
 Other accounts included
 Other programs were installed together with this one.
 out of 100
 Output devices
+Outside them Windows may restart to finish an update when you are not using the PC.
+Overall score
+Overall score {0} (reference PC = 1,000).
+Overall {0} ({1}). Changes under {2} % are normal run-to-run variation.
 Overclock
 Overclock limits
 Overclock reverted
+overclocking clock safety
+overclocking heat safety
+overclocking vram safety
+overclocking watts safety
 Overlay
+Overlay hidden
+Overlay shown
 Overview
 Owner
 Packages found
 Packet errors
 Packet loss test
+Page
 Page file
 Page settings
 Part
@@ -1029,20 +1342,31 @@ Passes
 passes/s
 Paste a key above and press Save key.
 Paste your key (starts with sk-ant-…)
+Pause
+Pause & active hours
 Pause stops the view from updating so you can read; new lines are kept and shown when you resume.
+Pause updates
 Paused
+Paused. Press Resume to continue live updates.
+Pauses (or extends the pause) for the chosen number of weeks, after you confirm.
+Pausing is set by a policy on this PC, so it can only be changed there.
 PC Checker
 PC Checker could not get a tuning interface for this graphics card. The vendor's own program offers the same controls.
+PC Checker looks after this PC in one place:
 PC Checker overlay
+PC Checker records temperatures, loads, power and free space in the background while it is open or in the tray. Check back in a few minutes, or pick a longer period.
 PC Checker shows the new language after it restarts.
 PC Checker switches when the game has been in front for 2 seconds and puts everything back when the game closes. Switching to another window does not switch back.
 PC Checker was moved
 PC Checker will not load the graphics card itself; it only watches temperatures and clocks while you run your own game or benchmark.
+PC Checker will run {0} and use the PC fully for about {1}. Fans may get loud; that is normal.
 Per-app volume
 Performance
 Personal choices with no safe policy to set. PC Checker opens the right page.
+Photos, screenshots and image projects.
 Pick a colour
 Pick a colour for this zone
+Pick a drive above, or choose a folder. The scan lists the biggest folders and files, old files you have not opened for a long time, and duplicates. Nothing is changed until you choose to.
 Pick a preset or tick tweaks, then Apply selected. Hover a tweak to see what it changes.
 Pick a question below or type your own.
 Pick a saved profile to load its values into the sliders.
@@ -1050,11 +1374,13 @@ Pick Debug or Verbose only while chasing a problem.
 Pick the colour for every device
 Pick the game
 Pick the game's program file, for example eldenring.exe
+Pick two different runs to compare.
 PID
 Ping
 Ping (idle)
 Ping = round trip time. Jitter = how much it varies between pings. Loss = pings that got no answer.
 Ping again
+ping count
 Ping is the round-trip time of a small packet. Jitter is how much ping changes from packet to packet; even with a low ping, high jitter makes calls choppy. Packet loss means some packets never arrive and have to be sent again, which games show as rubber-banding.
 Ping targets
 Ping under load
@@ -1071,6 +1397,8 @@ Plays a sound when Caps Lock, Num Lock or Scroll Lock is pressed.
 Pointer speed
 Pointer trails
 Pointer, double-click and key repeat settings, polling rate and profiles.
+points
+poll interval update rate
 Portable build
 Position and size
 Position in the list Windows tries first.
@@ -1089,29 +1417,43 @@ Press Analyze to check drives, devices, logs and security.
 Press Refresh to list the third-party driver packages Windows has staged. This takes a few seconds.
 Press Scan to read every component in this PC. The scan only reads; nothing is changed.
 Press Shift, Ctrl, Alt or Win one at a time instead of holding them.
+preview simulate junk files
 Price per kWh
+Priority
+Priority changed
+Priority decides which program gets the processor first when the PC is busy. {0} is now at {1}.
 Privacy and logs
+privacy redact logging
 Problems only
 Process
+Process tree ended
+Processes
 Processor
+Processor use across all {0} logical processors
+Processor, multi-core
+Processor, single-core
 Profile is on
 Profile name
 Profiles
 Program
+Program ended
 Program file
 Programs
 Programs listed in the Run keys of the registry and in the Startup folders.
 Programs that arrived together
 Programs that arrived together. Extras can go; runtimes are best kept.
+programs uninstall installed apps
 Programs with an open window, busiest first.
 Progress
 Project on GitHub
 Properties
 Pros: quicker cold boot. Cons: shutdown is not a full reset, and dual-boot setups can see disk problems. Restart (not Shut down) always does a full reset either way.
 Protected
+Protected: the Windows folder, Program Files, ProgramData, the user profile folders themselves, restore points, the page file and PC Checker's own folders.
 Provider
 Published
 Publisher
+Put all processes of the same program under one line with their totals
 Put everything back when the game closes
 Put the default label back on every metric
 Put this network's position, auto-connect and metered settings back to how they were before PC Checker changed them.
@@ -1133,8 +1475,11 @@ Quiet: 25 % at 30 °C rising to 100 % at 85 °C
 Rainbow
 Raise my limits to the driver's ranges
 RAM
+ram
 RAM tests and the Windows Memory Diagnostic.
+ram threshold
 RAM used right now
+ram xmp expo page file
 Ramp step (% per second)
 Random 4K read
 Random 4K write
@@ -1155,10 +1500,20 @@ Read the adapters, the Wi-Fi connection and the tuning settings again.
 Read the installed-programs lists from the registry and the Store.
 Read the list of restore points again.
 Readable
+Reading drives…
+Reading running programs…
+Reading {0}…
 Readings appear here as soon as the hardware monitor reports them.
 Reads every block without writing. Unreadable blocks mean the drive is failing.
 Reads every installed driver from Windows and flags problems, old or unsigned drivers.
+Reads the files that share a size to confirm which are identical. Nothing is changed.
+Reads the status and the history again. Does not check for new updates.
+Ready to download
 Ready to scan
+Realtime
+Realtime (advanced)
+Realtime is an advanced option
+Realtime puts this program ahead of Windows itself, including the mouse, keyboard and disk. A busy program at Realtime can freeze the whole PC until it is restarted. Only use it for a short test.
 Rearrange
 Rebuild the summary from the latest scan results
 Received
@@ -1171,17 +1526,24 @@ Reclaimable space
 Recommended
 Recommended. Adds a few seconds before the first change of the day.
 Recommended. Fans go back to the motherboard when PC Checker closes either way; with this off, the active profile is re-applied the next time PC Checker starts.
+Record a sample
+Record history
 Record more or less from one part of the app without changing the rest.
+Recording is off
+Recording settings
 Refresh
 Refresh apps
+Refresh drives
 Refresh rate
 Refresh readings
+Refresh status
 Registry
 Registry leftovers rarely slow Windows down. Removing them tidies lists and fixes some broken menu entries. Only entries proven broken are changed, each is backed up first, and every fix can be undone under Backups.
 Reinstall from the Store
 Reinstalling and then uninstalling it properly, or the vendor's own removal tool, cleans these up the right way.
 Release notes
 Released
+Released {0}
 Releases
 Releases page
 Reload tuning settings
@@ -1194,10 +1556,13 @@ Remove temporary files from the Safe cleanup categories (asks first)
 Remove third-party driver
 Remove this entry from startup (a backup copy is kept)
 Remove this profile
+Remove this run from the history?
+Remove this run from the history…
 Removes the app from every user account on this PC and stops Windows pre-installing it for new accounts (Remove-AppxProvisionedPackage).
 Removes the conversation from this page. Nothing is stored on disk.
 Removes the program with its own uninstaller. You will be asked to confirm first.
 Removes the ticked categories. With Dry run on, only a report is produced.
+Removing the run…
 Renew IP address
 Repair volume
 Repeat delay
@@ -1219,6 +1584,7 @@ Reset to defaults
 Resets Winsock and TCP/IP to the Windows defaults (advanced; needs a restart).
 Resolution
 Resolution, refresh rate, brightness, HDR and saved layouts.
+Restart
 Restart audio service
 Restart Explorer
 Restart File Explorer to see the changes
@@ -1234,8 +1600,10 @@ Restore points
 Result
 Results
 Results depend on the test server, the time of day and everything else using your connection. Wi-Fi results are usually lower than with a cable.
+Results of the last install
 Results of the last removal
 Results of the last run
+Resume
 Retry
 Reversible
 Revert
@@ -1243,6 +1611,7 @@ Revert all to automatic
 Revert to automatic on exit
 Revolutions per minute: how fast the fan is spinning right now.
 RGB control talks to the OpenRGB SDK server.
+rgb leds openrgb colours colors
 RGB lighting for your PC and peripherals, through OpenRGB.
 Rotate the picture for a monitor mounted on its side.
 Round trip time
@@ -1251,11 +1620,18 @@ Router
 Router and placement tips based on what this PC can see.
 RPM
 RPM sensor
+Run
+Run a disk benchmark
+Run a full scan
 Run a full scan to see what is inside this PC.
 Run a hardware scan first so the links match your exact parts.
+Run a latency check
 Run a quick health check when the app opens
 Run a scan to read the installed-programs lists from Windows.
+Run a speed check
+Run again later to see the change
 Run all tests
+Run anyway
 Run at sign-in or boot
 Run benchmark
 Run health check
@@ -1263,15 +1639,21 @@ Run keys and Startup folders
 Run latency check
 Run Repair-Volume
 Run test
+Run the benchmark?
+Run the test “{0}”?
 Run the Wi-Fi analysis and the speed test again to see the results before and after side by side.
 Run this job now and show the result here
 Run troubleshooter
 Run uninstallers with their silent switches so no installer windows appear. Turn off to follow each uninstaller's own prompts.
 Run Windows Disk Cleanup
 Running at
+Running programs
+Runs on the same PC usually differ by 1–3 %. Laptops on battery, a warm PC or programs running in the background score lower. The reference numbers are PC Checker's own estimates for its own tests, so compare scores with other PC Checker runs, not with other benchmark apps.
+Runs only this test and saves it as its own run.
 Runs pnputil /enum-drivers and lists every third-party package in the driver store.
 Runs the hardware, health, performance, software and driver scans one after another.
 Runs the speed test now so the before/after comparison has speed numbers. Uses data.
+Runs the tests ticked in Options one after another (about a minute and a half for all of them). Nothing on the PC is changed.
 Runs the Windows audio troubleshooter, which checks drivers, defaults and muted devices.
 Safe items are recreated automatically. Moderate items have a small side effect. Advanced items only appear in advanced mode.
 SAFE MODE ARMED
@@ -1290,25 +1672,33 @@ Saturation
 Save
 Save and apply
 Save as preset
+Save benchmark comparison
+Save benchmark results
+Save comparison as text…
 Save current
 Save current as…
 Save current layout
 Save every display's mode and the main display, then restore them in one click.
 Save key
 Save profile
+Save results as text…
 Save the findings and snapshot as a Markdown or JSON file.
 Save the slider values under a name and load them again later.
 Save the ticked tweaks to a .json file to reuse on another PC.
 Save the whole list as a spreadsheet file.
+Saved
 Saved layouts
 Saved metric lists, order, corner, opacity, size and layout.
 Saved Wi-Fi networks
+Saved with the run so you can find it in the history, for example "Before overclock".
 Saves a zip with the log files, the action journal, the in-app log buffer and your settings (API key removed). Attach it to a bug report.
+Saves every recorded value in this period as a spreadsheet file.
 Saves everything the app knows as an HTML, JSON or Markdown file.
 Saves the complete inventory, including every raw property, as a JSON file.
 Saves the current slider values under this name.
 Saves the effect, colour, speed and brightness shown on every card below as a profile.
 Saves the installed driver list as a CSV file.
+Saves these hours after you confirm.
 Saves what the Mouse and Keyboard cards show now as a custom profile.
 Scales the whole panel.
 Scan
@@ -1319,6 +1709,7 @@ Scan for slowdowns
 Scan now
 Scan result
 Scan type
+Scanned
 Schedule for next restart
 Schedule full repair at restart
 Schedule it on the Memory page.
@@ -1327,20 +1718,27 @@ Schedules
 Score
 Screen corner
 SDK server:
+Search
 Search apps, tasks, services
 Search by name, publisher, version or folder
 Search device, maker, version, hardware id…
 Search features, capabilities and apps
 Search messages…
+Search name, PID, publisher or folder
 Search names, values and raw properties
+Search pages, settings and actions
 Search results…
 Search sensors (name, part or type)…
 Search services
+Search the name online
 Search tweaks (e.g. Copilot, OneDrive)
 seconds
+Seconds per test
 Security
 Security basics
 Security checks did not run
+See what fills your drive
+See what fills your drives, find duplicates, and clear out what you no longer need.
 Select all
 Select all safe
 Select every fixable
@@ -1351,11 +1749,13 @@ Send results back
 Sends a short hardware and findings summary so answers fit your PC.
 Sensor
 Sensor refresh (milliseconds)
+sensors heat cpu gpu temp hot thermal
 Sent
 Sent to the monitor over DDC/CI (the same channel as its on-screen menu), or to Windows for a built-in panel.
 Separate lighting areas on this device (for example each RGB header or key block) that can have their own colour.
 Separate with commas. 'gateway' means your router.
 Sequential and random 4 KB speeds, compared with typical drives.
+Sequential and random 4K reads and writes on the Windows drive, with a small temporary file.
 Sequential read
 Sequential speed matters for big files; random 4K speed makes Windows feel snappy.
 Sequential write
@@ -1368,10 +1768,13 @@ Services that start with Windows
 Set as default
 Set as main display
 Set in the BIOS; PC Checker cannot change it for you.
+Set priority
 Set the page file by hand (advanced)
 Set up on the Ask Claude page
+Set {0} to {1} priority?
 Sets compression, SysMain and the page file together. Balanced restores the defaults.
 Sets every device to this one colour (switching each to a steady-colour effect).
+Setting
 Setting changes get a restore point first when that option is on in Settings; clearing the standby list does not, because Windows refills it on its own.
 Settings
 Settings and logs in one zip, for a bug report.
@@ -1379,34 +1782,52 @@ Settings file
 Settings from Device Manager → your adapter → Advanced. Only settings your adapter actually has are listed. Changing one restarts the adapter, so the connection drops for a few seconds.
 Settings that affect latency
 Settings that belong to one page each. Most can also be changed on that page.
+Setup files and installer packages you may no longer need.
+Severity
+Shader maths on the graphics card through DirectX 11. Skipped when there is no DirectX 11 card.
 Share scan context
 Share scan results with the assistant
 Sharing is off
 Short suits gaming; longer avoids accidental repeats.
+Short temperature peaks are kept whatever you choose.
+shortcut keyboard fps overlay
 Show
 Show alerts when a limit is crossed
 Show and hide
 Show bundled groups
 Show cards for programs that were installed together, such as a browser that came with an antivirus.
 Show every metric
+Show in File Explorer
 Show licence texts
 Show only one area of the app, for example Sensors or Drivers.
 Show only one Device Manager class.
+Show only the processes marked as worth a closer look
 Show or hide the always-on-top overlay (also on its hotkey)
+Show or hide the overlay
+Show or hide the processes of this program
 Show overlay
 Show the overlay
 Show the PC Checker icon in the tray
 Show the temperature as the tray icon
+Show the welcome again
+Show this folder in File Explorer
+Show welcome again
 Show Windows services
 Show Windows tasks
+Show {0} more group
+Show {0} more groups
+Showing the run from {0}. Reference PC = 1,000 per test.
+Shown below
 Shown, never changed
 Shows a big number on each display for a few seconds so you know which card is which.
 Shows advanced sections and riskier actions inside pages. Every page stays visible either way.
 Shows after File Explorer restarts (offered when the change is done).
 Shows exactly what will change, then creates a restore point and applies the selected tweaks.
 Shows riskier actions inside pages.
+Shows the history saved while recording was on.
 Shows the overlay with a dashed frame you can drag. Turn it off when it sits where you want it.
 Shows this display's number on its screen for a few seconds.
+Shows this run on the result cards.
 Signal
 Signal quality as Windows reports it. dBm is the radio power: -50 is excellent, -67 is good for calls and games, below -75 is weak.
 Signal strength (dBm)
@@ -1416,14 +1837,23 @@ Silence this device without changing its volume.
 Silent
 Simulate an overheating CPU (demo)
 Since Windows last started
+Since {0} ({1})
+Six short tests score the processor (one core and all cores), memory, the Windows drive and the graphics card. 1,000 points is a typical mid-range 2024 desktop. Every run is saved here, so you can compare before and after an Optimize or Overclock change.
 Size
 Size limit per file (MB)
 Skipped
 Skipped items and errors from the last run
+Skipped: not available on this PC.
+Skipped: {0}
 Slot
 Slow
 Slow blocks
+slow slowdown speed scan processes
+slow slowdown startup services
+Smaller files are many and rarely worth it. Lower it to find small duplicates such as photos.
 SMART ATTRIBUTES
+smart errors problems crashes score
+smart errors problems score
 SMART is the drive's own built-in self-check.
 SMART self-check, temperature, age and wear for every disk.
 SMART: 
@@ -1436,10 +1866,15 @@ Some entries could not be read
 Some guides suggest turning off Windows' Wi-Fi background scanning (netsh wlan set autoconfig enabled=no). That stops Windows from managing Wi-Fi at all: no automatic reconnects, no roaming, and the network list stays empty until you turn it back on, so PC Checker does not offer it. It also does not change the router's channel, which only the router can do.
 Some information could not be read
 Some information is missing
+Some items are in OneDrive. Removing them here also removes them from OneDrive online.
+Some items belong to an installed game. Uninstalling it from its launcher (Steam, Xbox, Epic…) is cleaner.
+Some items were kept
 Some keyboards only show their lighting while their own software is closed.
+Some lines were skipped
 Some of the changes you made finish after Windows restarts or you sign out. Save your work and restart when convenient.
 Some routers and networks block ping, so a single 'No reply' is not always a fault.
 Some sensors are missing
+Some settings are set by policy
 Some tweaks are hidden
 Some values could not be measured
 Some Wi-Fi details could not be read
@@ -1448,6 +1883,7 @@ Something went wrong
 Sort by
 Sound control panel
 Sound settings
+sound speakers microphone volume
 Source
 Space you can free
 Sparklines
@@ -1457,6 +1893,7 @@ Speeds are in MT/s (megatransfers per second), which is what RAM makers call "MH
 Speeds below the minimum fan speed in Options ask for confirmation.
 Speeds vary from minute to minute; differences under 3 % count as the same. For a fair comparison, run both tests at a quiet time with nothing else downloading.
 Spot fix
+ssd hdd drive speed test read write
 SSID = the network's name.
 Stable gets tested releases; Beta gets new features early.
 Standard
@@ -1477,12 +1914,19 @@ Start time, 24-hour (for example 09:30 or 18:00)
 Start with a preset, apply, run the stress test, then raise in small steps.
 Start with a Quick scan. Run a Full scan when a drive makes noises, Windows reports disk errors, or SMART shows reallocated sectors.
 Start with Windows
+Started
+Started by PID
+Starting soon
+Starting the benchmark…
 Starts at 100 and loses 8 points per warning and 30 per critical finding. A quick guide, not a verdict.
 Starts at sign-in, without a UAC prompt.
 Starts with only the tray icon (the --tray switch). Click the icon to open the window.
 Startup
 Startup apps
+startup apps boot
 Startup programs
+startup scan score
+startup threshold
 State
 Status
 Status reported by Windows for this device.
@@ -1492,11 +1936,15 @@ Stays while Minimize or Close to the tray is on, so you can always get back.
 Steps other debloat tools take that weaken security or break Windows.
 Sticky Keys
 Sticky Keys, Filter Keys and Toggle Keys.
+Still busy
 Stop
 Stop a program launching at sign-in. Nothing is uninstalled.
 Stop if CPU reaches (°C)
 Stop if GPU reaches (°C)
+Stop or restart the live updates. The list keeps its last values while paused.
 Stop or resume updating this page. Readings keep being recorded in the background.
+Stopped early
+stopped early
 Stops and starts the Windows Audio service (Audiosrv). Fixes most 'no sound' problems without a reboot. Sound cuts out for a few seconds; you confirm first.
 Storage
 Storage Sense & temporary files
@@ -1509,6 +1957,7 @@ Supported hardware on this PC
 Surface scan — is every part of the drive readable?
 Surface scan, check disk repairs and speed benchmarks.
 Sustained package power. Lower = cooler and quieter under long loads.
+Swap before and after
 Swap primary and secondary buttons
 Switch automatically
 Switch the fan profile you made on the Fans page
@@ -1518,15 +1967,21 @@ Sync colour
 SysMain (Superfetch)
 SysMain (Superfetch) preloads the programs you use most. On is the Windows default.
 System Configuration (msconfig)
+System drive
 System Protection is off
 System Protection is on
 System repair, service changes, deeper latency tweaks and overclocking. Every action still explains itself and asks before it changes anything.
+system restore backup
+system restore backup snapshot safety
+system restore frequency limit
 System Restore point created before this change
 Target
 Task
 Task path
 Task Scheduler
+task scheduler daily weekly automatic jobs
 Task Scheduler jobs that run at sign-in or boot.
+taskbar
 Taskbar, Start and right-click menu changes need it. Nothing else closes.
 TEMPERATURE
 Temperature alerts
@@ -1537,15 +1992,22 @@ Temperature limits, alerts, refresh rate and history length.
 Temperature limits…
 Temperature over the history window
 Temperatures
+Temperatures above your warning limits, sudden drops in free space and health scores that fell. The limits are set under Settings, Monitoring.
+Temperatures are the highest reading in each sample, so short peaks are never averaged away. Loads, power and memory are averages. Free space is read once an hour, and a health score is added each time a health check runs.
 Temperatures page
+Temperatures, loads, power and free space, kept in small files on this PC only.
 Test
 Test connection
 Test file size
 Test your drives, benchmark them and repair file system problems.
 Test your Wi-Fi, speed and packet loss, and tune Wi-Fi settings safely.
+Tests to run
+Tests with a score
 Text cursor blink
 Text line layout (output template)
+That did not fully work
 That did not work
+That is as long as Windows allows.
 The adapter restarts to apply this, so the connection drops for a few seconds.
 The adapter this PC uses to reach the internet right now.
 The address your router gave this PC on your home network (not your public internet address).
@@ -1553,16 +2015,23 @@ The allowance covers the motherboard, memory, drives and fans, which have no pow
 The API key, model and effort are set on the Ask Claude page.
 The app's live log, the journal of changes to this PC, and logging settings.
 The band is the radio frequency (2.4, 5 or 6 GHz). The channel is the slice of that band your router uses; neighbours on the same or overlapping channels slow each other down.
+The biggest single files, wherever they are.
 The capacity the battery had when new.
 The card slows itself down to stay under this temperature.
 The channel is set on the router, not on this PC.
 The classic Sound dialog (mmsys.cpl) with every device's Properties tabs.
 The classic Windows volume mixer.
+The clipboard is busy; try again in a moment.
+The comparison was copied as text.
+The CSV file could not be written:
 The curve reads this temperature every second and sets the fan speed from it.
 The default gateway: the router every packet to the internet goes through. DNS servers turn web addresses into IP addresses.
 The defaults work when OpenRGB runs on this PC.
 The description is shown in System Restore so you can recognise the point later.
+The details are on the clipboard.
 The device is not ready: it is unplugged, disabled in Windows or missing.
+The drive test writes a temporary {0} MB file to {1} and deletes it afterwards.
+The files add up to {0} more than Windows reports in use: files that share their data (hard links in the Windows folder) are counted once per path, and compressed or sparse files at their full size.
 The format Windows uses for this device (bit depth, sample rate, channels). Change it under Properties → Advanced.
 The full notices and licence texts are built into PcChecker.exe; use Show licence texts.
 The game the FPS metrics are measured for: the last game that was in front.
@@ -1572,36 +2041,54 @@ The hotter of CPU and GPU instead of the logo.
 The hottest drive
 The label shown in the overlay. Leave empty for the default.
 The language of PC Checker's menus and pages. Changes after a restart.
+The largest of them are listed under Largest files.
+The last 100 installs, newest first. Select a failed one to see what went wrong.
 The last 20 times a part crossed its warning or critical temperature in this session.
 The last things PC Checker changed on this PC, from the action journal.
+The latest recorded value.
 The lighting mode: a steady colour, breathing, rainbow and so on.
 The Lighting page talks to OpenRGB so one place controls every RGB device.
 The longest gap between two clicks that still counts as a double-click.
 The main display holds the taskbar and Start menu, and new windows open on it.
+The marker in the middle is the reference PC (1,000 points). A full bar is 2,000 or more.
 The most the speed may change each second. Smaller steps sound smoother.
 The multiplier applied to every core, e.g. 53 = 5.3 GHz.
 The oemN.inf packages Windows has staged.
 The order Windows tries them in, auto-connect and metered.
+The overall score is the geometric mean of the tests that ran, so every test counts equally. Comparisons only show an overall change when both runs completed the same tests.
 The Overclock page never goes past these. Lower them to stay safer.
+The overlay hotkey and the Overlay page do the same.
 The overlay is click-through: it never takes the mouse away from the game.
 The overlay preset to load while the game runs
+The period the charts and events cover.
 The popup shows temperatures, load, power, the fan profile, the overlay and quick clean.
+The process list could not be refreshed. It will try again in a moment.
 The radio standard both ends agreed on. Newer is faster: Wi-Fi 6/6E (802.11ax) and Wi-Fi 7 (802.11be) are current.
 The repair runs the next time Windows starts. Save your work and restart when convenient; do not switch the PC off while it runs.
+The results were copied as text. Paste them into a message or forum post.
+The run could not be saved to the history: {0}
+The run from {0} is removed from PC Checker's benchmark history. This cannot be undone; copy or save it first if you want to keep it.
 The same action as on the Optimize page; applying it here or there has the same effect.
 The same ping measured while the line is full. A big rise means bufferbloat: lag whenever someone downloads.
 The same refresh rate and limits are also editable on the Temperatures page.
 The same settings as the Windows Mouse control panel, explained. Everything can be undone with the Windows default profile.
+The same work on every core at once. Matters for video export, compiling and heavy multitasking.
 The scan looks at startup programs, services, busy processes, memory, drives, power and Windows settings. It takes about ten seconds and changes nothing.
 The score starts at 100 and drops for each finding by how much it slows the PC. Fix or ignore findings to see it change.
 The score starts at 100 and loses points for each finding: high-impact problems cost more than small tweaks.
 The score starts at 100 and loses points for every warning (−8) and critical finding (−30). It is a quick guide, not a verdict: read the items above.
+The short introduction from the first start: what PC Checker does, the language and Advanced mode.
 The speed the adapter and router negotiated (receive / send). Real throughput is usually 50-70 % of this.
 The System and Application logs contain no critical or error entries.
 The taskbar disappears for a second while File Explorer restarts.
+the test “{0}”
+The tests that finished were saved.
+The text could not be copied to the clipboard: {0}
 The watchdog stops the test (and resets any overclock) when the graphics card gets this hot.
 The watchdog stops the test (and resets any overclock) when the processor gets this hot.
 The Windows Display Color Calibration wizard (gamma, brightness, contrast, colour balance).
+the Windows drive
+The Windows folder and program libraries.
 The Windows tools for the same jobs.
 Theme
 These apply whatever the driver allows.
@@ -1609,38 +2096,54 @@ These change deeper Windows settings or run long repair tools. Keep restore poin
 These numbers are estimates
 These only change when and how updates install. PC Checker never disables Windows Update. To take a break from updates, pause them in Settings (see the notes below).
 They change boot options, interrupt modes or TCP behaviour. They are reversible; read each one first.
+They have a warning sign in the list. This is only a hint: check the publisher and the file location, and run a Microsoft Defender scan if you do not recognise them.
 Things worth fixing
 Third-party
 Third-party components
 Third-party only
 Third-party services are listed first. Prefer Manual over Disabled so programs can still start a service they need.
 Third-party services first. Prefer Manual over Disabled.
+This cannot be undone; start the program again to get it back.
 This card is monitor-only here; the readouts, stress test and advisor still work.
 This copy cannot update itself; PC Checker still checks for new versions and links you to the download.
 This drive
+This folder is empty.
+This is part of Windows. Windows may start it again, or parts of the desktop may misbehave until you sign out and in again.
 This line has an exception. Select it to read the details.
 This looks like a desktop PC, so there is nothing to wear out here.
 This page averages the Windows performance counters over a few seconds, which is enough to tell whether something is wrong. It cannot tell you which driver is responsible or catch rare long DPCs. For that, use a kernel tracing tool: LatencyMon shows the worst drivers by name, and Windows Performance Analyzer (part of the Windows Performance Toolkit) records a full timeline. Run them while the problem happens, for example during a game.
+This page is still working on something. Try again when it has finished.
+This page is still working on something. Your request starts as soon as it has finished.
 This PC
 This PC has more than one graphics adapter. The one with the most video memory (usually the gaming card) is recommended.
 This PC uses the legacy (text) boot menu; F8 at startup opens the old boot options.
 This program arrived together with another install; see the details below.
+This run started in less than ideal conditions
+This run was stopped before every chosen test finished. Only the finished tests have scores.
+This update asks questions while it installs, so install it from Windows Update in Settings.
 Threshold
+thresholds warn critical cpu gpu drive hot
 Tick all / none
+Tick files or folders in any list. Windows, program and profile folders cannot be ticked.
 Tick the safe tweaks you want and use “Apply all safe recommendations”, or apply them one at a time. Revert puts a setting back the way it was. Every change is confirmed first and recorded in the action journal.
 Tick the tweaks listed in a PC Checker selection file or a WinUtil export (.json). Nothing is changed until you apply.
 Tick what to remove. Files changed in the last hour are always kept.
 Tick what to show and use the arrows to set the order. A metric with no sensor on this PC shows “--”.
 Ticks every entry marked Safe. Moderate and Advanced entries stay unticked.
 Ticks every entry that can be fixed, including Moderate and Advanced ones.
+Ticks every update except the optional ones.
 Ticks or unticks every safe tweak for “Apply all safe recommendations”.
 Ticks the items marked Safe to remove.
 Time
 Time left
 Time to turn a web address into an IP address. Every new connection waits for this first.
 Timer resolution
+Tip: press Ctrl+K to find any page, setting or action.
+to
 To exit, right-click the tray icon and choose Exit PC Checker.
+To extend this pause, use Settings → Windows Update.
 to finish installing the new drivers
+to finish installing updates
 to finish removing old drivers
 to finish the changes you applied
 to finish the debloat changes you applied
@@ -1648,17 +2151,24 @@ to finish the network changes you made
 to finish the Windows feature change
 to run the Windows Memory Diagnostic
 To upgrade, run winget upgrade --id <Id> (or --all) in a terminal.
+toast warnings
 Toggle hotkey
 Toggle Keys
+Took {0}
 Tool output
 Top-left corner in desktop pixels; the main display starts at 0, 0.
+Total CPU
 Total data written to the drive over its life.
 Total draw now
 Total draw over time
 Total size known
 TOTAL WRITTEN
+Totals updated after removal
 Trails, left-handed buttons, hiding while typing, snap to default.
+translate translation locale
+transparency overlay
 Tray and startup
+tray temperature
 Try a different search term or pick another source.
 Try a different search, or turn on Advanced mode to see protected system apps.
 Try a different search, or turn on Advanced mode to see technical components.
@@ -1669,25 +2179,31 @@ Try this network later
 Tune Wi-Fi and network
 Tune your GPU and CPU step by step, with safety limits and a built-in stress test.
 Turn everything off
+Turn it on to keep a record of temperatures, loads, power and free space.
 Turn off ads, telemetry and AI features, and remove apps you don't use.
 Turn off for text only.
 Turn off if keys seem to be missed while gaming or typing fast.
 Turn off Minimize to the tray and Close button keeps PC Checker in the tray to remove the icon.
 Turn off to keep your profiles but stop switching. An active profile is undone straight away.
+Turn on
 Turn on "Share scan context" in Settings to let Claude see your results.
 Turn on 'Show Windows tasks' to include Microsoft's own maintenance tasks.
 Turn on Advanced mode in Settings to see encrypted DNS (DNS over HTTPS), preferring IPv4, and driver settings without a recommendation.
 Turn on Advanced mode in Settings to see them.
 Turn on Advanced mode to see the raw SMART attribute table.
+Turn on Advanced mode to set Realtime priority.
 Turn on Location for desktop apps so Windows shows nearby networks. PC Checker does not use your location.
 Turn on System Protection
 Turn optional parts of Windows on or off and remove built-in apps you never use.
+Turn recording on or off, and choose how often to record and how long to keep it.
 Turn this profile on or off without deleting it
 Turn Windows features on or off (classic)
 Turning off Nagle's algorithm can lower ping in a few older games. It lives on the Latency page with the other input-lag fixes, so it is not repeated here.
 Turning one off does not uninstall it; it just stops starting by itself.
 Turns on each device's rainbow effect where it has one.
 Turns watts into money on the Power page. Find the rate on your energy bill.
+tweaks faster game mode visual effects
+tweaks faster speed up performance
 Tweaks that don't fit this version of Windows are skipped.
 Two minutes catches most problems; 15 to 30 minutes confirms an overclock is stable.
 Type
@@ -1696,22 +2212,39 @@ Typical safe limits are already filled in.
 Under 1 % is healthy
 Under 1 % loss is usually unnoticeable; 2 % or more is a real problem.
 Under 3 % is healthy
+under a second
 Uninstall
 Unit
+Unknown
 Unreadable (bad block)
 Unreadable blocks
 Unreadable blocks found
 Unsigned
+Until {0}
+unused drivers driver store leftovers
 Unusual logon settings (advanced)
+Up and Down to choose · Enter to open · Esc to close
+Up one folder
+Up to date
+Up to {0} hours (set by a policy on this PC), and they may run past midnight.
+Up to {0} hours, and they may run past midnight.
 Update
 Update available
 Update channel
 Update check
 Update every (ms)
+Update history in Settings
 Update the Wi-Fi driver
 Updaters from Google, Microsoft Edge and OneDrive live here; they are harmless but not essential.
 Updates
+Updates ({0})
+Updates are not paused.
+Updates are paused
+Updates are paused until {0}.
 Updates available
+Updates every 2 seconds · last at {0}
+Updates install as usual
+Updates waiting
 Upgrades available via winget
 Upload
 Uptime
@@ -1725,8 +2258,11 @@ Use recommended size
 Use the minimum level everywhere
 Use this
 Use this device for voice chat and calls only; music and games keep the default device.
+Used
 Used by the Power page; 0.30 means 30 cents per kWh.
 Used for the cost figures. Session so far: 
+Useful before a deadline or a long game session. Security fixes wait too, so resume as soon as you can.
+User
 Uses the values Windows has now, not unapplied edits.
 Using the fixes safely
 Usually a program that was deleted instead of uninstalled.
@@ -1735,6 +2271,7 @@ Variable refresh rate (G-Sync / FreeSync), Auto HDR, hardware-accelerated GPU sc
 Vendor tools
 Verdict
 Version
+Video
 Voltage
 Voltage offset (mV)
 Volume
@@ -1745,20 +2282,29 @@ Warn when many programs start with Windows
 Warning (°C)
 Warnings
 Warnings on the Memory and Startup pages
+warnings overheating notify
+watts energy battery power plan
 WEAR
 wear
 Wear compares what the battery holds today with its capacity when new.
+Welcome to PC Checker
+Well above the reference PC
+Well below the reference PC
 Wh
+What 1,000 means, and why two runs can differ a little.
+What counts as an old file, and the smallest file the duplicate search looks at. Used by the next scan.
 What debloating does
 What DPC, ISR and timers mean, and tools that go deeper.
 What happened to each item, and where its backup copy is.
 What happened to each tweak. Problems are listed first.
+What happened to each update, with the reason when one did not install.
 What is actually coming out of (or into) this device right now.
 What is latency?
 What is on this page?
 What is shared with Claude
 What is slowing this PC down and what to do about it.
 What it means
+What kind of files take the space.
 What looks fine
 What PC Checker can apply here, feature by feature.
 What PC Checker can control here
@@ -1766,6 +2312,7 @@ What PC Checker can control on this PC
 What PC Checker does not change, and why
 What PC Checker found
 What registry cleaning can and cannot do
+What the columns mean, what PC Checker will not end and how flags work.
 What the numbers mean
 What the PC draws right now, what it costs, and the active power plan.
 What this app can control on your parts. Everything else is monitor-only or handled by the vendor's own software.
@@ -1775,6 +2322,7 @@ What to do now
 What to fix
 What to record
 What to test
+What went wrong
 Wheel scrolling
 When
 When a temperature counts as too hot: yellow at the warning level, red and an alert at the critical level.
@@ -1788,9 +2336,13 @@ Where the Latency page sends its pings.
 Where the problem is
 Whether the app can undo this change
 Whether Windows currently has this turned on.
+Which program gets the processor first when the PC is busy. Resets when the program restarts.
 Which public DNS service to use. All three are free and fast.
+Which tests to run, how long each takes, and a note for the next run.
 While downloading and uploading
 While the window is hidden. At most one per part every 10 minutes.
+whole folder
+Why each of them was not moved to the Recycle Bin.
 Why OpenRGB?
 Wi-Fi
 Wi-Fi networks on the same channel take turns to talk. The more networks share yours, the slower and laggier it gets. The channel is set on the router, not on this PC. 'best' marks the least crowded of the non-overlapping 2.4 GHz channels (1, 6, 11) as seen from here.
@@ -1798,16 +2350,22 @@ Wi-Fi settings
 Wi-Fi signal
 Wi-Fi standard
 Wi-Fi uses three bands. 2.4 GHz reaches furthest but has only three channels that do not overlap (1, 6 and 11) and is shared with Bluetooth and microwaves. 5 GHz has many more channels and is much faster at shorter range. 6 GHz (Wi-Fi 6E and 7) is the fastest and emptiest, with the shortest range. Networks on the same channel take turns, so a crowded channel is slow even with a strong signal.
+wifi wi fi internet speed test packet loss dns
 Windows
 Windows 11
 Windows 11 only lets apps see nearby Wi-Fi networks (and sometimes your own network's name) when Location is on for desktop apps.
+Windows and programs
 Windows did not report any attached display. Remote desktop sessions and some virtual machines hide them; try again on the PC itself.
 Windows display scaling. 150 % makes text and apps 1.5× larger.
 Windows display settings
+Windows does not always record when a file was opened, so the date it last changed counts too.
+Windows does not restart for updates during these hours.
 Windows does this weekly; run it after deleting a lot of files.
 Windows drive
+Windows drive · {0}
 Windows Features
 Windows has not written a blue screen dump on this PC.
+Windows is adjusting active hours automatically from how you use the PC. To pick them yourself, turn that off in Settings.
 Windows is installed on this drive.
 Windows language
 Windows logs an event whenever a drive, cable or controller misbehaves. The same message repeating for one drive is the thing to watch for.
@@ -1817,6 +2375,7 @@ Windows Memory Diagnostic runs at the next restart. Save your work and restart w
 Windows mixer
 Windows mouse settings
 Windows needs a restart to finish installing the new driver(s). Save your work first.
+Windows needs a restart to finish installing updates. Save your work first.
 Windows needs a restart to finish removing the old drivers. Save your work first.
 Windows needs Location permission to list Wi-Fi networks
 Windows normally skips new restore points for 24 hours after the last one.
@@ -1825,20 +2384,29 @@ Windows or PC Checker's safety list marks this app as essential, so it cannot be
 Windows Performance Toolkit
 Windows plays or records through this device unless an app picks another one.
 Windows power plan
+Windows processes among them are left running.
+Windows reports {0} more in use than the files add up to: restore points, the file system's own records and unreadable folders.
 Windows Security
 Windows Security Center could not be queried. Open Windows Security to check manually.
+Windows sets it back to normal when the program restarts.
 Windows Settings → System → Display: arrange displays, scaling and multiple-display options.
 Windows Startup settings
+Windows Storage settings and Storage Sense.
 Windows Storage settings can remove the previous Windows installation safely.
 Windows tries these from the top down when several are in range. Turn off auto-connect for hotspots you only use now and then, and mark capped connections as metered.
 Windows typing settings
 Windows Update
+Windows Update has no install history on this PC, or none matches the filter.
+Windows Update has no software updates waiting for this PC. Driver updates are on the Drivers page.
 Windows Update has nothing new for your devices. Graphics and peripheral makers often publish newer drivers on their own sites: see the links on the right.
 Windows Update only carries basic drivers. For graphics cards, chipsets and gaming peripherals, the manufacturer's site usually has the newest version.
 Windows Update stays on
+Windows usually retries a failed update. If it keeps failing, restart and check for updates again.
+Windows' own core processes (System, Registry, Memory Compression, smss, csrss, wininit, winlogon, services, lsass) and PC Checker itself cannot be ended or re-prioritised here, because that would crash or restart the PC.
 Windows' own file system tools with live output. Every repair asks first.
 With problems
 Works everywhere while PC Checker is running, even from the tray. Use Ctrl, Alt, Shift or Win plus a key.
+worse
 Worst
 WPA2 (AES/CCMP) or WPA3 is good. Open networks and WEP are not safe.
 Write log files to disk
@@ -1847,7 +2415,10 @@ Writes and reads back four test patterns across the memory that is free right no
 Writes each temperature and load reading at Verbose level. Only turn this on to diagnose sensor problems.
 Wrong results found so far. Any error means the hardware is not stable at these settings.
 XMP (Intel) and EXPO (AMD) are one-click BIOS profiles that run the memory at its advertised speed instead of the slow, safe default.
+Yes
 You are looking at sample data. These settings are stored in a separate demo file and never touch your real settings.
+You can restore them from the Recycle Bin. The space is only freed when the Recycle Bin is emptied (Cleanup page or the Recycle Bin itself).
+You're up to date
 Your drives
 Your hardware
 Your hardware, cooling and silicon quality decide what is stable.
@@ -1857,10 +2428,68 @@ Your router and public DNS servers.
 Your safety limits (Settings)
 Your settings ask for a restore point before every change, but System Protection is off, so changes here stop before they start. Turn it on in the Restore points tab (recommended) or switch off restore points in Settings.
 Your Wi-Fi connection looks healthy.
+Zip and other archives, ISO and virtual disk images.
+zip bug report support export
 Zones
+{0} % in use
+{0} (optional)
+{0} ({1}) will be moved to the Recycle Bin:
+{0} closes straight away. Anything unsaved in it is lost.
+{0} copies of {1}
+{0} could be freed
+{0} could be freed by keeping one copy of each.
+{0} CPU · {1}
+{0} damaged lines in the history files were skipped (for example after a crash or power cut).
+{0} days stored, {1} on disk.
+{0} file
+{0} file in this folder
+{0} file was in use or unreadable and left out.
+{0} files
+{0} files in this folder
+{0} files were in use or unreadable and left out.
+{0} folder
+{0} folder could not be read (Windows keeps some folders private), so the totals may be a little low.
+{0} folder not readable
+{0} folders
+{0} folders could not be read (Windows keeps some folders private), so the totals may be a little low.
+{0} folders not readable
+{0} free of {1}
+{0} group of identical files
+{0} groups of identical files
+{0} h {1} min
+{0} item
+{0} item selected
+{0} items
+{0} items selected
+{0} link was not followed, so nothing is counted twice.
+{0} links were not followed, so nothing is counted twice.
+{0} min {1} s
+{0} minutes
+{0} of {1}
+{0} of {1} is in use · {2} free
+{0} of {1} tests
+{0} online-only file (OneDrive and similar) takes no space here and is not counted.
+{0} online-only files (OneDrive and similar) take no space here and are not counted.
+{0} processes may be worth a closer look
+{0} programs
+{0} reached a critical level
+{0} repeats in {1}
+{0} rows written to {1}.
+{0} s
+{0} seconds
+{0} selected
+{0} selected · {1} to download
+{0} tests
+{0} to download
+{0} used · {1}
+{0} warnings
+{0} weeks
+{0}: {1} process(es) ended.
 • Corners follow the monitor your mouse is on when the overlay is shown; use Custom to pin it to one spot.
 • FPS counts the frames the game in front hands to Windows, the same way PresentMon does. It needs administrator rights, which PC Checker always runs with, and only runs while an FPS metric is shown.
 • Frame time is how long each frame took (lower is smoother). 1% low is the frame rate of the slowest 1% of frames in the last 30 seconds: it shows stutter that the average hides.
 • Readings come from the same sensors as the Temperatures page. RAM, network and disk activity are read from Windows directly, so they work even without hardware sensors.
 • Some anti-cheat systems block overlays or hide a game's frames; the overlay then shows “--”. If a game refuses to start with the overlay on, turn it off for that game.
 • Works over windowed and borderless-window games. Exclusive full-screen games hide every desktop window, including this one: switch the game to borderless.
+…and {0} smaller folder
+…and {0} smaller folders

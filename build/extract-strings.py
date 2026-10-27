@@ -34,8 +34,20 @@ def wanted(text: str) -> bool:
 
 
 def unescape_csharp(text: str) -> str:
-    """Undoes C# escapes (\\n, \\", \\\\) without touching other characters such as an ellipsis."""
-    return re.sub(r"\\(.)", lambda m: {"n": "\n", "t": "\t", "r": "\r", "0": "\0"}.get(m.group(1), m.group(1)), text)
+    """Undoes C# string escapes (\\n, \\", \\\\, \\u2026, \\x41) without touching other characters such as an ellipsis."""
+    simple = {"n": "\n", "t": "\t", "r": "\r", "0": "\0", "a": "\a", "b": "\b", "f": "\f", "v": "\v"}
+
+    def replace(m: re.Match) -> str:
+        if m.group(1):
+            return chr(int(m.group(1), 16))
+        if m.group(2):
+            return chr(int(m.group(2), 16))
+        if m.group(3):
+            return chr(int(m.group(3), 16))
+        ch = m.group(4)
+        return simple.get(ch, ch)
+
+    return re.sub(r"\\(?:u([0-9A-Fa-f]{4})|U([0-9A-Fa-f]{8})|x([0-9A-Fa-f]{1,4})|(.))", replace, text)
 
 
 def collect():
@@ -58,7 +70,7 @@ def collect():
             found.update(m.group(1) for m in CATALOG.finditer(source))
     for path in CORE_SHELL.glob("*.cs"):
         for match in MARKED.finditer(path.read_text(encoding="utf-8")):
-            found.add(bytes(match.group(1), "utf-8").decode("unicode_escape"))
+            found.add(unescape_csharp(match.group(1)))
     for extra in ("Cancel", "OK", "Continue"):
         found.add(extra)
     return sorted(found, key=lambda s: (s.casefold(), s))
