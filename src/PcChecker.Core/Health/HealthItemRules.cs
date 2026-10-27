@@ -334,9 +334,13 @@ public static class HealthItemRules
             return items;
         }
 
-        var temps = readings.Where(r => r.Kind == SensorKind.Temperature && r.Value is { } v && !double.IsNaN(v)).ToList();
-        double? cpu = temps.Where(r => r.Hardware == HardwareKind.Cpu).Select(r => r.Value).Max();
-        double? gpu = temps.Where(r => r.Hardware == HardwareKind.Gpu).Select(r => r.Value).Max();
+        // Role-aware: the CPU control temperature (not raw Tctl), the discrete GPU's core (not hot spot, memory or the
+        // integrated Radeon), and the Ryzen 7000/9000 thresholds when the user kept the stock values.
+        var list = readings.Where(r => r.Value is { } v && !double.IsNaN(v)).ToList();
+        var snapshot = new SensorSnapshot(DateTimeOffset.MinValue, list);
+        double? cpu = Overclocking.SensorPicker.MaxCpuTemp(snapshot);
+        double? gpu = Overclocking.SensorPicker.MaxGpuTemp(snapshot);
+        var (cpuWarn, cpuCrit) = TemperatureRoles.CpuThresholds(settings, Overclocking.SensorPicker.CpuName(snapshot));
         if (cpu is null && gpu is null)
         {
             return items;
@@ -353,13 +357,13 @@ public static class HealthItemRules
             metrics["GPU"] = $"{g:0} °C";
         }
 
-        if (cpu >= settings.CpuCritC)
+        if (cpu >= cpuCrit)
         {
             items.Add(new HealthItem("Thermal", HealthStatus.Critical, $"The CPU is very hot ({cpu:0} °C)",
                 "The processor is at or above its critical temperature and will slow itself down (thermal throttling) to avoid damage.",
                 "Check that the CPU cooler is seated and its fan spins, clean dust filters, and lower any overclock. See the Fans page to raise fan speeds.", metrics));
         }
-        else if (cpu >= settings.CpuWarnC)
+        else if (cpu >= cpuWarn)
         {
             items.Add(new HealthItem("Thermal", HealthStatus.Warning, $"The CPU is running warm ({cpu:0} °C)",
                 "Fine under a heavy load, but a concern if the PC is idle.", "Improve airflow or raise the fan curve on the Fans page.", metrics));

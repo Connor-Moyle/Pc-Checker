@@ -168,12 +168,13 @@ public sealed partial class LatencyViewModel : ViewModelBase
             return;
         }
 
-        var message = action.Description
+        var x3dWarning = PcChecker.Core.Hardware.AmdPlatformRules.ActionWarning(action.Id, PcChecker.Core.Hardware.LocalCpu.Name);
+        var message = (x3dWarning is null ? string.Empty : x3dWarning + "\n\n") + action.Description
             + (action.RequiresRestart ? "\n\nA restart is needed before this takes effect." : string.Empty)
             + (action.Reversible ? "\n\nYou can undo it later from the Optimize page." : string.Empty)
             + (action.Risk == RiskLevel.Advanced ? "\n\nThis is an advanced change. Only apply it if you know why you want it." : string.Empty)
             + "\n\nA restore point is created first when that is enabled in Settings.";
-        bool confirmed = await _dialogs.ConfirmAsync(action.Title, message, "Apply fix", isDanger: OptimizationRisk.IsDanger(action));
+        bool confirmed = await _dialogs.ConfirmAsync(action.Title, message, "Apply fix", isDanger: OptimizationRisk.IsDanger(action) || x3dWarning is not null);
         if (!confirmed)
         {
             return;

@@ -221,7 +221,9 @@ public static class SlowdownRules
         }
 
         // Desktop-specific power choices
-        if (facts.HasBattery == false && PowerPlanParser.IsPlan(facts.ActivePowerPlanId, facts.ActivePowerPlan, PowerPlanParser.Balanced, "Balanced"))
+        // A dual-CCD Ryzen 9 X3D needs Balanced (and Game Bar) for AMD's driver to keep games on the V-Cache cores.
+        bool dualX3d = Hardware.CpuTraits.IsDualCcdX3D(facts.CpuName);
+        if (facts.HasBattery == false && !dualX3d && PowerPlanParser.IsPlan(facts.ActivePowerPlanId, facts.ActivePowerPlan, PowerPlanParser.Balanced, "Balanced"))
         {
             findings.Add(new("power.balanced.desktop", FindingCategory.Power, Severity.Low, "Balanced power plan on a desktop PC",
                 "The Balanced plan lowers CPU clocks when idle and takes a moment to ramp back up. A desktop does not need to save battery.",
@@ -235,7 +237,7 @@ public static class SlowdownRules
                 "Occasional odd behaviour until a full restart", ["faststartup.disable"], false));
         }
 
-        if (facts.GameBarEnabled == true)
+        if (facts.GameBarEnabled == true && !dualX3d)
         {
             findings.Add(new("gamebar.on", FindingCategory.Configuration, Severity.Info, "Xbox Game Bar background recording is on",
                 "The Game Bar keeps an overlay and its capture features ready while you play. Turning it off frees a little GPU and memory in games.",

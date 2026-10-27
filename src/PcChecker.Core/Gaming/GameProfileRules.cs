@@ -151,6 +151,21 @@ public static class GameProfileRules
             && !string.Equals(p.Name, profile.Name, StringComparison.OrdinalIgnoreCase)
             && GameProfileMatcher.Matches(p, profile.ExeName)).ToList();
 
+    /// <summary>
+    /// A warning when a game profile would switch a dual-CCD Ryzen 9 X3D away from the Balanced plan: AMD's driver
+    /// parks the frequency CCD during games only on Balanced. Null when nothing conflicts.
+    /// </summary>
+    public static string? PowerPlanWarning(Guid? powerPlanId, string? cpuName)
+    {
+        if (powerPlanId is not { } plan || plan == Guid.Empty || plan == Power.PowerPlanParser.Balanced || !Hardware.CpuTraits.IsDualCcdX3D(cpuName))
+        {
+            return null;
+        }
+
+        return "Your Ryzen 9 X3D needs the Balanced power plan while gaming: AMD's driver uses it to keep the game on the V-Cache cores. "
+            + "Another plan makes the game spread across both CCDs and usually lowers frame rates. Choose \"Don't change the power plan\" unless you have measured a gain.";
+    }
+
     /// <summary>One line describing what the profile changes, e.g. "Overlay: Full · Fans: Performance · Power: High performance".</summary>
     public static string Describe(GameProfile profile, Func<Guid, string?>? powerPlanName = null)
     {

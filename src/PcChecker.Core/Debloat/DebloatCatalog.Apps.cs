@@ -56,7 +56,7 @@ public static partial class DebloatCatalog
         ("snippingtool", "Microsoft.ScreenSketch", "Snipping Tool", "Removing it breaks the Win+Shift+S and Print Screen screenshot shortcut."),
         ("terminal", "Microsoft.WindowsTerminal", "Windows Terminal", "The default console on Windows 11; keep it unless you have a replacement."),
         ("xbox", "Microsoft.GamingApp", "Xbox app", "Needed for PC Game Pass and installing Xbox games."),
-        ("gamebar", "Microsoft.XboxGamingOverlay", "Xbox Game Bar", "Removing it disables the Win+G overlay, screen recording and some game features."),
+        ("gamebar", "Microsoft.XboxGamingOverlay", "Xbox Game Bar", "Removing it disables the Win+G overlay, screen recording and some game features. On AMD Ryzen 9 X3D CPUs (7900X3D, 7950X3D, 9900X3D, 9950X3D) AMD's driver needs Game Bar to move games onto the V-Cache cores; keep it there."),
     ];
 
     /// <summary>Ids of the consumer apps the "Remove consumer apps" preset ticks.</summary>

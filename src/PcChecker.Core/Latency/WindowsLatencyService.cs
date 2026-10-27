@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 using PcChecker.Core.Common;
+using PcChecker.Core.Hardware;
 using PcChecker.Core.Input;
 using PcChecker.Core.Settings;
 
@@ -138,7 +139,9 @@ public sealed class WindowsLatencyService : ILatencyService
         {
             PowerPlanId = planId,
         };
-        var findings = LatencyRules.BuildFindings(facts, hasNvidia, nicPowerSaving, adapterStates);
+        string? cpuName = LocalCpu.Name;
+        var amdFacts = CpuTraits.IsDualCcdX3D(cpuName) ? AmdPlatformProbe.Read(cpuName, cancellationToken) : null;
+        var findings = LatencyRules.BuildFindings(facts, hasNvidia, nicPowerSaving, adapterStates, cpuName, amdFacts);
         Last = facts with { Findings = findings, Score = LatencyRules.Score(findings) };
         _logger.LogInformation("Latency check finished in {Elapsed:0.0} s: score {Score}, {Findings} findings, {Warnings} warnings.",
             stopwatch.Elapsed.TotalSeconds, Last.Score, findings.Count, warnings.Count);

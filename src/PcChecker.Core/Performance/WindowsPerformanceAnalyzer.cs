@@ -72,6 +72,7 @@ public sealed class WindowsPerformanceAnalyzer : IPerformanceAnalyzer
 
         var facts = new PerformanceFacts
         {
+            CpuName = Hardware.LocalCpu.Name,
             StartupItems = startupItems,
             Services = services,
             TopProcesses = topProcesses,

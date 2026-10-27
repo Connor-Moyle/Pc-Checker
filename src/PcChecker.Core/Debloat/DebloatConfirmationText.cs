@@ -16,10 +16,16 @@ public static class DebloatConfirmationText
     /// Lists the exact changes grouped by risk (Advanced first), then explains the restore point, one-way changes, and
     /// whether File Explorer or Windows has to restart.
     /// </summary>
-    public static string Build(IReadOnlyList<DebloatTweak> tweaks, bool revert, bool removeAppsForAllUsers = false)
+    public static string Build(IReadOnlyList<DebloatTweak> tweaks, bool revert, bool removeAppsForAllUsers = false, string? cpuName = null)
     {
         ArgumentNullException.ThrowIfNull(tweaks);
         var sb = new StringBuilder();
+        if (!revert && X3dGameBarConflict(tweaks, cpuName))
+        {
+            sb.AppendLine("Warning: " + Hardware.AmdPlatformRules.GameBarX3dWarning);
+            sb.AppendLine();
+        }
+
         int changeLines = 0;
         bool truncated = false;
         foreach (var group in tweaks.GroupBy(t => t.Risk).OrderByDescending(g => g.Key))
@@ -124,6 +130,10 @@ public static class DebloatConfirmationText
     };
 
     /// <summary>True when the confirmation should use the Danger style (advanced or one-way changes).</summary>
+    /// <summary>True when the batch removes Xbox Game Bar on a dual-CCD Ryzen 9 X3D, which AMD's CCD parking relies on.</summary>
+    public static bool X3dGameBarConflict(IEnumerable<DebloatTweak> tweaks, string? cpuName) =>
+        Hardware.CpuTraits.IsDualCcdX3D(cpuName) && tweaks.Any(t => t.Id.Equals("apps.gamebar", StringComparison.OrdinalIgnoreCase));
+
     public static bool IsDanger(IEnumerable<DebloatTweak> tweaks, bool revert) =>
         tweaks.Any(t => t.Risk == RiskLevel.Advanced || (!revert && !t.Reversible));
 
