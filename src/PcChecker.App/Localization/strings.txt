@@ -9,6 +9,8 @@
 +100 MHz core, +500 MHz memory, 105 % power.
 +50 MHz core, +200 MHz memory.
 , ±{0} %
+-50 mV: the same performance with less power and heat on most RX 7000/9000 cards.
+-80 mV and 90 % power: cooler and quieter. Run the stress test afterwards.
 0 % loss is normal. If your router already loses packets, the cause is in your home (often Wi-Fi). If only the internet targets lose packets, it is your provider.
 1 automatic backup, made {0}.
 1 change
@@ -26,6 +28,7 @@
 1000 is once a second. Higher values use slightly less CPU.
 127.0.0.1 is this computer.
 85 % power and a 75 °C temperature target.
+90 % power for a quieter card.
 95 % under
 95 out of 100 packets came back faster than this. Shows occasional spikes the average hides.
 A backup of your current setup is saved automatically before every import or reset.
@@ -111,6 +114,7 @@ Age
 Alerts
 All
 All can be fixed from here
+All categories
 All changes share restore point {0}.
 All devices are working
 All hardware
@@ -263,6 +267,7 @@ Both ask first and give you 10 seconds to cancel.
 Brief disconnect
 Brightness
 Browse for .exe
+Browsers
 Browse…
 Bufferbloat
 Bufferbloat grade
@@ -380,6 +385,7 @@ clean junk temp cache free space disk cleanup
 Clean up
 Cleans up junk and tunes Windows, fans, lighting and games.
 Cleanup
+Cleanup recommendations
 Clear
 Clear chat
 Clear filters
@@ -448,7 +454,6 @@ Copy the key path
 Copy this folder's path
 Copy this message
 Copy what PC Checker found about the fans to the clipboard, to paste into a support request. No personal data.
-Core clock offset (MHz)
 Core Windows services are marked Protected and cannot be stopped from starting; 'Careful' ones can, with a note about what you lose.
 Corners follow the monitor your mouse is on when the overlay is shown. Custom pins it to one spot you drag with “Edit position on screen”.
 Cost per day
@@ -525,6 +530,7 @@ defaults fans overlay lighting profiles section
 Delete
 Delete backup
 Delete backups older than 90 days
+Delete diagnostic data
 Delete profile
 Delete this backup
 Delete this custom profile.
@@ -549,6 +555,7 @@ Detect again
 Detect fans
 Detect hardware again
 Detected keyboards and mice
+Developer tools
 Device
 Device colour
 Device Manager error codes
@@ -752,6 +759,9 @@ Fast startup
 Fast startup, boot menu, Safe Mode and restarting into the firmware.
 Fetches the ticked Windows Update drivers now so they install faster later.
 File
+File Explorer
+File Explorer kept some cache files open
+File Explorer restarted
 File types
 Files
 Files found
@@ -837,6 +847,7 @@ FULL CHARGE NOW
 Full path of the program, for example C:\Tools\tool.exe
 Full scan
 Fullest drive
+Game launchers
 Game profiles
 Game Ready
 Game Ready comes first for new games; Studio is tested with creative apps.
@@ -882,6 +893,7 @@ Graphics card core temperature
 Graphics card to load
 Graphics compute
 Graphics control panel
+Graphics drivers (AMD, NVIDIA, Intel)
 Group by app
 Hand every fan back to the motherboard or graphics driver.
 Hand fans back to the motherboard when the app closes
@@ -904,13 +916,16 @@ Help
 Hex colour
 Hex colours: #RRGGBB, or #AARRGGBB where AA is transparency (CC ≈ 80 %). Temperatures turn yellow at the warning level and red at the critical level set on the Temperatures page.
 HH:mm
+Hibernation file
 hidden background
 Hidden updates
 Hide
 hide background
+Hide driver updates?
 Hide every metric
 Hide lines below this level. Verbose shows everything.
 Hide overlay
+Hide selected
 Hide serial numbers and MAC addresses in logs
 Hide the drivers that ship with Windows.
 Hide the pointer while typing
@@ -919,6 +934,8 @@ Hide this finding until the next scan.
 Hide this update
 Hide this update too?
 Hide this update?
+Hiding driver updates…
+Hiding updates is not supported here.
 High
 High confidence
 High dynamic range: brighter highlights and richer colours in supported games and videos.
@@ -1204,6 +1221,7 @@ Link speed
 Links Intel graphics, Wi-Fi and Bluetooth to their Intel download pages.
 Links that match the devices found on this PC.
 Listed below the charts
+Lists driver updates hidden in Windows Update and lets you offer them again.
 Lists the recommended changes that differ from your current settings. Nothing changes until you confirm.
 Live levels
 Live log
@@ -1234,6 +1252,7 @@ logs location
 Look around first
 Looking at the running programs…
 Looking for duplicate files…
+Looking for hidden driver updates…
 Looking for leftovers…
 Looking for what {0} left behind…
 Looks fine
@@ -1245,6 +1264,7 @@ Low is fastest and cheapest; High thinks longer.
 Low memory means less than this % free
 Low priority means the program only gets the processor when nothing else wants it, so it may run much slower.
 Low-memory warning. The memory profiles themselves are built in.
+Lower how much space restore points may use.
 made on {0}
 Main display
 Make a program of your choice start when you sign in
@@ -1355,6 +1375,7 @@ Name for the current setup, e.g. Streaming
 Name, e.g. Benchmarking
 Nearby networks
 Negative values (undervolt) lower heat; positive values help stability at higher ratios.
+Negative values undervolt the card: the same clocks with less power and heat. Too low = driver resets in games; go back up in 10 mV steps.
 Network
 Network (SSID)
 Network adapters
@@ -1398,6 +1419,7 @@ No fans to show
 No files were found.
 No fixed drives were listed, or the check could not run. Try running PC Checker as administrator.
 No game profiles yet. Start a game, come back here and choose “Add running game”.
+No hidden driver updates
 No hidden updates
 No history yet
 No identical files of {0} or more.
@@ -1456,6 +1478,7 @@ None of the sources has anything for your devices. Graphics and peripheral maker
 Normal
 Not a full security audit, just the essentials.
 Not analysed yet
+Not available
 Not checked yet
 not compared
 Not counted by this battery
@@ -1541,6 +1564,7 @@ Offsets are added to the card's own boost behaviour.
 OK
 Old and unused drivers…
 Old backups
+Old driver packages
 Old drivers
 Old files
 Old files: at least (MB)
@@ -1819,6 +1843,7 @@ Power draw
 Power limit (%)
 Power limit (W)
 Power plan
+Power plan and X3D
 Power plans could not be read. Open Windows Settings > System > Power to change them.
 Power settings
 POWER-ON HOURS
@@ -1835,6 +1860,7 @@ Price per kWh
 Priority
 Priority changed
 Priority decides which program gets the processor first when the PC is busy. {0} is now at {1}.
+Privacy
 Privacy and logs
 privacy redact logging
 Probably left behind. Check the name before you tick it.
@@ -1978,6 +2004,7 @@ Release date
 Release notes
 Released {0}
 Releases
+Releases most of the cache files File Explorer keeps open. Clean again afterwards.
 Releases page
 Reload
 Reload sensors
@@ -2042,6 +2069,8 @@ Restart
 Restart audio service
 Restart Explorer
 Restart File Explorer to see the changes
+Restart File Explorer, then clean again to remove more of the icon and thumbnail caches.
+Restart File Explorer?
 Restart later
 Restart needed
 Restart now
@@ -2049,6 +2078,7 @@ Restart pending
 Restart to switch language
 Restart to UEFI / BIOS
 Restart Windows to finish.
+Restarting File Explorer…
 Restarts into the Windows recovery menu (Startup Repair, System Restore, Safe Mode options).
 Restarts straight into the firmware settings (XMP/EXPO, fan curves, boot order). 10-second countdown with cancel.
 Restore
@@ -2192,6 +2222,7 @@ Saving your setup…
 Scales the whole panel.
 Scan
 Scan again after closing browsers or games
+Scan and clean again to remove the icon and thumbnail caches. Anything still in use is cleared after you sign out and back in.
 Scan drivers
 Scan finds file system problems without changing anything; the fixes repair them.
 Scan for slowdowns
@@ -2317,6 +2348,7 @@ Show empty headers
 Show every metric
 Show in File Explorer
 Show licence texts
+Show one group of categories. Scans always cover every group.
 Show only one area of the app, for example Sensors or Drivers.
 Show only one Device Manager class.
 Show only the processes marked as worth a closer look
@@ -2514,6 +2546,7 @@ System drive
 System entries
 System Protection is off
 System Protection is on
+System Protection settings
 System repair, service changes, deeper latency tweaks and overclocking. Every action still explains itself and asks before it changes anything.
 system restore backup
 system restore backup snapshot safety
@@ -2530,6 +2563,7 @@ Task Scheduler: {0}
 taskbar
 Taskbar, Start, File Explorer and right-click menu changes show after it. Nothing else closes.
 Tasks that start a program that is gone. Exported to XML first.
+Tells Windows Update to stop offering and installing the ticked Windows Update drivers. Use it for display or chipset drivers that AMD Software or the NVIDIA app installs.
 TEMPERATURE
 Temperature
 Temperature alerts
@@ -2593,6 +2627,7 @@ The device is not ready: it is unplugged, disabled in Windows or missing.
 The diagnostic report could not be built.
 The drive test writes a temporary {0} MB file to {1} and deletes it afterwards.
 The drive's own temperature (NVMe composite or SMART). This is the value PC Checker reports for the drive.
+The Drivers page removes old driver packages with a backup, instead of Disk Cleanup's Device Driver Packages.
 The energy a full battery holds today, in watt-hours.
 The fan diagnostic report is on the clipboard. It contains no personal data.
 The files add up to {0} more than Windows reports in use: files that share their data (hard links in the Windows folder) are counted once per path, and compressed or sparse files at their full size.
@@ -2662,6 +2697,7 @@ The selected tweaks are already applied or not available on this Windows.
 The short introduction from the first start: what PC Checker does, the language and Advanced mode.
 The speed the adapter and router negotiated (receive / send). Real throughput is usually 50-70 % of this.
 The System and Application logs contain no critical or error entries.
+The taskbar and open File Explorer windows close for a moment and come back. This releases most icon and thumbnail cache files; scan and clean again afterwards.
 the test “{0}”
 The tests that finished were saved.
 The text could not be copied to the clipboard: {0}
@@ -2678,6 +2714,7 @@ Theme, language, alerts and limits, restore points, updates, logging, cleanup, n
 These apply whatever the driver allows.
 These change deeper Windows settings or run long repair tools. Keep restore points on and read each description first.
 These changes do not need a restore point: deleted temporary files are recreated as needed and startup apps can be turned back on.
+These driver updates are hidden:
 These numbers are estimates
 These only change when and how updates install. PC Checker never disables Windows Update. To take a break from updates, pause them in Settings (see the notes below).
 These parts go back to how they were before: {0}. Anything you changed in them since then is replaced too.
@@ -2723,6 +2760,7 @@ thresholds warn critical cpu gpu drive hot
 Tick all / none
 Tick files or folders in any list. Windows, program and profile folders cannot be ticked.
 Tick the devices whose chosen source is Windows Update. Vendor drivers and tools install from each device's own button.
+Tick the devices whose chosen Windows Update driver you want to hide first.
 Tick the parts to import. Your current setup is backed up first, so you can undo the import.
 Tick the parts to put back to their defaults. Saved profiles in those parts are removed. Everything else stays as it is.
 Tick the safe tweaks you want and use “Apply all safe recommendations”, or apply them one at a time. Revert puts a setting back the way it was. Every change is confirmed first and recorded in the action journal.
@@ -2807,6 +2845,7 @@ Turn recording on or off, and choose how often to record and how long to keep it
 Turn this profile on or off without deleting it
 Turn Windows features on or off (classic)
 Turned off
+Turning hibernation off (which deletes hiberfil.sys) is on the Optimize page.
 Turning off Nagle's algorithm can lower ping in a few older games. It lives on the Latency page with the other input-lag fixes, so it is not repeated here.
 Turning on System Protection…
 Turning one off does not uninstall it; it just stops starting by itself.
@@ -2823,12 +2862,19 @@ Under 1 % is healthy
 Under 1 % loss is usually unnoticeable; 2 % or more is a real problem.
 Under 3 % is healthy
 under a second
+Undervolt
+Undervolt + power
 Undo
 Undo an update
 Undo the last change?
 Undo the last import or reset
 Undoing this changes PC Checker's tasks in Windows Task Scheduler:
 Undoing…
+Unhide
+Unhide driver updates?
+Unhide driver updates…
+Unhide them so Windows Update offers them again?
+Unhiding driver updates…
 Uninstall
 uninstall leftovers traces remnants orphaned folders
 Uninstall {0}?
@@ -3057,10 +3103,12 @@ Windows Settings → System → Display: arrange displays, scaling and multiple-
 Windows Startup settings
 Windows Storage settings and Storage Sense.
 Windows Storage settings can remove the previous Windows installation safely.
+Windows suggests large or unused files, OneDrive files to keep online only and apps you do not use.
 Windows tries these from the top down when several are in range. Turn off auto-connect for hotspots you only use now and then, and mark capped connections as metered.
 Windows typing settings
 Windows Update
 Windows Update does not offer or install hidden updates. To hide one, select it on the Updates tab or after removing it here.
+Windows Update has no hidden driver updates for this PC.
 Windows Update has no install history on this PC, or none matches the filter.
 Windows Update has no software updates waiting for this PC. Driver updates are on the Drivers page.
 Windows Update may install {0} again the next time it checks. Hide it so it stays off this PC until you show it again (Roll back → Hidden updates)?\n\nIf Windows Update does not list it until after the restart, hide it then from the Updates tab.
@@ -3069,13 +3117,16 @@ Windows Update stays on
 Windows Update will not offer or install "{0}" until you show it again (Roll back → Hidden updates).\n\nAny fixes in it stay missing while it is hidden, so only hide an update that causes a problem. This is the same as Microsoft's "Show or hide updates" tool.
 Windows Update will not offer or install {0} while it is hidden. This only matters once the update is removed; show it again any time under Hidden updates.
 Windows Update will offer "{0}" again and may install it the next time it checks.
+Windows Update will stop offering and installing these {0} driver update(s):
 Windows usually retries a failed update. If it keeps failing, restart and check for updates again.
 Windows will need a restart to finish at least one of these updates.
 Windows writes its detailed battery report to your Documents folder (PC Checker Reports) and opens it in your browser.
 Windows' estimate of how long a full charge lasts in use, based on how this PC has been used.
 Windows' estimate of time in use from a full charge, for how the PC was used in that period.
+Windows' own button for deleting the diagnostic data it collected.
 Windows' own core processes (System, Registry, Memory Compression, smss, csrss, wininit, winlogon, services, lsass) and PC Checker itself cannot be ended or re-prioritised here, because that would crash or restart the PC.
 Windows' own file system tools with live output. Every repair asks first.
+Windows' own tools clean these: {0}. DISM can take up to 30 minutes.
 With problems
 Works everywhere while PC Checker is running, even from the tray. Use Ctrl, Alt, Shift or Win plus a key.
 worse
@@ -3094,6 +3145,7 @@ You can download the driver from the maker's own page instead.
 You can go back
 You can install or remove it any time from Settings → Monitoring.
 You can restore them from the Recycle Bin. The space is only freed when the Recycle Bin is emptied (Cleanup page or the Recycle Bin itself).
+You can unhide them later from More → Unhide driver updates. To stop driver updates through Windows Update completely, use the Debloat tweak "Don't install drivers through Windows Update".
 You need the password you used to sign in to the previous version.
 You will be asked once more before anything starts.
 You're up to date
