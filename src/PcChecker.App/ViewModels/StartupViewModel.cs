@@ -23,6 +23,7 @@ public sealed partial class StartupViewModel : ViewModelBase
     private readonly IDialogService _dialogs;
     private readonly INotificationService _notifications;
     private readonly INavigationService _navigation;
+    private readonly RestartPromptService _restart;
     private readonly ILogger<StartupViewModel> _logger;
 
     private readonly List<StartupItemRow> _allItems = [];
@@ -65,10 +66,11 @@ public sealed partial class StartupViewModel : ViewModelBase
     private string? _lastRefreshedText;
 
     public StartupViewModel(IStartupService startup, ISettingsService settings, IDialogService dialogs, INotificationService notifications,
-        INavigationService navigation, ILogger<StartupViewModel> logger)
+        INavigationService navigation, RestartPromptService restart, ILogger<StartupViewModel> logger)
         : base(settings)
     {
         _startup = startup;
+        _restart = restart;
         _dialogs = dialogs;
         _notifications = notifications;
         _navigation = navigation;

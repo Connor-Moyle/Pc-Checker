@@ -4,6 +4,7 @@ using PcChecker.App.Converters;
 using PcChecker.Core.Common;
 using PcChecker.Core.Latency;
 using PcChecker.Core.Optimization;
+using Wpf.Ui.Controls;
 
 namespace PcChecker.App.ViewModels;
 
@@ -68,6 +69,11 @@ public sealed partial class LatencyFindingItem : ObservableObject
     public bool HasAction => Action is not null;
     public bool IsInfoOnly => Action is not null && !Action.Reversible && !Action.RequiresRestart && Action.Id == LatencyActionIds.TimerResolutionHint;
     public string FixText => IsInfoOnly ? "Explain" : "Fix";
+
+    /// <summary>Danger when the fix is confirmed with a Danger dialog (advanced or not undoable), otherwise Secondary.</summary>
+    public ControlAppearance FixAppearance => Action is not null && !IsInfoOnly && OptimizationRisk.IsDanger(Action)
+        ? ControlAppearance.Danger
+        : ControlAppearance.Secondary;
     public bool RequiresRestart => Action?.RequiresRestart == true;
     public bool CanFix => HasAction && !IsFixing && !IsFixed;
     public string StatusText => IsFixed ? (RequiresRestart ? "Fixed — restart to apply" : "Fixed") : string.Empty;

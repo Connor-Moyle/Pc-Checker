@@ -152,17 +152,10 @@
                   Margin="0,0,0,12"
                   Message="Optional features are parts of Windows you can switch on (such as Hyper-V or .NET 3.5). Capabilities are small add-ons Windows downloads on demand (such as the OpenSSH client). Built-in apps are the Store apps that came with Windows. Removing an app only affects that app; you can get it back from the Microsoft Store." />
 
-      <ui:InfoBar Severity="Warning"
-                  Title="Restart needed"
-                  Message="{Binding RebootMessage}"
-                  IsOpen="{Binding RebootRequired, Mode=OneWay}"
-                  IsClosable="True"
-                  Margin="0,0,0,12">
-        <StackPanel Orientation="Horizontal" Margin="0,4,0,4">
-          <ui:Button Content="Restart now" Appearance="Caution" Icon="{ui:SymbolIcon ArrowClockwise24}" Command="{Binding RestartNowCommand}" Margin="0,0,8,0" />
-          <ui:Button Content="Later" Command="{Binding DismissRebootCommand}" />
-        </StackPanel>
-      </ui:InfoBar>
+      <controls:RestartPromptBar IsOpen="{Binding RebootRequired}"
+                                 Message="{Binding RebootMessage}"
+                                 Reason="to finish the Windows feature change"
+                                 DismissCommand="{Binding DismissRebootCommand}" />
 
       <ui:InfoBar Severity="Warning"
                   Title="System Protection is off"

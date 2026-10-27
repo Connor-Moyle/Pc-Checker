@@ -53,6 +53,9 @@ public sealed partial class OptimizationActionRow : ObservableObject
     /// <summary>One-off tools (repairs, drive optimization) have no on/off state.</summary>
     public bool IsOnDemand => !Action.Reversible;
     public string ApplyText => IsOnDemand ? "Run" : "Apply";
+
+    /// <summary>Danger for advanced or non-reversible actions, matching the Danger confirmation they get.</summary>
+    public ControlAppearance ApplyAppearance => OptimizationRisk.IsDanger(Action) ? ControlAppearance.Danger : ControlAppearance.Primary;
     public bool CanApply => !IsBusy && IsApplied != true;
     public bool CanRevert => !IsBusy && IsReversible && IsApplied == true;
     public string StateBadge => IsApplied switch

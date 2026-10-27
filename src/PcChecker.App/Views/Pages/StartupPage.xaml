@@ -128,38 +128,19 @@
       </controls:SectionHeader.Actions>
     </controls:SectionHeader>
 
-    <ui:InfoBar Grid.Row="1"
-                Severity="Error"
-                Title="Something went wrong"
-                Message="{Binding ErrorMessage}"
-                IsOpen="{Binding HasError, Mode=OneWay}"
-                IsClosable="True"
-                Margin="0,0,0,12" />
+    <StackPanel Grid.Row="1">
+      <ui:InfoBar Severity="Error"
+                  Title="Something went wrong"
+                  Message="{Binding ErrorMessage}"
+                  IsOpen="{Binding HasError, Mode=OneWay}"
+                  IsClosable="True"
+                  Margin="0,0,0,12" />
+      <!-- Shared restart countdown (UEFI / Advanced startup restarts and restarts started from other pages) -->
+      <controls:RestartPromptBar />
+    </StackPanel>
 
     <ScrollViewer Grid.Row="2" Style="{StaticResource PageScroll}">
       <StackPanel>
-
-        <!-- Restart countdown -->
-        <ui:Card Style="{StaticResource CardSpacing}" Visibility="{Binding RestartPending, Converter={StaticResource BoolToVisibility}}"
-                 BorderBrush="{StaticResource AccentOrangeBrush}" BorderThickness="2">
-          <Grid>
-            <Grid.ColumnDefinitions>
-              <ColumnDefinition Width="Auto" />
-              <ColumnDefinition Width="*" />
-              <ColumnDefinition Width="Auto" />
-            </Grid.ColumnDefinitions>
-            <ui:SymbolIcon Grid.Column="0" Symbol="ArrowCounterclockwise24" FontSize="28" Foreground="{StaticResource AccentOrangeBrush}" Margin="0,0,16,0" />
-            <StackPanel Grid.Column="1" VerticalAlignment="Center">
-              <StackPanel Orientation="Horizontal">
-                <ui:TextBlock FontTypography="BodyStrong" Text="Restarting in " />
-                <ui:TextBlock FontTypography="BodyStrong" Text="{Binding RestartSecondsLeft}" Foreground="{StaticResource AccentOrangeBrush}" />
-                <ui:TextBlock FontTypography="BodyStrong" Text=" seconds" />
-              </StackPanel>
-              <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding RestartMessage}" TextWrapping="Wrap" />
-            </StackPanel>
-            <ui:Button Grid.Column="2" Content="Cancel restart" Appearance="Danger" Icon="{ui:SymbolIcon Dismiss24}" Command="{Binding CancelRestartCommand}" VerticalAlignment="Center" />
-          </Grid>
-        </ui:Card>
 
         <!-- Headline numbers -->
         <UniformGrid Columns="4" Margin="0,0,0,12">
@@ -438,9 +419,9 @@
 
             <!-- Restart actions -->
             <WrapPanel>
-              <ui:Button Content="Restart to UEFI / BIOS" Icon="{ui:SymbolIcon DeveloperBoard24}" Command="{Binding RestartToUefiCommand}" Margin="0,0,8,8"
+              <ui:Button Content="Restart to UEFI / BIOS" Appearance="Danger" Icon="{ui:SymbolIcon DeveloperBoard24}" Command="{Binding RestartToUefiCommand}" Margin="0,0,8,8"
                          ToolTip="Restarts straight into the firmware settings (XMP/EXPO, fan curves, boot order). 10-second countdown with cancel." />
-              <ui:Button Content="Advanced startup" Icon="{ui:SymbolIcon Wrench24}" Command="{Binding RestartToAdvancedStartupCommand}" Margin="0,0,8,8"
+              <ui:Button Content="Advanced startup" Appearance="Danger" Icon="{ui:SymbolIcon Wrench24}" Command="{Binding RestartToAdvancedStartupCommand}" Margin="0,0,8,8"
                          ToolTip="Restarts into the Windows recovery menu (Startup Repair, System Restore, Safe Mode options)." />
               <ui:TextBlock Style="{StaticResource Caption}" VerticalAlignment="Center" Margin="4,0,0,8"
                             Text="Both ask first and give you a 10-second countdown to cancel." />

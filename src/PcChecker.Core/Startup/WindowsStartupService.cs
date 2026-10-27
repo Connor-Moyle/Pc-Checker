@@ -32,7 +32,7 @@ public sealed partial class WindowsStartupService : IStartupService, IRestartCan
     public static string BackupDirectory =>
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "PcChecker", "backup", "startup");
 
-    public int RestartDelaySeconds => 10;
+    public int RestartDelaySeconds => RestartPrompt.CountdownSeconds;
 
     public Task<IReadOnlyList<StartupItem>> GetStartupItemsAsync(CancellationToken cancellationToken) =>
         StartupEnumerator.EnumerateAsync(cancellationToken);

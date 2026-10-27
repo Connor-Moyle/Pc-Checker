@@ -9,8 +9,6 @@ namespace PcChecker.App.ViewModels;
 /// <summary>Boot options half of <see cref="StartupViewModel"/>: fast startup, boot menu timeout, Safe Mode, restarts.</summary>
 public sealed partial class StartupViewModel
 {
-    private CancellationTokenSource? _countdownCts;
-
     [ObservableProperty]
     private BootConfig? _boot;
 
@@ -44,15 +42,6 @@ public sealed partial class StartupViewModel
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(BootTimeoutChanged))]
     private double _bootTimeoutSeconds = 30;
-
-    [ObservableProperty]
-    private bool _restartPending;
-
-    [ObservableProperty]
-    private int _restartSecondsLeft;
-
-    [ObservableProperty]
-    private string? _restartMessage;
 
     public bool BootTimeoutChanged => Boot is not null && (int)Math.Round(BootTimeoutSeconds) != Boot.TimeoutSeconds;
 
@@ -202,88 +191,28 @@ public sealed partial class StartupViewModel
     [RelayCommand]
     private Task RestartToUefiAsync() => ScheduleRestartAsync(
         "Restart into UEFI (BIOS) settings?",
-        "Your PC will restart straight into the firmware settings, where you can change XMP/EXPO memory profiles, fan curves and boot order.\n\nSave your work first. You get a 10-second countdown to cancel.",
-        "Restart now", "Restarting into the UEFI settings", _startup.RestartToUefiAsync);
+        "Your PC will restart straight into the firmware settings, where you can change XMP/EXPO memory profiles, fan curves and boot order.",
+        "Restarting into the UEFI settings", _startup.RestartToUefiAsync);
 
     [RelayCommand]
     private Task RestartToAdvancedStartupAsync() => ScheduleRestartAsync(
         "Restart into Advanced startup?",
-        "Your PC will restart into the Windows recovery menu (Startup Repair, System Restore, Safe Mode options, Command Prompt).\n\nSave your work first. You get a 10-second countdown to cancel.",
-        "Restart now", "Restarting into Advanced startup", _startup.RestartToAdvancedStartupAsync);
+        "Your PC will restart into the Windows recovery menu (Startup Repair, System Restore, Safe Mode options, Command Prompt).",
+        "Restarting into Advanced startup", _startup.RestartToAdvancedStartupAsync);
 
-    private async Task ScheduleRestartAsync(string title, string message, string confirm, string busy, Func<CancellationToken, Task<Core.Common.OperationResult>> action)
+    /// <summary>
+    /// Uses the shared restart flow (Danger confirmation, fixed countdown, Cancel restart) so these special restarts
+    /// look and behave like every other "Restart now" in the app.
+    /// </summary>
+    private Task ScheduleRestartAsync(string title, string description, string busy, Func<CancellationToken, Task<Core.Common.OperationResult>> action)
     {
-        if (RestartPending)
+        string message = description + $"\n\nSave your work first. You get a {Core.Common.RestartPrompt.CountdownSeconds}-second countdown to cancel.";
+        Func<CancellationToken, Task<Core.Common.OperationResult>>? cancel = _startup is IRestartCanceller canceller ? canceller.CancelPendingRestartAsync : null;
+        return _restart.RequestAsync(title, message, Core.Common.RestartPrompt.ConfirmButtonText(), async ct =>
         {
-            _notifications.Warning("A restart is already counting down", "Cancel it first if you changed your mind.");
-            return;
-        }
-
-        if (!await _dialogs.ConfirmAsync(title, message, confirm, isDanger: true))
-        {
-            return;
-        }
-
-        await RunBusyAsync(async ct =>
-        {
-            var result = await action(ct);
-            if (result.Success)
-            {
-                int delay = _startup is IRestartCanceller c ? c.RestartDelaySeconds : 10;
-                RestartMessage = result.Message;
-                StartCountdown(delay);
-            }
-            else
-            {
-                _notifications.Error("Restart not scheduled", result.Message);
-            }
-        }, busy + "…");
-    }
-
-    private void StartCountdown(int seconds)
-    {
-        _countdownCts?.Cancel();
-        _countdownCts = new CancellationTokenSource();
-        var token = _countdownCts.Token;
-        RestartSecondsLeft = seconds;
-        RestartPending = true;
-        _ = Task.Run(async () =>
-        {
-            try
-            {
-                while (RestartSecondsLeft > 0 && !token.IsCancellationRequested)
-                {
-                    await Task.Delay(1000, token);
-                    DispatcherHelper.PostToUi(() => RestartSecondsLeft = Math.Max(0, RestartSecondsLeft - 1));
-                }
-            }
-            catch (OperationCanceledException)
-            {
-            }
-        }, token);
-    }
-
-    [RelayCommand]
-    private async Task CancelRestartAsync()
-    {
-        _countdownCts?.Cancel();
-        try
-        {
-            if (_startup is IRestartCanceller canceller)
-            {
-                var result = await canceller.CancelPendingRestartAsync(CancellationToken.None);
-                _notifications.Show("Restart", result.Message, result.Success ? NotificationKind.Success : NotificationKind.Error);
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Cancelling the restart failed.");
-            _notifications.Error("Could not cancel the restart", ex.Message + " Run 'shutdown /a' in a command prompt right away.");
-        }
-        finally
-        {
-            RestartPending = false;
-            RestartMessage = null;
-        }
+            Core.Common.OperationResult result = Core.Common.OperationResult.Fail("The restart was not scheduled.");
+            await RunBusyAsync(async innerCt => result = await action(innerCt), busy + "…");
+            return result;
+        }, cancel);
     }
 }

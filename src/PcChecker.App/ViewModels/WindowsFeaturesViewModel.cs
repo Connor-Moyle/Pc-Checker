@@ -169,23 +169,6 @@ public sealed partial class WindowsFeaturesViewModel : ViewModelBase
     }
 
     [RelayCommand]
-    private async Task RestartNowAsync()
-    {
-        bool ok = await _dialogs.ConfirmAsync("Restart Windows now?",
-            "Save your work first. Windows will restart in 30 seconds so the feature change can finish.", "Restart in 30 s", true);
-        if (!ok)
-        {
-            return;
-        }
-
-        var result = ShellLauncher.Open("shutdown.exe", "/r /t 30 /c \"PC Checker: restarting to finish a Windows feature change.\"");
-        if (!result.Success)
-        {
-            ErrorMessage = result.Message;
-        }
-    }
-
-    [RelayCommand]
     private void OpenOptionalFeaturesSettings() => Open("ms-settings:optionalfeatures");
 
     [RelayCommand]

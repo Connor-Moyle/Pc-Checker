@@ -30,6 +30,10 @@ public sealed partial class MemoryViewModel : ViewModelBase
     [ObservableProperty] private string _usedText = "—";
     [ObservableProperty] private string _availableText = "—";
     [ObservableProperty] private string _commitText = "—";
+
+    /// <summary>True after the memory diagnostic was scheduled; shows the shared "Restart needed" bar.</summary>
+    [ObservableProperty] private bool _diagnosticRestartNeeded;
+
     [ObservableProperty] private string? _commitSubtitle;
     [ObservableProperty] private string _cachedText = "—";
     [ObservableProperty] private string _standbyText = "—";

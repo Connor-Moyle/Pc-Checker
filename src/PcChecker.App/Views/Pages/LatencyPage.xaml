@@ -274,7 +274,7 @@
                         </StackPanel>
                         <StackPanel Grid.Column="2" VerticalAlignment="Center" Margin="16,0,0,0" MinWidth="110">
                           <ui:Button Content="{Binding FixText}"
-                                     Appearance="Secondary"
+                                     Appearance="{Binding FixAppearance}"
                                      HorizontalAlignment="Right"
                                      Command="{Binding DataContext.FixCommand, RelativeSource={RelativeSource AncestorType=Page}}"
                                      CommandParameter="{Binding}"

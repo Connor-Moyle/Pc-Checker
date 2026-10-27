@@ -96,6 +96,7 @@ public static class ServiceRegistration
         Add<IInputService, WindowsInputService, DemoInputService>(services, demo);
         Add<ILatencyService, WindowsLatencyService, DemoLatencyService>(services, demo);
         Add<IStartupService, WindowsStartupService, DemoStartupService>(services, demo);
+        Add<IRestartScheduler, WindowsRestartScheduler, DemoRestartScheduler>(services, demo);
         Add<IMousePollingMeter, RawInputPollingMeter, DemoMousePollingMeter>(services, demo);
 
         // Optimization action providers (IOptimizationService aggregates every registration below).
@@ -115,6 +116,7 @@ public static class ServiceRegistration
         services.AddSingleton<INotificationService, NotificationService>();
         services.AddSingleton<IHotkeyService, HotkeyService>();
         services.AddSingleton<IOverlayService, OverlayService>();
+        services.AddSingleton<RestartPromptService>();
         services.AddSingleton<ScreenshotRunner>();
 
         // Shell

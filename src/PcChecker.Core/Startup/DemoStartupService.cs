@@ -157,20 +157,20 @@ public sealed class DemoStartupService : IStartupService, IRestartCanceller
         return OperationResult.Ok($"Fast startup {(enabled ? "enabled" : "disabled")} (demo).");
     }
 
-    public int RestartDelaySeconds => 10;
+    public int RestartDelaySeconds => RestartPrompt.CountdownSeconds;
 
     public async Task<OperationResult> RestartToUefiAsync(CancellationToken cancellationToken)
     {
         await DemoData.DelayAsync(cancellationToken).ConfigureAwait(false);
         _restartPending = true;
-        return OperationResult.Ok("Would restart into the UEFI firmware settings in 10 seconds (demo).", rebootRequired: true);
+        return OperationResult.Ok($"Would restart into the UEFI firmware settings in {RestartDelaySeconds} seconds (demo).", rebootRequired: true);
     }
 
     public async Task<OperationResult> RestartToAdvancedStartupAsync(CancellationToken cancellationToken)
     {
         await DemoData.DelayAsync(cancellationToken).ConfigureAwait(false);
         _restartPending = true;
-        return OperationResult.Ok("Would restart into Advanced startup in 10 seconds (demo).", rebootRequired: true);
+        return OperationResult.Ok($"Would restart into Advanced startup in {RestartDelaySeconds} seconds (demo).", rebootRequired: true);
     }
 
     public async Task<OperationResult> CancelPendingRestartAsync(CancellationToken cancellationToken)

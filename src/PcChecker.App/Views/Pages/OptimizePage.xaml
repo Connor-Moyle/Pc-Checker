@@ -45,8 +45,9 @@
 
     <StackPanel Grid.Row="1">
       <ui:InfoBar Severity="Error" Title="Something went wrong" Message="{Binding ErrorMessage}" IsOpen="{Binding HasError, Mode=OneWay}" IsClosable="True" Margin="0,0,0,12" />
-      <ui:InfoBar Severity="Warning" Title="Restart needed" IsOpen="{Binding IsRebootRequired, Mode=OneWay}" IsClosable="False" Margin="0,0,0,12"
-                  Message="One of the changes you applied finishes after Windows restarts. Save your work and restart when convenient." />
+      <controls:RestartPromptBar IsOpen="{Binding IsRebootRequired}"
+                                 Message="One of the changes you applied finishes after Windows restarts. Save your work and restart when convenient."
+                                 Reason="to finish the changes you applied" />
       <ui:InfoBar Severity="Informational" Title="Applying safe tweaks" Message="{Binding BatchProgressText}" IsOpen="{Binding IsBatchRunning, Mode=OneWay}" IsClosable="False" Margin="0,0,0,12" />
     </StackPanel>
 
@@ -136,7 +137,7 @@
                             <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center"
                                         IsEnabled="{Binding DataContext.IsActionRunning, RelativeSource={RelativeSource AncestorType=Page}, Converter={StaticResource InverseBool}}">
                               <ui:ProgressRing IsIndeterminate="True" Width="18" Height="18" Margin="0,0,8,0" Visibility="{Binding IsBusy, Converter={StaticResource BoolToVisibility}}" />
-                              <ui:Button Appearance="Primary" Content="{Binding ApplyText}" Icon="{ui:SymbolIcon Checkmark24}" MinWidth="92" Margin="0,0,6,0"
+                              <ui:Button Appearance="{Binding ApplyAppearance}" Content="{Binding ApplyText}" Icon="{ui:SymbolIcon Checkmark24}" MinWidth="92" Margin="0,0,6,0"
                                          IsEnabled="{Binding CanApply}"
                                          Command="{Binding DataContext.ApplyCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}" />
                               <ui:Button Content="Revert" Icon="{ui:SymbolIcon ArrowUndo24}" MinWidth="92"

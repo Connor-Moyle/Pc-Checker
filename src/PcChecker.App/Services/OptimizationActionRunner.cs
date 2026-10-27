@@ -76,7 +76,7 @@ public sealed class OptimizationActionRunner
                 revert ? $"Undo \"{action.Title}\"?" : $"{action.Title}?",
                 BuildConfirmation(action, revert),
                 revert ? "Undo" : "Apply",
-                isDanger: action.Risk == RiskLevel.Advanced || !action.Reversible))
+                isDanger: OptimizationRisk.IsDanger(action)))
         {
             return false;
         }

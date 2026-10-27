@@ -173,7 +173,7 @@ public sealed partial class LatencyViewModel : ViewModelBase
             + (action.Reversible ? "\n\nYou can undo it later from the Optimize page." : string.Empty)
             + (action.Risk == RiskLevel.Advanced ? "\n\nThis is an advanced change. Only apply it if you know why you want it." : string.Empty)
             + "\n\nA restore point is created first when that is enabled in Settings.";
-        bool confirmed = await _dialogs.ConfirmAsync(action.Title, message, "Apply fix", isDanger: action.Risk == RiskLevel.Advanced);
+        bool confirmed = await _dialogs.ConfirmAsync(action.Title, message, "Apply fix", isDanger: OptimizationRisk.IsDanger(action));
         if (!confirmed)
         {
             return;

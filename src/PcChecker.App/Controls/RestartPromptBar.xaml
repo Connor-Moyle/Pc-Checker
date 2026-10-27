@@ -1,0 +1,33 @@
+<UserControl x:Class="PcChecker.App.Controls.RestartPromptBar"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+             x:Name="Root">
+  <StackPanel>
+    <!-- "Restart needed": the same bar, buttons and wording on every page -->
+    <ui:InfoBar x:Name="NeededBar"
+                Severity="Warning"
+                Title="Restart needed"
+                Message="{Binding Message, ElementName=Root}"
+                IsOpen="False"
+                IsClosable="False"
+                Margin="0,0,0,12">
+      <StackPanel Orientation="Horizontal" Margin="0,4,0,4">
+        <ui:Button x:Name="RestartButton" Content="Restart now" Appearance="Danger" Icon="{ui:SymbolIcon ArrowClockwise24}"
+                   Click="OnRestartClick" Margin="0,0,8,0" />
+        <ui:Button x:Name="LaterButton" Content="Later" Command="{Binding DismissCommand, ElementName=Root}" />
+      </StackPanel>
+    </ui:InfoBar>
+
+    <!-- Shared countdown: visible on every page hosting this bar while a restart is scheduled -->
+    <ui:InfoBar x:Name="CountdownBar"
+                Severity="Error"
+                Title="{Binding CountdownTitle}"
+                Message="{Binding Message}"
+                IsOpen="{Binding IsPending, Mode=OneWay}"
+                IsClosable="False"
+                Margin="0,0,0,12">
+      <ui:Button Content="Cancel restart" Appearance="Danger" Icon="{ui:SymbolIcon Dismiss24}" Command="{Binding CancelCommand}" Margin="0,4,0,4" />
+    </ui:InfoBar>
+  </StackPanel>
+</UserControl>

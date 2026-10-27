@@ -51,13 +51,10 @@
     <StackPanel Grid.Row="2">
       <ui:InfoBar Severity="Error" Title="Something went wrong" Message="{Binding ErrorMessage}" IsOpen="{Binding HasError, Mode=OneWay}" IsClosable="True" Margin="0,0,0,8" />
       <ui:InfoBar Severity="Warning" Title="Some information is missing" Message="{Binding Warnings}" IsOpen="{Binding HasWarnings, Mode=OneWay}" IsClosable="True" Margin="0,0,0,8" />
-      <ui:InfoBar Severity="Informational" Title="Restart needed" IsOpen="{Binding RebootRequired, Mode=OneWay}" IsClosable="False" Margin="0,0,0,8"
-                  Message="Windows needs a restart to finish installing the new driver(s). Save your work first.">
-        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-          <ui:Button Content="Restart now" Appearance="Primary" Command="{Binding RestartNowCommand}" Margin="0,0,8,0" />
-          <ui:Button Content="Later" Command="{Binding DismissRebootCommand}" />
-        </StackPanel>
-      </ui:InfoBar>
+      <controls:RestartPromptBar IsOpen="{Binding RebootRequired}"
+                                 Message="Windows needs a restart to finish installing the new driver(s). Save your work first."
+                                 Reason="to finish installing the new drivers"
+                                 DismissCommand="{Binding DismissRebootCommand}" />
       <ui:InfoBar Severity="Success" Title="Done" Message="{Binding LastResultMessage}" IsOpen="{Binding ShowSuccessResult, Mode=OneWay}" IsClosable="True" Margin="0,0,0,8" />
       <ui:InfoBar Severity="Error" Title="That did not work" Message="{Binding LastResultMessage}" IsOpen="{Binding ShowFailureResult, Mode=OneWay}" IsClosable="True" Margin="0,0,0,8" />
     </StackPanel>
@@ -84,7 +81,7 @@
             </Grid.ColumnDefinitions>
             <StackPanel Grid.Column="0" Orientation="Horizontal">
               <ui:Button Content="Install selected" Icon="{ui:SymbolIcon ArrowDownload24}" Appearance="Primary" Command="{Binding InstallSelectedCommand}" Margin="0,0,8,0"
-                         ToolTip="Downloads (if needed) and installs the ticked updates after creating a restore point." />
+                         ToolTip="Downloads (if needed) and installs the ticked updates after creating a restore point when that option is on in Settings." />
               <ui:Button Content="Download only" Icon="{ui:SymbolIcon CloudArrowDown24}" Command="{Binding DownloadSelectedCommand}" Margin="0,0,8,0"
                          ToolTip="Fetches the ticked updates now so they install faster later." />
               <ui:Button Content="Select all" Command="{Binding SelectAllUpdatesCommand}" Margin="0,0,4,0" />

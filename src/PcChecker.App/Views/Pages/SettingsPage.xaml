@@ -40,7 +40,7 @@
       <controls:SectionHeader.Actions>
         <StackPanel Orientation="Horizontal">
           <ui:TextBlock Style="{StaticResource Muted}" VerticalAlignment="Center" Margin="0,0,12,0" Text="{Binding SaveStatus}" />
-          <ui:Button Content="Reset to defaults" Icon="{ui:SymbolIcon ArrowReset24}" Command="{Binding ResetSettingsCommand}" />
+          <ui:Button Content="Reset to defaults" Appearance="Danger" Icon="{ui:SymbolIcon ArrowReset24}" Command="{Binding ResetSettingsCommand}" />
         </StackPanel>
       </controls:SectionHeader.Actions>
     </controls:SectionHeader>

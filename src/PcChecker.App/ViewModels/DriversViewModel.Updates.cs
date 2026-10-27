@@ -184,21 +184,6 @@ public sealed partial class DriversViewModel
     private void OpenOptionalUpdates() => Open(DriverRules.OptionalUpdatesUri);
 
     [RelayCommand]
-    private async Task RestartNowAsync()
-    {
-        if (!await _dialogs.ConfirmAsync("Restart Windows?", "Windows will restart in 60 seconds so the new drivers can finish installing. Save your work first.\n\nYou can cancel the countdown with 'shutdown /a' from a command prompt.", "Restart", isDanger: true))
-        {
-            return;
-        }
-
-        var result = ShellLauncher.Open("shutdown.exe", "/r /t 60 /c \"PC Checker: restarting to finish driver installation.\"");
-        if (!result.Success)
-        {
-            ErrorMessage = result.Message;
-        }
-    }
-
-    [RelayCommand]
     private void DismissReboot() => RebootRequired = false;
 
     /// <summary>

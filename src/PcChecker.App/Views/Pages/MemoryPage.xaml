@@ -36,13 +36,18 @@
                 IsClosable="True"
                 Margin="0,0,0,12" />
 
-    <ui:InfoBar Grid.Row="2"
-                Severity="Warning"
-                Title="Things worth fixing"
-                Message="{Binding WarningsText}"
-                IsOpen="{Binding HasWarnings, Mode=OneWay}"
-                IsClosable="False"
-                Margin="0,0,0,12" />
+    <StackPanel Grid.Row="2">
+      <controls:RestartPromptBar IsOpen="{Binding DiagnosticRestartNeeded}"
+                                 Message="Windows Memory Diagnostic runs at the next restart. Save your work and restart when convenient."
+                                 Reason="to run the Windows Memory Diagnostic"
+                                 DismissCommand="{Binding DismissDiagnosticRestartCommand}" />
+      <ui:InfoBar Severity="Warning"
+                  Title="Things worth fixing"
+                  Message="{Binding WarningsText}"
+                  IsOpen="{Binding HasWarnings, Mode=OneWay}"
+                  IsClosable="False"
+                  Margin="0,0,0,12" />
+    </StackPanel>
 
     <ScrollViewer Grid.Row="3" Style="{StaticResource PageScroll}">
       <StackPanel>

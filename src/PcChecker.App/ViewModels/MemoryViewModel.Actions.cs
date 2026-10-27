@@ -30,21 +30,12 @@ public sealed partial class MemoryViewModel
             }
         }, "Scheduling the Windows Memory Diagnostic…");
 
-        if (!scheduled)
-        {
-            return;
-        }
-
-        bool restart = await _dialogs.ConfirmAsync("Restart now?", "Restart the PC now to run the memory test? Save your work first. The restart starts in 10 seconds.", "Restart", isDanger: true);
-        if (restart)
-        {
-            var launch = ShellLauncher.Open("shutdown.exe", "/r /t 10 /c \"PC Checker is restarting to run the Windows Memory Diagnostic.\"");
-            if (!launch.Success)
-            {
-                ErrorMessage = launch.Message;
-            }
-        }
+        // The shared "Restart needed" bar offers Restart now (Danger, fixed countdown, Cancel) and Later.
+        DiagnosticRestartNeeded = scheduled;
     }
+
+    [RelayCommand]
+    private void DismissDiagnosticRestart() => DiagnosticRestartNeeded = false;
 
     [RelayCommand]
     private void OpenMemoryDiagnosticTool()
