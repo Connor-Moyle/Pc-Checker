@@ -22,6 +22,9 @@ env:
 jobs:
   build:
     name: Build, test and publish (Windows)
+    # Same-repository PRs are already built by the push event; only run the
+    # pull_request event for PRs from forks so CI does not run twice.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
     runs-on: windows-latest
     steps:
       - name: Check out
@@ -66,6 +69,9 @@ jobs:
 
   test-linux:
     name: Build and test (Linux)
+    # Same-repository PRs are already built by the push event; only run the
+    # pull_request event for PRs from forks so CI does not run twice.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ubuntu-latest
     steps:
       - name: Check out

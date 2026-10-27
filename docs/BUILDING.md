@@ -115,7 +115,7 @@ source of truth for a release. CI preview builds carry a `ci.<run>` suffix.
 
 | Workflow | Trigger | What it does |
 |---|---|---|
-| `ci.yml` | every push, pull requests to `main` | Build and test on Windows and Linux, publish a self-contained win-x64 build as the `PcChecker-win-x64` artifact, then run the published app with `--screenshots --demo` on Windows and upload the `screenshots` artifact. |
+| `ci.yml` | every push, pull requests to `main` from forks (same-repository PRs are covered by the push run) | Build and test on Windows and Linux, publish a self-contained win-x64 build as the `PcChecker-win-x64` artifact, then run the published app with `--screenshots --demo` on Windows and upload the `screenshots` artifact. |
 | `screenshots.yml` | manual, or app code changes on `main` | Same capture, then commits the PNGs into `docs/screenshots/` when they changed. |
 | `release.yml` | tags `v*` | Package and publish a release. |
 | `codeql.yml` | pushes and pull requests to `main`, weekly | CodeQL security analysis of the C# code. |
