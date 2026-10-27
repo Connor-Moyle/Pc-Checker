@@ -322,6 +322,31 @@ public class HistoryMathTests
     }
 
     [Fact]
+    public void Rolling_up_a_partly_recorded_bucket_keeps_its_energy()
+    {
+        // Five minutes at 300 W inside one 15-minute bucket, then 20 minutes in the next hour: 0.025 kWh and 0.1 kWh.
+        var samples = Enumerable.Range(0, 5).Select(i => T0.AddMinutes(i))
+            .Concat(Enumerable.Range(0, 20).Select(i => T0.AddHours(1).AddMinutes(i)))
+            .Select(t => new HistorySample(t, 60, new Dictionary<string, double> { [HistoryMetrics.Power] = 300 }))
+            .ToList();
+        Assert.Equal(0.125, HistoryMath.EnergyKwh(samples), 6);
+
+        var fine = HistoryRollup.Compact(samples, HistoryRollup.FineBucket);
+        Assert.Equal([300, 900, 300], fine.Select(s => s.SpanSeconds));
+        Assert.Equal(300, fine[0].Get(HistoryMetrics.Power));
+        Assert.Equal(0.125, HistoryMath.EnergyKwh(fine), 6);
+
+        var coarse = HistoryRollup.Compact(fine, HistoryRollup.CoarseBucket);
+        Assert.Equal([300, 1200], coarse.Select(s => s.SpanSeconds));
+        Assert.Equal(0.125, HistoryMath.EnergyKwh(coarse), 6);
+
+        // Already rolled up: maintenance does not rewrite it again, and rolling it up again changes nothing.
+        Assert.False(HistoryRollup.NeedsCompaction(fine, HistoryRollup.FineBucket));
+        Assert.False(HistoryRollup.NeedsCompaction(coarse, HistoryRollup.CoarseBucket));
+        Assert.Equal(coarse.Select(s => s.SpanSeconds), HistoryRollup.Compact(coarse, HistoryRollup.CoarseBucket).Select(s => s.SpanSeconds));
+    }
+
+    [Fact]
     public void Axis_range_is_fixed_for_percentages_and_padded_otherwise()
     {
         Assert.Equal((0d, 100d), HistoryMath.AxisRange(HistoryMetrics.CpuLoad, null));
@@ -567,7 +592,11 @@ public class HistoryDemoAndExportTests
 
         // Recent days at full resolution, older days rolled up like the real store.
         Assert.Contains(a, s => s.SpanSeconds == 60 && s.Time > now.AddDays(-2));
-        Assert.All(a.Where(s => s.Time < now.AddDays(-9)), s => Assert.True(s.SpanSeconds >= 900));
+        // (a rolled-up point starts on a 15-minute boundary; its span is the time actually recorded in it)
+        var old = a.Where(s => s.Time < now.AddDays(-9)).ToList();
+        Assert.All(old, s => Assert.Equal(0, s.Time.ToUnixTimeSeconds() % 900));
+        Assert.False(HistoryRollup.NeedsCompaction(old, HistoryRollup.FineBucket));
+        Assert.Contains(old, s => s.SpanSeconds >= 900);
 
         var data = new HistoryData(now.AddDays(-30), now, a);
         Assert.Contains(HistoryMetrics.Health, data.Metrics);

@@ -42,7 +42,11 @@ public static class HistoryRollup
         return TimeSpan.FromMinutes(NiceBucketMinutes[^1]);
     }
 
-    /// <summary>True when some sample is finer than <paramref name="bucket"/> or two samples share a bucket.</summary>
+    /// <summary>
+    /// True when some sample does not start on a <paramref name="bucket"/> boundary or two samples share a bucket. A
+    /// lone sample on a boundary is already compact: rolled up it keeps its time, values and covered seconds, even when
+    /// it covers less than the whole bucket.
+    /// </summary>
     public static bool NeedsCompaction(IReadOnlyList<HistorySample> samples, TimeSpan bucket)
     {
         ArgumentNullException.ThrowIfNull(samples);
@@ -51,7 +55,7 @@ public static class HistoryRollup
         foreach (var s in samples)
         {
             long time = s.Time.ToUnixTimeSeconds();
-            if (s.SpanSeconds < size || time % size != 0 || !seen.Add(time))
+            if (time % size != 0 || !seen.Add(time))
             {
                 return true;
             }
@@ -63,8 +67,9 @@ public static class HistoryRollup
     /// <summary>
     /// Groups the samples into buckets of <paramref name="bucket"/> (aligned to Unix time, so to UTC hours) and
     /// combines each metric by its <see cref="HistoryAggregation"/>. Each result is stamped with its bucket start and
-    /// covers the bucket's length (or more, when an input sample was already coarser). Averages are weighted by the
-    /// seconds each sample covers.
+    /// its span is the seconds the input samples actually covered, at most the bucket's length (or the longest input
+    /// span, when an input sample was already coarser), so a bucket recorded for only five minutes still counts five
+    /// minutes of energy (<see cref="HistoryMath.EnergyKwh"/>). Averages are weighted by the seconds each sample covers.
     /// </summary>
     public static IReadOnlyList<HistorySample> Compact(IEnumerable<HistorySample> samples, TimeSpan bucket)
     {
@@ -81,7 +86,8 @@ public static class HistoryRollup
             }
 
             var metrics = bucketState.Metrics;
-            bucketState.Span = Math.Max(bucketState.Span, sample.SpanSeconds);
+            bucketState.LongestSpan = Math.Max(bucketState.LongestSpan, sample.SpanSeconds);
+            bucketState.Covered += Math.Max(0, sample.SpanSeconds);
 
             double weight = Math.Max(0, sample.SpanSeconds);
             foreach (var (metric, value) in sample.Values)
@@ -107,7 +113,8 @@ public static class HistoryRollup
             var values = state.Metrics.Where(m => m.Value.HasValue).ToDictionary(m => m.Key, m => m.Value.Result, StringComparer.Ordinal);
             if (values.Count > 0)
             {
-                result.Add(new HistorySample(DateTimeOffset.FromUnixTimeSeconds(start), (int)Math.Max(size, state.Span), values));
+                long span = Math.Min(state.Covered, Math.Max(size, state.LongestSpan));
+                result.Add(new HistorySample(DateTimeOffset.FromUnixTimeSeconds(start), (int)span, values));
             }
         }
 
@@ -131,7 +138,11 @@ public static class HistoryRollup
     {
         public Dictionary<string, Accumulator> Metrics { get; } = new(StringComparer.Ordinal);
 
-        public int Span { get; set; }
+        /// <summary>The longest input span, which can exceed the bucket when the input was already coarser.</summary>
+        public int LongestSpan { get; set; }
+
+        /// <summary>Seconds covered by the input samples together.</summary>
+        public long Covered { get; set; }
     }
 
     /// <summary>Running combination of one metric inside one bucket.</summary>
