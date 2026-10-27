@@ -184,7 +184,7 @@ public class DebloatCoverageTests
         Assert.Equal(TweakStatus.Applied, (await fresh.GetStatesAsync([tweak], default))[tweak.Id].Status);
         Assert.Equal(TweakOutcome.AlreadyApplied, (await fresh.ApplyAsync(tweak, default)).Outcome);
         await fresh.RevertAsync(tweak, default);
-        Assert.True(freshSystem.Memory.KeyExists(DebloatHive.LocalMachine, key), "Without a capture, revert restores the Windows default (key present).");
+        Assert.False(freshSystem.Memory.KeyExists(DebloatHive.LocalMachine, key), "Revert puts back what was there before Apply: the key was absent, so it stays absent.");
     }
 
     [Fact]
