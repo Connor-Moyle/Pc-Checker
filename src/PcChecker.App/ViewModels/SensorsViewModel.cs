@@ -232,9 +232,12 @@ public sealed partial class SensorsViewModel : ViewModelBase
     }
 
     [RelayCommand]
-    private void ToggleThresholds()
+    private void ToggleThresholds() => IsThresholdPanelOpen = !IsThresholdPanelOpen;
+
+    // The editor can also be opened from its expander header, so fill it with the saved values whenever it opens.
+    partial void OnIsThresholdPanelOpenChanged(bool value)
     {
-        if (!IsThresholdPanelOpen)
+        if (value)
         {
             var m = Settings.Current.Monitoring;
             EditCpuWarn = m.CpuWarnC;
@@ -247,8 +250,6 @@ public sealed partial class SensorsViewModel : ViewModelBase
             EditPollIntervalMs = m.PollIntervalMs;
             EditHistoryMinutes = m.HistoryMinutes;
         }
-
-        IsThresholdPanelOpen = !IsThresholdPanelOpen;
     }
 
     [RelayCommand]
