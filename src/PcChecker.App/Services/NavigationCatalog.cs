@@ -50,6 +50,7 @@ public static class NavigationCatalog
             Page("Windows Features", "windows-features", typeof(WindowsFeaturesPage))),
         Section("Clean up", SymbolRegular.Broom24,
             Page("Cleanup", "cleanup", typeof(CleanupPage)),
+            Page("Debloat", "debloat", typeof(DebloatPage)),
             Page("Registry", "registry", typeof(RegistryPage))),
         Section("Performance", SymbolRegular.TopSpeed24,
             Page("Speed check", "performance", typeof(PerformancePage)),

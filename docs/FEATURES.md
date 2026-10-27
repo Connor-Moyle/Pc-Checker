@@ -15,7 +15,7 @@ Hardware        Overview · Health · Storage · Memory
 Devices         Displays · Audio · Keyboard & Mouse
 Cooling & RGB   Fans · Lighting
 Apps & Drivers  Apps · Drivers · Startup · Windows Features
-Clean up        Cleanup · Registry
+Clean up        Cleanup · Debloat · Registry
 Performance     Speed check · Optimize · Overclock
 Gaming          Overlay · Latency
 Network         Network
@@ -424,6 +424,33 @@ Three sections with a plain-English note on what each is:
 
 Every change is confirmed, creates a restore point and shows a reboot bar
 when needed.
+
+### Debloat
+
+Turns off ads, data collection, AI features and clutter, and removes
+pre-installed apps, with the coverage of the popular debloat tools (WinUtil,
+Win11Debloat, O&O ShutUp10++, Sophia Script and others; full list and table in
+[DEBLOAT.md](DEBLOAT.md)).
+
+- **Presets**: Recommended (highlighted), Gaming, Privacy max, Minimal UI,
+  Remove consumer apps and Custom. A preset only ticks boxes.
+- **Categories**: Privacy & telemetry, Ads & suggestions, AI & Copilot,
+  Taskbar & Start, File Explorer, Edge & OneDrive, Gaming & Xbox, and
+  (**Advanced**) Windows Update and Background services, plus Apps. Each row
+  shows its state (*Applied*, *Not applied*, *Partly applied*, *Not
+  available* with the reason), a risk badge, *One-way* / *Explorer restart* /
+  *Windows 11* badges, a warning when something stops working, and which other
+  tools offer it. Hover a row for the exact registry values, services and tasks.
+- **Apply selected** / **Revert selected** in the bar at the bottom, or per
+  row. The confirmation lists every change grouped by risk. A restore point is
+  always created first and previous values are saved, so *Revert* puts back
+  exactly what was there (or the Windows default, which it says).
+- **Restart Explorer** is offered after taskbar, Start and context menu
+  changes; a restart bar appears when Windows needs one.
+- **Import / Export** the selection as JSON, including WinUtil exports.
+- **Check these yourself** links to settings with no safe policy, and
+  **Deliberately not offered** explains why disabling Defender or Windows
+  Update and removing Edge or the Store are left out.
 
 ### Cleanup
 

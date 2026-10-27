@@ -9,6 +9,7 @@ using PcChecker.Core.Assistant;
 using PcChecker.Core.Audio;
 using PcChecker.Core.Cleanup;
 using PcChecker.Core.Common;
+using PcChecker.Core.Debloat;
 using PcChecker.Core.Displays;
 using PcChecker.Core.Drivers;
 using PcChecker.Core.Fans;
@@ -104,6 +105,7 @@ public static class ServiceRegistration
         Add<IRestartScheduler, WindowsRestartScheduler, DemoRestartScheduler>(services, demo);
         Add<IMousePollingMeter, RawInputPollingMeter, DemoMousePollingMeter>(services, demo);
         Add<IRegistryHealthService, WindowsRegistryHealthService, DemoRegistryHealthService>(services, demo);
+        Add<IDebloatService, WindowsDebloatService, DemoDebloatService>(services, demo);
 
         // Optimization action providers (IOptimizationService aggregates every registration below).
         // providers: Latency (Windows: LatencyActionsProvider, Demo: DemoLatencyActionsProvider)
@@ -148,6 +150,7 @@ public static class ServiceRegistration
         services.AddSingleton<SoftwareViewModel>().AddSingleton<SoftwarePage>();
         services.AddSingleton<StartupViewModel>().AddSingleton<StartupPage>();
         services.AddSingleton<WindowsFeaturesViewModel>().AddSingleton<WindowsFeaturesPage>();
+        services.AddSingleton<DebloatViewModel>().AddSingleton<DebloatPage>();
         services.AddSingleton<CleanupViewModel>().AddSingleton<CleanupPage>();
         services.AddSingleton<RegistryViewModel>().AddSingleton<RegistryPage>();
         services.AddSingleton<PerformanceViewModel>().AddSingleton<PerformancePage>();

@@ -26,6 +26,23 @@ follows, so you know what to expect and contributors know what to build.
    overclocks leave a session marker while active; an unclean shutdown
    triggers a reset on the next start, and overheating forces fans to 100 %.
 
+## Debloat rules
+
+- Each batch on the Debloat page always starts with a restore point, whatever
+  the global setting, and the values about to change are saved to
+  `debloat-capture.json` first. *Revert* restores them; without a saved value it
+  restores the documented Windows default and says so.
+- Only documented registry values, policies, service start types, scheduled
+  tasks and Store app removal are used. The single script (OneDrive uninstall)
+  runs Microsoft's own `OneDriveSetup.exe /uninstall`; nothing is downloaded.
+- Services are never deleted, only set to Manual or Disabled; the Print
+  Spooler is left on while a physical printer is installed.
+- Never offered: disabling Defender, Windows Update, UAC or SmartScreen,
+  removing Edge or the Store, stripping Windows components, hosts-file blocking
+  or turning off CPU mitigations.
+- Service, Windows Update, Xbox service and OneDrive removal tweaks only appear
+  in Advanced mode.
+
 ## Cleanup rules
 
 - Files are only ever deleted inside the roots of the categories you chose.
