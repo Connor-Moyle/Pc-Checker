@@ -144,7 +144,10 @@ internal sealed class D3D11ComputeSession : IDisposable
         _pending.Enqueue(slot);
     }
 
-    /// <summary>Waits for the oldest queued dispatch; returns how long the wait took in milliseconds.</summary>
+    /// <summary>
+    /// Waits for the oldest queued dispatch; returns how long the wait took in milliseconds, or <see cref="double.NaN"/>
+    /// when cancellation gave up on a dispatch that had not finished (it is then not counted as done).
+    /// </summary>
     public double WaitOldest(CancellationToken cancellationToken)
     {
         if (_pending.Count == 0)
@@ -172,7 +175,8 @@ internal sealed class D3D11ComputeSession : IDisposable
             // Cancellation is honoured between dispatches; a single dispatch is ~100 ms at most, so stopping stays well under a second.
             if (cancellationToken.IsCancellationRequested && watch.ElapsedMilliseconds > 1000)
             {
-                break;
+                _pending.Dequeue();
+                return double.NaN;
             }
 
             Thread.Sleep(watch.ElapsedMilliseconds < 5 ? 0 : 1);
@@ -188,8 +192,10 @@ internal sealed class D3D11ComputeSession : IDisposable
         int drained = 0;
         while (_pending.Count > 0)
         {
-            WaitOldest(cancellationToken);
-            drained++;
+            if (!double.IsNaN(WaitOldest(cancellationToken)))
+            {
+                drained++;
+            }
         }
 
         return drained;

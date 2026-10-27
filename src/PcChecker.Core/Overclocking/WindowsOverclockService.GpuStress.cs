@@ -48,17 +48,7 @@ public sealed partial class WindowsOverclockService : IStressTestRunner
         var burnTask = runner?.RunAsync(burnCts.Token);
 
         GpuLoadProgress? gpuLive = null;
-        Task<GpuLoadResult>? gpuTask = null;
         string? adapterName = null;
-        if (request.LoadsGpu)
-        {
-            var adapters = await ListGpuAdaptersAsync(cancellationToken).ConfigureAwait(false);
-            adapterName = GpuAdapterRanking.Pick(adapters, request.GpuAdapterIndex)?.Name;
-            progress?.Report(new ProgressUpdate("Starting the GPU load", 0, $"Preparing {adapterName ?? "the graphics card"}…"));
-            var options = new GpuLoadOptions(request.GpuAdapterIndex, request.Intensity, TimeSpan.FromSeconds(seconds + 30), request.VerifyGpuResults);
-            gpuTask = GpuLoad.RunAsync(options, new InlineProgress<GpuLoadProgress>(p => Volatile.Write(ref gpuLive, p)), burnCts.Token);
-        }
-
         double? maxCpu = null, maxGpu = null;
         var cpuClocks = new List<double>();
         var cpuLoads = new List<double?>();
@@ -68,10 +58,24 @@ public sealed partial class WindowsOverclockService : IStressTestRunner
         int elapsed = 0;
         var started = DateTime.UtcNow;
         GpuLoadResult? gpuResult = null;
-        var pendingGpu = gpuTask;
+        Task<GpuLoadResult>? pendingGpu = null;
+        StressRunStats stats = new(0, 0, 0);
 
+        // Everything after the CPU burn has started sits inside this try, so a cancel at any point (also while the
+        // adapters are listed) stops the burn and waits for it and the GPU load before returning.
         try
         {
+            if (request.LoadsGpu)
+            {
+                var adapters = await ListGpuAdaptersAsync(cancellationToken).ConfigureAwait(false);
+                adapterName = GpuAdapterRanking.Pick(adapters, request.GpuAdapterIndex)?.Name;
+                progress?.Report(new ProgressUpdate("Starting the GPU load", 0, $"Preparing {adapterName ?? "the graphics card"}…"));
+                var options = new GpuLoadOptions(request.GpuAdapterIndex, request.Intensity, TimeSpan.FromSeconds(seconds + 30), request.VerifyGpuResults);
+                pendingGpu = GpuLoad.RunAsync(options, new InlineProgress<GpuLoadProgress>(p => Volatile.Write(ref gpuLive, p)), burnCts.Token);
+            }
+
+            started = DateTime.UtcNow;
+
             while (elapsed < seconds)
             {
                 await Task.Delay(1000, cancellationToken).ConfigureAwait(false);
@@ -135,9 +139,13 @@ public sealed partial class WindowsOverclockService : IStressTestRunner
                     _logger.LogWarning(ex, "The GPU load did not shut down cleanly.");
                 }
             }
+
+            if (burnTask is not null)
+            {
+                stats = await burnTask.ConfigureAwait(false);
+            }
         }
 
-        StressRunStats stats = burnTask is null ? new StressRunStats(0, 0, 0) : await burnTask.ConfigureAwait(false);
         bool driverReset = gpuResult?.DriverReset == true;
 
         bool reverted = false;

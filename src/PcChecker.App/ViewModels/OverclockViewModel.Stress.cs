@@ -143,6 +143,7 @@ public sealed partial class OverclockViewModel
             return;
         }
 
+        bool cancelled = false;
         try
         {
             var adapters = await runner.ListGpuAdaptersAsync(cancellationToken);
@@ -155,13 +156,19 @@ public sealed partial class OverclockViewModel
 
             SelectedGpuAdapter = GpuAdapters.FirstOrDefault(a => a.Index == keep) ?? GpuAdapters.FirstOrDefault(a => a.IsRecommended) ?? GpuAdapters.FirstOrDefault();
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (OperationCanceledException)
+        {
+            // A cancelled listing says nothing about the GPU load, so it must not show "unavailable".
+            cancelled = true;
+            throw;
+        }
+        catch (Exception ex)
         {
             _logger.LogWarning(ex, "Graphics adapters for the GPU stress test could not be listed.");
         }
         finally
         {
-            _adaptersLoaded = true;
+            _adaptersLoaded |= !cancelled;
             OnPropertyChanged(nameof(ShowAdapterPicker));
             OnPropertyChanged(nameof(ShowSingleAdapter));
             OnPropertyChanged(nameof(SingleAdapterText));

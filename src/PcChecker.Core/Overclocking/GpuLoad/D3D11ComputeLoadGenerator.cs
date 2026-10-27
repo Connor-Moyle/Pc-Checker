@@ -143,6 +143,12 @@ public sealed class D3D11ComputeLoadGenerator : IGpuLoadGenerator
                 }
 
                 double ms = session.WaitOldest(cancellationToken);
+                if (double.IsNaN(ms))
+                {
+                    // Cancelled while waiting on an unfinished dispatch: not counted, and the loop ends below.
+                    break;
+                }
+
                 dispatches++;
                 sinceVerify++;
                 rate.Add(watch.Elapsed.TotalSeconds, dispatches);
