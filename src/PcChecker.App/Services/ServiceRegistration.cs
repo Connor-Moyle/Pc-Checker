@@ -85,7 +85,7 @@ public static class ServiceRegistration
         Add<IRestorePointService, WindowsRestorePointService, DemoRestorePointService>(services, demo);
         Add<IOverclockService, WindowsOverclockService, DemoOverclockService>(services, demo);
         Add<IPowerService, WindowsPowerService, DemoPowerService>(services, demo);
-        Add<IAppUpdateService, VelopackUpdateService, DemoAppUpdateService>(services, demo);
+        Add<IAppUpdateService, GitHubExeUpdateService, DemoAppUpdateService>(services, demo);
         Add<IPcAssistantService, ClaudeAssistantService, DemoPcAssistantService>(services, demo);
         Add<IFanControlService, LibreHardwareFanControlService, DemoFanControlService>(services, demo);
         Add<ILightingService, OpenRgbLightingService, DemoLightingService>(services, demo);

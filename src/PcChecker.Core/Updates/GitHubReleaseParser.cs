@@ -2,6 +2,9 @@ using System.Text.Json;
 
 namespace PcChecker.Core.Updates;
 
+/// <summary>A file attached to a release. <see cref="Digest"/> is GitHub's "sha256:&lt;hex&gt;" when present.</summary>
+public sealed record GitHubReleaseAsset(string Name, string DownloadUrl, long Size, string? Digest);
+
 /// <summary>One release as returned by the GitHub Releases API, reduced to the fields the updater needs.</summary>
 public sealed record GitHubRelease(
     string Tag,
@@ -14,6 +17,9 @@ public sealed record GitHubRelease(
 {
     /// <summary>The tag without a leading "v"/"V" or "release-" prefix ("v1.2.3" → "1.2.3").</summary>
     public string Version => GitHubReleaseParser.NormalizeTag(Tag);
+
+    /// <summary>Files attached to the release (empty when the JSON had none).</summary>
+    public IReadOnlyList<GitHubReleaseAsset> Assets { get; init; } = [];
 }
 
 /// <summary>
@@ -125,7 +131,39 @@ public static class GitHubReleaseParser
             GetBool(element, "draft"),
             GetString(element, "body"),
             published,
-            GetString(element, "html_url"));
+            GetString(element, "html_url"))
+        {
+            Assets = ReadAssets(element),
+        };
+    }
+
+    private static IReadOnlyList<GitHubReleaseAsset> ReadAssets(JsonElement release)
+    {
+        if (!release.TryGetProperty("assets", out var assets) || assets.ValueKind != JsonValueKind.Array)
+        {
+            return [];
+        }
+
+        var list = new List<GitHubReleaseAsset>();
+        foreach (var asset in assets.EnumerateArray())
+        {
+            if (asset.ValueKind != JsonValueKind.Object)
+            {
+                continue;
+            }
+
+            var name = GetString(asset, "name");
+            var url = GetString(asset, "browser_download_url");
+            if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(url))
+            {
+                continue;
+            }
+
+            long size = asset.TryGetProperty("size", out var sizeElement) && sizeElement.ValueKind == JsonValueKind.Number && sizeElement.TryGetInt64(out var s) ? s : 0;
+            list.Add(new GitHubReleaseAsset(name, url, size, GetString(asset, "digest")));
+        }
+
+        return list;
     }
 
     private static string? GetString(JsonElement element, string name) =>

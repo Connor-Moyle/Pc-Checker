@@ -1,9 +1,10 @@
 name: Release
 
 # Tag a commit as vX.Y.Z (or vX.Y.Z-beta.N for the Beta channel) and push the
-# tag. This workflow builds and tests the app, packages it with Velopack,
-# zips a portable build, computes checksums and publishes everything to
-# GitHub Releases. The in-app updater reads the same release.
+# tag (an annotated tag's message becomes the release codename). This workflow
+# builds and tests the app and publishes ONE file, a self-contained
+# PcChecker.exe, with its SHA-256 in the release notes. The in-app updater
+# downloads that same file and verifies the checksum.
 
 on:
   push:
@@ -67,61 +68,48 @@ jobs:
       - name: Test
         run: dotnet test PcChecker.sln -c Release --no-build
 
-      - name: Publish self-contained win-x64
+      - name: Publish a single self-contained PcChecker.exe
         run: >
           dotnet publish src/PcChecker.App/PcChecker.App.csproj
           -c Release -r win-x64 --self-contained true
-          -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:IncludeAllContentForSelfExtract=true
+          -p:EnableCompressionInSingleFile=true
+          -p:DebugType=None
           -p:Version=${{ steps.version.outputs.version }}
           -o publish
 
-      - name: Install Velopack CLI
-        run: dotnet tool install -g vpk
-
-      - name: Download previous releases (for delta updates)
-        continue-on-error: true
-        run: vpk download github --repoUrl ${{ env.REPO_URL }} --token ${{ secrets.GITHUB_TOKEN }} --outputDir Releases
-
-      - name: Package with Velopack
-        run: >
-          vpk pack
-          --packId PcChecker
-          --packVersion ${{ steps.version.outputs.version }}
-          --packDir publish
-          --mainExe PcChecker.exe
-          --packTitle "PC Checker"
-          --packAuthors "PC Checker contributors"
-          --icon src/PcChecker.App/Assets/icon.ico
-          --noPortable
-          --outputDir Releases
-
-      - name: Zip the portable build
+      - name: Stage the release file and notes
+        id: stage
         shell: pwsh
         run: |
-          $zip = "PcChecker-${{ steps.version.outputs.version }}-portable-win-x64.zip"
-          Compress-Archive -Path publish\* -DestinationPath $zip -CompressionLevel Optimal
-          Write-Host "Created $zip"
-
-      - name: Compute SHA256SUMS.txt
-        shell: pwsh
-        run: |
-          $files = @(Get-ChildItem Releases -File) + @(Get-Item "PcChecker-${{ steps.version.outputs.version }}-portable-win-x64.zip")
-          $lines = foreach ($f in $files) {
-            $hash = (Get-FileHash $f.FullName -Algorithm SHA256).Hash.ToLower()
-            "$hash  $($f.Name)"
-          }
-          Set-Content -Path SHA256SUMS.txt -Value ($lines -join "`n") -NoNewline
-          Get-Content SHA256SUMS.txt
+          New-Item -ItemType Directory -Force release | Out-Null
+          Copy-Item publish\PcChecker.exe release\PcChecker.exe
+          $hash = (Get-FileHash release\PcChecker.exe -Algorithm SHA256).Hash.ToLower()
+          $size = [math]::Round((Get-Item release\PcChecker.exe).Length / 1MB, 1)
+          $lines = @(
+            "## Download and run",
+            "",
+            "Download **PcChecker.exe** below and double-click it. That is all: there is nothing to install and .NET is built in.",
+            "",
+            "- Works on Windows 11 and Windows 10 22H2 (64-bit). Size: $size MB.",
+            "- Windows asks for administrator permission when it starts; PC Checker needs it to read sensors, SMART data and drivers and to apply the changes you choose.",
+            "- The first time, SmartScreen may say *Windows protected your PC* because the file is not code-signed yet. Click **More info** then **Run anyway**.",
+            "- PC Checker updates itself from this page (Settings, Updates). Settings and logs live in %LOCALAPPDATA%\PcChecker.",
+            "",
+            "**SHA-256:** ``$hash``"
+          )
+          Set-Content -Path release-notes.md -Value ($lines -join "`n")
+          Get-Content release-notes.md
 
       - name: Create the GitHub release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.tag }}
           name: ${{ steps.version.outputs.title }}
+          body_path: release-notes.md
           generate_release_notes: true
           prerelease: ${{ steps.version.outputs.prerelease == 'true' }}
           fail_on_unmatched_files: true
-          files: |
-            Releases/*
-            PcChecker-${{ steps.version.outputs.version }}-portable-win-x64.zip
-            SHA256SUMS.txt
+          files: release/PcChecker.exe

@@ -41,7 +41,7 @@ Every project targets `net8.0-windows10.0.19041.0`. `EnableWindowsTargeting` is 
 | `Restore` | `IRestorePointService`, `IChangeGuard`, `ChangeGuard` |
 | `Overclocking` | `IOverclockService`, profiles and plans, `OverclockSafetyValidator`, `OverclockPlanParser` |
 | `Power` | `IPowerService`, power snapshots and plans |
-| `Updates` | `IAppUpdateService` (Velopack / GitHub Releases) |
+| `Updates` | `IAppUpdateService` (single-exe self-update from GitHub Releases, SHA-256 verified) |
 | `Assistant` | `IPcAssistantService`, `AssistantContextBuilder` |
 | `Reports` | `IReportService`, `ReportBundle` |
 | `Fans` | `IFanControlService`, fan devices/curves/profiles, `FanCurveMath` |
@@ -72,7 +72,7 @@ The split matters: anything that reads or changes the system goes behind an inte
 
 `PcChecker.App` is a WPF application using WPF-UI for the Fluent look and CommunityToolkit.Mvvm for view models.
 
-* `Program.cs` runs the Velopack bootstrap, then starts the `App`.
+* `Program.cs` starts the `App`; a self-updated copy is started with `--wait-pid` so it waits for the old process to close.
 * `App.xaml.cs` enforces a single instance, parses the command line (`AppOptions`), loads settings, configures logging, builds the dependency-injection container through `ServiceRegistration.Register`, applies the theme, wires global exception handlers that log and show a plain-language dialog, and starts the `ScreenshotRunner` when asked.
 * `Services/ServiceRegistration.cs` is the **only** place that maps interfaces to implementations. It takes the `AppMode` and registers `Windows*` or `Demo*` classes accordingly. Module action providers are registered on the lines marked `// providers:`.
 * `Views/Windows/MainWindow.xaml` is the shell: title bar, grouped left navigation, snackbar and dialog hosts. Its `Navigated` handler calls `EnsureInitializedAsync` on the target page's view model.

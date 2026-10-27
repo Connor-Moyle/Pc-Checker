@@ -52,11 +52,12 @@ jobs:
           path: TestResults/*.trx
           if-no-files-found: ignore
 
-      - name: Publish self-contained win-x64
+      - name: Publish the single-file PcChecker.exe (same as a release)
         run: >
           dotnet publish src/PcChecker.App/PcChecker.App.csproj
           -c Release -r win-x64 --self-contained true
           -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:IncludeAllContentForSelfExtract=true -p:EnableCompressionInSingleFile=true -p:DebugType=None
           -p:VersionSuffix=ci.${{ github.run_number }}
           -o publish/win-x64
 

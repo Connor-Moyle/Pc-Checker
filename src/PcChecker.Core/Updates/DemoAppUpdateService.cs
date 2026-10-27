@@ -5,6 +5,9 @@ namespace PcChecker.Core.Updates;
 /// <summary>Demo updater: reports 0.1.0 as the running version and a 0.1.1 release with notes, downloadable in a few seconds.</summary>
 public sealed class DemoAppUpdateService : IAppUpdateService
 {
+    /// <summary>Demo mode never restarts; the event exists to satisfy the contract.</summary>
+    public event EventHandler? RestartRequested { add { } remove { } }
+
     public const string LatestVersion = "0.1.1";
 
     private const string ReleaseNotes =

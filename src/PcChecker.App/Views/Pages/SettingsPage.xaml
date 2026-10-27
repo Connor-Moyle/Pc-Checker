@@ -578,9 +578,10 @@
             <WrapPanel Margin="0,0,0,10">
               <ui:Button Content="Project on GitHub" Icon="{ui:SymbolIcon Open24}" Command="{Binding OpenRepositoryCommand}" Margin="0,0,8,6" />
               <ui:Button Content="Releases" Icon="{ui:SymbolIcon Open24}" Command="{Binding OpenReleasesPageCommand}" Margin="0,0,8,6" />
+              <ui:Button Content="Show licence texts" Icon="{ui:SymbolIcon DocumentText24}" Command="{Binding ShowLicenseTextsCommand}" Margin="0,0,8,6" />
             </WrapPanel>
             <ui:TextBlock Style="{StaticResource CardTitle}" Text="Third-party components" />
-            <ui:TextBlock Style="{StaticResource Muted}" Text="Full notices are in docs/THIRD-PARTY-NOTICES.md." Margin="0,0,0,6" />
+            <ui:TextBlock Style="{StaticResource Muted}" Text="The full notices and licence texts are built into PcChecker.exe; use Show licence texts above." Margin="0,0,0,6" />
             <controls:KeyValueList ItemsSource="{Binding Licenses}" KeyColumnWidth="300" />
           </StackPanel>
         </ui:CardExpander>

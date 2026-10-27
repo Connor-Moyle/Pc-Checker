@@ -1,9 +1,9 @@
 # Third-party notices
 
 PC Checker is released under the MIT licence (see [LICENSE](../LICENSE)). It is built on the open-source
-components below. Each one keeps its own licence. The published packages (the installer, the update package and
-the portable zip) contain, next to `PcChecker.exe`, this file, PC Checker's `LICENSE.txt` and a `licenses` folder
-with the full texts of the MPL-2.0, LGPL-3.0 (with the GPL-3.0 it refers to) and Apache-2.0 licences. The MIT
+components below. Each one keeps its own licence. Releases are a single `PcChecker.exe`; it carries this file,
+PC Checker's `LICENSE.txt` and the full texts of the MPL-2.0, LGPL-3.0 (with the GPL-3.0 it refers to) and
+Apache-2.0 licences inside it. **Settings → About → Show licence texts** writes them to a folder and opens it. The MIT
 licence texts and copyright notices of the MIT components are available from the linked projects; the licence texts
 are also kept in this repository under [docs/licenses](licenses).
 
@@ -11,7 +11,6 @@ are also kept in this repository under [docs/licenses](licenses).
 |---|---|---|---|
 | LibreHardwareMonitor (LibreHardwareMonitorLib) | Temperatures, loads, clocks, fan speeds and fan control | MPL-2.0 | https://github.com/LibreHardwareMonitor/LibreHardwareMonitor |
 | WPF-UI | Fluent user interface controls and theming | MIT | https://github.com/lepoco/wpfui |
-| Velopack | Installer and self-update | MIT | https://github.com/velopack/velopack |
 | NvAPIWrapper.Net | NVIDIA GPU clocks, power and temperature limits | LGPL-3.0 | https://github.com/falahati/NvAPIWrapper |
 | Serilog, Serilog.Sinks.File, Serilog.Sinks.Debug, Serilog.Extensions.Logging | Logging | Apache-2.0 | https://serilog.net |
 | CommunityToolkit.Mvvm | MVVM source generators (observable properties, commands) | MIT | https://github.com/CommunityToolkit/dotnet |

@@ -99,7 +99,6 @@ public sealed partial class SettingsViewModel : ViewModelBase
         new("PC Checker", "MIT"),
         new("LibreHardwareMonitor", "MPL-2.0"),
         new("WPF-UI", "MIT"),
-        new("Velopack", "MIT"),
         new("NvAPIWrapper", "LGPL-3.0"),
         new("Serilog", "Apache-2.0"),
         new("CommunityToolkit.Mvvm", "MIT"),
@@ -268,6 +267,35 @@ public sealed partial class SettingsViewModel : ViewModelBase
 
     [RelayCommand]
     private void OpenSettingsFolder() => Open(Settings.SettingsDirectory);
+
+    /// <summary>Writes the licence texts embedded in PcChecker.exe to a folder and opens it.</summary>
+    [RelayCommand]
+    private void ShowLicenseTexts()
+    {
+        try
+        {
+            var folder = System.IO.Path.Combine(Settings.SettingsDirectory, "licenses");
+            System.IO.Directory.CreateDirectory(folder);
+            var assembly = typeof(SettingsViewModel).Assembly;
+            foreach (var name in assembly.GetManifestResourceNames().Where(n => n.StartsWith("licenses/", StringComparison.Ordinal)))
+            {
+                using var source = assembly.GetManifestResourceStream(name);
+                if (source is null)
+                {
+                    continue;
+                }
+
+                using var target = System.IO.File.Create(System.IO.Path.Combine(folder, name["licenses/".Length..]));
+                source.CopyTo(target);
+            }
+
+            Open(folder);
+        }
+        catch (Exception ex) when (ex is System.IO.IOException or UnauthorizedAccessException)
+        {
+            ErrorMessage = "Could not write the licence texts: " + ex.Message;
+        }
+    }
 
     [RelayCommand]
     private void OpenLogsFolder() => Open(_logs.LogDirectory);

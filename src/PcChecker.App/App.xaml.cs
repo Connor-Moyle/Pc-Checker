@@ -35,6 +35,12 @@ public partial class App : Application
         base.OnStartup(e);
         var options = AppOptions.Current;
 
+        // Started by the self-updater: let the previous copy finish closing before taking the single-instance lock.
+        if (options.WaitForProcessId is { } previous)
+        {
+            WaitForPreviousInstance(previous);
+        }
+
         // Screenshot runs are short-lived and may run next to a normal instance (CI); they skip the single-instance check.
         if (!options.ScreenshotsRequested)
         {
@@ -67,6 +73,8 @@ public partial class App : Application
         _services = BuildServices(settings, logService, options.Mode);
         logService.Export.JournalPath = _services.GetRequiredService<IActionJournal>().JournalPath;
         _logger = logService.CreateLogger<App>();
+        _services.GetRequiredService<PcChecker.Core.Updates.IAppUpdateService>().RestartRequested +=
+            (_, _) => Dispatcher.BeginInvoke(() => Shutdown());
         _logger.LogInformation("Application started v{Version} in {Mode} mode. Settings: {Path}", appVersion, options.Mode, settings.SettingsFilePath);
         if (options.UnknownArguments.Count > 0)
         {
@@ -100,6 +108,22 @@ public partial class App : Application
         if (options.ScreenshotsDirectory is { } directory)
         {
             _ = RunScreenshotsAsync(window, directory);
+        }
+    }
+
+    private static void WaitForPreviousInstance(int processId)
+    {
+        try
+        {
+            using var previous = System.Diagnostics.Process.GetProcessById(processId);
+            previous.WaitForExit(30_000);
+        }
+        catch (ArgumentException)
+        {
+            // Already gone.
+        }
+        catch (InvalidOperationException)
+        {
         }
     }
 

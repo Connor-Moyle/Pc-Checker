@@ -1,7 +1,8 @@
 namespace PcChecker.Core.Common;
 
 /// <summary>
-/// Parsed command line: <c>--demo</c>, <c>--real</c>, <c>--screenshots &lt;dir&gt;</c> and <c>--minimized</c>.
+/// Parsed command line: <c>--demo</c>, <c>--real</c>, <c>--screenshots &lt;dir&gt;</c>, <c>--minimized</c>, and the
+/// self-update hand-over switches <c>--wait-pid &lt;id&gt;</c> and <c>--updated-from &lt;version&gt;</c>.
 /// Pure so it can be unit-tested; the app feeds it <c>Environment.GetCommandLineArgs()</c> minus the executable.
 /// </summary>
 public sealed record CommandLineOptions(
@@ -21,11 +22,19 @@ public sealed record CommandLineOptions(
 
     public bool ScreenshotsRequested => ScreenshotsDirectory is not null;
 
+    /// <summary>Process id of the previous instance to wait for (set by the self-updater when it restarts the app).</summary>
+    public int? WaitForProcessId { get; init; }
+
+    /// <summary>The version this run replaced, when started by the self-updater.</summary>
+    public string? UpdatedFrom { get; init; }
+
     /// <summary>Parses arguments. Switches are case-insensitive and accept <c>--key value</c> or <c>--key=value</c>.</summary>
     public static CommandLineOptions Parse(IEnumerable<string>? args)
     {
         bool demo = false, real = false, minimized = false;
         string? screenshots = null;
+        int? waitPid = null;
+        string? updatedFrom = null;
         var unknown = new List<string>();
         var list = (args ?? []).Where(a => a is not null).ToList();
 
@@ -76,6 +85,24 @@ public sealed record CommandLineOptions(
                     }
 
                     break;
+                case "wait-pid":
+                {
+                    var value = inlineValue ?? (i + 1 < list.Count && !IsSwitch(list[i + 1]) ? list[++i].Trim() : null);
+                    if (int.TryParse(value, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var pid) && pid > 0)
+                    {
+                        waitPid = pid;
+                    }
+                    else
+                    {
+                        unknown.Add(raw);
+                    }
+
+                    break;
+                }
+
+                case "updated-from":
+                    updatedFrom = inlineValue ?? (i + 1 < list.Count && !IsSwitch(list[i + 1]) ? list[++i].Trim() : null);
+                    break;
                 default:
                     unknown.Add(raw);
                     break;
@@ -84,7 +111,11 @@ public sealed record CommandLineOptions(
 
         // --screenshots implies demo data unless --real is given; --real always wins.
         var mode = real ? AppMode.Normal : (demo || screenshots is not null ? AppMode.Demo : AppMode.Normal);
-        return new CommandLineOptions(mode, demo, real, screenshots, minimized, unknown);
+        return new CommandLineOptions(mode, demo, real, screenshots, minimized, unknown)
+        {
+            WaitForProcessId = waitPid,
+            UpdatedFrom = string.IsNullOrWhiteSpace(updatedFrom) ? null : updatedFrom,
+        };
     }
 
     private static bool IsSwitch(string value)

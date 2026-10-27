@@ -21,7 +21,6 @@
     <PackageReference Include="CommunityToolkit.Mvvm" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
     <PackageReference Include="Microsoft.Extensions.Hosting" />
-    <PackageReference Include="Velopack" />
   </ItemGroup>
 
   <ItemGroup>
@@ -29,11 +28,11 @@
     <Resource Include="Assets\logo.png" />
   </ItemGroup>
 
-  <!-- Licence and notice files ship next to PcChecker.exe (kept out of the single-file bundle so users can read them). -->
+  <!-- Licence and notice texts are embedded in PcChecker.exe; Settings > About > "Show licence texts" writes them out. -->
   <ItemGroup>
-    <None Include="..\..\LICENSE" Link="LICENSE.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" ExcludeFromSingleFile="true" />
-    <None Include="..\..\docs\THIRD-PARTY-NOTICES.md" Link="THIRD-PARTY-NOTICES.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" ExcludeFromSingleFile="true" />
-    <None Include="..\..\docs\licenses\*.txt" Link="licenses\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" ExcludeFromSingleFile="true" />
+    <EmbeddedResource Include="..\..\LICENSE" LogicalName="licenses/LICENSE.txt" />
+    <EmbeddedResource Include="..\..\docs\THIRD-PARTY-NOTICES.md" LogicalName="licenses/THIRD-PARTY-NOTICES.md" />
+    <EmbeddedResource Include="..\..\docs\licenses\*.txt" LogicalName="licenses/%(Filename)%(Extension)" />
   </ItemGroup>
 
 </Project>
