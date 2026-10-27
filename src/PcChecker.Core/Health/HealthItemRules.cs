@@ -142,7 +142,7 @@ public static class HealthItemRules
 
         // Code 22 (disabled by the user) and 45 (unplugged) are not faults.
         var real = problems.Where(p => p.ErrorCode is not (22 or 45)).ToList();
-        var metrics = problems.ToDictionary(p => p.Name, p => $"Code {p.ErrorCode}");
+        var metrics = UniqueMetrics(problems, p => p.Name, p => $"Code {p.ErrorCode}");
         if (real.Count == 0)
         {
             return new HealthItem("Devices", HealthStatus.Good, $"{problems.Count} device{(problems.Count > 1 ? "s are" : " is")} disabled or unplugged",
@@ -156,6 +156,32 @@ public static class HealthItemRules
         return new HealthItem("Devices", HealthStatus.Warning,
             real.Count == 1 ? "One device has a problem" : $"{real.Count} devices have problems",
             detail, real.Count == 1 ? first.Suggestion : "Open the Device problems section below for the suggested fix for each device.", metrics);
+    }
+
+    /// <summary>
+    /// Builds a metrics dictionary where repeated names (several "USB Input Device" entries, two antivirus registrations
+    /// with the same display name) get a " (2)", " (3)"… suffix instead of throwing on the duplicate key.
+    /// </summary>
+    internal static Dictionary<string, string> UniqueMetrics<T>(IEnumerable<T> items, Func<T, string> key, Func<T, string> value)
+    {
+        var metrics = new Dictionary<string, string>();
+        var seen = new Dictionary<string, int>();
+        foreach (var item in items)
+        {
+            string name = key(item) ?? string.Empty;
+            string unique = name;
+            int count = seen.TryGetValue(name, out var c) ? c : 0;
+            while (metrics.ContainsKey(unique))
+            {
+                count++;
+                unique = $"{name} ({count + 1})";
+            }
+
+            seen[name] = count;
+            metrics[unique] = value(item);
+        }
+
+        return metrics;
     }
 
     /// <summary>Crash dump item: any dump newer than 30 days is a warning, older dumps are mentioned but not penalised.</summary>

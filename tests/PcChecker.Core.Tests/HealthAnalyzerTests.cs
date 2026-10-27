@@ -135,6 +135,15 @@ public class SecurityRulesTests
     }
 
     [Fact]
+    public void Antivirus_item_survives_two_products_with_the_same_name()
+    {
+        var item = SecurityRules.AntivirusItem([new("Avast Antivirus", 0x060000), new("Avast Antivirus", 0x061000)]);
+        Assert.Equal(HealthStatus.Good, item.Status);
+        Assert.Equal("Off, up to date", item.Metrics["Avast Antivirus"]);
+        Assert.Equal("On, up to date", item.Metrics["Avast Antivirus (2)"]);
+    }
+
+    [Fact]
     public void Netsh_output_parses_three_profiles()
     {
         const string output = "\nDomain Profile Settings:\n----------------------------------------------------------------------\nState                                 ON\nFirewall Policy                       BlockInbound,AllowOutbound\n\n"
@@ -255,6 +264,24 @@ public class HealthItemRulesTests
         Assert.Equal(HealthStatus.Warning, real.Status);
         Assert.Equal("One device has a problem", real.Title);
         Assert.Equal("install driver", real.Recommendation);
+    }
+
+    [Fact]
+    public void Device_problems_keep_every_device_when_names_repeat()
+    {
+        var item = HealthItemRules.DeviceProblems(
+        [
+            new("Base System Device", "PCI\\1", 28, "no driver", "install driver"),
+            new("Base System Device", "PCI\\2", 28, "no driver", "install driver"),
+            new("USB Input Device", "HID\\1", 45, "unplugged", "plug in"),
+            new("Base System Device", "PCI\\3", 10, "cannot start", "update driver"),
+        ]);
+        Assert.Equal(HealthStatus.Warning, item.Status);
+        Assert.Equal("3 devices have problems", item.Title);
+        Assert.Equal(4, item.Metrics.Count);
+        Assert.Equal("Code 28", item.Metrics["Base System Device"]);
+        Assert.Equal("Code 28", item.Metrics["Base System Device (2)"]);
+        Assert.Equal("Code 10", item.Metrics["Base System Device (3)"]);
     }
 
     [Fact]

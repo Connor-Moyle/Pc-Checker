@@ -32,7 +32,7 @@ public static class SecurityRules
         }
 
         var active = products.Where(p => p.Enabled).ToList();
-        var metrics = products.ToDictionary(p => p.Name, p => (p.Enabled ? "On" : "Off") + (p.UpToDate ? ", up to date" : ", out of date"));
+        var metrics = HealthItemRules.UniqueMetrics(products, p => p.Name, p => (p.Enabled ? "On" : "Off") + (p.UpToDate ? ", up to date" : ", out of date"));
         if (active.Count == 0)
         {
             return new HealthItem("Security", HealthStatus.Critical, "Antivirus protection is turned off",
