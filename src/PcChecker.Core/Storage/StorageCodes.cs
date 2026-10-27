@@ -165,18 +165,44 @@ public static partial class StorageCommandParsers
     [GeneratedRegex(@"(\d[\d,.]*)\s+KB in bad sectors", RegexOptions.IgnoreCase)]
     private static partial Regex BadSectorsPattern();
 
+    [GeneratedRegex(@"cannot run|cannot open|cannot lock|is not available for|unable to determine|access denied", RegexOptions.IgnoreCase)]
+    private static partial Regex CouldNotCheckPattern();
+
+    // The answer letters chkdsk shows in its prompts: "(Y/N)", "(J/N)", "(O/N)", "(S/N)", "[Y(да)/N(нет)]".
+    [GeneratedRegex(@"[\(\[]\s*(\p{L})(?:\s*\([^()/]*\))?\s*/\s*(\p{L})(?:\s*\([^()/]*\))?\s*[\)\]]")]
+    private static partial Regex YesNoPromptPattern();
+
     /// <summary>Summary of a chkdsk run derived from its output.</summary>
     public sealed record ChkdskOutcome(bool RebootScheduled, bool ProblemsFound, bool NoProblems, long? BadSectorKb, string Summary);
 
-    /// <summary>Reads the chkdsk output and the exit code (0 ok, 1 fixed, 2 cleanup, 3 could not check) into a verdict.</summary>
+    /// <summary>Reads the chkdsk output and the exit code (0 ok, 1 fixed, 2 cleanup, 3 could not check or not fixed) into a verdict.</summary>
     public static ChkdskOutcome ParseChkdsk(string? output, int exitCode, string driveLetter) => ParseChkdsk(output, exitCode, driveLetter, scheduledHint: null);
+
+    /// <summary>
+    /// True when a chkdsk run counts as having done its job: 0 (no errors), 1 (errors fixed), 2 (cleanup done, or
+    /// skipped without /f), a read-only scan that found problems (3 means "not fixed because /f was not specified"),
+    /// or a repair that was scheduled for the next restart.
+    /// </summary>
+    public static bool IsChkdskSuccess(int exitCode, bool scanOnly, ChkdskOutcome outcome)
+    {
+        ArgumentNullException.ThrowIfNull(outcome);
+        return exitCode is 0 or 1 or 2 || outcome.RebootScheduled || (scanOnly && exitCode == 3 && outcome.ProblemsFound);
+    }
 
     /// <summary>
     /// As above, with a locale-independent hint from <see cref="VolumeCheckState"/>: chkdsk prints in the user's
     /// language, so when the system says a check is scheduled (BootExecute entry or dirty bit) that wins over the
     /// English text patterns and the "no problems" fallback on exit code 0.
     /// </summary>
-    public static ChkdskOutcome ParseChkdsk(string? output, int exitCode, string driveLetter, bool? scheduledHint)
+    public static ChkdskOutcome ParseChkdsk(string? output, int exitCode, string driveLetter, bool? scheduledHint) =>
+        ParseChkdsk(output, exitCode, driveLetter, scheduledHint, scanOnly: false);
+
+    /// <summary>
+    /// As above for a run of the given kind. For a read-only <c>/scan</c>, exit code 3 means chkdsk found problems it
+    /// did not fix because /f was not given (the message is localized, so the exit code is the reliable signal); only
+    /// output that says the check could not run is reported as "could not check".
+    /// </summary>
+    public static ChkdskOutcome ParseChkdsk(string? output, int exitCode, string driveLetter, bool? scheduledHint, bool scanOnly)
     {
         output ??= string.Empty;
         bool reboot = RebootScheduledPattern().IsMatch(output) || scheduledHint == true;
@@ -193,12 +219,23 @@ public static partial class StorageCommandParsers
             }
         }
 
+        bool scanFoundProblems = scanOnly && exitCode == 3 && !reboot && !CouldNotCheckPattern().IsMatch(output);
+        if (scanFoundProblems)
+        {
+            problems = true;
+            noProblems = false;
+        }
+
         string summary;
         if (reboot)
         {
             summary = $"A full check and repair of {driveLetter} will run the next time Windows starts. Restart when convenient and allow it to finish (it can take a while).";
         }
-        else if (exitCode == 3)
+        else if (scanFoundProblems && badKb is not > 0)
+        {
+            summary = $"The scan of {driveLetter} found file system problems that it did not fix. Run Spot fix, or schedule the full repair at the next restart.";
+        }
+        else if (exitCode == 3 && !scanFoundProblems)
         {
             summary = $"Windows could not check {driveLetter} right now (it may be in use). Try again or schedule the check at the next restart.";
         }
@@ -212,7 +249,7 @@ public static partial class StorageCommandParsers
                 ? $"Check of {driveLetter} found and corrected file system problems."
                 : $"Check of {driveLetter} found problems. Schedule the full repair at the next restart.";
         }
-        else if (noProblems || exitCode == 0)
+        else if (noProblems || exitCode is 0 or 2)
         {
             summary = $"Windows found no file system problems on {driveLetter}.";
         }
@@ -221,7 +258,7 @@ public static partial class StorageCommandParsers
             summary = $"Check of {driveLetter} finished with exit code {exitCode}. Review the output for details.";
         }
 
-        return new ChkdskOutcome(reboot, problems, noProblems || (exitCode == 0 && !problems && !reboot), badKb, summary);
+        return new ChkdskOutcome(reboot, problems, noProblems || ((exitCode is 0 or 2) && !problems && !reboot), badKb, summary);
     }
 
     /// <summary>Turns the Repair-Volume status word into a sentence.</summary>
@@ -278,7 +315,48 @@ public static partial class StorageCommandParsers
     /// follows. A spot fix is meant to take the volume offline for a few seconds, so it answers Y everywhere.
     /// </summary>
     public static string ChkdskAnswers(bool scheduleOfflineFix, bool isSystemVolume) =>
-        scheduleOfflineFix && !isSystemVolume ? "N\r\nY\r\n" : "Y\r\n";
+        ChkdskAnswers(scheduleOfflineFix, isSystemVolume, 'Y', 'N');
+
+    /// <summary>As above with the answer letters chkdsk uses in the Windows display language (J/N in German, O/N in French, S/N in Spanish…).</summary>
+    public static string ChkdskAnswers(bool scheduleOfflineFix, bool isSystemVolume, char yes, char no) =>
+        scheduleOfflineFix && !isSystemVolume ? $"{no}\r\n{yes}\r\n" : $"{yes}\r\n";
+
+    /// <summary>Finds the yes and no letters in a chkdsk prompt such as "(Y/N)", "(J/N)" or "[Y(да)/N(нет)]".</summary>
+    public static bool TryParsePromptLetters(string? output, out char yes, out char no)
+    {
+        yes = 'Y';
+        no = 'N';
+        if (string.IsNullOrEmpty(output))
+        {
+            return false;
+        }
+
+        var m = YesNoPromptPattern().Match(output);
+        if (!m.Success)
+        {
+            return false;
+        }
+
+        yes = char.ToUpperInvariant(m.Groups[1].Value[0]);
+        no = char.ToUpperInvariant(m.Groups[2].Value[0]);
+        return yes != no;
+    }
+
+    /// <summary>
+    /// chkdsk compares an answer with the "yes" letter of the Windows display language, so "Y" counts as "no" on German,
+    /// French, Spanish, Italian or Portuguese Windows and nothing is scheduled or fixed. When the output of a run shows a
+    /// prompt with other letters than Y/N, this returns the same answers in those letters for a second run; otherwise null.
+    /// Any answer that is not the localized "yes" is read as "no", so the first run never dismounted or changed anything.
+    /// </summary>
+    public static string? LocalizedChkdskAnswers(string? output, bool scheduleOfflineFix, bool isSystemVolume)
+    {
+        if (!TryParsePromptLetters(output, out var yes, out var no) || (yes == 'Y' && no == 'N'))
+        {
+            return null;
+        }
+
+        return ChkdskAnswers(scheduleOfflineFix, isSystemVolume, yes, no);
+    }
 
     /// <summary>Builds the chkdsk arguments for the requested operation.</summary>
     public static string ChkdskArguments(string driveLetter, bool scanOnly, bool scheduleOfflineFix)

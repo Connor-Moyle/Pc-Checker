@@ -42,6 +42,11 @@ public static class StorageCommandRunner
         {
             psi.StandardOutputEncoding = outputEncoding;
             psi.StandardErrorEncoding = outputEncoding;
+            if (standardInput is not null)
+            {
+                // Answers such as a localized "yes" letter must reach the tool in the code page it reads and prints in.
+                psi.StandardInputEncoding = outputEncoding;
+            }
         }
 
         using var process = new Process { StartInfo = psi, EnableRaisingEvents = true };

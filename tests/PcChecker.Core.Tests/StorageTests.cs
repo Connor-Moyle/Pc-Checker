@@ -383,6 +383,64 @@ public class StorageTests
     }
 
     [Fact]
+    public void Chkdsk_answers_are_repeated_in_the_prompt_language()
+    {
+        const string german = "Das Volume wird von einem anderen Prozess verwendet. Soll die Überprüfung beim nächsten Neustart des Systems ausgeführt werden (J/N)? ";
+        Assert.True(StorageCommandParsers.TryParsePromptLetters(german, out var yes, out var no));
+        Assert.Equal('J', yes);
+        Assert.Equal('N', no);
+        Assert.Equal("J\r\n", StorageCommandParsers.LocalizedChkdskAnswers(german, scheduleOfflineFix: true, isSystemVolume: true));
+        Assert.Equal("N\r\nJ\r\n", StorageCommandParsers.LocalizedChkdskAnswers(german, scheduleOfflineFix: true, isSystemVolume: false));
+        Assert.Equal("O\r\n", StorageCommandParsers.LocalizedChkdskAnswers("Voulez-vous forcer le démontage de ce volume ? (O/N) ", false, false));
+        Assert.Equal("N\r\nS\r\n", StorageCommandParsers.LocalizedChkdskAnswers("¿Desea forzar el desmontaje de este volumen? (S/N) ", true, false));
+        Assert.Equal("T\r\n", StorageCommandParsers.LocalizedChkdskAnswers("Czy chcesz zaplanować sprawdzenie tego woluminu? (T/N) ", true, true));
+
+        // English (or Y/N languages such as Russian) needs no second run, and output without a prompt neither.
+        Assert.Null(StorageCommandParsers.LocalizedChkdskAnswers("Would you like to schedule this volume to be checked the next time the system restarts? (Y/N) ", true, true));
+        Assert.Null(StorageCommandParsers.LocalizedChkdskAnswers("Выполнить проверку этого тома при следующей перезагрузке системы? [Y(да)/N(нет)] ", true, true));
+        Assert.Null(StorageCommandParsers.LocalizedChkdskAnswers("Windows has scanned the file system and found no problems.", true, true));
+        Assert.Null(StorageCommandParsers.LocalizedChkdskAnswers(null, true, true));
+        Assert.Equal("Y\r\n", StorageCommandParsers.ChkdskAnswers(true, true, 'Y', 'N'));
+    }
+
+    [Fact]
+    public void Chkdsk_scan_exit_code_three_means_problems_were_found()
+    {
+        // Localized text: exit code 3 from a read-only /scan is the only signal that it found corruption.
+        var german = StorageCommandParsers.ParseChkdsk("Fehler im Dateisystem gefunden.", 3, "D:", null, scanOnly: true);
+        Assert.True(german.ProblemsFound);
+        Assert.False(german.NoProblems);
+        Assert.DoesNotContain("could not check", german.Summary);
+        Assert.Contains("Spot fix", german.Summary);
+        Assert.True(StorageCommandParsers.IsChkdskSuccess(3, scanOnly: true, german));
+
+        var english = StorageCommandParsers.ParseChkdsk("Windows has scanned the file system and found problems.\r\nRun CHKDSK with the /F (fix) option to correct these.", 3, "D:", null, scanOnly: true);
+        Assert.True(english.ProblemsFound);
+        Assert.Contains("Spot fix", english.Summary);
+
+        // Output that says the check could not run keeps the "could not check" wording.
+        var raw = StorageCommandParsers.ParseChkdsk("The type of the file system is RAW.\r\nCHKDSK is not available for RAW drives.", 3, "E:", null, scanOnly: true);
+        Assert.Contains("could not check", raw.Summary);
+        Assert.False(StorageCommandParsers.IsChkdskSuccess(3, scanOnly: true, raw));
+
+        // A repair that ends with exit code 3 still could not run.
+        var repair = StorageCommandParsers.ParseChkdsk(string.Empty, 3, "E:", null, scanOnly: false);
+        Assert.Contains("could not check", repair.Summary);
+        Assert.False(StorageCommandParsers.IsChkdskSuccess(3, scanOnly: false, repair));
+    }
+
+    [Fact]
+    public void Chkdsk_exit_code_two_is_a_success()
+    {
+        var cleanup = StorageCommandParsers.ParseChkdsk("Bereinigung durchgeführt.", 2, "D:", null, scanOnly: true);
+        Assert.True(cleanup.NoProblems);
+        Assert.False(cleanup.ProblemsFound);
+        Assert.Contains("no file system problems", cleanup.Summary);
+        Assert.True(StorageCommandParsers.IsChkdskSuccess(2, scanOnly: true, cleanup));
+        Assert.True(StorageCommandParsers.IsChkdskSuccess(2, scanOnly: false, cleanup));
+    }
+
+    [Fact]
     public void Localized_chkdsk_output_trusts_the_system_schedule_state()
     {
         const string german = "CHKDSK kann nicht ausgeführt werden, da das Volume von einem anderen Prozess verwendet wird.\r\nDieses Volume wird beim nächsten Systemstart überprüft.";

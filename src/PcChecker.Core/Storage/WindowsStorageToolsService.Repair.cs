@@ -31,7 +31,7 @@ public sealed partial class WindowsStorageToolsService
         string arguments = StorageCommandParsers.ChkdskArguments(letter, scanOnly, scheduleOfflineFix);
         if (scanOnly)
         {
-            return await RunChkdskAsync(letter, arguments, answers: null, scheduleOfflineFix: false, progress, cancellationToken).ConfigureAwait(false);
+            return await RunChkdskAsync(letter, arguments, answers: null, scheduleOfflineFix: false, systemVolume: false, progress, cancellationToken).ConfigureAwait(false);
         }
 
         bool systemVolume = StorageCodes.IsSystemVolume(letter, SafeSystemRoot());
@@ -43,7 +43,7 @@ public sealed partial class WindowsStorageToolsService
             : $"Spot-fix file system problems on {letter}";
         return await _changeGuard.RunGuardedAsync(description,
             ChangeOptions.For(Module, letter, reversible: false, undoHint: scheduleOfflineFix ? "Run 'chkntfs /x " + letter + "' before restarting to cancel a scheduled check." : null),
-            ct => RunChkdskAsync(letter, arguments, answers, scheduleOfflineFix, progress, ct), progress, cancellationToken).ConfigureAwait(false);
+            ct => RunChkdskAsync(letter, arguments, answers, scheduleOfflineFix, systemVolume, progress, ct), progress, cancellationToken).ConfigureAwait(false);
     }
 
     private static readonly TimeSpan ScanTimeout = TimeSpan.FromHours(6);
@@ -51,7 +51,8 @@ public sealed partial class WindowsStorageToolsService
 
     /// <param name="answers">Lines fed to chkdsk's prompts (see <see cref="StorageCommandParsers.ChkdskAnswers"/>); null for a read-only scan that never prompts.</param>
     /// <param name="scheduleOfflineFix">True for the full repair, whose result may be "scheduled at the next restart": the system state is then checked as well, because chkdsk's text is localized.</param>
-    private async Task<OperationResult> RunChkdskAsync(string letter, string arguments, string? answers, bool scheduleOfflineFix, IProgress<ProgressUpdate>? progress, CancellationToken cancellationToken)
+    /// <param name="systemVolume">True for the Windows volume; decides which prompts the answers cover when they are repeated in the display language's letters.</param>
+    private async Task<OperationResult> RunChkdskAsync(string letter, string arguments, string? answers, bool scheduleOfflineFix, bool systemVolume, IProgress<ProgressUpdate>? progress, CancellationToken cancellationToken)
     {
         progress?.Report(new ProgressUpdate($"chkdsk {arguments}", null, "Starting…"));
         _logger.LogInformation("Running chkdsk {Arguments}.", arguments);
@@ -65,6 +66,16 @@ public sealed partial class WindowsStorageToolsService
             // chkdsk prints in the OEM code page; decode it as such so drive labels and localized text show correctly.
             run = await StorageCommandRunner.RunAsync("chkdsk.exe", arguments, answers, Line, timeout, cancellationToken,
                 StorageCommandRunner.OemEncoding()).ConfigureAwait(false);
+
+            // On non-English Windows chkdsk wants the display language's "yes" letter (J, O, S...) and read our "Y" as "no",
+            // so nothing was dismounted, scheduled or fixed. Ask again in the letters its prompt showed.
+            if (repairing && run.Started && !run.TimedOut
+                && StorageCommandParsers.LocalizedChkdskAnswers(run.Output, scheduleOfflineFix, systemVolume) is { } localized)
+            {
+                _logger.LogInformation("chkdsk prompted with localized answer letters; running it again with them.");
+                run = await StorageCommandRunner.RunAsync("chkdsk.exe", arguments, localized, Line, timeout, cancellationToken,
+                    StorageCommandRunner.OemEncoding()).ConfigureAwait(false);
+            }
         }
         catch (OperationCanceledException) when (repairing)
         {
@@ -91,9 +102,9 @@ public sealed partial class WindowsStorageToolsService
         }
 
         bool? scheduled = scheduleOfflineFix ? VolumeCheckState.IsCheckScheduled(letter) : null;
-        var outcome = StorageCommandParsers.ParseChkdsk(run.Output, run.ExitCode, letter, scheduled);
+        var outcome = StorageCommandParsers.ParseChkdsk(run.Output, run.ExitCode, letter, scheduled, scanOnly: !repairing);
         progress?.Report(new ProgressUpdate("Done", 100, outcome.Summary));
-        bool success = run.ExitCode is 0 or 1 || outcome.RebootScheduled;
+        bool success = StorageCommandParsers.IsChkdskSuccess(run.ExitCode, scanOnly: !repairing, outcome);
         return success
             ? OperationResult.Ok(outcome.Summary, outcome.RebootScheduled)
             : OperationResult.Fail(outcome.Summary);
