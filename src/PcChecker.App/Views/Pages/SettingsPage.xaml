@@ -103,7 +103,7 @@
               <ui:CardControl.Header>
                 <StackPanel>
                   <ui:TextBlock Text="Start minimized" />
-                  <ui:TextBlock Style="{StaticResource Muted}" Text="Open in the taskbar instead of on top of your work." />
+                  <ui:TextBlock Style="{StaticResource Muted}" Text="Open in the taskbar instead of on top of your work (in the tray when Minimize to the tray is on)." />
                 </StackPanel>
               </ui:CardControl.Header>
               <ui:ToggleSwitch IsChecked="{Binding StartMinimized}" />
@@ -126,6 +126,9 @@
                   <ui:TextBlock Text="Show the PC Checker icon in the tray" />
                   <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" MaxWidth="560"
                                 Text="Hover it for CPU and GPU temperatures, click it for a compact popup (temperatures, load, power, fan profile, overlay, quick clean), right-click it for a menu." />
+                  <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" MaxWidth="560"
+                                Visibility="{Binding TrayIconKeptForTrayOptions, Converter={StaticResource BoolToVisibility}}"
+                                Text="The icon stays while Minimize to the tray or Close button keeps PC Checker in the tray is on, so you can always get back to the window. Turn those off to remove it." />
                 </StackPanel>
               </ui:CardControl.Header>
               <ui:ToggleSwitch IsChecked="{Binding ShowTrayIcon}" />

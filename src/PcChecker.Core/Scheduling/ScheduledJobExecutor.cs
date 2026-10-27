@@ -5,6 +5,7 @@ using PcChecker.Core.Common;
 using PcChecker.Core.Drivers;
 using PcChecker.Core.Hardware;
 using PcChecker.Core.Health;
+using PcChecker.Core.Logging;
 using PcChecker.Core.Performance;
 using PcChecker.Core.Reports;
 using PcChecker.Core.Sensors;
@@ -30,6 +31,7 @@ public sealed class ScheduledJobExecutor
     private readonly IPerformanceAnalyzer _performance;
     private readonly IReportService _reports;
     private readonly ISensorService? _sensors;
+    private readonly IActionJournal? _journal;
     private readonly IScheduledJobStore _store;
     private readonly ISettingsService _settings;
     private readonly ILogger<ScheduledJobExecutor> _logger;
@@ -37,7 +39,7 @@ public sealed class ScheduledJobExecutor
 
     public ScheduledJobExecutor(IHealthService health, ITempFileScanner scanner, ITempFileCleaner cleaner, IDriverService drivers,
         IHardwareInventoryService hardware, IPerformanceAnalyzer performance, IReportService reports, IScheduledJobStore store,
-        ISettingsService settings, ILogger<ScheduledJobExecutor> logger, ISensorService? sensors = null)
+        ISettingsService settings, ILogger<ScheduledJobExecutor> logger, ISensorService? sensors = null, IActionJournal? journal = null)
     {
         _health = health;
         _scanner = scanner;
@@ -50,6 +52,7 @@ public sealed class ScheduledJobExecutor
         _settings = settings;
         _logger = logger;
         _sensors = sensors;
+        _journal = journal;
     }
 
     /// <summary>Folder for scheduled reports (Documents\PC Checker Reports; demo mode points it elsewhere).</summary>
@@ -126,10 +129,34 @@ public sealed class ScheduledJobExecutor
         }
 
         _store.Save(result);
+        await JournalAsync(result).ConfigureAwait(false);
         _logger.LogInformation("Scheduled job {Job} finished in {Seconds:0}s: {Title}. {Summary}", job, result.Duration.TotalSeconds, result.Title, result.Summary);
         RunningChanged?.Invoke(this, job);
         Completed?.Invoke(this, result);
         return result;
+    }
+
+    /// <summary>
+    /// Adds the run to the Action Journal. Cleanup is skipped: the cleaner already journals what it deleted through
+    /// the change guard.
+    /// </summary>
+    private async Task JournalAsync(ScheduledJobResult result)
+    {
+        if (_journal is null || result.Job == ScheduledJobKind.Cleanup)
+        {
+            return;
+        }
+
+        try
+        {
+            var outcome = result.Success ? "Success" : "Failed: " + result.Summary;
+            await _journal.RecordAsync(ActionRecord.Create("Schedules", $"{ScheduledJobIds.DisplayName(result.Job)} ({result.Trigger}): {result.Title}",
+                ScheduledJobIds.TaskName(result.Job), outcome, after: result.Summary)).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not add the {Job} run to the action journal.", result.Job);
+        }
     }
 
     private async Task<ScheduledJobResult> RunHealthAsync(ScheduledJobResult? previous, DateTimeOffset started, string trigger,

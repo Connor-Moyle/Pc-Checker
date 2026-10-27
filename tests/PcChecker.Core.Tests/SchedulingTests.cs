@@ -5,6 +5,7 @@ using PcChecker.Core.Common;
 using PcChecker.Core.Drivers;
 using PcChecker.Core.Hardware;
 using PcChecker.Core.Health;
+using PcChecker.Core.Logging;
 using PcChecker.Core.Optimization;
 using PcChecker.Core.Performance;
 using PcChecker.Core.Reports;
@@ -104,13 +105,43 @@ public class SchedulingTests
     }
 
     [Fact]
-    public void Logon_task_uses_onlogon_highest_and_optional_tray_switch()
+    public void Logon_task_is_created_from_xml()
     {
-        var tray = SchtasksCommandBuilder.CreateLogon(Exe, startInTray: true).Arguments;
-        Assert.Equal(["/Create", "/TN", @"PC Checker\Start", "/TR", "\"" + Exe + "\" --tray", "/SC", "ONLOGON", "/DELAY", "0000:30", "/RL", "HIGHEST", "/F"], tray);
+        Assert.Equal(["/Create", "/TN", @"PC Checker\Start", "/XML", @"C:\Temp\logon.xml", "/F"], SchtasksCommandBuilder.CreateLogon(@"C:\Temp\logon.xml").Arguments);
+        Assert.Throws<ArgumentException>(() => SchtasksCommandBuilder.CreateLogon(" "));
+    }
 
-        var window = SchtasksCommandBuilder.CreateLogon(Exe, startInTray: false).Arguments;
-        Assert.Contains("\"" + Exe + "\"", window);
+    [Fact]
+    public void Logon_task_xml_has_no_time_limit_runs_on_battery_and_uses_highest_privileges()
+    {
+        var doc = System.Xml.Linq.XDocument.Parse(LogonTaskXml.Build(Exe, startInTray: true, @"DESKTOP-1\Alex"));
+        System.Xml.Linq.XNamespace ns = "http://schemas.microsoft.com/windows/2004/02/mit/task";
+        string Value(string name) => doc.Descendants(ns + name).Single().Value;
+
+        Assert.Equal("PT0S", Value("ExecutionTimeLimit"));
+        Assert.Equal("false", Value("DisallowStartIfOnBatteries"));
+        Assert.Equal("false", Value("StopIfGoingOnBatteries"));
+        Assert.Equal("HighestAvailable", Value("RunLevel"));
+        Assert.Equal("InteractiveToken", Value("LogonType"));
+        Assert.Equal("PT30S", Value("Delay"));
+        Assert.Equal("\"" + Exe + "\"", Value("Command"));
+        Assert.Equal("--tray", Value("Arguments"));
+        Assert.Equal(2, doc.Descendants(ns + "UserId").Count(e => e.Value == @"DESKTOP-1\Alex"));
+        Assert.Single(doc.Descendants(ns + "LogonTrigger"));
+    }
+
+    [Fact]
+    public void Logon_task_xml_without_tray_or_user_omits_them_and_escapes_the_path()
+    {
+        const string odd = @"C:\R&D <Tools>\PcChecker.exe";
+        var xml = LogonTaskXml.Build(odd, startInTray: false, userId: null);
+        Assert.StartsWith("<?xml version=\"1.0\" encoding=\"UTF-16\"?>", xml);
+        var doc = System.Xml.Linq.XDocument.Parse(xml);
+        System.Xml.Linq.XNamespace ns = "http://schemas.microsoft.com/windows/2004/02/mit/task";
+        Assert.Empty(doc.Descendants(ns + "Arguments"));
+        Assert.Empty(doc.Descendants(ns + "UserId"));
+        Assert.Equal("\"" + odd + "\"", doc.Descendants(ns + "Command").Single().Value);
+        Assert.Throws<ArgumentException>(() => LogonTaskXml.Build("PcChecker.exe", true, null));
     }
 
     [Fact]
@@ -137,7 +168,7 @@ public class SchedulingTests
     {
         var longPath = @"C:\" + new string('a', 250) + @"\PcChecker.exe";
         Assert.Null(SchtasksCommandBuilder.ValidateExecutable(longPath));
-        var ex = Assert.Throws<ArgumentException>(() => SchtasksCommandBuilder.CreateLogon(longPath, true));
+        var ex = Assert.Throws<ArgumentException>(() => SchtasksCommandBuilder.Create(new JobSchedule(), longPath));
         Assert.Contains("too long", ex.Message);
         Assert.Throws<ArgumentException>(() => SchtasksCommandBuilder.Create(new JobSchedule { Time = "25:00" }, Exe));
     }
@@ -555,6 +586,27 @@ public class SchedulingTests
         Assert.Equal(ScheduledJobKind.Cleanup, alias);
     }
 
+    [Theory]
+    [InlineData(60, "Files changed in the last hour")]
+    [InlineData(120, "Files changed in the last 2 hours")]
+    [InlineData(30, "Files changed in the last 30 minutes")]
+    [InlineData(1, "Files changed in the last minute")]
+    [InlineData(0, "Files in use")]
+    public void Cleanup_description_follows_the_skip_recent_setting(int minutes, string expected)
+    {
+        Assert.Equal(expected, ScheduledJobIds.RecentFilesText(minutes));
+        Assert.Contains(expected, ScheduledJobIds.Description(ScheduledJobKind.Cleanup, minutes));
+    }
+
+    [Fact]
+    public void Job_pipe_name_is_tied_to_the_session_and_user()
+    {
+        Assert.Equal("PcChecker.Jobs.2.S-1-5-21-1000", ScheduledJobPipe.NameFor(2, "S-1-5-21-1000"));
+        Assert.Equal("PcChecker.Jobs.0", ScheduledJobPipe.NameFor(0, null));
+        Assert.Equal("PcChecker.Jobs.3.S-1-5", ScheduledJobPipe.NameFor(3, "S-1-5\\..//"));
+        Assert.StartsWith(ScheduledJobPipe.PipeName + ".", ScheduledJobPipe.CurrentPipeName);
+    }
+
     // ---- Store, settings and the executor -----------------------------------------------------------------------
 
     [Fact]
@@ -692,15 +744,55 @@ public class SchedulingTests
         }
     }
 
-    private static (ScheduledJobExecutor Executor, CapturingScanner Scanner, JsonScheduledJobStore Store, JsonSettingsService Settings) CreateExecutor(string dir)
+    private static (ScheduledJobExecutor Executor, CapturingScanner Scanner, JsonScheduledJobStore Store, JsonSettingsService Settings) CreateExecutor(string dir, IActionJournal? journal = null)
     {
         var settings = new JsonSettingsService(Path.Combine(dir, "settings"));
         var store = new JsonScheduledJobStore(null, Path.Combine(dir, "schedules"));
         var scanner = new CapturingScanner();
         var executor = new ScheduledJobExecutor(new DemoHealthService(), scanner, new DemoTempFileCleaner(), new DemoDriverService(),
             new DemoHardwareInventoryService(), new DemoPerformanceAnalyzer(new DemoStartupService()), new HtmlReportService(), store, settings,
-            NullLogger<ScheduledJobExecutor>.Instance);
+            NullLogger<ScheduledJobExecutor>.Instance, journal: journal);
         return (executor, scanner, store, settings);
+    }
+
+    [Fact]
+    public async Task Executor_journals_health_runs_but_leaves_cleanup_to_the_cleaner()
+    {
+        var dir = TempDir();
+        try
+        {
+            var journal = new CapturingJournal();
+            var (executor, _, _, settings) = CreateExecutor(dir, journal);
+            settings.Current.Schedules.For(ScheduledJobKind.Cleanup).DryRun = true;
+
+            await executor.RunAsync(ScheduledJobKind.Health, "schedule", null, CancellationToken.None);
+            await executor.RunAsync(ScheduledJobKind.Cleanup, "schedule", null, CancellationToken.None);
+
+            var record = Assert.Single(journal.Records);
+            Assert.Equal("Schedules", record.Module);
+            Assert.Equal(@"PC Checker\Health", record.Target);
+            Assert.Equal("Success", record.Outcome);
+            Assert.StartsWith("Health check (schedule)", record.Action);
+        }
+        finally
+        {
+            Directory.Delete(dir, true);
+        }
+    }
+
+    private sealed class CapturingJournal : IActionJournal
+    {
+        public List<ActionRecord> Records { get; } = [];
+
+        public string JournalPath => string.Empty;
+
+        public Task RecordAsync(ActionRecord record)
+        {
+            Records.Add(record);
+            return Task.CompletedTask;
+        }
+
+        public Task<IReadOnlyList<ActionRecord>> ReadAsync(int take = 500) => Task.FromResult<IReadOnlyList<ActionRecord>>(Records);
     }
 
     private static string TempDir()

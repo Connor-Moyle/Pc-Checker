@@ -64,12 +64,33 @@ public static class ScheduledJobIds
         _ => job.ToString(),
     };
 
-    public static string Description(ScheduledJobKind job) => job switch
+    /// <summary>
+    /// One-paragraph description of a job. <paramref name="skipRecentMinutes"/> is the Cleanup setting
+    /// "skip files changed in the last N minutes", which the cleanup job respects.
+    /// </summary>
+    public static string Description(ScheduledJobKind job, int skipRecentMinutes = 60) => job switch
     {
         ScheduledJobKind.Health => "Checks drives, devices, crashes and event logs, and tells you when the health score drops or a new critical problem appears.",
-        ScheduledJobKind.Cleanup => "Removes temporary files from the Safe categories only (temp folders, caches, update leftovers). Files changed in the last hour and the Recycle Bin are never touched.",
+        ScheduledJobKind.Cleanup => "Removes temporary files from the Safe categories only (temp folders, caches, update leftovers). " + RecentFilesText(skipRecentMinutes) + " and the Recycle Bin are never touched.",
         ScheduledJobKind.Drivers => "Asks Windows Update whether newer drivers exist and tells you. Nothing is downloaded or installed.",
         ScheduledJobKind.Report => "Saves a full HTML report (hardware, health, performance, drivers) to Documents\\PC Checker Reports and keeps the newest ones.",
         _ => string.Empty,
     };
+
+    /// <summary>"Files changed in the last 2 hours" for the Cleanup skip-recent setting (0 = no files are skipped).</summary>
+    public static string RecentFilesText(int minutes)
+    {
+        if (minutes <= 0)
+        {
+            return "Files in use";
+        }
+
+        if (minutes % 60 == 0)
+        {
+            int hours = minutes / 60;
+            return hours == 1 ? "Files changed in the last hour" : string.Format(System.Globalization.CultureInfo.InvariantCulture, "Files changed in the last {0} hours", hours);
+        }
+
+        return string.Format(System.Globalization.CultureInfo.InvariantCulture, minutes == 1 ? "Files changed in the last minute" : "Files changed in the last {0} minutes", minutes);
+    }
 }

@@ -88,9 +88,17 @@ public sealed class ScreenshotRunner
             await CaptureOverlayAsync(Path.Combine(dir, overlayFile), cancellationToken);
             index["Overlay"] = overlayFile;
 
+            // The tray popup is an extra; a failure here must not cost the page screenshots.
             var trayFile = $"{number + 1:00}-tray.png";
-            await Tray.TrayScreenshot.CaptureAsync(_services, Path.Combine(dir, trayFile), cancellationToken);
-            index["Tray"] = trayFile;
+            try
+            {
+                await Tray.TrayScreenshot.CaptureAsync(_services, Path.Combine(dir, trayFile), cancellationToken);
+                index["Tray"] = trayFile;
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _logger.LogWarning(ex, "The tray popup could not be captured; continuing without it.");
+            }
 
             var json = JsonSerializer.Serialize(new { generated = DateTimeOffset.Now, width = WindowWidth, height = WindowHeight, pages = index },
                 new JsonSerializerOptions { WriteIndented = true });

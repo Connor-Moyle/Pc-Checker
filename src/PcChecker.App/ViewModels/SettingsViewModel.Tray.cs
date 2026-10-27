@@ -44,8 +44,23 @@ public sealed partial class SettingsViewModel
         NotifyTemperatureAlerts = tray.NotifyTemperatureAlerts;
     }
 
-    partial void OnShowTrayIconChanged(bool value) => Persist(s => s.Tray.ShowIcon = value);
-    partial void OnCloseToTrayChanged(bool value) => Persist(s => s.Tray.CloseToTray = value);
+    /// <summary>
+    /// The icon is hidden in settings but still shown, because minimize or close to the tray needs it to bring the
+    /// window back.
+    /// </summary>
+    public bool TrayIconKeptForTrayOptions => !ShowTrayIcon && (MinimizeToTray || CloseToTray);
+
+    partial void OnShowTrayIconChanged(bool value)
+    {
+        Persist(s => s.Tray.ShowIcon = value);
+        OnPropertyChanged(nameof(TrayIconKeptForTrayOptions));
+    }
+
+    partial void OnCloseToTrayChanged(bool value)
+    {
+        Persist(s => s.Tray.CloseToTray = value);
+        OnPropertyChanged(nameof(TrayIconKeptForTrayOptions));
+    }
     partial void OnShowTemperatureInTrayIconChanged(bool value) => Persist(s => s.Tray.ShowTemperatureInIcon = value);
     partial void OnNotifyTemperatureAlertsChanged(bool value) => Persist(s => s.Tray.NotifyTemperatureAlerts = value);
 

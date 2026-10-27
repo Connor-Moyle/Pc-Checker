@@ -103,7 +103,7 @@ gaming desktop) every time the app changes. The full set of every page is in
     <td width="50%"><img src="docs/screenshots/assistant.png" alt="Ask Claude page"><br><sub>Ask Claude</sub></td>
   </tr>
   <tr>
-    <td width="50%"><img src="docs/screenshots/25-settings.png" alt="Settings page with the Tray and Schedules sections"><br><sub>Settings: tray and schedules</sub></td>
+    <td width="50%"><img src="docs/screenshots/25-settings.png" alt="Settings page"><br><sub>Settings</sub></td>
     <td width="50%"><img src="docs/screenshots/27-tray.png" alt="Tray popup with temperatures, load, power and quick actions"><br><sub>Tray popup</sub></td>
   </tr>
 </table>

@@ -78,7 +78,12 @@ public sealed partial class ScheduleJobRow : ObservableObject
 
     public string Title => ScheduledJobIds.DisplayName(Job);
 
-    public string Description => ScheduledJobIds.Description(Job);
+    public string Description => ScheduledJobIds.Description(Job, SkipRecentMinutes);
+
+    /// <summary>The Cleanup setting "skip files changed in the last N minutes", shown in the cleanup description.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(Description))]
+    private int _skipRecentMinutes = 60;
 
     public SymbolRegular Symbol => Job switch
     {

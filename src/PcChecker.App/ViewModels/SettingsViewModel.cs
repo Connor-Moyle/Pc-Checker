@@ -187,7 +187,11 @@ public sealed partial class SettingsViewModel : ViewModelBase
 
     partial void OnAdvancedModeChanged(bool value) => Persist(s => s.General.AdvancedMode = value);
     partial void OnStartMinimizedChanged(bool value) => Persist(s => s.General.StartMinimized = value);
-    partial void OnMinimizeToTrayChanged(bool value) => Persist(s => s.General.MinimizeToTray = value);
+    partial void OnMinimizeToTrayChanged(bool value)
+    {
+        Persist(s => s.General.MinimizeToTray = value);
+        OnPropertyChanged(nameof(TrayIconKeptForTrayOptions));
+    }
     partial void OnCheckHealthOnStartupChanged(bool value) => Persist(s => s.General.CheckHealthOnStartup = value);
     partial void OnCreateRestorePointBeforeChanged(bool value) => Persist(s => s.RestorePoints.CreateBeforeChanges = value);
     partial void OnCreateRestorePointAfterChanged(bool value) => Persist(s => s.RestorePoints.CreateAfterChanges = value);

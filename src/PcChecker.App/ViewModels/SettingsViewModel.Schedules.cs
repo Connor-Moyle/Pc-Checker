@@ -81,6 +81,7 @@ public sealed partial class SettingsViewModel
         foreach (var row in ScheduleJobs)
         {
             row.Load(schedules.For(row.Job));
+            row.SkipRecentMinutes = Math.Max(0, s.Cleanup.SkipFilesNewerThanMinutes);
             row.ApplyResult(results.GetValueOrDefault(row.Job));
             row.IsRunning = _scheduledRunner.Executor.IsRunning(row.Job);
             if (!CanScheduleTasks)
@@ -110,7 +111,7 @@ public sealed partial class SettingsViewModel
             bool ok = await _dialogs.ConfirmAsync($"Schedule \"{row.Title}\"?",
                 $"Windows Task Scheduler will start PC Checker {ScheduleRules.DescribeInline(schedule)} to run this job, even while the app is closed. "
                 + "It runs in the background with administrator rights (no UAC prompt) and stops after 10 minutes at most.\n\n"
-                + ScheduledJobIds.Description(row.Job) + "\n\n"
+                + ScheduledJobIds.Description(row.Job, Math.Max(0, Settings.Current.Cleanup.SkipFilesNewerThanMinutes)) + "\n\n"
                 + (NotifyOnlyWhenAttention ? "You get a notification only when something needs your attention." : "You get a notification after every run.")
                 + " Turn the switch off at any time to remove the task.",
                 "Create schedule");

@@ -5,7 +5,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace PcChecker.Core.Scheduling;
 
-/// <summary>A request sent to the running PC Checker over the <see cref="ScheduledJobPipe.PipeName"/> pipe.</summary>
+/// <summary>A request sent to the running PC Checker over the <see cref="ScheduledJobPipe.CurrentPipeName"/> pipe.</summary>
 public sealed record PipeRequest(PipeCommand Command, ScheduledJobKind? Job);
 
 public enum PipeCommand
@@ -18,12 +18,60 @@ public enum PipeCommand
 }
 
 /// <summary>
-/// One-line text protocol on the named pipe <c>PcChecker.Jobs</c>: the client writes <c>run &lt;job&gt;</c> or
+/// One-line text protocol on the named pipe <c>PcChecker.Jobs.&lt;session&gt;.&lt;user SID&gt;</c>: the client writes <c>run &lt;job&gt;</c> or
 /// <c>show</c>, the server answers <c>ok</c>, <c>busy</c> or <c>refused</c>. The pipe only accepts the current user.
 /// </summary>
 public static class ScheduledJobPipe
 {
+    /// <summary>Base name; the real pipe adds the Windows session and user (see <see cref="CurrentPipeName"/>).</summary>
     public const string PipeName = "PcChecker.Jobs";
+
+    private static readonly Lazy<string> Current = new(() => NameFor(CurrentSessionId(), CurrentUserSid()));
+
+    /// <summary>
+    /// The pipe for this Windows session and user. Pipe names are machine-wide, so without the session and user a
+    /// scheduled run in one person's session could hand its job to another person's PC Checker.
+    /// </summary>
+    public static string CurrentPipeName => Current.Value;
+
+    /// <summary><c>PcChecker.Jobs.&lt;session&gt;.&lt;user SID&gt;</c> (the SID part is left out when unknown).</summary>
+    public static string NameFor(int sessionId, string? userSid)
+    {
+        var name = PipeName + "." + sessionId.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        var sid = new string((userSid ?? string.Empty).Where(c => char.IsAsciiLetterOrDigit(c) || c == '-').ToArray());
+        return sid.Length == 0 ? name : name + "." + sid;
+    }
+
+    private static int CurrentSessionId()
+    {
+        try
+        {
+            using var process = System.Diagnostics.Process.GetCurrentProcess();
+            return process.SessionId;
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or PlatformNotSupportedException or System.ComponentModel.Win32Exception)
+        {
+            return 0;
+        }
+    }
+
+    private static string? CurrentUserSid()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return null;
+        }
+
+        try
+        {
+            using var identity = System.Security.Principal.WindowsIdentity.GetCurrent();
+            return identity.User?.Value;
+        }
+        catch (Exception ex) when (ex is System.Security.SecurityException or UnauthorizedAccessException or PlatformNotSupportedException)
+        {
+            return null;
+        }
+    }
     public const string ReplyOk = "ok";
     public const string ReplyBusy = "busy";
     public const string ReplyRefused = "refused";
@@ -56,7 +104,7 @@ public static class ScheduledJobPipe
         {
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             cts.CancelAfter(timeout);
-            await using var client = new NamedPipeClientStream(".", PipeName, PipeDirection.InOut, PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
+            await using var client = new NamedPipeClientStream(".", CurrentPipeName, PipeDirection.InOut, PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
             await client.ConnectAsync(cts.Token).ConfigureAwait(false);
             await using var writer = new StreamWriter(client, new UTF8Encoding(false), leaveOpen: true) { AutoFlush = true };
             using var reader = new StreamReader(client, Encoding.UTF8, false, 256, leaveOpen: true);
@@ -72,7 +120,7 @@ public static class ScheduledJobPipe
 }
 
 /// <summary>
-/// Listens on <see cref="ScheduledJobPipe.PipeName"/> in the running app and hands each request to a callback, which
+/// Listens on <see cref="ScheduledJobPipe.CurrentPipeName"/> in the running app and hands each request to a callback, which
 /// returns the reply. Failures are logged and the listener keeps going until disposed.
 /// </summary>
 public sealed class ScheduledJobPipeServer : IDisposable
@@ -97,7 +145,7 @@ public sealed class ScheduledJobPipeServer : IDisposable
         {
             try
             {
-                await using var server = new NamedPipeServerStream(ScheduledJobPipe.PipeName, PipeDirection.InOut, 1,
+                await using var server = new NamedPipeServerStream(ScheduledJobPipe.CurrentPipeName, PipeDirection.InOut, 1,
                     PipeTransmissionMode.Byte, PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
                 await server.WaitForConnectionAsync(token).ConfigureAwait(false);
                 failures = 0;

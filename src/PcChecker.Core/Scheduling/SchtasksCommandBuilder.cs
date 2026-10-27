@@ -15,7 +15,7 @@ public sealed record SchtasksCommand(IReadOnlyList<string> Arguments)
 /// <summary>
 /// Builds the <c>schtasks.exe</c> argument lists PC Checker uses: one task per job in the "PC Checker" folder running
 /// <c>"&lt;exe&gt;" --scheduled &lt;job&gt;</c> daily or weekly with highest privileges, the logon task for "Start with
-/// Windows", and the matching query and delete calls. Pure, so the quoting rules are unit-tested.
+/// Windows" (registered from XML), and the matching query and delete calls. Pure, so the quoting rules are unit-tested.
 /// </summary>
 public static class SchtasksCommandBuilder
 {
@@ -27,9 +27,6 @@ public static class SchtasksCommandBuilder
 
     /// <summary>schtasks rejects a /TR value longer than this.</summary>
     public const int MaxTaskRunLength = 261;
-
-    /// <summary>Seconds Windows waits after sign-in before starting PC Checker (lets the desktop settle).</summary>
-    public const string LogonDelay = "0000:30";
 
     /// <summary><c>/Create</c> for a job: <c>/SC DAILY|WEEKLY [/D MON] /ST HH:mm /RL HIGHEST /F</c>.</summary>
     public static SchtasksCommand Create(JobSchedule schedule, string executablePath)
@@ -59,15 +56,19 @@ public static class SchtasksCommandBuilder
     }
 
     /// <summary>
-    /// <c>/Create</c> for "Start with Windows": an ONLOGON task with highest privileges, so the elevated app starts
-    /// without a UAC prompt. <paramref name="startInTray"/> adds <c>--tray</c>.
+    /// <c>/Create /TN "PC Checker\Start" /XML file /F</c> for "Start with Windows". The definition comes from
+    /// <see cref="LogonTaskXml"/> (ONLOGON, highest privileges so the elevated app starts without a UAC prompt, no time
+    /// limit, runs on battery), because the plain <c>/SC ONLOGON</c> switches cannot turn off the 72-hour limit or
+    /// the battery rules.
     /// </summary>
-    public static SchtasksCommand CreateLogon(string executablePath, bool startInTray)
+    public static SchtasksCommand CreateLogon(string xmlPath)
     {
-        ThrowIfInvalid(ValidateExecutable(executablePath));
-        var run = TaskRun(executablePath, startInTray ? "--tray" : null);
-        ThrowIfInvalid(ValidateTaskRun(run));
-        return new SchtasksCommand(["/Create", "/TN", LogonTaskName, "/TR", run, "/SC", "ONLOGON", "/DELAY", LogonDelay, "/RL", "HIGHEST", "/F"]);
+        if (string.IsNullOrWhiteSpace(xmlPath))
+        {
+            throw new ArgumentException("The task definition file is required.", nameof(xmlPath));
+        }
+
+        return new SchtasksCommand(["/Create", "/TN", LogonTaskName, "/XML", xmlPath.Trim(), "/F"]);
     }
 
     /// <summary><c>/Delete /TN name /F</c> (no confirmation prompt).</summary>

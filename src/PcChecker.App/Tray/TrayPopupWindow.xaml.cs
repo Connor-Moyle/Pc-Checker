@@ -21,10 +21,25 @@ public partial class TrayPopupWindow : Window
     /// <summary>When the popup last hid itself, so a click on the tray icon that caused the hide does not reopen it.</summary>
     public DateTime LastHiddenUtc { get; private set; } = DateTime.MinValue;
 
+    /// <summary>Set before closing for good (Exit, shutdown); otherwise Alt+F4 only hides the popup so it can open again.</summary>
+    public bool AllowClose { get; set; }
+
     private void OnDeactivated(object? sender, EventArgs e)
     {
         LastHiddenUtc = DateTime.UtcNow;
         Hide();
+    }
+
+    protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
+    {
+        if (!AllowClose && !Dispatcher.HasShutdownStarted)
+        {
+            e.Cancel = true;
+            LastHiddenUtc = DateTime.UtcNow;
+            Hide();
+        }
+
+        base.OnClosing(e);
     }
 }
 

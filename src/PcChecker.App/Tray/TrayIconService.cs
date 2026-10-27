@@ -343,9 +343,18 @@ public sealed partial class TrayIconService : ITrayActions, IDisposable
     public void ExitApplication()
     {
         IsExiting = true;
-        _popup?.Close();
-        _popup = null;
+        ClosePopup();
         Application.Current?.Shutdown();
+    }
+
+    private void ClosePopup()
+    {
+        if (_popup is { } popup)
+        {
+            _popup = null;
+            popup.AllowClose = true;
+            popup.Close();
+        }
     }
 
     public void Dispose()
@@ -355,7 +364,7 @@ public sealed partial class TrayIconService : ITrayActions, IDisposable
         _runner.Executor.Completed -= OnJobCompleted;
         try
         {
-            _popup?.Close();
+            ClosePopup();
             _icon?.Dispose();
         }
         catch (Exception ex)

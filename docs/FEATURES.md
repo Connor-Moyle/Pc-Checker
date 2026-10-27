@@ -753,8 +753,8 @@ PC Checker keeps an icon in the notification area next to the clock.
 - **Menu** (right-click): *Open PC Checker*, *Show overlay*, *Fan profile ▸*,
   *Check health now* and *Exit PC Checker*.
 - **Quick clean** deletes temporary files from the Safe cleanup categories you
-  use on the Cleanup page, after you confirm. Files changed in the last hour
-  (your Cleanup setting), files in use and the Recycle Bin are left alone. The
+  use on the Cleanup page, after you confirm. Files changed recently (the
+  "skip files newer than" Cleanup setting, an hour by default), files in use and the Recycle Bin are left alone. The
   result arrives as a notification.
 - **Fan profile switch** applies a built-in or saved profile; the first switch
   in a session asks for the same consent as the Fans page.
@@ -764,14 +764,21 @@ PC Checker keeps an icon in the notification area next to the clock.
 
 Settings → Tray:
 
-- *Show the PC Checker icon in the tray* (on by default).
+- *Show the PC Checker icon in the tray* (on by default). While *Minimize to
+  the tray* or *Close button keeps PC Checker in the tray* is on, the icon
+  stays so you can get back to the window; the setting says so.
 - *Minimize to the tray*: the minimize button hides the window; monitoring,
-  alerts and the overlay keep running.
+  alerts and the overlay keep running Together with *Start minimized*, PC
+  Checker starts hidden in the tray.
 - *Close button keeps PC Checker in the tray*: closing hides the window. Exit
   from the tray menu to quit.
 - *Start with Windows*: adds the task `PC Checker\Start` to Task Scheduler
-  (`/SC ONLOGON /RL HIGHEST`, 30 seconds after you sign in). Because the task
-  has highest privileges, the app starts without a UAC prompt. Turning it off
+  (`schtasks /Create /XML`: at your sign-in, 30 seconds later, highest
+  privileges). Because the task has highest privileges, the app starts
+  without a UAC prompt. Unlike Task Scheduler's defaults, the task also starts
+  on battery power and has no time limit, so a laptop on battery still starts
+  PC Checker and Windows never ends a long-running session (which would skip
+  the normal shutdown that puts fans back to automatic). Turning it off
   removes the task.
 - *When started with Windows, stay in the tray*: the task starts
   `PcChecker.exe --tray`, which opens with only the tray icon.
@@ -793,7 +800,7 @@ Task Scheduler, so they run even while PC Checker is closed:
 | Job | What it does | Needs your attention when |
 |---|---|---|
 | Health check | Runs the full health check and keeps the score and critical items. | The score dropped 5 points or more since the last run, or a new critical problem appeared (on the first run: score below 70 or any critical item). |
-| Junk file cleanup | Scans and cleans the **Safe** categories you use on the Cleanup page. Never Moderate or Advanced categories, never the Recycle Bin, never files changed in the last hour. Optional dry run that only counts. | A file could not be removed. |
+| Junk file cleanup | Scans and cleans the **Safe** categories you use on the Cleanup page. Never Moderate or Advanced categories, never the Recycle Bin, never files changed recently (the Cleanup setting, an hour by default). Optional dry run that only counts. | A file could not be removed. |
 | Driver update check | Asks Windows Update for newer drivers. Nothing is downloaded or installed. | Updates are available. |
 | PC report | Saves a full HTML report (hardware, health, performance, drivers) to `Documents\PC Checker Reports` and keeps the newest N scheduled reports (10 by default). Reports you saved yourself are never removed. | Never. With a notification after every run, clicking it opens the report. |
 
@@ -812,8 +819,8 @@ How it works:
   Status is read with `schtasks /Query /FO CSV /V /NH` by column position, so it
   works on Windows in any language.
 - `PcChecker.exe --scheduled <job>` runs without a window. If PC Checker is
-  already open, the job is handed to it over a local named pipe that only
-  your account can use; otherwise it runs on its own. Each run stops after 10
+  already open in your Windows session, the job is handed to it over a local
+  named pipe tied to your session and account; otherwise it runs on its own. Each run stops after 10
   minutes at most, writes its result to
   `%LOCALAPPDATA%\PcChecker\schedules\<job>-last.json` and the log, shows a
   notification and exits with code 0 (success) or 1 (failure), which Task
@@ -833,8 +840,9 @@ How it works:
 
 Limitations: tasks run in your Windows session, so Task Scheduler skips a run
 while you are signed out or the PC is off or asleep, and by
-default it does not start tasks on battery power; the next scheduled time
-runs as normal. In demo mode nothing is scheduled ("Demo mode: schedules are
+default it does not start the maintenance jobs on battery power (the *Start
+with Windows* task is not limited this way); the next scheduled time runs as
+normal. In demo mode nothing is scheduled ("Demo mode: schedules are
 not created") and the page shows sample results.
 
 ---

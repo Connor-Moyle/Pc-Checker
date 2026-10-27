@@ -68,11 +68,31 @@ public sealed partial class TrayIconService
         }
     }
 
+    /// <summary>The popup window, created on first use; forgotten again if it is ever closed for good.</summary>
+    private TrayPopupWindow EnsurePopup()
+    {
+        if (_popup is { } existing)
+        {
+            return existing;
+        }
+
+        var popup = new TrayPopupWindow(_popupViewModel);
+        popup.Closed += (_, _) =>
+        {
+            if (ReferenceEquals(_popup, popup))
+            {
+                _popup = null;
+            }
+        };
+        _popup = popup;
+        return popup;
+    }
+
     private void TogglePopup()
     {
         try
         {
-            _popup ??= new TrayPopupWindow(_popupViewModel);
+            _popup = EnsurePopup();
             if (_popup.IsVisible)
             {
                 _popup.Hide();
@@ -101,14 +121,23 @@ public sealed partial class TrayIconService
 
     private static void PlacePopup(Window popup)
     {
+        // Start from the primary work area, then switch to the work area of the monitor under the cursor, so a tray
+        // on a second monitor's taskbar opens the popup on that monitor.
         var work = SystemParameters.WorkArea;
         var area = new ScreenRect(work.Left, work.Top, work.Width, work.Height);
         double x = area.Right, y = area.Bottom;
         if (GetCursorPos(out var cursor) && PresentationSource.FromVisual(popup)?.CompositionTarget is { } target)
         {
-            var dip = target.TransformFromDevice.Transform(new Point(cursor.X, cursor.Y));
+            var fromDevice = target.TransformFromDevice;
+            var dip = fromDevice.Transform(new Point(cursor.X, cursor.Y));
             x = dip.X;
             y = dip.Y;
+            if (TryGetMonitorWorkArea(cursor, out var monitorWork))
+            {
+                var topLeft = fromDevice.Transform(new Point(monitorWork.Left, monitorWork.Top));
+                var bottomRight = fromDevice.Transform(new Point(monitorWork.Right, monitorWork.Bottom));
+                area = new ScreenRect(topLeft.X, topLeft.Y, bottomRight.X - topLeft.X, bottomRight.Y - topLeft.Y);
+            }
         }
 
         var (left, top) = TrayPopupPlacement.Compute(area, x, y, popup.ActualWidth, popup.ActualHeight, 0);
@@ -286,14 +315,20 @@ public sealed partial class TrayIconService
         });
     }
 
+    // Raised on a thread-pool thread: read settings and notify on the UI thread, where settings are also edited and saved.
     private void OnJobCompleted(object? sender, ScheduledJobResult result)
     {
-        if (result.Trigger == "manual")
+        if (result.Trigger != "manual")
         {
-            return; // Settings → Schedules shows the result inline.
+            DispatcherHelper.PostToUi(() => NotifyJobCompleted(result));
         }
 
-        bool onlyAttention = ScheduleRules.EnsureSettings(_settings.Current).NotifyOnlyWhenAttention;
+        // A manual run is shown inline in Settings → Schedules.
+    }
+
+    private void NotifyJobCompleted(ScheduledJobResult result)
+    {
+        bool onlyAttention = _settings.Current.Schedules?.NotifyOnlyWhenAttention ?? new SchedulesSettings().NotifyOnlyWhenAttention;
         if (result.Trigger == "schedule" && !JobResultSummarizer.ShouldNotify(result, onlyAttention))
         {
             return;
@@ -328,7 +363,7 @@ public sealed partial class TrayIconService
     /// <summary>Shows the popup off-screen with fresh values and returns it (used by the screenshot runner).</summary>
     public TrayPopupWindow ShowPopupForCapture()
     {
-        _popup ??= new TrayPopupWindow(_popupViewModel);
+        _popup = EnsurePopup();
         _popupViewModel.Refresh(_overlay.IsVisible);
         _popup.ShowActivated = false;
         _popup.Left = -10000;
@@ -348,4 +383,58 @@ public sealed partial class TrayIconService
     [DllImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool GetCursorPos(out NativePoint point);
+
+    private const uint MonitorDefaultToNearest = 2;
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct NativeRect
+    {
+        public int Left;
+        public int Top;
+        public int Right;
+        public int Bottom;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct MonitorInfo
+    {
+        public int Size;
+        public NativeRect Monitor;
+        public NativeRect Work;
+        public uint Flags;
+    }
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr MonitorFromPoint(NativePoint point, uint flags);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GetMonitorInfo(IntPtr monitor, ref MonitorInfo info);
+
+    /// <summary>Work area (screen minus taskbar) of the monitor nearest to <paramref name="point"/>, in device pixels.</summary>
+    private static bool TryGetMonitorWorkArea(NativePoint point, out NativeRect work)
+    {
+        work = default;
+        try
+        {
+            var monitor = MonitorFromPoint(point, MonitorDefaultToNearest);
+            if (monitor == IntPtr.Zero)
+            {
+                return false;
+            }
+
+            var info = new MonitorInfo { Size = Marshal.SizeOf<MonitorInfo>() };
+            if (!GetMonitorInfo(monitor, ref info) || info.Work.Right <= info.Work.Left || info.Work.Bottom <= info.Work.Top)
+            {
+                return false;
+            }
+
+            work = info.Work;
+            return true;
+        }
+        catch (Exception ex) when (ex is DllNotFoundException or EntryPointNotFoundException)
+        {
+            return false;
+        }
+    }
 }

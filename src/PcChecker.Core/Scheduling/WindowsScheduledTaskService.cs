@@ -1,3 +1,4 @@
+using System.Text;
 using Microsoft.Extensions.Logging;
 using PcChecker.Core.Common;
 using PcChecker.Core.Restore;
@@ -90,10 +91,10 @@ public sealed class WindowsScheduledTaskService : IScheduledTaskService
             return OperationResult.Fail(UnavailableReason ?? "Scheduled tasks are not available.");
         }
 
-        SchtasksCommand command;
+        string xml;
         try
         {
-            command = SchtasksCommandBuilder.CreateLogon(ExecutablePath!, startInTray);
+            xml = LogonTaskXml.Build(ExecutablePath!, startInTray, CurrentUserId());
         }
         catch (ArgumentException ex)
         {
@@ -104,13 +105,46 @@ public sealed class WindowsScheduledTaskService : IScheduledTaskService
             "Turn off \"Start with Windows\" in Settings → Tray, or delete the \"Start\" task from the \"PC Checker\" folder in Task Scheduler.");
         return await _guard.RunGuardedAsync("Start PC Checker when you sign in to Windows", options, async ct =>
         {
-            var output = await RunAsync(command, ct).ConfigureAwait(false);
-            return output.Success
-                ? OperationResult.Ok(startInTray
-                    ? "PC Checker will start in the tray when you sign in, without a UAC prompt."
-                    : "PC Checker will open when you sign in, without a UAC prompt.")
-                : OperationResult.Fail("Task Scheduler refused the logon task: " + Describe(output));
+            var xmlPath = Path.Combine(Path.GetTempPath(), "PcChecker-logon-" + Guid.NewGuid().ToString("N") + ".xml");
+            try
+            {
+                await File.WriteAllTextAsync(xmlPath, xml, Encoding.Unicode, ct).ConfigureAwait(false);
+                var output = await RunAsync(SchtasksCommandBuilder.CreateLogon(xmlPath), ct).ConfigureAwait(false);
+                return output.Success
+                    ? OperationResult.Ok(startInTray
+                        ? "PC Checker will start in the tray when you sign in, without a UAC prompt."
+                        : "PC Checker will open when you sign in, without a UAC prompt.")
+                    : OperationResult.Fail("Task Scheduler refused the logon task: " + Describe(output));
+            }
+            finally
+            {
+                TryDelete(xmlPath);
+            }
         }, null, cancellationToken).ConfigureAwait(false);
+    }
+
+    private static string? CurrentUserId()
+    {
+        var user = Environment.UserName;
+        if (string.IsNullOrWhiteSpace(user))
+        {
+            return null;
+        }
+
+        var domain = Environment.UserDomainName;
+        return string.IsNullOrWhiteSpace(domain) ? user : domain + "\\" + user;
+    }
+
+    private void TryDelete(string path)
+    {
+        try
+        {
+            File.Delete(path);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _logger.LogDebug(ex, "Could not delete the temporary task file {Path}.", path);
+        }
     }
 
     private async Task<OperationResult> DeleteTaskAsync(string taskName, string description, CancellationToken cancellationToken)

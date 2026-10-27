@@ -75,15 +75,18 @@ public partial class App : Application
 
         var window = _services.GetRequiredService<MainWindow>();
         MainWindow = window;
-        bool startInTray = options.StartInTray && !options.ScreenshotsRequested;
-        if ((settings.Current.General.StartMinimized || options.StartMinimized) && !options.ScreenshotsRequested && !startInTray)
-        {
-            window.WindowState = WindowState.Minimized;
-        }
+        bool startMinimized = (settings.Current.General.StartMinimized || options.StartMinimized) && !options.ScreenshotsRequested;
 
+        // "Start minimized" with "Minimize to the tray" starts in the tray, the same place the minimize button sends it.
+        bool startInTray = (options.StartInTray || (startMinimized && settings.Current.General.MinimizeToTray)) && !options.ScreenshotsRequested;
         bool trayReady = !options.ScreenshotsRequested && InitializeTray(window, startInTray);
         if (!startInTray || !trayReady)
         {
+            if (startMinimized)
+            {
+                window.WindowState = WindowState.Minimized;
+            }
+
             window.Show();
         }
 
