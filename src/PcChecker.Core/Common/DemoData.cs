@@ -16,7 +16,7 @@ public static class DemoData
     public const long TotalMemoryBytes = 2 * MemoryModuleBytes;
     public const string NvmeModel = "Samsung SSD 990 PRO 2TB";
     public const long NvmeBytes = 2_000_398_934_016;
-    public const string HddModel = "WDC WD40EZAZ-00SF3B0";
+    public const string HddModel = "WDC WD4005FZBX-00K5WB0";
     public const long HddBytes = 4_000_787_030_016;
     public const string OsName = "Microsoft Windows 11 Pro";
     public const string OsVersion = "24H2 (build 26100)";

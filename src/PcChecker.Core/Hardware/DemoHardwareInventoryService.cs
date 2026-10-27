@@ -84,12 +84,12 @@ public sealed class DemoHardwareInventoryService : IHardwareInventoryService
                 ("MediaType", "Fixed hard disk media"), ("Partitions", "3"), ("BytesPerSector", "512"), ("TotalSectors", (DemoData.NvmeBytes / 512).ToString()), ("Status", "OK"), ("Index", "0"),
                 ("PhysicalDisk.MediaType", "4"), ("PhysicalDisk.BusType", "17"), ("PhysicalDisk.HealthStatus", "0"), ("PhysicalDisk.FriendlyName", DemoData.NvmeModel), ("PhysicalDisk.PhysicalSectorSize", "512"),
                 ("PhysicalDisk.Usage", "1"), ("PhysicalDisk.CanPool", "No"), ("PhysicalDisk.CannotPoolReason", "Insufficient Capacity"))));
-        inventory.PhysicalDisks.Add(new PhysicalDiskInfo(DemoData.HddModel, "Western Digital", @"\\.\PHYSICALDRIVE1", "OK", DemoData.HddModel, "WD-WX12DEMO0002", "80.00A80", "SCSI", "HDD", "SATA", DemoData.HddBytes, "Warning", 5400,
-            @"SCSI\DISK&VEN_WDC&PROD_WD40EZAZ-00SF3B0\4&DEMO0002&0&010000",
+        inventory.PhysicalDisks.Add(new PhysicalDiskInfo(DemoData.HddModel, "Western Digital", @"\\.\PHYSICALDRIVE1", "OK", DemoData.HddModel, "WD-WX12DEMO0002", "80.00A80", "SCSI", "HDD", "SATA", DemoData.HddBytes, "Healthy", 7200,
+            @"SCSI\DISK&VEN_WDC&PROD_WD4005FZBX-00K5WB0\4&DEMO0002&0&010000",
             [new PartitionInfo("Disk #1, Partition #0 (D:)", "Disk #1, Partition #0", DemoData.HddBytes - 16_000_000, 16777216, 0, "GPT: Basic Data", false, false, true, Props(("DeviceID", "Disk #1, Partition #0"), ("DriveLetter", "D:")))],
             Props(("Model", DemoData.HddModel), ("SerialNumber", "WD-WX12DEMO0002"), ("FirmwareRevision", "80.00A80"), ("Size", DemoData.HddBytes.ToString()), ("InterfaceType", "SCSI"),
                 ("MediaType", "Fixed hard disk media"), ("Partitions", "1"), ("BytesPerSector", "512"), ("Status", "OK"), ("Index", "1"),
-                ("PhysicalDisk.MediaType", "3"), ("PhysicalDisk.BusType", "11"), ("PhysicalDisk.HealthStatus", "1"), ("PhysicalDisk.SpindleSpeed", "5400"), ("PhysicalDisk.OperationalStatus", "Predictive Failure"))));
+                ("PhysicalDisk.MediaType", "3"), ("PhysicalDisk.BusType", "11"), ("PhysicalDisk.HealthStatus", "0"), ("PhysicalDisk.SpindleSpeed", "7200"), ("PhysicalDisk.OperationalStatus", "OK"))));
 
         inventory.LogicalDrives.Add(new LogicalDriveInfo("C:", "C:", "Windows", "NTFS", "Local disk", DemoData.NvmeBytes - 800_000_000, 742_000_000_000, "A1B2C3D4", false,
             Props(("DeviceID", "C:"), ("VolumeName", "Windows"), ("FileSystem", "NTFS"), ("DriveType", "3"), ("Size", (DemoData.NvmeBytes - 800_000_000).ToString()), ("FreeSpace", "742000000000"), ("SupportsFileBasedCompression", "Yes"), ("QuotasDisabled", "Yes"))));
@@ -146,7 +146,7 @@ public sealed class DemoHardwareInventoryService : IHardwareInventoryService
             Pnp("High Definition Audio Controller", "Microsoft", "PCI\\VEN_8086&DEV_7A50\\DEMO", "System devices", "HDAudBus", 0),
             Pnp("NVIDIA GeForce RTX 4070", "NVIDIA", "PCI\\VEN_10DE&DEV_2786\\DEMO", "Display adapters", "nvlddmkm", 0),
             Pnp("Samsung SSD 990 PRO 2TB", "Samsung", "SCSI\\DISK&VEN_NVME&PROD_SAMSUNG_SSD_990\\DEMO", "Disk drives", "disk", 0),
-            Pnp("WDC WD40EZAZ-00SF3B0", "Western Digital", "SCSI\\DISK&VEN_WDC&PROD_WD40EZAZ\\DEMO", "Disk drives", "disk", 0),
+            Pnp(DemoData.HddModel, "Western Digital", "SCSI\\DISK&VEN_WDC&PROD_WD4005FZBX\\DEMO", "Disk drives", "disk", 0),
             Pnp("Standard NVM Express Controller", "Microsoft", "PCI\\VEN_144D&DEV_A80C\\DEMO", "Storage controllers", "stornvme", 0),
             Pnp("Intel(R) USB 3.20 eXtensible Host Controller", "Intel", "PCI\\VEN_8086&DEV_7A60\\DEMO", "Universal Serial Bus controllers", "USBXHCI", 0),
             Pnp("Intel Ethernet Controller I226-V", "Intel", "PCI\\VEN_8086&DEV_125C\\DEMO", "Network adapters", "e2fnexpress", 0),

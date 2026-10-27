@@ -67,7 +67,7 @@ public sealed class DemoHealthService : IHealthService
         };
         var nvmeDraft = new DiskHealth(DemoData.NvmeModel, "S6Z2NJ0R512345X", "4B2QJXD7", DemoData.NvmeBytes, "SSD", HealthStatus.Unknown, "Healthy",
             35, 4120, 0, 0, 0, 3, 18_420, nvmeAttributes);
-        var hddDraft = new DiskHealth(DemoData.HddModel, "WD-WX12D80K7E42", "80.00A80", DemoData.HddBytes, "HDD", HealthStatus.Unknown, "Healthy",
+        var hddDraft = new DiskHealth(DemoData.HddModel, "WD-WX12D80K7E42", "01.01A01", DemoData.HddBytes, "HDD", HealthStatus.Unknown, "Healthy",
             36, 15_230, 8, 0, 0, null, null, hddAttributes);
         var disks = new List<DiskHealth>();
         foreach (var draft in new[] { nvmeDraft, hddDraft })
