@@ -41,6 +41,7 @@ public static class PageSearchKeywords
         ["overclock"] = T("oc gpu cpu clocks stress test"),
         ["overlay-settings"] = T("fps counter in game osd"),
         ["latency"] = T("dpc input lag ping stutter"),
+        ["missing-dlls"] = T("dll missing dll d3dx9 msvcp140 vcruntime xinput directx runtime redistributable visual c++ physx openal xna dotnet"),
         ["network"] = T("wifi wi fi internet speed test packet loss dns"),
         ["connections"] = T("tcpview netstat ports open ports listening tcp udp ip address firewall"),
         ["hosts"] = T("hosts file block sites redirect dns etc"),

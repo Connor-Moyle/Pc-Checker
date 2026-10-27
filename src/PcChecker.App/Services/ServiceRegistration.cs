@@ -28,6 +28,7 @@ using PcChecker.Core.Health;
 using PcChecker.Core.History;
 using PcChecker.Core.Hosts;
 using PcChecker.Core.Input;
+using PcChecker.Core.GameRuntimes;
 using PcChecker.Core.Latency;
 using PcChecker.Core.Leftovers;
 using PcChecker.Core.LiveUsage;
@@ -141,6 +142,7 @@ public static class ServiceRegistration
         Add<IAudioService, WindowsAudioService, DemoAudioService>(services, demo);
         Add<IInputService, WindowsInputService, DemoInputService>(services, demo);
         Add<ILatencyService, WindowsLatencyService, DemoLatencyService>(services, demo);
+        Add<IGameRuntimeService, WindowsGameRuntimeService, DemoGameRuntimeService>(services, demo);
         Add<INetworkTuningService, WindowsNetworkTuningService, DemoNetworkTuningService>(services, demo);
         Add<INetworkService, WindowsNetworkService, DemoNetworkService>(services, demo);
         Add<IStartupService, WindowsStartupService, DemoStartupService>(services, demo);
@@ -244,6 +246,7 @@ public static class ServiceRegistration
         services.AddSingleton<OptimizeViewModel>().AddSingleton<OptimizePage>();
         services.AddSingleton<BenchmarkViewModel>().AddSingleton<BenchmarkPage>();
         services.AddSingleton<LatencyViewModel>().AddSingleton<LatencyPage>();
+        services.AddSingleton<MissingDllsViewModel>().AddSingleton<MissingDllsPage>();
         services.AddSingleton<NetworkViewModel>().AddSingleton<NetworkPage>();
         services.AddSingleton<ConnectionsViewModel>().AddSingleton<ConnectionsPage>();
         services.AddSingleton<HostsViewModel>().AddSingleton<HostsPage>();
