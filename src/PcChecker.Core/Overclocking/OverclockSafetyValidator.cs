@@ -12,6 +12,23 @@ public static class OverclockSafetyValidator
     public const int MinGpuPowerLimitPercent = 50;
     public const int MaxFanPercent = 100;
 
+    /// <summary>Desktop CPU power limit floor (Intel XTU); ryzenadj on laptops and handhelds goes down to <see cref="MinRyzenAdjPowerW"/>.</summary>
+    public const int MinCpuPowerW = 15;
+
+    /// <summary>Handhelds (Z1, Z2) and U-series Ryzen chips are normally run at 5-15 W.</summary>
+    public const int MinRyzenAdjPowerW = 5;
+
+    /// <summary>The lowest CPU power limit accepted for a tuning method.</summary>
+    public static int MinCpuPowerFor(CpuControlMethod method) => method == CpuControlMethod.RyzenAdj ? MinRyzenAdjPowerW : MinCpuPowerW;
+
+    /// <summary>
+    /// What to say when no CPU tool can apply a CPU setting. For AMD, Ryzen Master has no public API, so PC Checker can
+    /// only drive ryzenadj (laptops and APUs); desktop Ryzen settings belong in the BIOS.
+    /// </summary>
+    public static string NoCpuToolMessage(string? cpuVendor) => cpuVendor?.Contains("AMD", StringComparison.OrdinalIgnoreCase) == true
+        ? "CPU settings cannot be applied from PC Checker on this Ryzen: use ryzenadj (laptops and APUs) or the BIOS (Precision Boost Overdrive, Curve Optimizer)."
+        : "No supported CPU tuning tool was found (Intel XTU). CPU settings must be changed in the BIOS.";
+
     /// <summary>Which of the user's overclock safety limits (edited in Settings) a value belongs to.</summary>
     public enum UserLimit
     {
@@ -62,7 +79,7 @@ public static class OverclockSafetyValidator
         }
 
         bool touchesGpu = profile.GpuCoreOffsetMhz != 0 || profile.GpuMemoryOffsetMhz != 0 || profile.GpuPowerLimitPercent != 100
-            || profile.GpuTempLimitC is not null || profile.GpuFanPercent is not null;
+            || profile.GpuTempLimitC is not null || profile.GpuFanPercent is not null || profile.GpuVoltageOffsetMv != 0;
         bool touchesCpu = profile.CpuAllCoreRatio is not null || profile.CpuVoltageOffsetMv is not null || profile.CpuPowerLimitW is not null;
 
         if (touchesGpu && !capabilities.CanTuneGpu)
@@ -72,7 +89,7 @@ public static class OverclockSafetyValidator
 
         if (touchesCpu && !capabilities.CanTuneCpu)
         {
-            return OperationResult.Fail("No supported CPU tuning tool was found (Intel XTU or AMD Ryzen Master). CPU settings must be changed in the BIOS.");
+            return OperationResult.Fail(NoCpuToolMessage(capabilities.CpuName));
         }
 
         if (Math.Abs(profile.GpuCoreOffsetMhz) > settings.MaxGpuCoreOffsetMhz)
@@ -121,6 +138,13 @@ public static class OverclockSafetyValidator
             {
                 return OperationResult.Fail("Fan control is not available for this graphics card.");
             }
+
+            if (profile.GpuVoltageOffsetMv != 0 && (profile.GpuVoltageOffsetMv < limits.VoltageOffsetMinMv || profile.GpuVoltageOffsetMv > limits.VoltageOffsetMaxMv))
+            {
+                return limits.VoltageOffsetSupported
+                    ? OperationResult.Fail($"The graphics driver allows voltage offsets from {limits.VoltageOffsetMinMv} to {limits.VoltageOffsetMaxMv} mV.")
+                    : OperationResult.Fail("This graphics card does not offer a voltage offset.");
+            }
         }
 
         if (profile.CpuVoltageOffsetMv is { } mv && (mv > MaxCpuVoltageOffsetMv || mv < MinCpuVoltageOffsetMv))
@@ -133,9 +157,10 @@ public static class OverclockSafetyValidator
             return OperationResult.Fail("CPU all-core ratio must be between 8 and 70.");
         }
 
-        if (profile.CpuPowerLimitW is { } watts && (watts < 15 || watts > 400))
+        int minWatts = MinCpuPowerFor(capabilities.CpuMethod);
+        if (profile.CpuPowerLimitW is { } watts && (watts < minWatts || watts > 400))
         {
-            return OperationResult.Fail("CPU power limit must be between 15 and 400 W.");
+            return OperationResult.Fail($"CPU power limit must be between {minWatts} and 400 W.");
         }
 
         return OperationResult.Ok("The profile is within your safety limits.");
@@ -202,6 +227,12 @@ public static class OverclockSafetyValidator
             p.GpuFanPercent = Math.Clamp(fan, 0, MaxFanPercent);
         }
 
+        if (limits is not null)
+        {
+            // A Radeon voltage offset only exists where the driver reports a range (RX 7000/9000); elsewhere it is 0.
+            p.GpuVoltageOffsetMv = limits.VoltageOffsetSupported ? Math.Clamp(p.GpuVoltageOffsetMv, limits.VoltageOffsetMinMv, limits.VoltageOffsetMaxMv) : 0;
+        }
+
         if (p.CpuVoltageOffsetMv is { } mv)
         {
             p.CpuVoltageOffsetMv = Math.Clamp(mv, MinCpuVoltageOffsetMv, MaxCpuVoltageOffsetMv);
@@ -214,7 +245,7 @@ public static class OverclockSafetyValidator
 
         if (p.CpuPowerLimitW is { } watts)
         {
-            p.CpuPowerLimitW = Math.Clamp(watts, 15, 400);
+            p.CpuPowerLimitW = Math.Clamp(watts, MinRyzenAdjPowerW, 400);
         }
 
         return p;

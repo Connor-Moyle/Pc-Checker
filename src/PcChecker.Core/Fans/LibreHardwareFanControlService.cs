@@ -331,8 +331,22 @@ public sealed partial class LibreHardwareFanControlService : IFanControlService,
             {
                 var previous = _entries.ToDictionary(e => e.Id, StringComparer.OrdinalIgnoreCase);
                 _entries.Clear();
+                var readOnlyAmd = new List<FanSensorInfo>();
                 foreach (var pair in pairs)
                 {
+                    bool amdGpu = pair.Control.Hardware == HardwareKind.Gpu
+                        && (pair.Control.HardwareName.Contains("Radeon", StringComparison.OrdinalIgnoreCase) || pair.Control.HardwareName.Contains("AMD", StringComparison.OrdinalIgnoreCase));
+                    if (AmdGpuFanRules.HostControlIgnored(pair.Control.HardwareName, amdGpu))
+                    {
+                        // RX 5000+ ignore Overdrive5 fan writes: show the fan read-only instead of a control that does nothing.
+                        if (pair.Rpm is not null)
+                        {
+                            readOnlyAmd.Add(pair.Rpm);
+                        }
+
+                        continue;
+                    }
+
                     var controlSensor = sensorsById[pair.Control.Id];
                     if (controlSensor.Control is not { } control)
                     {
@@ -357,7 +371,7 @@ public sealed partial class LibreHardwareFanControlService : IFanControlService,
                 }
 
                 _rpmOnly.Clear();
-                foreach (var rpm in unpaired)
+                foreach (var rpm in unpaired.Concat(readOnlyAmd))
                 {
                     _rpmOnly.Add(new RpmOnlyEntry(rpm.Id, rpm.Name, rpm.Hardware, rpm.HardwareName, sensorsById[rpm.Id]));
                 }

@@ -161,6 +161,10 @@ public sealed partial class WindowsOverclockService : IStressTestRunner
             var revert = await ResetAsync(CancellationToken.None).ConfigureAwait(false);
             reverted = revert.Success;
             _logger.LogInformation("Watchdog revert: {Message}", revert.Message);
+            if (!reverted && driverReset && Capabilities?.GpuMethod == GpuControlMethod.AmdAdl)
+            {
+                reverted = ReconcileAmdAfterDriverReset();
+            }
         }
 
         bool throttle = (request.LoadsCpu && ThrottleHeuristic.Suspect(cpuClocks, cpuLoads))
@@ -175,6 +179,7 @@ public sealed partial class WindowsOverclockService : IStressTestRunner
             GpuFailure = gpuResult is { Completed: false } ? gpuResult.FailureReason : null,
             GpuNotStarted = gpuResult?.NotStarted == true,
             GpuAdapterName = gpuResult?.AdapterName ?? adapterName,
+            CpuName = SensorPicker.CpuName(_sensors.Latest) ?? Capabilities?.CpuName,
             WatchdogAborted = aborted,
             ThrottleSuspected = throttle,
             NoTemperatureData = ThrottleHeuristic.LacksTemperatureData(request.Target, maxCpu, maxGpu),

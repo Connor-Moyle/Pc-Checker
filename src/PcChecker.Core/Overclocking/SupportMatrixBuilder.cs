@@ -9,7 +9,16 @@ public sealed record SupportFacts(
     string CpuVendor,
     CpuControlMethod CpuMethod,
     string XmpState,
-    bool FanHostAvailable);
+    bool FanHostAvailable)
+{
+    /// <summary>The GPU's name (decides whether an AMD card uses Overdrive8 for its fan).</summary>
+    public string? GpuName { get; init; }
+
+    /// <summary>True when AMD Software reports manual tuning (Overdrive) as switched off.</summary>
+    public bool GpuTuningSwitchedOff { get; init; }
+
+    public string? CpuName { get; init; }
+}
 
 /// <summary>Pure builder for the "Supported hardware" table shown on the Overclock page (ADDENDUM §H).</summary>
 public static class SupportMatrixBuilder
@@ -33,10 +42,19 @@ public static class SupportMatrixBuilder
                     limits is null || limits.TempLimitMinC == limits.TempLimitMaxC ? "The driver did not expose a thermal policy for this card." : "NVIDIA thermal policy."));
                 break;
             case GpuControlMethod.AmdAdl:
-                rows.Add(("GPU core and memory clock", gpuVendor, SupportLevel.Experimental, "Overdrive8 through atiadlxx.dll; every value is checked against the driver's own range. AMD Software must be installed."));
-                rows.Add(("GPU power limit", gpuVendor, SupportLevel.Experimental, "Overdrive8 power percentage (relative to the card's default)."));
-                rows.Add(("GPU temperature limit", gpuVendor, SupportLevel.Experimental, "Overdrive8 operating temperature target."));
+            {
+                string off = facts.GpuTuningSwitchedOff ? " Overdrive is disabled in AMD Software → Performance → Tuning: turn on manual tuning there first." : string.Empty;
+                string level = facts.GpuTuningSwitchedOff ? SupportLevel.Partial : SupportLevel.Experimental;
+                rows.Add(("GPU max frequency and memory clock", gpuVendor, level, "Overdrive8 through atiadlxx.dll; every value is checked against the driver's own range and read back. AMD Software must be installed." + off));
+                rows.Add(("GPU voltage offset (undervolt)", gpuVendor, limits is { VoltageOffsetSupported: true } ? level : SupportLevel.Unsupported,
+                    limits is { VoltageOffsetSupported: true }
+                        ? $"Overdrive8 voltage offset ({limits.VoltageOffsetMinMv} to {limits.VoltageOffsetMaxMv} mV): the main and safest Radeon RX 7000/9000 tuning." + off
+                        : "This card does not offer a voltage offset through Overdrive8."));
+                rows.Add(("GPU minimum clock", gpuVendor, level, "Kept at least 100 MHz below the maximum automatically when the maximum is lowered."));
+                rows.Add(("GPU power limit", gpuVendor, level, "Overdrive8 power percentage (relative to the card's default)." + off));
+                rows.Add(("GPU temperature limit", gpuVendor, level, "Overdrive8 operating temperature target (most Radeons allow only about 90 °C and up)."));
                 break;
+            }
             case GpuControlMethod.IntelIgcl:
                 rows.Add(("GPU core and memory offset", gpuVendor, SupportLevel.Experimental, "Intel Graphics Control Library (ControlLib.dll). Arc discrete cards only."));
                 rows.Add(("GPU power limit", gpuVendor, SupportLevel.Experimental, "IGCL sustained power limit."));
@@ -57,11 +75,23 @@ public static class SupportMatrixBuilder
                 break;
         }
 
-        rows.Add(("GPU fan speed", gpuVendor,
-            facts.FanHostAvailable ? SupportLevel.Full : facts.GpuMethod == GpuControlMethod.NvApi ? SupportLevel.Partial : SupportLevel.Unsupported,
-            facts.FanHostAvailable ? "Through the shared hardware monitor; fan curves live on the Fans page."
-                : facts.GpuMethod == GpuControlMethod.NvApi ? "Fixed percentage through NVAPI coolers; the hardware monitor driver is not loaded so curves are unavailable."
-                : "Use the Fans page once the hardware monitor driver is available."));
+        bool amdOverdrive8 = facts.GpuVendor == GpuVendor.Amd && (facts.GpuMethod == GpuControlMethod.AmdAdl || Fans.AmdGpuFanRules.IsOverdrive8Card(facts.GpuName));
+        if (amdOverdrive8)
+        {
+            // LibreHardwareMonitor only sends Overdrive5 fan commands, which Radeon RX 5000 and newer ignore.
+            bool curve = facts.GpuMethod == GpuControlMethod.AmdAdl && limits is { FanCurve: true };
+            rows.Add(("GPU fan speed", gpuVendor, curve ? SupportLevel.Experimental : SupportLevel.Unsupported,
+                curve ? "Overdrive8 fan curve: a fixed percentage is sent as a flat curve. The Fans page shows this fan read-only."
+                    : "This Radeon ignores the hardware monitor's fan commands; set the fan in AMD Software → Performance → Tuning."));
+        }
+        else
+        {
+            rows.Add(("GPU fan speed", gpuVendor,
+                facts.FanHostAvailable ? SupportLevel.Full : facts.GpuMethod == GpuControlMethod.NvApi ? SupportLevel.Partial : SupportLevel.Unsupported,
+                facts.FanHostAvailable ? "Through the shared hardware monitor; fan curves live on the Fans page."
+                    : facts.GpuMethod == GpuControlMethod.NvApi ? "Fixed percentage through NVAPI coolers; the hardware monitor driver is not loaded so curves are unavailable."
+                    : "Use the Fans page once the hardware monitor driver is available."));
+        }
 
         // CPU rows
         string cpuVendor = string.IsNullOrWhiteSpace(facts.CpuVendor) ? "Unknown" : facts.CpuVendor;
@@ -73,7 +103,7 @@ public static class SupportMatrixBuilder
                 break;
             case CpuControlMethod.RyzenAdj:
                 rows.Add(("CPU all-core ratio and voltage offset", cpuVendor, SupportLevel.Unsupported, "ryzenadj cannot set ratios or voltages; use the BIOS (Precision Boost Overdrive / Curve Optimizer)."));
-                rows.Add(("CPU power limit", cpuVendor, SupportLevel.Experimental, "Through ryzenadj (STAPM / fast / slow limits). Intended for laptops and APUs."));
+                rows.Add(("CPU power limit", cpuVendor, SupportLevel.Experimental, "Through ryzenadj (sustained limit, short boost 25 % higher). Laptops and APUs only; firmware and maker apps can overwrite it, so it is re-applied while the profile is active."));
                 break;
             case CpuControlMethod.RyzenMaster:
             case CpuControlMethod.RyzenMasterCli:
@@ -84,7 +114,9 @@ public static class SupportMatrixBuilder
                 string hint = cpuVendor.Contains("Intel", StringComparison.OrdinalIgnoreCase)
                     ? "Install Intel Extreme Tuning Utility (XTU) or change these in the BIOS."
                     : cpuVendor.Contains("AMD", StringComparison.OrdinalIgnoreCase)
-                        ? "Install AMD Ryzen Master or change these in the BIOS."
+                        ? (Hardware.CpuTraits.IsRyzenMobileOrApu(facts.CpuName)
+                            ? "Place ryzenadj in Program Files\\RyzenAdj to set power limits on this Ryzen laptop/APU, or use the maker's app."
+                            : "Use AMD Ryzen Master or the BIOS (Precision Boost Overdrive, Curve Optimizer).")
                         : "Change these in the BIOS.";
                 rows.Add(("CPU all-core ratio and voltage offset", cpuVendor, SupportLevel.Unsupported, hint));
                 rows.Add(("CPU power limit", cpuVendor, SupportLevel.Unsupported, hint));

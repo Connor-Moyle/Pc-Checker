@@ -89,6 +89,12 @@ public static class HostFanControl
     private static IEnumerable<IHardware> GpuHardware(IComputer computer) =>
         computer.Hardware.Where(h => h.HardwareType is HardwareType.GpuNvidia or HardwareType.GpuAmd or HardwareType.GpuIntel);
 
+    /// <summary>
+    /// GPU fan controls that really work through the host. Radeon RX 5000 and newer are left out: LibreHardwareMonitor
+    /// only sends Overdrive5 fan commands, which those cards ignore (the AMD tuner's Overdrive8 fan curve is used instead).
+    /// </summary>
     private static IEnumerable<IControl> GpuFanControls(IComputer computer) =>
-        GpuHardware(computer).SelectMany(h => h.Sensors).Where(s => s.SensorType == SensorType.Control && s.Control is not null).Select(s => s.Control!);
+        GpuHardware(computer)
+            .Where(h => !Fans.AmdGpuFanRules.HostControlIgnored(h.Name, h.HardwareType == HardwareType.GpuAmd))
+            .SelectMany(h => h.Sensors).Where(s => s.SensorType == SensorType.Control && s.Control is not null).Select(s => s.Control!);
 }

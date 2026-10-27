@@ -40,6 +40,33 @@ public static class WmiOverclockFacts
         return list;
     }
 
+    /// <summary>True when Virtualization-Based Security is running (Win32_DeviceGuard status 2), null when unknown.</summary>
+    public static bool? VbsRunning()
+    {
+        if (!PlatformGuard.IsWindows)
+        {
+            return null;
+        }
+
+        try
+        {
+            using var searcher = new ManagementObjectSearcher(@"root\Microsoft\Windows\DeviceGuard", "SELECT VirtualizationBasedSecurityStatus FROM Win32_DeviceGuard");
+            foreach (var o in searcher.Get())
+            {
+                using (o)
+                {
+                    return o["VirtualizationBasedSecurityStatus"] is { } v && Convert.ToInt32(v, System.Globalization.CultureInfo.InvariantCulture) == 2;
+                }
+            }
+        }
+        catch (Exception)
+        {
+            // Unknown.
+        }
+
+        return null;
+    }
+
     public static (string? Name, string? Manufacturer) QueryCpu()
     {
         if (!PlatformGuard.IsWindows)

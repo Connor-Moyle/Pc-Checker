@@ -24,6 +24,9 @@ public sealed record StressFacts(StressTarget Target, GpuStressMode GpuMode, int
     public bool OverclockReverted { get; init; }
     public string? GpuAdapterName { get; init; }
 
+    /// <summary>The processor name, for the Ryzen single-core stability note.</summary>
+    public string? CpuName { get; init; }
+
     public bool LoadsCpu => Target is StressTarget.Cpu or StressTarget.Both;
     public bool WatchesGpu => Target is StressTarget.Gpu or StressTarget.Both;
     public bool BuiltInGpu => WatchesGpu && GpuMode == GpuStressMode.BuiltIn;
@@ -164,6 +167,11 @@ public static class StressVerdictBuilder
         if (f.WatchesGpu)
         {
             reasons.Add(f.MaxGpuTempC is { } g ? $"GPU peaked at {g:0} °C (stop limit {f.AbortGpuTempC:0} °C)." : "No GPU temperature was reported.");
+        }
+
+        if (f.LoadsCpu && StressAdvice.AmdSingleCoreNote(f.CpuName) is { } amd)
+        {
+            reasons.Add(amd);
         }
 
         if (f.AverageCpuClockMhz is { } cc && f.LoadsCpu)

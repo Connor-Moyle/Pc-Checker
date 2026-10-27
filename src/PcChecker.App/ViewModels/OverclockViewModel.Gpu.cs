@@ -33,6 +33,18 @@ public sealed partial class OverclockViewModel
     [ObservableProperty] private bool _tempLimitSupported;
     [ObservableProperty] private bool _fanSupported;
 
+    // Radeon RX 7000/9000 voltage offset (Overdrive8); hidden on other cards.
+    [ObservableProperty] private double _voltageOffset;
+    [ObservableProperty] private double _voltageMin = -200;
+    [ObservableProperty] private double _voltageMax;
+    [ObservableProperty] private bool _voltageSupported;
+    [ObservableProperty] private bool _isAmdGpu;
+
+    /// <summary>AMD calls the core control "Max frequency" (an offset on RDNA4, the boost ceiling on RDNA3).</summary>
+    public string CoreLabel => IsAmdGpu ? "Max frequency offset (MHz)" : "Core clock offset (MHz)";
+
+    partial void OnIsAmdGpuChanged(bool value) => OnPropertyChanged(nameof(CoreLabel));
+
     [ObservableProperty] private OverclockProfile? _selectedProfile;
     [ObservableProperty] private string _newProfileName = "My profile";
 
@@ -66,7 +78,7 @@ public sealed partial class OverclockViewModel
     private string? _cpuToolPath;
 
     public ObservableCollection<OverclockProfile> Profiles { get; } = [];
-    public IReadOnlyList<string> BiosSteps => VendorSoftwareCatalog.BiosSteps(CpuVendorText);
+    public IReadOnlyList<string> BiosSteps => VendorSoftwareCatalog.BiosSteps(CpuVendorText, Capabilities?.CpuName);
 
     public string FanButtonHint => "Fan curves and per-fan control live on the Fans page; here you can only pin the GPU fan to a fixed speed.";
 
@@ -81,6 +93,7 @@ public sealed partial class OverclockViewModel
             GpuPowerLimitPercent = PowerLimitSupported ? (int)Math.Round(PowerLimit) : 100,
             GpuTempLimitC = TempLimitSupported && TempLimitEnabled ? (int)Math.Round(TempLimit) : null,
             GpuFanPercent = FanSupported && FanManual ? (int)Math.Round(FanPercent) : null,
+            GpuVoltageOffsetMv = VoltageSupported ? (int)Math.Round(VoltageOffset) : 0,
         };
         if (CanTuneCpu)
         {
@@ -99,6 +112,7 @@ public sealed partial class OverclockViewModel
         CoreOffset = Math.Clamp(clamped.GpuCoreOffsetMhz, CoreMin, CoreMax);
         MemoryOffset = Math.Clamp(clamped.GpuMemoryOffsetMhz, MemoryMin, MemoryMax);
         PowerLimit = Math.Clamp(clamped.GpuPowerLimitPercent, PowerMin, PowerMax);
+        VoltageOffset = VoltageSupported ? Math.Clamp(clamped.GpuVoltageOffsetMv, VoltageMin, VoltageMax) : 0;
         TempLimitEnabled = clamped.GpuTempLimitC is not null;
         if (clamped.GpuTempLimitC is { } t)
         {
@@ -405,13 +419,23 @@ public sealed partial class OverclockViewModel
     private void ApplyGpuLimits(OverclockCapabilities? caps)
     {
         LoadLimitsFromSettings();
+        IsAmdGpu = caps?.GpuVendor == GpuVendor.Amd;
         var limits = caps?.GpuLimits;
         if (limits is null)
         {
             PowerLimitSupported = false;
             TempLimitSupported = false;
             FanSupported = false;
+            VoltageSupported = false;
             return;
+        }
+
+        VoltageSupported = limits.VoltageOffsetSupported;
+        if (VoltageSupported)
+        {
+            VoltageMin = limits.VoltageOffsetMinMv;
+            VoltageMax = limits.VoltageOffsetMaxMv;
+            VoltageOffset = Math.Clamp(VoltageOffset, VoltageMin, VoltageMax);
         }
 
         CoreMin = Math.Max(CoreMin, limits.CoreOffsetMinMhz);
@@ -462,7 +486,8 @@ public sealed partial class OverclockViewModel
         var l = caps?.GpuLimits;
         RawLimitsText = l is null
             ? "The driver reported no tuning ranges."
-            : $"Core offset {l.CoreOffsetMinMhz}…{l.CoreOffsetMaxMhz} MHz · Memory offset {l.MemoryOffsetMinMhz}…{l.MemoryOffsetMaxMhz} MHz · Power {l.PowerLimitMinPercent}…{l.PowerLimitMaxPercent} % · Temperature {l.TempLimitMinC}…{l.TempLimitMaxC} °C · Fan control {(l.FanControl ? "yes" : "no")}";
+            : $"Core offset {l.CoreOffsetMinMhz}…{l.CoreOffsetMaxMhz} MHz · Memory offset {l.MemoryOffsetMinMhz}…{l.MemoryOffsetMaxMhz} MHz · Power {l.PowerLimitMinPercent}…{l.PowerLimitMaxPercent} % · Temperature {l.TempLimitMinC}…{l.TempLimitMaxC} °C · Fan control {(l.FanControl ? (l.FanCurve ? "yes (Overdrive8 curve)" : "yes") : "no")}"
+              + (l.VoltageOffsetSupported ? $" · Voltage offset {l.VoltageOffsetMinMv}…{l.VoltageOffsetMaxMv} mV" : string.Empty);
         SessionFilePath = OverclockSessionStore.PathFor(Settings.SettingsDirectory);
         var session = OverclockSessionStore.Load(SessionFilePath);
         SessionFileText = session is null ? "No session file: nothing is applied right now." : OverclockSessionStore.Serialize(session);
@@ -472,7 +497,7 @@ public sealed partial class OverclockViewModel
     {
         var current = SelectedProfile?.Name;
         Profiles.Clear();
-        foreach (var preset in OverclockPresets.All)
+        foreach (var preset in OverclockPresets.ForVendor(Capabilities?.GpuVendor ?? GpuVendor.Unknown))
         {
             Profiles.Add(preset.Clone());
         }

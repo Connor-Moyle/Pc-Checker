@@ -47,3 +47,17 @@ public interface IGpuTuner : IDisposable
     /// </summary>
     OperationResult Reset(bool resetFan);
 }
+
+/// <summary>Optional: a tuner that can offset the GPU voltage (AMD Overdrive8 OD_VOLTAGE on RX 7000/9000).</summary>
+public interface IGpuVoltageTuner
+{
+    /// <summary>Sets the voltage offset in mV (0 = stock); validated against the driver's range.</summary>
+    OperationResult SetVoltageOffset(int millivolts);
+}
+
+/// <summary>Optional: a tuner that knows whether the vendor's own tuning switch is on (AMD Software manual tuning).</summary>
+public interface IGpuTuningSwitch
+{
+    /// <summary>False when the driver reports tuning as disabled, so values sent now would be ignored.</summary>
+    bool TuningEnabled { get; }
+}

@@ -9,6 +9,9 @@ public sealed class OverclockProfile
     public int GpuPowerLimitPercent { get; set; } = 100;
     public int? GpuTempLimitC { get; set; }
     public int? GpuFanPercent { get; set; }
+
+    /// <summary>GPU voltage offset in mV (negative = undervolt). AMD Radeon RX 7000/9000 through Overdrive8; 0 = stock.</summary>
+    public int GpuVoltageOffsetMv { get; set; }
     public int? CpuAllCoreRatio { get; set; }
     public int? CpuVoltageOffsetMv { get; set; }
     public int? CpuPowerLimitW { get; set; }
@@ -21,6 +24,6 @@ public sealed class OverclockProfile
 
     /// <summary>True when every value is at stock.</summary>
     public bool IsStock =>
-        GpuCoreOffsetMhz == 0 && GpuMemoryOffsetMhz == 0 && GpuPowerLimitPercent == 100 && GpuTempLimitC is null
+        GpuCoreOffsetMhz == 0 && GpuMemoryOffsetMhz == 0 && GpuPowerLimitPercent == 100 && GpuTempLimitC is null && GpuVoltageOffsetMv == 0
         && GpuFanPercent is null && CpuAllCoreRatio is null && CpuVoltageOffsetMv is null && CpuPowerLimitW is null;
 }

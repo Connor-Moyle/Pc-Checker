@@ -370,7 +370,9 @@ public sealed partial class LibreHardwareFanControlService
 
         foreach (var group in _rpmOnly.GroupBy(r => r.HardwareName))
         {
-            _capabilityNotes.Add($"Read-only: {group.Key} reports {group.Count()} fan speed(s) but exposes no control");
+            _capabilityNotes.Add(AmdGpuFanRules.IsOverdrive8Card(group.Key)
+                ? $"Read-only: {group.Key}. {AmdGpuFanRules.ReadOnlyNote}"
+                : $"Read-only: {group.Key} reports {group.Count()} fan speed(s) but exposes no control");
         }
 
         if (_entries.Count == 0 && _rpmOnly.Count == 0)

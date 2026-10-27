@@ -377,7 +377,7 @@ public class SupportMatrixBuilderTests
     public void Amd_and_intel_paths_are_marked_experimental_and_integrated_is_explained()
     {
         var amd = SupportMatrixBuilder.Build(new SupportFacts(GpuVendor.Amd, GpuControlMethod.AmdAdl, null, false, "AMD", CpuControlMethod.RyzenAdj, XmpEvaluation.Enabled, false));
-        Assert.All(amd.Where(r => r.Feature.StartsWith("GPU") && r.Feature != "GPU fan speed"), r => Assert.Equal(SupportLevel.Experimental, r.Level));
+        Assert.All(amd.Where(r => r.Feature.StartsWith("GPU") && r.Feature is not ("GPU fan speed" or "GPU voltage offset (undervolt)")), r => Assert.Equal(SupportLevel.Experimental, r.Level));
         Assert.Contains(amd, r => r.Feature == "CPU power limit" && r.Level == SupportLevel.Experimental && r.Note.Contains("ryzenadj"));
 
         var intel = SupportMatrixBuilder.Build(new SupportFacts(GpuVendor.Intel, GpuControlMethod.IntelIgcl, null, false, "Intel", CpuControlMethod.IntelXtuCli, XmpEvaluation.Unknown, false));
@@ -541,7 +541,7 @@ public class CpuToolLocatorTests
         Assert.Equal(CpuControlMethod.RyzenMaster, master.Method);
         var installed = CpuToolLocator.LocateRyzenAdj(p => p.Contains("RyzenAdj", StringComparison.Ordinal), null, roots);
         Assert.Equal(Path.Combine(programFiles, "RyzenAdj", "ryzenadj.exe"), installed);
-        Assert.Equal("--stapm-limit=45000 --fast-limit=45000 --slow-limit=45000 --tctl-temp=90", CpuToolLocator.RyzenAdjArguments(45, 90));
+        Assert.Equal("--stapm-limit=45000 --fast-limit=56000 --slow-limit=45000 --tctl-temp=90", CpuToolLocator.RyzenAdjArguments(45, 90));
     }
 
     [Fact]

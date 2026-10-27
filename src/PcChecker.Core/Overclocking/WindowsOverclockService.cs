@@ -99,9 +99,13 @@ public sealed partial class WindowsOverclockService : IOverclockService, IDispos
                 cpuVendor = VendorSoftwareCatalog.CpuVendorName(wmiVendor ?? wmiName);
             }
 
-            _cpuTool = CpuToolLocator.Detect(cpuVendor, File.Exists, AppContext.BaseDirectory, TrustedToolRoots());
+            _cpuTool = CpuToolLocator.Detect(cpuVendor, File.Exists, AppContext.BaseDirectory, TrustedToolRoots(), cpuName, RyzenMasterInstallPath());
             _xtu = _cpuTool.Method == CpuControlMethod.IntelXtuCli && _cpuTool.ToolPath is not null ? new IntelXtuCli(_cpuTool.ToolPath, _logger) : null;
             notes.Add(_cpuTool.Note);
+            if (_cpuTool.Method == CpuControlMethod.RyzenMaster && CpuToolLocator.RyzenMasterCaveat(cpuName, WmiOverclockFacts.VbsRunning()) is { } caveat)
+            {
+                notes.Add(caveat);
+            }
 
             // Memory
             var modules = inventory?.MemoryModules.Count > 0
@@ -120,10 +124,18 @@ public sealed partial class WindowsOverclockService : IOverclockService, IDispos
                 _logger.LogDebug(ex, "Hardware monitor host could not be opened for fan control.");
             }
 
+            // RX 5000 and newer ignore the Overdrive5 fan calls the shared hardware monitor makes; their fan goes through
+            // the Overdrive8 fan curve of the AMD tuner instead (HostFanControl leaves those cards out).
             _fanViaHost = HostFanControl.IsAvailable(_host);
             var limits = detection.Limits is { } l ? l with { FanControl = l.FanControl || _fanViaHost } : null;
+            bool overdriveOff = _tuner is IGpuTuningSwitch { TuningEnabled: false };
 
-            var matrix = SupportMatrixBuilder.Build(new SupportFacts(vendor, detection.Method, limits, integrated, cpuVendor, _cpuTool.Method, xmp.State, _fanViaHost));
+            var matrix = SupportMatrixBuilder.Build(new SupportFacts(vendor, detection.Method, limits, integrated, cpuVendor, _cpuTool.Method, xmp.State, _fanViaHost)
+            {
+                GpuName = gpuName,
+                GpuTuningSwitchedOff = overdriveOff,
+                CpuName = cpuName,
+            });
             Capabilities = new OverclockCapabilities(vendor, gpuName, detection.Method, limits, cpuName, _cpuTool.Method, _cpuTool.ToolPath,
                 xmp.State, xmp.ConfiguredMhz, xmp.MaxMhz, notes.Distinct().ToList())
             {
@@ -206,6 +218,8 @@ public sealed partial class WindowsOverclockService : IOverclockService, IDispos
 
     public void Dispose()
     {
+        _ryzenAdjTimer?.Dispose();
+        _ryzenAdjTimer = null;
         _tuner?.Dispose();
         _tuner = null;
         _gate.Dispose();
@@ -241,7 +255,8 @@ public sealed partial class WindowsOverclockService : IOverclockService, IDispos
             var messages = new List<string>();
             var failures = new List<string>();
 
-            bool gpuRequested = profile.GpuCoreOffsetMhz != 0 || profile.GpuMemoryOffsetMhz != 0 || profile.GpuPowerLimitPercent != 100 || profile.GpuTempLimitC is not null || profile.GpuFanPercent is not null;
+            bool gpuRequested = profile.GpuCoreOffsetMhz != 0 || profile.GpuMemoryOffsetMhz != 0 || profile.GpuPowerLimitPercent != 100 || profile.GpuTempLimitC is not null || profile.GpuFanPercent is not null
+                || profile.GpuVoltageOffsetMv != 0;
             bool gpuUnchanged = SameGpuSettings(profile, _applied);
             bool gpuOk = true;
             GpuApplyOutcome? gpuOutcome = null;
@@ -340,6 +355,11 @@ public sealed partial class WindowsOverclockService : IOverclockService, IDispos
                 {
                     applied.GpuFanPercent = previousApplied.GpuFanPercent;
                 }
+
+                if (gpuOutcome.Voltage == false)
+                {
+                    applied.GpuVoltageOffsetMv = previousApplied.GpuVoltageOffsetMv;
+                }
             }
 
             if (cpuStray)
@@ -379,7 +399,8 @@ public sealed partial class WindowsOverclockService : IOverclockService, IDispos
         public bool? Power { get; set; }
         public bool? Temp { get; set; }
         public bool? Fan { get; set; }
-        public bool AnySucceeded => Offsets == true || Power == true || Temp == true || Fan == true;
+        public bool? Voltage { get; set; }
+        public bool AnySucceeded => Offsets == true || Power == true || Temp == true || Fan == true || Voltage == true;
     }
 
     /// <summary>Sends every GPU setting of the profile to the tuner and reports, per sub-setting, what succeeded.</summary>
@@ -397,6 +418,18 @@ public sealed partial class WindowsOverclockService : IOverclockService, IDispos
             if (!power.Success || profile.GpuPowerLimitPercent != 100)
             {
                 (power.Success ? messages : failures).Add(power.Message);
+            }
+
+            if (_tuner is IGpuVoltageTuner volts && (profile.GpuVoltageOffsetMv != 0 || _applied.GpuVoltageOffsetMv != 0))
+            {
+                var v = volts.SetVoltageOffset(profile.GpuVoltageOffsetMv);
+                outcome.Voltage = v.Success;
+                (v.Success ? messages : failures).Add(v.Message);
+            }
+            else if (profile.GpuVoltageOffsetMv != 0)
+            {
+                outcome.Voltage = false;
+                failures.Add("This graphics card does not offer a voltage offset.");
             }
 
             if (profile.GpuTempLimitC is { } temp)
@@ -508,7 +541,8 @@ public sealed partial class WindowsOverclockService : IOverclockService, IDispos
         && a.GpuMemoryOffsetMhz == b.GpuMemoryOffsetMhz
         && a.GpuPowerLimitPercent == b.GpuPowerLimitPercent
         && a.GpuTempLimitC == b.GpuTempLimitC
-        && a.GpuFanPercent == b.GpuFanPercent;
+        && a.GpuFanPercent == b.GpuFanPercent
+        && a.GpuVoltageOffsetMv == b.GpuVoltageOffsetMv;
 
     /// <summary>
     /// Applies the CPU half of a profile. <c>Stray</c> is true when a failure left a CPU setting changed that could not
@@ -567,10 +601,17 @@ public sealed partial class WindowsOverclockService : IOverclockService, IDispos
                     return (OperationResult.Ok("No CPU change requested."), false);
                 }
 
-                var run = await PowerShellRunner.RunAsync($"& '{_cpuTool.ToolPath.Replace("'", "''")}' {CpuToolLocator.RyzenAdjArguments(watts)}", TimeSpan.FromSeconds(30), cancellationToken).ConfigureAwait(false);
-                return run.Success
-                    ? (OperationResult.Ok($"CPU power limits set to {watts} W through ryzenadj. They stay in place until the next reboot; Reset cannot undo them."), false)
-                    : (OperationResult.Fail("ryzenadj failed: " + (run.StdErr.Length > 0 ? run.StdErr : run.StdOut)), false);
+                var (ok, detail) = await RunRyzenAdjAsync(watts, cancellationToken).ConfigureAwait(false);
+                if (!ok)
+                {
+                    return (OperationResult.Fail(detail), false);
+                }
+
+                // Firmware, AMD PMF and maker apps (Armoury Crate, Lenovo Vantage…) overwrite these limits, so they are
+                // re-applied every 45 seconds while the profile is active.
+                StartRyzenAdjKeepAlive(watts);
+                return (OperationResult.Ok($"CPU power limit set to {watts} W sustained, {CpuToolLocator.FastLimitW(watts)} W short boost, through ryzenadj ({detail}). "
+                    + "PC Checker re-applies it every 45 seconds because the laptop's firmware can overwrite it. It stays until the next reboot; Reset cannot undo it."), false);
             }
 
             case CpuControlMethod.RyzenMaster:
@@ -579,6 +620,101 @@ public sealed partial class WindowsOverclockService : IOverclockService, IDispos
 
             default:
                 return (OperationResult.Fail("No CPU tuning tool is installed; change CPU settings in the BIOS."), false);
+        }
+    }
+
+    /// <summary>
+    /// After an AMD driver timeout the driver restores its default tuning on its own ("Default Radeon WattMan settings
+    /// restored"). When the tuner confirms stock values, forget the GPU part of the applied profile and the session.
+    /// </summary>
+    private bool ReconcileAmdAfterDriverReset()
+    {
+        try
+        {
+            var state = _tuner?.GetState();
+            if (state is not { Success: true, Value: { } s } || s.CoreOffsetMhz != 0 || s.MemoryOffsetMhz != 0 || s.PowerLimitPercent != 100)
+            {
+                return false;
+            }
+
+            var left = _applied.Clone();
+            left.GpuCoreOffsetMhz = 0;
+            left.GpuMemoryOffsetMhz = 0;
+            left.GpuPowerLimitPercent = 100;
+            left.GpuTempLimitC = null;
+            left.GpuVoltageOffsetMv = 0;
+            if (!_fanViaHost)
+            {
+                left.GpuFanPercent = null;
+            }
+
+            _applied = left;
+            if (left.IsStock)
+            {
+                OverclockSessionStore.Delete(SessionPath);
+                _settings.Current.Overclock.LastSessionClean = true;
+                _settings.Current.Overclock.ActiveProfileName = null;
+            }
+            else if (OverclockSessionStore.Load(SessionPath) is { } session)
+            {
+                session.Profile = left.Clone();
+                OverclockSessionStore.Save(SessionPath, session);
+            }
+
+            _logger.LogInformation("The AMD driver restored its default tuning after a reset; the session was updated.");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Could not reconcile AMD tuning after a driver reset.");
+            return false;
+        }
+    }
+
+    private Timer? _ryzenAdjTimer;
+    private int _ryzenAdjWatts;
+
+    /// <summary>Runs ryzenadj with the sustained limit and reads its output (the exit code alone is not trusted).</summary>
+    private async Task<(bool Ok, string Detail)> RunRyzenAdjAsync(int watts, CancellationToken cancellationToken)
+    {
+        if (_cpuTool.ToolPath is not { } path)
+        {
+            return (false, "ryzenadj is not available.");
+        }
+
+        var run = await PowerShellRunner.RunAsync($"& '{path.Replace("'", "''")}' {CpuToolLocator.RyzenAdjArguments(watts)}", TimeSpan.FromSeconds(30), cancellationToken).ConfigureAwait(false);
+        var (ok, message) = CpuToolLocator.ParseRyzenAdjOutput(run.StdOut, run.StdErr, run.ExitCode);
+        return (ok, message);
+    }
+
+    private void StartRyzenAdjKeepAlive(int watts)
+    {
+        _ryzenAdjWatts = watts;
+        _ryzenAdjTimer ??= new Timer(_ => _ = ReapplyRyzenAdjAsync(), null, Timeout.Infinite, Timeout.Infinite);
+        _ryzenAdjTimer.Change(TimeSpan.FromSeconds(45), TimeSpan.FromSeconds(45));
+    }
+
+    private void StopRyzenAdjKeepAlive() => _ryzenAdjTimer?.Change(Timeout.Infinite, Timeout.Infinite);
+
+    private async Task ReapplyRyzenAdjAsync()
+    {
+        try
+        {
+            if (_cpuTool.Method != CpuControlMethod.RyzenAdj || _applied.CpuPowerLimitW is null)
+            {
+                StopRyzenAdjKeepAlive();
+                return;
+            }
+
+            var (ok, detail) = await RunRyzenAdjAsync(_ryzenAdjWatts, CancellationToken.None).ConfigureAwait(false);
+            if (!ok)
+            {
+                _logger.LogWarning("ryzenadj re-apply failed: {Detail}", detail);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "ryzenadj re-apply threw.");
         }
     }
 
@@ -658,6 +794,8 @@ public sealed partial class WindowsOverclockService : IOverclockService, IDispos
 
             if (session is { CpuTouched: true, CpuMethod: CpuControlMethod.RyzenAdj })
             {
+                StopRyzenAdjKeepAlive();
+
                 // ryzenadj has no reset command and the previous limits are not readable, so be honest about it.
                 messages.Add("CPU power limits set through ryzenadj stay in place until the next reboot; restart the PC to return to the BIOS values.");
             }
@@ -672,6 +810,7 @@ public sealed partial class WindowsOverclockService : IOverclockService, IDispos
                 left.GpuMemoryOffsetMhz = _applied.GpuMemoryOffsetMhz;
                 left.GpuPowerLimitPercent = _applied.GpuPowerLimitPercent;
                 left.GpuTempLimitC = _applied.GpuTempLimitC;
+                left.GpuVoltageOffsetMv = _applied.GpuVoltageOffsetMv;
             }
 
             if (gpuFailed || fanFailed)
@@ -786,6 +925,42 @@ public sealed partial class WindowsOverclockService : IOverclockService, IDispos
             _ => "Monitoring still works; GPU tuning is unavailable.",
         });
         return new GpuTunerDetection(GpuControlMethod.None, gpuName, null, notes);
+    }
+
+    /// <summary>AMD Ryzen Master's install folder from its uninstall entry (InstallLocation or the folder of DisplayIcon).</summary>
+    private static string? RyzenMasterInstallPath()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return null;
+        }
+
+        try
+        {
+            foreach (var root in new[] { @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall", @"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall" })
+            {
+                using var uninstall = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(root);
+                if (uninstall is null)
+                {
+                    continue;
+                }
+
+                foreach (var sub in uninstall.GetSubKeyNames())
+                {
+                    using var app = uninstall.OpenSubKey(sub);
+                    if (app?.GetValue("DisplayName") is string name && name.StartsWith("AMD Ryzen Master", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return CpuToolLocator.InstallFolderFromUninstall(app.GetValue("InstallLocation") as string, app.GetValue("DisplayIcon") as string);
+                    }
+                }
+            }
+        }
+        catch (Exception)
+        {
+            // Unknown: fall back to the default install path.
+        }
+
+        return null;
     }
 
     /// <summary>Program Files folders, resolved by Windows (not from environment variables the user controls).</summary>
