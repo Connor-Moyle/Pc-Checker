@@ -344,6 +344,13 @@ public sealed partial class LibreHardwareFanControlService
             return;
         }
 
+        // A user change is writing to the fans right now: skip this tick instead of acting on the state it is changing.
+        if (!_controlGate.Wait(0))
+        {
+            Interlocked.Exchange(ref _ticking, 0);
+            return;
+        }
+
         try
         {
             TickCore();
@@ -354,7 +361,22 @@ public sealed partial class LibreHardwareFanControlService
         }
         finally
         {
+            _controlGate.Release();
             Interlocked.Exchange(ref _ticking, 0);
+        }
+    }
+
+    /// <summary>Runs a fan change while holding the control gate, so no loop tick interleaves with it. Call from a background thread.</summary>
+    private T UnderControlGate<T>(Func<T> change)
+    {
+        _controlGate.Wait();
+        try
+        {
+            return change();
+        }
+        finally
+        {
+            _controlGate.Release();
         }
     }
 

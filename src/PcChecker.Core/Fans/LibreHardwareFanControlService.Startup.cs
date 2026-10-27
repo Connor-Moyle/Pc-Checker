@@ -127,15 +127,20 @@ public sealed partial class LibreHardwareFanControlService
 
                 if (reappliedProfile is null)
                 {
-                    int reverted = 0;
-                    foreach (var id in session.FanIds)
+                    int reverted = UnderControlGate(() =>
                     {
-                        var entry = Find(id);
-                        if (entry is not null && ApplyDefault(entry).Success)
+                        int count = 0;
+                        foreach (var id in session.FanIds)
                         {
-                            reverted++;
+                            var entry = Find(id);
+                            if (entry is not null && ApplyDefault(entry).Success)
+                            {
+                                count++;
+                            }
                         }
-                    }
+
+                        return count;
+                    });
 
                     FanSessionStore.Delete(SessionFilePath);
                     string text;

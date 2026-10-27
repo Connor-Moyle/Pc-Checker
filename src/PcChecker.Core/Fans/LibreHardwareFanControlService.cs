@@ -30,6 +30,14 @@ public sealed partial class LibreHardwareFanControlService : IFanControlService,
     private readonly List<FanControlAlert> _alerts = [];
     private readonly List<string> _capabilityNotes = [];
     private readonly SemaphoreSlim _discoveryGate = new(1, 1);
+
+    /// <summary>
+    /// Serializes everything that writes to the fans: the one-second loop and every user change (manual, curve, profile,
+    /// back to automatic). Without it a tick that read a fan's mode just before "Revert all to automatic" would put the
+    /// fan straight back into manual mode at the curve value, or overwrite a manual speed the user had just set. Never
+    /// disposed: a tick still running during shutdown releases it.
+    /// </summary>
+    private readonly SemaphoreSlim _controlGate = new(1, 1);
     private IReadOnlyList<FanProfile>? _builtInProfiles;
     private Timer? _timer;
     private bool _discovered;
@@ -137,7 +145,7 @@ public sealed partial class LibreHardwareFanControlService : IFanControlService,
         double clamped = FanSafetyRules.ClampManual(percent, _settings.Current.Fans.MinimumPercent, allowBelowMinimum, entry.MinPercent, entry.MaxPercent);
         return await _guard.RunGuardedAsync($"Set {entry.Name} to {clamped:0} %",
             new ChangeOptions(false, false, ModuleName, entry.Id, true, "Fans → Revert all to automatic"),
-            _ => Task.Run(() =>
+            _ => Task.Run(() => UnderControlGate(() =>
             {
                 var result = ApplySoftware(entry, clamped, "manual");
                 if (result.Success)
@@ -155,7 +163,7 @@ public sealed partial class LibreHardwareFanControlService : IFanControlService,
                 }
 
                 return result;
-            }), null, cancellationToken).ConfigureAwait(false);
+            })), null, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<OperationResult> SetAutoAsync(string fanId, CancellationToken cancellationToken)
@@ -169,12 +177,12 @@ public sealed partial class LibreHardwareFanControlService : IFanControlService,
 
         return await _guard.RunGuardedAsync($"Return {entry.Name} to automatic control",
             new ChangeOptions(false, false, ModuleName, entry.Id, false, null),
-            _ => Task.Run(() =>
+            _ => Task.Run(() => UnderControlGate(() =>
             {
                 var result = ApplyDefault(entry);
                 UpdateSessionFile();
                 return result;
-            }), null, cancellationToken).ConfigureAwait(false);
+            })), null, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<OperationResult> SetCurveAsync(string fanId, FanCurve curve, CancellationToken cancellationToken)
@@ -195,7 +203,7 @@ public sealed partial class LibreHardwareFanControlService : IFanControlService,
 
         return await _guard.RunGuardedAsync($"Put {entry.Name} on a fan curve",
             new ChangeOptions(false, false, ModuleName, entry.Id, true, "Fans → Revert all to automatic"),
-            _ => Task.Run(() => ApplyCurveCore(entry, curve, "curve")), null, cancellationToken).ConfigureAwait(false);
+            _ => Task.Run(() => UnderControlGate(() => ApplyCurveCore(entry, curve, "curve"))), null, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<OperationResult> ApplyProfileAsync(FanProfile profile, CancellationToken cancellationToken)
@@ -209,7 +217,7 @@ public sealed partial class LibreHardwareFanControlService : IFanControlService,
 
         return await _guard.RunGuardedAsync($"Apply fan profile \"{profile.Name}\"",
             new ChangeOptions(false, false, ModuleName, profile.Name, true, "Fans → Revert all to automatic"),
-            _ => Task.Run(() => ApplyProfileCore(profile)), null, cancellationToken).ConfigureAwait(false);
+            _ => Task.Run(() => UnderControlGate(() => ApplyProfileCore(profile))), null, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<OperationResult> RevertAllToAutoAsync(CancellationToken cancellationToken)
@@ -229,8 +237,14 @@ public sealed partial class LibreHardwareFanControlService : IFanControlService,
 
         return await _guard.RunGuardedAsync("Return all fans to automatic control",
             new ChangeOptions(false, false, ModuleName, "all fans", false, null),
-            _ => Task.Run(() =>
+            _ => Task.Run(() => UnderControlGate(() =>
             {
+                // Re-read under the control gate: a change that finished while the guard ran may have added a fan.
+                lock (_gate)
+                {
+                    entries = _entries.Where(e => e.Mode != FanMode.Auto || e.LastApplied is not null).ToList();
+                }
+
                 int ok = 0;
                 var failures = new List<string>();
                 foreach (var entry in entries)
@@ -252,7 +266,7 @@ public sealed partial class LibreHardwareFanControlService : IFanControlService,
                 return failures.Count == 0
                     ? OperationResult.Ok($"{ok} fan{(ok == 1 ? string.Empty : "s")} returned to automatic control.")
                     : OperationResult.Fail($"{ok} fans reverted; {failures.Count} did not: {string.Join("; ", failures)}");
-            }), null, cancellationToken).ConfigureAwait(false);
+            })), null, cancellationToken).ConfigureAwait(false);
     }
 
     private async Task DiscoverAsync(CancellationToken cancellationToken, bool force = false)
