@@ -1,0 +1,178 @@
+using Microsoft.Extensions.Logging;
+using PcChecker.Core.Common;
+using PcChecker.Core.Overclocking.GpuLoad;
+
+namespace PcChecker.Core.Overclocking;
+
+/// <summary>
+/// Stress test half of <see cref="WindowsOverclockService"/>: CPU burn (<see cref="CpuStressRunner"/>), the built-in
+/// GPU load (<see cref="D3D11ComputeLoadGenerator"/>) or the guided GPU test, all under a once-a-second temperature
+/// watchdog. A temperature limit or a graphics-driver reset stops the test and, when an overclock is applied, resets
+/// it to defaults through the same guarded path as the Reset button.
+/// </summary>
+public sealed partial class WindowsOverclockService : IStressTestRunner
+{
+    private IGpuLoadGenerator? _gpuLoad;
+
+    private IGpuLoadGenerator GpuLoad => _gpuLoad ??= new D3D11ComputeLoadGenerator(_logger);
+
+    public Task<IReadOnlyList<GpuAdapterChoice>> ListGpuAdaptersAsync(CancellationToken cancellationToken) =>
+        Task.Run(() => GpuLoad.ListAdapters(), cancellationToken);
+
+    public StressPreflight CheckPreflight()
+    {
+        var (onBattery, percent) = PowerStatusProbe.Read();
+        return StressSafety.Evaluate(onBattery, percent);
+    }
+
+    public async Task<StressTestResult> RunStressTestAsync(StressTarget target, int seconds, double abortCpuTempC, double abortGpuTempC,
+        IProgress<ProgressUpdate>? progress, CancellationToken cancellationToken)
+    {
+        var outcome = await RunStressTestAsync(new StressTestRequest(target, seconds, abortCpuTempC, abortGpuTempC), null, progress, cancellationToken).ConfigureAwait(false);
+        return outcome.Result;
+    }
+
+    public async Task<StressTestOutcome> RunStressTestAsync(StressTestRequest request, IProgress<StressLiveStatus>? live, IProgress<ProgressUpdate>? progress,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        int seconds = Math.Clamp(request.Seconds, 5, 3 * 60 * 60);
+        var preflight = CheckPreflight();
+        if (!preflight.CanRun)
+        {
+            return StressOutcomes.NotStarted(request, preflight.Message ?? "The stress test cannot start right now.");
+        }
+
+        using var burnCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        var runner = request.LoadsCpu ? new CpuStressRunner() : null;
+        var burnTask = runner?.RunAsync(burnCts.Token);
+
+        GpuLoadProgress? gpuLive = null;
+        Task<GpuLoadResult>? gpuTask = null;
+        string? adapterName = null;
+        if (request.LoadsGpu)
+        {
+            var adapters = await ListGpuAdaptersAsync(cancellationToken).ConfigureAwait(false);
+            adapterName = GpuAdapterRanking.Pick(adapters, request.GpuAdapterIndex)?.Name;
+            progress?.Report(new ProgressUpdate("Starting the GPU load", 0, $"Preparing {adapterName ?? "the graphics card"}…"));
+            var options = new GpuLoadOptions(request.GpuAdapterIndex, request.Intensity, TimeSpan.FromSeconds(seconds + 30), request.VerifyGpuResults);
+            gpuTask = GpuLoad.RunAsync(options, new InlineProgress<GpuLoadProgress>(p => Volatile.Write(ref gpuLive, p)), burnCts.Token);
+        }
+
+        double? maxCpu = null, maxGpu = null;
+        var cpuClocks = new List<double>();
+        var cpuLoads = new List<double?>();
+        var gpuClocks = new List<double>();
+        var gpuLoads = new List<double?>();
+        bool aborted = false;
+        int elapsed = 0;
+        var started = DateTime.UtcNow;
+        GpuLoadResult? gpuResult = null;
+        var pendingGpu = gpuTask;
+
+        try
+        {
+            while (elapsed < seconds)
+            {
+                await Task.Delay(1000, cancellationToken).ConfigureAwait(false);
+                elapsed = (int)Math.Round((DateTime.UtcNow - started).TotalSeconds);
+
+                var snapshot = _sensors.Latest;
+                var readout = SensorPicker.Pick(snapshot);
+                double? cpuTemp = SensorPicker.MaxCpuTemp(snapshot);
+                double? gpuTemp = SensorPicker.MaxGpuTemp(snapshot);
+                maxCpu = Max(maxCpu, cpuTemp);
+                maxGpu = Max(maxGpu, gpuTemp);
+                if (readout.CpuClockMhz is { } cc)
+                {
+                    cpuClocks.Add(cc);
+                    cpuLoads.Add(request.LoadsCpu ? null : readout.CpuLoadPercent);
+                }
+
+                if (readout.GpuCoreClockMhz is { } gc)
+                {
+                    gpuClocks.Add(gc);
+                    gpuLoads.Add(readout.GpuLoadPercent);
+                }
+
+                var gl = Volatile.Read(ref gpuLive);
+                var status = new StressLiveStatus(TimeSpan.FromSeconds(elapsed), Math.Min(100, 100.0 * elapsed / seconds), cpuTemp, gpuTemp,
+                    readout.CpuClockMhz, readout.GpuCoreClockMhz, readout.GpuLoadPercent, gl?.DispatchesPerSecond ?? 0, gl?.ErrorsSoFar ?? 0,
+                    runner?.Iterations ?? 0, runner?.Errors ?? 0, adapterName);
+                live?.Report(status);
+                progress?.Report(new ProgressUpdate("Stress test running", status.Percent, StressText.Detail(request, status)));
+
+                if ((cpuTemp is { } ct && ct >= request.AbortCpuTempC) || (gpuTemp is { } gt && gt >= request.AbortGpuTempC))
+                {
+                    aborted = true;
+                    _logger.LogWarning("Stress test aborted by the watchdog: CPU {Cpu} °C, GPU {Gpu} °C.", cpuTemp, gpuTemp);
+                    break;
+                }
+
+                if (pendingGpu is { IsCompleted: true })
+                {
+                    gpuResult = await pendingGpu.ConfigureAwait(false);
+                    pendingGpu = null;
+                    if (!gpuResult.Completed && (request.Target == StressTarget.Gpu || gpuResult.DriverReset))
+                    {
+                        // Nothing left to test (GPU only), or the driver reset: stop now rather than keep loading a recovering card.
+                        break;
+                    }
+                }
+            }
+        }
+        finally
+        {
+            burnCts.Cancel();
+            if (pendingGpu is not null)
+            {
+                try
+                {
+                    gpuResult = await pendingGpu.ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "The GPU load did not shut down cleanly.");
+                }
+            }
+        }
+
+        StressRunStats stats = burnTask is null ? new StressRunStats(0, 0, 0) : await burnTask.ConfigureAwait(false);
+        bool driverReset = gpuResult?.DriverReset == true;
+
+        bool reverted = false;
+        if ((aborted || driverReset) && !_applied.IsStock)
+        {
+            progress?.Report(new ProgressUpdate("Reverting the overclock", null,
+                driverReset ? "The graphics driver reset; returning to stock." : "Temperature limit reached; returning to stock."));
+            var revert = await ResetAsync(CancellationToken.None).ConfigureAwait(false);
+            reverted = revert.Success;
+            _logger.LogInformation("Watchdog revert: {Message}", revert.Message);
+        }
+
+        bool throttle = (request.LoadsCpu && ThrottleHeuristic.Suspect(cpuClocks, cpuLoads))
+            || (request.WatchesGpu && ThrottleHeuristic.Suspect(gpuClocks, gpuLoads));
+        var facts = new StressFacts(request.Target, request.GpuMode, elapsed)
+        {
+            CpuErrors = stats.Errors,
+            CpuChecks = stats.Iterations,
+            GpuErrors = gpuResult?.Errors ?? 0,
+            GpuDispatches = gpuResult?.Dispatches ?? 0,
+            DriverReset = driverReset,
+            GpuFailure = gpuResult is { Completed: false } ? gpuResult.FailureReason : null,
+            GpuNotStarted = gpuResult?.NotStarted == true,
+            GpuAdapterName = gpuResult?.AdapterName ?? adapterName,
+            WatchdogAborted = aborted,
+            ThrottleSuspected = throttle,
+            NoTemperatureData = ThrottleHeuristic.LacksTemperatureData(request.Target, maxCpu, maxGpu),
+            MaxCpuTempC = maxCpu,
+            MaxGpuTempC = maxGpu,
+            AbortCpuTempC = request.AbortCpuTempC,
+            AbortGpuTempC = request.AbortGpuTempC,
+            AverageCpuClockMhz = StressText.Average(cpuClocks),
+            AverageGpuClockMhz = StressText.Average(gpuClocks),
+            OverclockReverted = reverted,
+        };
+        return StressOutcomes.From(request.Target, facts, gpuResult, maxCpu, maxGpu, throttle, aborted);
+    }
+}

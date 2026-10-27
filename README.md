@@ -157,7 +157,7 @@ limitations, is in [docs/FEATURES.md](docs/FEATURES.md).
 | **Optimize** | Reversible tweaks grouped by risk: power plan, visual effects, Game Mode, background apps, Storage Sense, TRIM, hibernation, service modes, and in Advanced mode DNS, telemetry, SysMain, indexing, `DISM`, `sfc` and network reset. Also hosts the actions contributed by Latency, Memory, Startup and Keyboard & Mouse. |
 | **Latency** | Samples DPC and interrupt time, reads timer resolution, HPET and dynamic tick, HAGS, power plan, core parking, USB and PCIe power saving, Game Mode, pointer precision and mouse polling rate, pings your gateway and public DNS, times a DNS lookup, then scores it and offers the known fixes. Real-time DPC tracing still needs LatencyMon or Windows Performance Analyzer; the page says so and links them. |
 | **Network** | Wi-Fi analysis (signal and dBm, band, channel, standard, link rate, security, nearby networks and channel congestion, plain-English findings), an HTTP speed test with ping under load and a bufferbloat grade, a packet loss test, adapter error counters, flush DNS / renew IP / reset network stack, and reversible Wi-Fi tuning: power saving, adapter driver settings with recommendations, TCP settings, fast or encrypted DNS, saved networks, and a "Quick improve Wi-Fi" checklist with a before/after comparison. |
-| **Overclock** | NVIDIA tuning through NVAPI (core and memory offsets, power and temperature limits where the driver exposes them, fan percent). AMD GPUs through ADL/Overdrive8 and Intel Arc through IGCL are **experimental** and fall back to the vendor's software. CPU tuning goes through Intel XTU or AMD Ryzen Master when installed, otherwise BIOS guidance. XMP/EXPO detection, profiles, a stress test with a temperature watchdog, automatic revert after an unclean shutdown, a safety validator that clamps every value, a support matrix and a consent gate. The GPU stress test is a *guided* test: you run your game or benchmark while the app watches temperatures and clocks. |
+| **Overclock** | NVIDIA tuning through NVAPI (core and memory offsets, power and temperature limits where the driver exposes them, fan percent). AMD GPUs through ADL/Overdrive8 and Intel Arc through IGCL are **experimental** and fall back to the vendor's software. CPU tuning goes through Intel XTU or AMD Ryzen Master when installed, otherwise BIOS guidance. XMP/EXPO detection, profiles, a stress test with a temperature watchdog, automatic revert after an unclean shutdown, a safety validator that clamps every value, a support matrix and a consent gate. The stress test loads the GPU itself with a built-in DirectX 11 compute workload (NVIDIA, AMD and Intel, integrated graphics included) and checks every result for errors, catches graphics-driver resets, and still offers a *guided* mode for your own game or benchmark. |
 
 ### Assistant
 
@@ -215,7 +215,8 @@ list.
   what changed, when, the result, the restore point number and how to undo it.
 - **Watchdogs.** Fans return to automatic on exit and after a crash; an
   overclock that was active during an unclean shutdown is reset on the next
-  start; the stress test aborts above your temperature limits.
+  start; the stress test aborts above your temperature limits or when the
+  graphics driver resets, and resets an active overclock to defaults.
 - **Advanced mode.** The riskier tools (HPET and dynamic tick, Nagle, MSI
   mode, `DISM`, `sfc`, network reset, workstation memory profile, raw sensor
   lists, protected-software override) stay hidden until you turn it on.
@@ -298,7 +299,7 @@ not the public tracker.
       verified on RDNA 2, RDNA 3 and RDNA 4 cards
 - [ ] Promote Intel Arc tuning (IGCL) from experimental to full
 - [x] FPS counter in the overlay
-- [ ] Built-in GPU load generator so the GPU stress test no longer needs a game
+- [x] Built-in GPU load generator so the GPU stress test no longer needs a game
 - [x] Per-game overlay and fan profiles that switch automatically
 - [ ] Tray mode with a compact temperature popup
 - [ ] Scheduled health checks and cleanup
@@ -314,6 +315,7 @@ PC Checker stands on the shoulders of these projects:
 - [NvAPIWrapper](https://github.com/falahati/NvAPIWrapper) (LGPL-3.0): NVIDIA tuning
 - [OpenRGB](https://openrgb.org) and [OpenRGB.NET](https://github.com/diogotr7/OpenRGB.NET) (GPL-2.0 / MIT): RGB lighting
 - [NAudio](https://github.com/naudio/NAudio) (MIT): Core Audio device and session control
+- [Vortice.Windows](https://github.com/amerkoleci/Vortice.Windows) (MIT): Direct3D 11 compute for the built-in GPU stress test
 - [System.Diagnostics.PerformanceCounter](https://www.nuget.org/packages/System.Diagnostics.PerformanceCounter) (MIT): DPC, interrupt and memory counters
 - [WPF UI](https://github.com/lepoco/wpfui) (MIT): the Fluent look
 - [CommunityToolkit.Mvvm](https://github.com/CommunityToolkit/dotnet) (MIT): view models

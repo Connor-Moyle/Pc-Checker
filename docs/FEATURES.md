@@ -648,11 +648,31 @@ this PC, and the safety features.
   Otherwise plain BIOS guidance and a download link.
 - **Memory**: XMP/EXPO state and a link to the Memory page.
 - **Stress test**: target (CPU, GPU, both), duration, abort temperatures,
-  live temperatures with a sparkline, and a pass/fail result. The CPU test is
-  a built-in all-core workload that verifies its own results. The GPU test is
-  a **guided** test: you run your game or benchmark while the app watches
-  temperatures and clocks and aborts at your limits; there is no built-in GPU
-  load generator yet.
+  live readouts (elapsed time, GPU work rate, errors, temperatures and
+  clocks), temperature sparklines, and a verdict with plain-English reasons
+  (errors, peak temperatures, average clocks, throttling, driver resets). It
+  needs no overclock consent: consent only gates applying clocks.
+  - **CPU**: a built-in all-core workload that verifies its own results.
+  - **GPU, built in**: a vendor-neutral DirectX 11 compute workload, so no
+    game is needed (NVIDIA, AMD and Intel, integrated graphics included).
+    Pick the graphics card when the PC has more than one (the one with the
+    most video memory is recommended) and an intensity: *Light* (small
+    buffer, about half-time load), *Medium* (near-constant load, like a
+    demanding game) or *Heavy* (back-to-back work over up to 1 GB of video
+    memory, capped at a quarter of the card's memory). The work per pass is
+    calibrated so each pass takes 50 to 100 ms, far below the Windows driver
+    timeout. With *Check results for errors* on, part of the result is read
+    back every couple of seconds and compared with the first run; any
+    difference counts as an error, the same kind of fault that shows up as
+    artifacts in games. If the graphics driver resets, the test stops,
+    reports "The graphics driver reset — the GPU is not stable at these
+    settings" and resets an applied overclock to defaults.
+  - **GPU, guided**: tick *Use my own game or benchmark instead* and the app
+    watches temperatures and clocks while your own load runs.
+  - **Safety**: the watchdog samples temperatures every second and stops at
+    your limits (resetting an applied overclock); a laptop on battery below
+    20 % cannot start a test and above that gets a warning; *Stop* ends
+    everything within a second.
 - **Claude advisor** (when configured): describe your goal and get a staged
   plan with warnings and assumptions; *Apply this step* loads the step into
   the sliders for you to confirm, *Run suggested stress test* runs it, *Send

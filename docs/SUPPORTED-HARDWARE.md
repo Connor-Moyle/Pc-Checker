@@ -30,6 +30,7 @@ Two rules apply everywhere in the app:
 | Sensors and temperatures | Full | Full | Full | Full where LibreHardwareMonitor has a driver (see below) | LibreHardwareMonitor |
 | Fan control | Full (GPU fans) | Full (GPU fans) | Monitor only (Arc fans) | Full on supported motherboard Super I/O chips and some coolers; usually unavailable on laptops and OEM boards | LibreHardwareMonitor controls |
 | GPU overclocking | Full (clock offsets); power and temperature limits where the driver API exposes them | Experimental | Experimental (Arc); Monitor only (integrated graphics) | — | NVAPI, ADL/Overdrive8, IGCL |
+| GPU stress test | Experimental (built-in load); guided mode always works | Experimental (built-in load); guided mode always works | Experimental (Arc and integrated graphics); guided mode always works | Any GPU with a DirectX 11 (feature level 11_0) driver; the Microsoft Basic Render Driver is skipped. Standard vendor-neutral Direct3D 11 compute, not yet verified across many cards: please report results | Direct3D 11 compute (Vortice), temperature watchdog |
 | CPU tuning | — | Via vendor software (Ryzen Master; optional ryzenadj) | Via vendor software (XTU CLI) | Not supported (ARM) | XTU CLI, Ryzen Master, ryzenadj |
 | Memory (XMP/EXPO) | — | Monitor only | Monitor only | Monitor only | WMI |
 | RGB lighting | Via OpenRGB | Via OpenRGB | Via OpenRGB | Via OpenRGB; vendor suites linked | OpenRGB SDK |

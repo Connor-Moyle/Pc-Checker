@@ -105,6 +105,7 @@ public sealed partial class SettingsViewModel : ViewModelBase
         new("Anthropic SDK", "MIT"),
         new("OpenRGB.NET", "MIT"),
         new("NAudio", "MIT"),
+        new("Vortice.Windows (Direct3D 11, DXGI, D3DCompiler)", "MIT"),
         new("System.Diagnostics.PerformanceCounter", "MIT"),
         new("System.Management", "MIT"),
         new("System.Security.Cryptography.ProtectedData", "MIT"),

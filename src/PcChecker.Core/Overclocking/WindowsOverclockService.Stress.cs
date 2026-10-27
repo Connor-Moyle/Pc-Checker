@@ -4,90 +4,9 @@ using PcChecker.Core.Restore;
 
 namespace PcChecker.Core.Overclocking;
 
-/// <summary>Stress test and crash-watchdog half of <see cref="WindowsOverclockService"/>.</summary>
+/// <summary>Crash-watchdog half of <see cref="WindowsOverclockService"/> (the stress test lives in WindowsOverclockService.GpuStress.cs).</summary>
 public sealed partial class WindowsOverclockService
 {
-    public async Task<StressTestResult> RunStressTestAsync(StressTarget target, int seconds, double abortCpuTempC, double abortGpuTempC,
-        IProgress<ProgressUpdate>? progress, CancellationToken cancellationToken)
-    {
-        seconds = Math.Clamp(seconds, 5, 3 * 60 * 60);
-        bool burnCpu = target is StressTarget.Cpu or StressTarget.Both;
-
-        using var burnCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        var runner = burnCpu ? new CpuStressRunner() : null;
-        var burnTask = runner?.RunAsync(burnCts.Token);
-
-        double? maxCpu = null, maxGpu = null;
-        var cpuClocks = new List<double>();
-        var cpuLoads = new List<double?>();
-        var gpuClocks = new List<double>();
-        var gpuLoads = new List<double?>();
-        bool aborted = false;
-        int elapsed = 0;
-        var started = DateTime.UtcNow;
-
-        try
-        {
-            while (elapsed < seconds)
-            {
-                await Task.Delay(1000, cancellationToken).ConfigureAwait(false);
-                elapsed = (int)Math.Round((DateTime.UtcNow - started).TotalSeconds);
-
-                var snapshot = _sensors.Latest;
-                var live = SensorPicker.Pick(snapshot);
-                double? cpuTemp = SensorPicker.MaxCpuTemp(snapshot);
-                double? gpuTemp = SensorPicker.MaxGpuTemp(snapshot);
-                maxCpu = Max(maxCpu, cpuTemp);
-                maxGpu = Max(maxGpu, gpuTemp);
-                if (live.CpuClockMhz is { } cc)
-                {
-                    cpuClocks.Add(cc);
-                    cpuLoads.Add(burnCpu ? null : live.CpuLoadPercent);
-                }
-
-                if (live.GpuCoreClockMhz is { } gc)
-                {
-                    gpuClocks.Add(gc);
-                    gpuLoads.Add(live.GpuLoadPercent);
-                }
-
-                string detail = BuildDetail(target, cpuTemp, gpuTemp, live, runner);
-                progress?.Report(new ProgressUpdate("Stress test running", 100.0 * elapsed / seconds, detail));
-
-                if ((cpuTemp is { } ct && ct >= abortCpuTempC) || (gpuTemp is { } gt && gt >= abortGpuTempC))
-                {
-                    aborted = true;
-                    _logger.LogWarning("Stress test aborted by the watchdog: CPU {Cpu} °C, GPU {Gpu} °C.", cpuTemp, gpuTemp);
-                    break;
-                }
-            }
-        }
-        finally
-        {
-            burnCts.Cancel();
-        }
-
-        StressRunStats stats = burnTask is null ? new StressRunStats(0, 0, 0) : await burnTask.ConfigureAwait(false);
-
-        if (aborted && !_applied.IsStock)
-        {
-            progress?.Report(new ProgressUpdate("Reverting the overclock", null, "Temperature limit reached; returning to stock."));
-            var revert = await ResetAsync(CancellationToken.None).ConfigureAwait(false);
-            _logger.LogInformation("Watchdog revert: {Message}", revert.Message);
-        }
-
-        bool throttle = (burnCpu && ThrottleHeuristic.Suspect(cpuClocks, cpuLoads)) || (target != StressTarget.Cpu && ThrottleHeuristic.Suspect(gpuClocks, gpuLoads));
-        bool noTemperatureData = ThrottleHeuristic.LacksTemperatureData(target, maxCpu, maxGpu);
-        bool passed = stats.Errors == 0 && !aborted && !throttle && !noTemperatureData;
-        string summary = ThrottleHeuristic.Summarize(target, stats.Errors, aborted, throttle, maxCpu, maxGpu, abortCpuTempC, abortGpuTempC);
-        if (target == StressTarget.Gpu && !aborted)
-        {
-            summary += " (Guided GPU test: PC Checker monitored while you ran your own game or benchmark; it cannot generate GPU load itself.)";
-        }
-
-        return new StressTestResult(target, elapsed, maxCpu, maxGpu, throttle, stats.Errors, passed, summary, aborted);
-    }
-
     /// <summary>
     /// Runs the crash watchdog at most once per process: concurrent or repeated callers share the first run's result,
     /// so an unclean session is detected, reset and reported exactly once. A cancelled run may be retried.
@@ -185,30 +104,4 @@ public sealed partial class WindowsOverclockService
     }
 
     private static double? Max(double? a, double? b) => a is null ? b : b is null ? a : Math.Max(a.Value, b.Value);
-
-    private static string BuildDetail(StressTarget target, double? cpuTemp, double? gpuTemp, LiveReadout live, CpuStressRunner? runner)
-    {
-        var parts = new List<string>();
-        if (cpuTemp is { } c)
-        {
-            parts.Add($"CPU {c:0} °C" + (live.CpuClockMhz is { } cc ? $" @ {cc} MHz" : string.Empty));
-        }
-
-        if (gpuTemp is { } g)
-        {
-            parts.Add($"GPU {g:0} °C" + (live.GpuCoreClockMhz is { } gc ? $" @ {gc} MHz" : string.Empty));
-        }
-
-        if (runner is not null)
-        {
-            parts.Add($"{runner.Iterations} checks, {runner.Errors} errors");
-        }
-
-        if (target == StressTarget.Gpu)
-        {
-            parts.Add("run your game or benchmark now");
-        }
-
-        return parts.Count == 0 ? "No sensor data yet." : string.Join(" · ", parts);
-    }
 }

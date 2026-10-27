@@ -22,6 +22,8 @@
     <PackageReference Include="NAudio.Wasapi" />
     <PackageReference Include="System.Diagnostics.PerformanceCounter" />
     <PackageReference Include="Microsoft.Diagnostics.Tracing.TraceEvent" />
+    <PackageReference Include="Vortice.Direct3D11" />
+    <PackageReference Include="Vortice.D3DCompiler" />
   </ItemGroup>
 
 </Project>

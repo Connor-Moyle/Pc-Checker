@@ -153,7 +153,10 @@ damage hardware. PC Checker reduces the risk; it cannot remove it.
 - The app refuses to apply a profile while the GPU or CPU is already above
   the warning temperature.
 - The stress test watches temperatures and aborts above your thresholds,
-  resetting the GPU if a profile is active.
+  resetting the GPU if a profile is active. A graphics-driver reset during
+  the built-in GPU load also stops the test and resets an active profile.
+  Each GPU pass is calibrated to stay far below the Windows driver timeout,
+  and a laptop on battery below 20 % cannot start a stress test.
 - At apply time the app writes a session marker. If the PC was not shut down
   cleanly the next start resets the GPU to defaults and tells you.
 - AMD (ADL/Overdrive8) and Intel Arc (IGCL) tuning are marked experimental.

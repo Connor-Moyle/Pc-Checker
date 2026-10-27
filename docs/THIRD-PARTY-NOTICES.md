@@ -17,6 +17,7 @@ are also kept in this repository under [docs/licenses](licenses).
 | Anthropic SDK (Anthropic) | The "Ask Claude" assistant and the overclock advisor | MIT | https://github.com/anthropics/anthropic-sdk-csharp |
 | OpenRGB.NET | RGB lighting through the OpenRGB SDK server | MIT | https://github.com/diogotr7/OpenRGB.NET |
 | NAudio (NAudio.Core, NAudio.Wasapi) | Sound devices, volumes and per-app sessions | MIT | https://github.com/naudio/NAudio |
+| Vortice.Windows (Vortice.Direct3D11, Vortice.DXGI, Vortice.D3DCompiler) | The built-in GPU load for the stress test (Direct3D 11 compute) | MIT | https://github.com/amerkoleci/Vortice.Windows |
 | System.Diagnostics.PerformanceCounter | DPC/interrupt time and other Windows performance counters | MIT | https://github.com/dotnet/runtime |
 | System.Management | WMI queries for hardware and system information | MIT | https://github.com/dotnet/runtime |
 | System.Security.Cryptography.ProtectedData | Protecting the saved API key with DPAPI | MIT | https://github.com/dotnet/runtime |

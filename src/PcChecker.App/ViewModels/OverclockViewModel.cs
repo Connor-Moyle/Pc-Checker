@@ -178,7 +178,7 @@ public sealed partial class OverclockViewModel : ViewModelBase
         "Heat: higher clocks and power limits raise temperatures; the watchdog stops the stress test and resets when limits are hit.",
         "Warranty: some makers void coverage for overclocked parts, even software overclocks.",
         "Safety features: user limits (Settings), a crash watchdog that reverts on the next start, a restore point before changes, and a one-click Reset to defaults.",
-        "What PC Checker cannot do: change BIOS settings, tune integrated graphics, or generate GPU load for you (the GPU test is guided).",
+        "What PC Checker cannot do: change BIOS settings or tune integrated graphics. (The stress test works without this consent as long as nothing is overclocked.)",
     ];
 
     public override async Task InitializeAsync(CancellationToken cancellationToken)
@@ -186,12 +186,17 @@ public sealed partial class OverclockViewModel : ViewModelBase
         await RunBusyAsync(async ct =>
         {
             await DetectAsync(ct);
+            await LoadStressOptionsAsync(ct);
             await LiveTickAsync();
         }, "Checking what this PC can tune…");
         StartLive();
     }
 
-    public override Task RefreshAsync(CancellationToken cancellationToken) => RunBusyAsync(DetectAsync, "Detecting again…");
+    public override Task RefreshAsync(CancellationToken cancellationToken) => RunBusyAsync(async ct =>
+    {
+        await DetectAsync(ct);
+        await LoadStressOptionsAsync(ct);
+    }, "Detecting again…");
 
     [RelayCommand]
     private Task DetectAgain() => RefreshAsync(CancellationToken.None);
