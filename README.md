@@ -87,23 +87,27 @@ gaming desktop) every time the app changes. The full set of every page is in
 
 <table>
   <tr>
+    <td width="50%"><img src="docs/screenshots/processes.png" alt="Live process list with what each program is"><br><sub>Monitor › Processes</sub></td>
+    <td width="50%"><img src="docs/screenshots/history.png" alt="Temperature, load and power history"><br><sub>Monitor › History</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/disk-space.png" alt="What fills each drive, with duplicates"><br><sub>Clean up › Disk space</sub></td>
+    <td width="50%"><img src="docs/screenshots/benchmark.png" alt="CPU, memory, disk and GPU benchmark scores"><br><sub>Performance › Benchmark</sub></td>
+  </tr>
+  <tr>
     <td width="50%"><img src="docs/screenshots/health.png" alt="Health score with the reasons"><br><sub>Hardware › Health</sub></td>
     <td width="50%"><img src="docs/screenshots/fans.png" alt="Fan speeds, curves and profiles"><br><sub>Cooling & RGB › Fans</sub></td>
   </tr>
   <tr>
     <td width="50%"><img src="docs/screenshots/network.png" alt="Wi-Fi analysis, speed and packet loss"><br><sub>Network</sub></td>
-    <td width="50%"><img src="docs/screenshots/old-drivers.png" alt="Old and unused drivers with the space they take"><br><sub>Apps & Drivers › Old drivers</sub></td>
+    <td width="50%"><img src="docs/screenshots/windows-update.png" alt="Pending updates, history and pause"><br><sub>Apps & Drivers › Windows Update</sub></td>
   </tr>
   <tr>
+    <td width="50%"><img src="docs/screenshots/old-drivers.png" alt="Old and unused drivers with the space they take"><br><sub>Apps & Drivers › Old drivers</sub></td>
     <td width="50%"><img src="docs/screenshots/debloat.png" alt="Debloat tweaks with presets"><br><sub>Clean up › Debloat</sub></td>
-    <td width="50%"><img src="docs/screenshots/latency.png" alt="Latency score with known fixes"><br><sub>Gaming › Latency</sub></td>
   </tr>
   <tr>
     <td width="50%"><img src="docs/screenshots/overclock.png" alt="Overclocking with a built-in stress test"><br><sub>Performance › Overclock</sub></td>
-    <td width="50%"><img src="docs/screenshots/temperatures.png" alt="Live temperatures for every sensor"><br><sub>Monitor › Temperatures</sub></td>
-  </tr>
-  <tr>
-    <td width="50%"><img src="docs/screenshots/assistant.png" alt="Ask Claude about this PC"><br><sub>Ask Claude</sub></td>
     <td width="50%"><img src="docs/screenshots/tray.png" alt="Tray popup with temperatures, load, power and quick actions"><br><sub>Tray popup</sub></td>
   </tr>
 </table>
@@ -111,7 +115,8 @@ gaming desktop) every time the app changes. The full set of every page is in
 ## Feature tour
 
 The side menu has a dozen sections, and a section with several pages shows
-them as tabs, so you always know where you are. The full
+them as tabs, so you always know where you are. Press **Ctrl+K** to jump to
+any page, tab or setting, or to run a quick action. The full
 page-by-page detail, including what every button does and each page's
 limitations, is in [docs/FEATURES.md](docs/FEATURES.md).
 

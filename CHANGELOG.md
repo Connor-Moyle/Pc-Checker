@@ -7,6 +7,13 @@ All notable changes to PC Checker are recorded here. The format follows
 ## [Unreleased]
 
 ### Added
+- Nothing yet.
+
+## [0.4.0] - 2026-10-27
+
+Six new tools: Disk space, Processes, History, Benchmark, Windows Update and quick search.
+
+### Added
 - **Disk space** (Clean up → Disk space): see what fills a drive or folder
   with a fast, cancellable scan, drill into folders sorted by size, and list
   the largest files, a breakdown by file type and big files unused for a
@@ -49,6 +56,10 @@ All notable changes to PC Checker are recorded here. The format follows
 - **Welcome**: a short introduction on the first start with the language
   choice, Advanced mode explained, and *Run a full scan* or *Look around
   first*. Bring it back from Settings → About → *Show welcome again*.
+
+### Fixed
+- Interface text containing special characters such as an ellipsis is now
+  translated too; it was listed under a garbled key before.
 
 ## [0.3.0] - 2026-10-27
 
@@ -271,7 +282,8 @@ Initial release.
   itself from GitHub Releases with Stable and Beta channels and verifies every
   download against its published SHA-256.
 
-[Unreleased]: https://github.com/Connor-Moyle/Pc-Checker/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/Connor-Moyle/Pc-Checker/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/Connor-Moyle/Pc-Checker/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/Connor-Moyle/Pc-Checker/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/Connor-Moyle/Pc-Checker/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/Connor-Moyle/Pc-Checker/compare/v0.1.0...v0.1.1
