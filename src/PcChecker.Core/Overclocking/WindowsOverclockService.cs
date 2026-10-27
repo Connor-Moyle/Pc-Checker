@@ -264,16 +264,32 @@ public sealed partial class WindowsOverclockService : IOverclockService, IDispos
 
             bool touchesCpu = profile.CpuAllCoreRatio is not null || profile.CpuVoltageOffsetMv is not null || profile.CpuPowerLimitW is not null;
             bool cpuOk = true;
+            bool cpuStray = false;
             if (touchesCpu)
             {
-                var cpu = await ApplyCpuAsync(profile, session, cancellationToken).ConfigureAwait(false);
+                var (cpu, stray) = await ApplyCpuAsync(profile, session, cancellationToken).ConfigureAwait(false);
                 (cpu.Success ? messages : failures).Add(cpu.Message);
                 cpuOk = cpu.Success;
+                cpuStray = stray;
                 if (cpu.Success)
                 {
                     session.CpuTouched = true;
                     OverclockSessionStore.Save(SessionPath, session);
                 }
+            }
+
+            if (failures.Count > 0 && messages.Count == 0 && cpuStray)
+            {
+                // Nothing took, but a CPU setting could not be put back: keep the session file (with its XTU ids) so
+                // Reset and the watchdog can still undo it, and show the CPU values as possibly live.
+                var stuck = previousApplied.Clone();
+                KeepPossiblyLiveCpuValues(stuck, profile, previousApplied);
+                session.Profile = stuck.Clone();
+                OverclockSessionStore.Save(SessionPath, session);
+                _applied = stuck;
+                _settings.Current.Overclock.ActiveProfileName = previousActiveName;
+                await _settings.SaveAsync().ConfigureAwait(false);
+                return OperationResult.Fail(string.Join(" ", failures));
             }
 
             if (failures.Count > 0 && messages.Count == 0)
@@ -296,7 +312,8 @@ public sealed partial class WindowsOverclockService : IOverclockService, IDispos
             }
 
             // Record only what really took, sub-setting by sub-setting: a failed power or temperature limit keeps its
-            // previous value so the next apply re-sends it instead of believing it is already live. No CPU values when the CPU half failed.
+            // previous value so the next apply re-sends it instead of believing it is already live. When the CPU half
+            // failed, the CPU values stay at what was live before.
             var applied = profile.Clone();
             if (gpuOutcome is not null)
             {
@@ -322,11 +339,16 @@ public sealed partial class WindowsOverclockService : IOverclockService, IDispos
                 }
             }
 
-            if (!cpuOk)
+            if (cpuStray)
             {
-                applied.CpuAllCoreRatio = null;
-                applied.CpuVoltageOffsetMv = null;
-                applied.CpuPowerLimitW = null;
+                KeepPossiblyLiveCpuValues(applied, profile, previousApplied);
+            }
+            else if (!cpuOk)
+            {
+                // The CPU half failed and anything it wrote was put back: the previous CPU values are still live.
+                applied.CpuAllCoreRatio = previousApplied.CpuAllCoreRatio;
+                applied.CpuVoltageOffsetMv = previousApplied.CpuVoltageOffsetMv;
+                applied.CpuPowerLimitW = previousApplied.CpuPowerLimitW;
             }
 
             _applied = applied;
@@ -462,6 +484,17 @@ public sealed partial class WindowsOverclockService : IOverclockService, IDispos
         return OperationResult.Ok(problems.Count == 0 ? text : text + " Not changed: " + string.Join("; ", problems));
     }
 
+    /// <summary>
+    /// After a CPU apply that could not be fully put back, each CPU value may be the new one or the old one; show
+    /// whichever is set so the page never claims stock while something may still be live.
+    /// </summary>
+    private static void KeepPossiblyLiveCpuValues(OverclockProfile target, OverclockProfile profile, OverclockProfile previous)
+    {
+        target.CpuAllCoreRatio = profile.CpuAllCoreRatio ?? previous.CpuAllCoreRatio;
+        target.CpuVoltageOffsetMv = profile.CpuVoltageOffsetMv ?? previous.CpuVoltageOffsetMv;
+        target.CpuPowerLimitW = profile.CpuPowerLimitW ?? previous.CpuPowerLimitW;
+    }
+
     private static bool SameGpuSettings(OverclockProfile a, OverclockProfile b) =>
         a.GpuCoreOffsetMhz == b.GpuCoreOffsetMhz
         && a.GpuMemoryOffsetMhz == b.GpuMemoryOffsetMhz
@@ -469,7 +502,11 @@ public sealed partial class WindowsOverclockService : IOverclockService, IDispos
         && a.GpuTempLimitC == b.GpuTempLimitC
         && a.GpuFanPercent == b.GpuFanPercent;
 
-    private async Task<OperationResult> ApplyCpuAsync(OverclockProfile profile, OverclockSession session, CancellationToken cancellationToken)
+    /// <summary>
+    /// Applies the CPU half of a profile. <c>Stray</c> is true when a failure left a CPU setting changed that could not
+    /// be put back; the session file then still lists it so Reset and the watchdog can undo it.
+    /// </summary>
+    private async Task<(OperationResult Result, bool Stray)> ApplyCpuAsync(OverclockProfile profile, OverclockSession session, CancellationToken cancellationToken)
     {
         switch (_cpuTool.Method)
         {
@@ -478,74 +515,98 @@ public sealed partial class WindowsOverclockService : IOverclockService, IDispos
                 var list = await _xtu.ListTunablesAsync(cancellationToken).ConfigureAwait(false);
                 if (!list.Success || list.Value is null)
                 {
-                    return OperationResult.Fail(list.Message);
+                    return (OperationResult.Fail(list.Message), false);
                 }
 
+                bool wasTouched = session.CpuTouched;
+                var trackedBefore = session.XtuTunableIds.ToHashSet();
+                var written = new List<(XtuApplyStep Step, int Id)>();
                 var done = new List<string>();
-                if (profile.CpuAllCoreRatio is { } ratio)
+                foreach (var step in XtuApplyPlan.Build(profile, _applied))
                 {
-                    var r = await _xtu.SetByNameAsync(list.Value, XtuOutputParser.CoreRatioNames, IntelXtuCli.FormatRatio(ratio), cancellationToken).ConfigureAwait(false);
+                    var r = await _xtu.SetByNameAsync(list.Value, step.Names, step.Value, cancellationToken).ConfigureAwait(false);
                     if (!r.Success)
                     {
-                        return r.AsUntyped();
+                        // Do not leave half a profile live (a raised ratio without its planned voltage change).
+                        string? stray = await RollBackXtuAsync(written, session, trackedBefore, wasTouched).ConfigureAwait(false);
+                        return stray is null ? (r.AsUntyped(), false) : (OperationResult.Fail(r.Message + " " + stray), true);
                     }
 
-                    session.XtuTunableIds.Add(r.Value);
+                    // Recorded on disk at once, so Reset and the watchdog know about it even if a later step fails.
+                    written.Add((step, r.Value));
+                    if (!session.XtuTunableIds.Contains(r.Value))
+                    {
+                        session.XtuTunableIds.Add(r.Value);
+                    }
+
+                    session.CpuTouched = true;
+                    OverclockSessionStore.Save(SessionPath, session);
                     done.Add(r.Message);
                 }
 
-                if (profile.CpuVoltageOffsetMv is { } mv)
-                {
-                    var r = await _xtu.SetByNameAsync(list.Value, XtuOutputParser.VoltageOffsetNames, IntelXtuCli.FormatVoltageOffset(mv), cancellationToken).ConfigureAwait(false);
-                    if (!r.Success)
-                    {
-                        return r.AsUntyped();
-                    }
-
-                    session.XtuTunableIds.Add(r.Value);
-                    done.Add(r.Message);
-                }
-
-                if (profile.CpuPowerLimitW is { } w)
-                {
-                    var r = await _xtu.SetByNameAsync(list.Value, XtuOutputParser.PowerLimitNames, IntelXtuCli.FormatWatts(w), cancellationToken).ConfigureAwait(false);
-                    if (!r.Success)
-                    {
-                        return r.AsUntyped();
-                    }
-
-                    session.XtuTunableIds.Add(r.Value);
-                    done.Add(r.Message);
-                }
-
-                return OperationResult.Ok(string.Join(" ", done));
+                return (OperationResult.Ok(string.Join(" ", done)), false);
             }
 
             case CpuControlMethod.RyzenAdj when _cpuTool.ToolPath is not null:
             {
                 if (profile.CpuAllCoreRatio is not null || profile.CpuVoltageOffsetMv is not null)
                 {
-                    return OperationResult.Fail("ryzenadj can only change power limits. Set the ratio and voltage in the BIOS (PBO / Curve Optimizer).");
+                    return (OperationResult.Fail("ryzenadj can only change power limits. Set the ratio and voltage in the BIOS (PBO / Curve Optimizer)."), false);
                 }
 
                 if (profile.CpuPowerLimitW is not { } watts)
                 {
-                    return OperationResult.Ok("No CPU change requested.");
+                    return (OperationResult.Ok("No CPU change requested."), false);
                 }
 
                 var run = await PowerShellRunner.RunAsync($"& '{_cpuTool.ToolPath.Replace("'", "''")}' {CpuToolLocator.RyzenAdjArguments(watts)}", TimeSpan.FromSeconds(30), cancellationToken).ConfigureAwait(false);
                 return run.Success
-                    ? OperationResult.Ok($"CPU power limits set to {watts} W through ryzenadj. They stay in place until the next reboot; Reset cannot undo them.")
-                    : OperationResult.Fail("ryzenadj failed: " + (run.StdErr.Length > 0 ? run.StdErr : run.StdOut));
+                    ? (OperationResult.Ok($"CPU power limits set to {watts} W through ryzenadj. They stay in place until the next reboot; Reset cannot undo them."), false)
+                    : (OperationResult.Fail("ryzenadj failed: " + (run.StdErr.Length > 0 ? run.StdErr : run.StdOut)), false);
             }
 
             case CpuControlMethod.RyzenMaster:
             case CpuControlMethod.RyzenMasterCli:
-                return OperationResult.Fail("AMD does not publish a CPU tuning API. Open AMD Ryzen Master from this page to apply CPU settings.");
+                return (OperationResult.Fail("AMD does not publish a CPU tuning API. Open AMD Ryzen Master from this page to apply CPU settings."), false);
 
             default:
-                return OperationResult.Fail("No CPU tuning tool is installed; change CPU settings in the BIOS.");
+                return (OperationResult.Fail("No CPU tuning tool is installed; change CPU settings in the BIOS."), false);
         }
+    }
+
+    /// <summary>
+    /// Puts back, newest first, the XTU tunables an apply already wrote before a later step failed. Returns null when
+    /// everything went back (the session then forgets ids that only this apply added), or a message naming what could
+    /// not be put back (the session keeps those ids for Reset).
+    /// </summary>
+    private async Task<string?> RollBackXtuAsync(List<(XtuApplyStep Step, int Id)> written, OverclockSession session, HashSet<int> trackedBefore, bool wasTouched)
+    {
+        var failed = new List<string>();
+        for (int i = written.Count - 1; i >= 0; i--)
+        {
+            var (step, id) = written[i];
+            // Not cancellable: a half-applied CPU profile must not be left behind because the page was closed.
+            var undo = await _xtu!.SetByIdAsync(id, step.Setting, step.RollbackValue, CancellationToken.None).ConfigureAwait(false);
+            if (!undo.Success)
+            {
+                failed.Add(undo.Message);
+            }
+        }
+
+        if (failed.Count > 0)
+        {
+            _logger.LogWarning("XTU rollback after a failed CPU apply was incomplete: {Failures}", string.Join("; ", failed));
+            return "The CPU settings already changed could not all be put back (" + string.Join("; ", failed) + "). Use Reset to defaults on the Overclock page to return the CPU to stock.";
+        }
+
+        if (written.Count > 0)
+        {
+            session.XtuTunableIds.RemoveAll(id => !trackedBefore.Contains(id));
+            session.CpuTouched = wasTouched;
+            OverclockSessionStore.Save(SessionPath, session);
+        }
+
+        return null;
     }
 
     private async Task<OperationResult> ResetCoreAsync(CancellationToken cancellationToken)

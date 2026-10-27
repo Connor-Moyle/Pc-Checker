@@ -157,6 +157,28 @@ public class XtuOutputParserTests
     }
 }
 
+public class XtuApplyPlanTests
+{
+    [Fact]
+    public void Each_write_knows_how_to_put_back_what_was_live_before()
+    {
+        var previous = new OverclockProfile { CpuAllCoreRatio = 54 };
+        var profile = new OverclockProfile { CpuAllCoreRatio = 55, CpuVoltageOffsetMv = -50 };
+
+        var steps = XtuApplyPlan.Build(profile, previous);
+
+        Assert.Equal(2, steps.Count);
+        Assert.Same(XtuOutputParser.CoreRatioNames, steps[0].Names);
+        Assert.Equal(("55", "54"), (steps[0].Value, steps[0].RollbackValue));
+        Assert.Same(XtuOutputParser.VoltageOffsetNames, steps[1].Names);
+        Assert.Equal(("-0.050", XtuApplyPlan.Default), (steps[1].Value, steps[1].RollbackValue));
+    }
+
+    [Fact]
+    public void Stock_profile_over_stock_writes_nothing() =>
+        Assert.Empty(XtuApplyPlan.Build(OverclockProfile.Stock(), OverclockProfile.Stock()));
+}
+
 public class StressWorkloadTests
 {
     [Fact]

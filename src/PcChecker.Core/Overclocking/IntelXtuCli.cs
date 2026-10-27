@@ -46,14 +46,21 @@ public sealed class IntelXtuCli
             return OperationResult<int>.Fail($"This XTU version does not expose \"{names[0]}\" by a known name. Change it inside Intel XTU or the BIOS instead.");
         }
 
-        var run = await RunAsync($"-t -id {tunable.Id} -v {value}", cancellationToken).ConfigureAwait(false);
+        var set = await SetByIdAsync(tunable.Id, tunable.Name, value, cancellationToken).ConfigureAwait(false);
+        return set.Success ? OperationResult<int>.Ok(tunable.Id, set.Message) : OperationResult<int>.Fail(set.Message, set.Error);
+    }
+
+    /// <summary>Sets one tunable by id (for putting back a value this app wrote earlier); <paramref name="value"/> may be "default".</summary>
+    public async Task<OperationResult> SetByIdAsync(int id, string name, string value, CancellationToken cancellationToken)
+    {
+        var run = await RunAsync($"-t -id {id} -v {value}", cancellationToken).ConfigureAwait(false);
         if (!run.Success)
         {
-            return OperationResult<int>.Fail($"XTU rejected {tunable.Name} = {value}: {run.Message}", run.Error);
+            return OperationResult.Fail($"XTU rejected {name} = {value}: {run.Message}", run.Error);
         }
 
-        _logger.LogInformation("XTU tunable {Name} (id {Id}) set to {Value}.", tunable.Name, tunable.Id, value);
-        return OperationResult<int>.Ok(tunable.Id, $"{tunable.Name} set to {value}.");
+        _logger.LogInformation("XTU tunable {Name} (id {Id}) set to {Value}.", name, id, value);
+        return OperationResult.Ok($"{name} set to {value}.");
     }
 
     public async Task<OperationResult> ResetAsync(IEnumerable<int> tunableIds, CancellationToken cancellationToken)
