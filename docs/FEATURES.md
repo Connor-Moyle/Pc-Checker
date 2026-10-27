@@ -469,9 +469,52 @@ ToolBox).
   and volmgr events with each common event id explained.
 - **Open Disk Management**.
 
+#### Every drive, read correctly
+
+The drive list comes from one inventory shared with the Health check and the
+hardware overview. It joins MSFT_Disk, MSFT_PhysicalDisk and Win32_DiskDrive
+(by disk number, serial and size) so every drive appears once: SATA hard
+disks, SATA and NVMe SSDs, USB drives and USB bridges, SD cards, Storage
+Spaces (and the pool member drives Windows hides, marked *Pool member*),
+Intel RST / AMD RAID volumes, dynamic, offline and empty disks.
+
+- **Facts per drive**: capacity in both units, correctly labelled
+  ("4.00 TB (3.64 TiB)"), hard disk or SSD with the RPM of hard disks, the
+  connection and link speed ("SATA 6 Gb/s", "PCIe 4.0 x4", with a note when
+  the port runs slower than the drive can), serial (byte-swapped and
+  hex-encoded serials are fixed), firmware, partition style (GPT, MBR,
+  dynamic, not initialized), drive letters and partitions without a letter,
+  power state and Windows' own health status.
+- **Media type**: MediaType 3/4/5 (HDD/SSD/SCM); when Windows says
+  *Unspecified*, the NVMe bus, the seek penalty Windows measured, the
+  spindle speed (0 = SSD) and the ATA rotation rate decide.
+- **SMART**: read per drive (SMART_RCV_DRIVE_DATA, ATA pass-through, SAT
+  pass-through for USB enclosures, the NVMe health log). Raw values are
+  decoded per maker: power-on hours from the low 32 bits (Seagate keeps
+  milliseconds above), Seagate's packed command timeouts (188) and read/seek
+  error rates (1, 7), temperatures from the low byte only. The table shows
+  value, worst, the drive's own threshold, the decoded raw value and a
+  status (OK, Watch, Below threshold, Failed).
+- **Verdict**: *Good*, *Caution* or *Bad* with the reason in one sentence.
+  Caution for any reallocated, pending or offline-uncorrectable sector, spin
+  retries, reported uncorrectable errors, CRC errors (with "check the
+  cable"), 70 % SSD wear or a warm drive; Bad when the drive predicts its own
+  failure, a pre-fail attribute crosses its threshold, there are many bad
+  sectors, 90 % wear, or an NVMe critical warning. When there is no reading
+  the page says why: the USB enclosure blocks SMART, the RAID driver hides it
+  (use Intel RST or AMD RAIDXpert), a storage space has no SMART of its own.
+- **Sleeping drives stay asleep**: a hard disk that has spun down is never
+  woken by a routine refresh, by the Health check or by the hardware monitor.
+  It shows *Asleep, last reading at …* with the last reading (kept between
+  runs). *Wake and read* asks first.
+- Right-click a drive for *Copy details* (Ctrl+C), *Read now*, Disk
+  Management and Refresh (F5).
+
 Limitations: a full scan of a large HDD takes hours; the page says so and
 suggests *Quick* first. Everything that writes (check disk, repair, optimize)
-is confirmed first.
+is confirmed first. SMART of drives inside a Storage Spaces pool or behind a
+RAID driver cannot be read directly; some USB enclosures block SMART
+entirely.
 
 ### Memory
 

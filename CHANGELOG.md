@@ -7,6 +7,18 @@ All notable changes to PC Checker are recorded here. The format follows
 ## [Unreleased]
 
 ### Added
+- **Every hard drive and SSD read correctly** (Hardware → Storage): one drive
+  inventory, shared with the Health check and the hardware overview, lists
+  every drive once: SATA and NVMe, USB drives and bridges, SD cards, Storage
+  Spaces with their hidden pool members, RAID volumes, dynamic, offline and
+  empty disks. Each drive shows capacity in TB and TiB, HDD or SSD (with the
+  RPM of hard disks, also when Windows says *Unspecified*), link speed,
+  serial (byte-swapped serials fixed), firmware, partition style and drive
+  letters, the SMART table with raw values decoded per maker, and a Good /
+  Caution / Bad verdict with the reason. USB enclosures are read through SAT
+  pass-through, or the page says the enclosure blocks SMART. Sleeping hard
+  disks are never woken for routine checks: they show *Asleep, last reading
+  at …*, and *Wake and read* asks first.
 - **PawnIO from inside the app**: the welcome has a ticked *Install PawnIO*
   choice, later starts ask once when the sensor driver is missing (*Install*,
   *Not now* for a week, or *Don't ask again*), and Settings → Monitoring has
