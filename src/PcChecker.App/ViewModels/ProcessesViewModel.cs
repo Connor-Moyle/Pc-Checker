@@ -21,7 +21,7 @@ public sealed partial class ProcessesViewModel : ViewModelBase
 {
     private static readonly TimeSpan RefreshInterval = TimeSpan.FromSeconds(2);
     private static readonly TimeSpan FirstSampleGap = TimeSpan.FromMilliseconds(700);
-    private const int IconsPerRefresh = 24;
+    private const int IconsPerRefresh = 12;
 
     private readonly IProcessService _processes;
     private readonly IDialogService _dialogs;
@@ -33,6 +33,7 @@ public sealed partial class ProcessesViewModel : ViewModelBase
     private readonly string _windowsDirectory = WindowsDirectory();
     private DispatcherTimer? _timer;
     private bool _sampling;
+    private bool _needsBaseline;
     private ProcessSnapshot _last = ProcessSnapshot.Empty;
 
     [ObservableProperty]
@@ -50,6 +51,7 @@ public sealed partial class ProcessesViewModel : ViewModelBase
     private bool _groupByApp;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowFlaggedToggle))]
     private bool _showFlaggedOnly;
 
     [ObservableProperty]
@@ -95,6 +97,7 @@ public sealed partial class ProcessesViewModel : ViewModelBase
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasFlagged))]
     [NotifyPropertyChangedFor(nameof(FlaggedTitle))]
+    [NotifyPropertyChangedFor(nameof(ShowFlaggedToggle))]
     private int _flaggedCount;
 
     [ObservableProperty]
@@ -121,6 +124,9 @@ public sealed partial class ProcessesViewModel : ViewModelBase
     public bool HasSelection => SelectedRow is not null;
 
     public bool HasFlagged => FlaggedCount > 0;
+
+    /// <summary>The "Only flagged" switch stays visible while it is on, so the filter can be cleared after the last flagged process ends.</summary>
+    public bool ShowFlaggedToggle => HasFlagged || ShowFlaggedOnly;
 
     public bool HasWarning => !string.IsNullOrWhiteSpace(WarningText);
 
@@ -156,6 +162,10 @@ public sealed partial class ProcessesViewModel : ViewModelBase
         _timer = new DispatcherTimer(DispatcherPriority.Background) { Interval = RefreshInterval };
         _timer.Tick += OnTick;
         _timer.Start();
+        if (_needsBaseline && !IsPaused && IsInitialized)
+        {
+            _ = SampleNowAsync();
+        }
     }
 
     /// <summary>Called by the page when it is hidden: nothing is read in the background.</summary>
@@ -169,6 +179,7 @@ public sealed partial class ProcessesViewModel : ViewModelBase
         _timer.Stop();
         _timer.Tick -= OnTick;
         _timer = null;
+        _needsBaseline = true;
     }
 
     /// <summary>Column header clicked: same column flips the direction, a new column starts with its natural direction.</summary>
@@ -198,7 +209,11 @@ public sealed partial class ProcessesViewModel : ViewModelBase
     {
         IsPaused = !IsPaused;
         UpdateStatus();
-        if (!IsPaused)
+        if (IsPaused)
+        {
+            _needsBaseline = true;
+        }
+        else
         {
             _ = SampleNowAsync();
         }
@@ -248,6 +263,16 @@ public sealed partial class ProcessesViewModel : ViewModelBase
         _sampling = true;
         try
         {
+            if (_needsBaseline)
+            {
+                // After a pause or while the page was hidden the last reading is old: rates against it would be averages
+                // over that whole time. Start a new baseline and measure a short interval instead.
+                _needsBaseline = false;
+                _processes.ResetRates();
+                await _processes.SampleAsync(CancellationToken.None);
+                await Task.Delay(FirstSampleGap);
+            }
+
             Apply(await _processes.SampleAsync(CancellationToken.None));
         }
         catch (Exception ex)

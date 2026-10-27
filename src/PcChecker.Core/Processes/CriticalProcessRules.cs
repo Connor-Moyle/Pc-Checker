@@ -31,6 +31,10 @@ public static class CriticalProcessRules
         "lsaiso",
     };
 
+    /// <summary>Reason given when Windows itself marks the process critical (checked at the moment of acting).</summary>
+    public const string MarkedCriticalReason =
+        "Windows marks this process as critical: ending it would stop the PC with a blue screen, so PC Checker leaves it alone.";
+
     /// <summary>True when ending or changing this process is never offered.</summary>
     public static bool IsCritical(string? name, int pid, int ownPid) => Reason(name, pid, ownPid) is not null;
 

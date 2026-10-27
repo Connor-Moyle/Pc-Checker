@@ -25,7 +25,7 @@ public sealed partial class ProcessesViewModel
     [RelayCommand(CanExecute = nameof(CanEndSelected))]
     private async Task EndTaskAsync()
     {
-        if (SelectedRow is not { Process: { } process } row || !row.CanEnd)
+        if (IsBusy || SelectedRow is not { Process: { } process } row || !row.CanEnd)
         {
             return;
         }
@@ -45,14 +45,14 @@ public sealed partial class ProcessesViewModel
             return;
         }
 
-        await RunActionAsync(() => _processes.EndProcessAsync(process, includeChildren: false, CancellationToken.None),
-            Loc.T("Program ended"), Loc.F("Could not end {0}", process.Name));
+        await RunActionAsync(ct => _processes.EndProcessAsync(process, includeChildren: false, ct),
+            Loc.T("Program ended"), Loc.F("Could not end {0}", process.Name), Loc.F("Ending {0}\u2026", process.Name));
     }
 
     [RelayCommand(CanExecute = nameof(CanEndTree))]
     private async Task EndTreeAsync()
     {
-        if (SelectedRow is not { Process: { } process } row || !row.CanEnd || row.IsGroup)
+        if (IsBusy || SelectedRow is not { Process: { } process } row || !row.CanEnd || row.IsGroup)
         {
             return;
         }
@@ -77,14 +77,14 @@ public sealed partial class ProcessesViewModel
             return;
         }
 
-        await RunActionAsync(() => _processes.EndProcessAsync(process, includeChildren: true, CancellationToken.None),
-            Loc.T("Process tree ended"), Loc.F("Could not end {0}", process.Name));
+        await RunActionAsync(ct => _processes.EndProcessAsync(process, includeChildren: true, ct),
+            Loc.T("Process tree ended"), Loc.F("Could not end {0}", process.Name), Loc.F("Ending {0} and the programs it started\u2026", process.Name));
     }
 
     [RelayCommand(CanExecute = nameof(CanSetPriority))]
     private async Task SetPriorityAsync(ProcessPriority priority)
     {
-        if (SelectedRow is not { Process: { } process } row || !row.CanEnd || row.IsGroup)
+        if (IsBusy || SelectedRow is not { Process: { } process } row || !row.CanEnd || row.IsGroup)
         {
             return;
         }
@@ -95,10 +95,10 @@ public sealed partial class ProcessesViewModel
             return;
         }
 
-        string label = Loc.T(PriorityRules.Label(priority));
+        string label = PriorityLabel(priority);
         string message = Loc.F("Priority decides which program gets the processor first when the PC is busy. {0} is now at {1}.",
-                             process.Name, Loc.T(PriorityRules.Label(process.Priority)))
-                         + (PriorityRules.Warning(priority) is { } warning ? "\n\n" + Loc.T(warning) : string.Empty)
+                             process.Name, PriorityLabel(process.Priority))
+                         + (PriorityWarning(priority) is { } warning ? "\n\n" + warning : string.Empty)
                          + "\n\n" + Loc.T("Windows sets it back to normal when the program restarts.") + " " + JournalNote;
         bool risky = priority is ProcessPriority.Realtime;
         if (!await _dialogs.ConfirmAsync(Loc.F("Set {0} to {1} priority?", process.Name, label), message, Loc.T("Set priority"), isDanger: risky))
@@ -106,8 +106,8 @@ public sealed partial class ProcessesViewModel
             return;
         }
 
-        await RunActionAsync(() => _processes.SetPriorityAsync(process, priority, IsAdvancedMode, CancellationToken.None),
-            Loc.T("Priority changed"), Loc.F("Could not change the priority of {0}", process.Name));
+        await RunActionAsync(ct => _processes.SetPriorityAsync(process, priority, IsAdvancedMode, ct),
+            Loc.T("Priority changed"), Loc.F("Could not change the priority of {0}", process.Name), Loc.T("Changing the priority\u2026"));
     }
 
     [RelayCommand(CanExecute = nameof(HasFile))]
@@ -170,7 +170,7 @@ public sealed partial class ProcessesViewModel
             foreach (var member in members.OrderByDescending(m => m.StartTime))
             {
                 ct.ThrowIfCancellationRequested();
-                var result = await _processes.EndProcessAsync(member, includeChildren: false, CancellationToken.None);
+                var result = await _processes.EndProcessAsync(member, includeChildren: false, ct);
                 if (result.Success)
                 {
                     ended++;
@@ -193,28 +193,60 @@ public sealed partial class ProcessesViewModel
         await SampleNowAsync();
     }
 
-    private async Task RunActionAsync(Func<Task<OperationResult>> action, string successTitle, string failureTitle)
+    /// <summary>
+    /// Runs one action behind the busy overlay (progress text, Cancel, no second start meanwhile) and reports the
+    /// result. Cancel stops before the next process of a tree; a process already ended stays ended.
+    /// </summary>
+    private async Task RunActionAsync(Func<CancellationToken, Task<OperationResult>> action, string successTitle, string failureTitle, string busyText)
     {
-        try
+        await RunBusyAsync(async ct =>
         {
-            var result = await action();
-            if (result.Success)
+            try
             {
-                _notifications.Success(successTitle, result.Message);
+                var result = await action(ct);
+                if (result.Success)
+                {
+                    _notifications.Success(successTitle, result.Message);
+                }
+                else
+                {
+                    _notifications.Error(failureTitle, result.Message);
+                }
             }
-            else
+            catch (OperationCanceledException)
             {
-                _notifications.Error(failureTitle, result.Message);
+                throw;
             }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Process action failed.");
-            _notifications.Error(failureTitle, ex.Message);
-        }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Process action failed.");
+                _notifications.Error(failureTitle, ex.Message);
+            }
+        }, busyText);
 
         await SampleNowAsync();
     }
+
+    /// <summary>Translatable priority name (literal strings so the extractor collects them).</summary>
+    internal static string PriorityLabel(ProcessPriority? priority) => priority switch
+    {
+        ProcessPriority.Idle => Loc.T("Low"),
+        ProcessPriority.BelowNormal => Loc.T("Below normal"),
+        ProcessPriority.Normal => Loc.T("Normal"),
+        ProcessPriority.AboveNormal => Loc.T("Above normal"),
+        ProcessPriority.High => Loc.T("High"),
+        ProcessPriority.Realtime => Loc.T("Realtime"),
+        _ => Loc.T("Unknown"),
+    };
+
+    /// <summary>Translatable warning for the confirmation dialog; same text as <see cref="PriorityRules.Warning"/>.</summary>
+    private static string? PriorityWarning(ProcessPriority priority) => priority switch
+    {
+        ProcessPriority.Realtime => Loc.T("Realtime puts this program ahead of Windows itself, including the mouse, keyboard and disk. A busy program at Realtime can freeze the whole PC until it is restarted. Only use it for a short test."),
+        ProcessPriority.High => Loc.T("High priority can make other programs, sound and the mouse stutter while this program is busy."),
+        ProcessPriority.Idle => Loc.T("Low priority means the program only gets the processor when nothing else wants it, so it may run much slower."),
+        _ => null,
+    };
 
     private static string WindowsComponentWarning(RunningProcessRow row) =>
         row.Entry?.Category is ProcessCatalog.Windows or ProcessCatalog.Security

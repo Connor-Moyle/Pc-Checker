@@ -33,6 +33,7 @@ public sealed partial class WindowsProcessService : IProcessService, IDisposable
     private int _gpuFailures;
     private (long Idle, long Kernel, long User)? _systemTimes;
     private int _signatureWorkerRunning;
+    private int _resetRequested;
 
     public WindowsProcessService(IChangeGuard guard, ILogger<WindowsProcessService> logger)
     {
@@ -41,6 +42,8 @@ public sealed partial class WindowsProcessService : IProcessService, IDisposable
     }
 
     public int OwnProcessId { get; } = Environment.ProcessId;
+
+    public void ResetRates() => Interlocked.Exchange(ref _resetRequested, 1);
 
     public async Task<ProcessSnapshot> SampleAsync(CancellationToken cancellationToken)
     {
@@ -62,6 +65,14 @@ public sealed partial class WindowsProcessService : IProcessService, IDisposable
 
     private ProcessSnapshot Sample(CancellationToken cancellationToken)
     {
+        // Runs under the sample gate, so the reset never races a reading in progress.
+        if (Interlocked.Exchange(ref _resetRequested, 0) == 1)
+        {
+            _rates.Reset();
+            _gpuPrevious = new Dictionary<string, CounterSample>(StringComparer.Ordinal);
+            _systemTimes = null;
+        }
+
         var warnings = new List<string>();
         var entries = ProcessNative.EnumerateProcesses();
         if (entries.Count == 0)

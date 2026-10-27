@@ -68,6 +68,23 @@ public class ProcessesTests
     }
 
     [Fact]
+    public void Rate_tracker_reset_starts_a_new_baseline_instead_of_averaging_over_a_pause()
+    {
+        var tracker = new ProcessRateTracker();
+        tracker.Update([C(10, TimeSpan.FromSeconds(1), read: 0)], T0, 1);
+
+        // A long pause: without a reset the next reading would average 50 s of CPU over 100 s.
+        tracker.Reset();
+        Assert.Equal(0, tracker.Count);
+        var baseline = tracker.Update([C(10, TimeSpan.FromSeconds(51), read: 1_000_000)], T0.AddSeconds(100), 1);
+        Assert.Equal(ProcessRates.Zero, baseline.Values.Single());
+
+        var fresh = tracker.Update([C(10, TimeSpan.FromSeconds(51.5), read: 1_002_000)], T0.AddSeconds(101), 1);
+        Assert.Equal(50, fresh.Values.Single().CpuPercent, 3);
+        Assert.Equal(2000, fresh.Values.Single().ReadBytesPerSecond, 3);
+    }
+
+    [Fact]
     public void Gpu_engines_are_summed_per_process_and_capped()
     {
         var sums = ProcessMath.SumGpuByPid(
@@ -280,6 +297,21 @@ public class ProcessesTests
         }
 
         Assert.Null(PriorityRules.FromPriorityClass(0));
+    }
+
+    [Fact]
+    public void Priority_message_reports_the_class_windows_actually_applied()
+    {
+        string granted = PriorityRules.ResultMessage("game.exe", ProcessPriority.Realtime, ProcessPriority.Realtime, "Normal");
+        Assert.StartsWith("game.exe now runs at Realtime priority (was Normal).", granted);
+
+        // Without the scheduling privilege Windows quietly picks High instead of Realtime.
+        string downgraded = PriorityRules.ResultMessage("game.exe", ProcessPriority.Realtime, ProcessPriority.High, "Normal");
+        Assert.StartsWith("Windows set game.exe to High instead of Realtime priority", downgraded);
+        Assert.DoesNotContain("now runs at Realtime", downgraded);
+
+        // Read-back unknown: report what was asked for.
+        Assert.Contains("now runs at Low priority", PriorityRules.ResultMessage("x.exe", ProcessPriority.Idle, null, "Normal"));
     }
 
     [Fact]

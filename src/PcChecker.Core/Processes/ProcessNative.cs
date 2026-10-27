@@ -22,6 +22,7 @@ internal static class ProcessNative
     private const int ErrorAccessDenied = 5;
     private const int ErrorInvalidParameter = 87;
     private static readonly IntPtr InvalidHandleValue = new(-1);
+    private static readonly uint MemoryCountersExSize = (uint)Marshal.OffsetOf<ProcessMemoryCountersEx2>(nameof(ProcessMemoryCountersEx2.PrivateWorkingSetSize));
 
     /// <summary>One line of the Toolhelp process list.</summary>
     internal readonly record struct ProcessEntry(int Pid, int ParentPid, string Name);
@@ -32,6 +33,7 @@ internal static class ProcessNative
     internal enum EndOutcome
     {
         Ended,
+        Critical,
         AlreadyExited,
         AccessDenied,
         StillRunning,
@@ -106,7 +108,16 @@ internal static class ProcessNative
 
             long privateBytes = 0;
             var memory = new ProcessMemoryCountersEx2 { cb = (uint)Marshal.SizeOf<ProcessMemoryCountersEx2>() };
-            if (K32GetProcessMemoryInfo(handle, ref memory, memory.cb))
+            bool gotMemory = K32GetProcessMemoryInfo(handle, ref memory, memory.cb);
+            if (!gotMemory)
+            {
+                // Windows builds from before PROCESS_MEMORY_COUNTERS_EX2 reject its size; ask for the EX layout instead
+                // (the same structure without the last two fields, which then stay zero).
+                memory = new ProcessMemoryCountersEx2 { cb = MemoryCountersExSize };
+                gotMemory = K32GetProcessMemoryInfo(handle, ref memory, memory.cb);
+            }
+
+            if (gotMemory)
             {
                 // PrivateWorkingSetSize is what Task Manager shows as "Memory"; older builds leave it at zero.
                 ulong value = (ulong)memory.PrivateWorkingSetSize;
@@ -236,6 +247,13 @@ internal static class ProcessNative
                 return (EndOutcome.AlreadyExited, 0);
             }
 
+            // Windows marks some processes critical (for example a svchost hosting DcomLaunch or RpcSs): ending one
+            // stops the PC. Refuse those even when their name is not on the fixed list.
+            if (IsCritical(handle) == true)
+            {
+                return (EndOutcome.Critical, 0);
+            }
+
             if (!TerminateProcess(handle, 1))
             {
                 int error = Marshal.GetLastWin32Error();
@@ -258,8 +276,11 @@ internal static class ProcessNative
         }
     }
 
-    /// <summary>Sets the priority class if the process is still the same run. Returns the previous class (0 when unknown).</summary>
-    public static (bool Ok, int Error, uint Previous) SetPriority(int pid, long expectedCreationFileTime, uint priorityClass)
+    /// <summary>
+    /// Sets the priority class if the process is still the same run. Returns the previous class and the class Windows
+    /// actually applied (0 when unknown).
+    /// </summary>
+    public static (bool Ok, int Error, uint Previous, uint Applied) SetPriority(int pid, long expectedCreationFileTime, uint priorityClass)
     {
         IntPtr handle = IntPtr.Zero;
         try
@@ -267,20 +288,26 @@ internal static class ProcessNative
             handle = OpenProcess(ProcessSetInformation | ProcessQueryLimitedInformation, false, (uint)pid);
             if (handle == IntPtr.Zero)
             {
-                return (false, Marshal.GetLastWin32Error(), 0);
+                return (false, Marshal.GetLastWin32Error(), 0, 0);
             }
 
             if (!GetProcessTimes(handle, out long created, out _, out _, out _) || created != expectedCreationFileTime)
             {
-                return (false, ErrorInvalidParameter, 0);
+                return (false, ErrorInvalidParameter, 0, 0);
             }
 
             uint previous = GetPriorityClass(handle);
-            return SetPriorityClass(handle, priorityClass) ? (true, 0, previous) : (false, Marshal.GetLastWin32Error(), previous);
+            if (!SetPriorityClass(handle, priorityClass))
+            {
+                return (false, Marshal.GetLastWin32Error(), previous, 0);
+            }
+
+            // Without the "increase scheduling priority" privilege Windows quietly picks High instead of Realtime.
+            return (true, 0, previous, GetPriorityClass(handle));
         }
         catch (Exception ex)
         {
-            return (false, ex.HResult, 0);
+            return (false, ex.HResult, 0, 0);
         }
         finally
         {
@@ -288,6 +315,43 @@ internal static class ProcessNative
             {
                 CloseHandle(handle);
             }
+        }
+    }
+
+    /// <summary>
+    /// True when Windows marks the process critical (ending it stops the PC), null when that cannot be read. Uses
+    /// IsProcessCritical (Windows 8.1 and later), which needs only limited query rights.
+    /// </summary>
+    public static bool? IsCriticalProcess(int pid)
+    {
+        IntPtr handle = IntPtr.Zero;
+        try
+        {
+            handle = OpenProcess(ProcessQueryLimitedInformation, false, (uint)pid);
+            return handle == IntPtr.Zero ? null : IsCritical(handle);
+        }
+        catch
+        {
+            return null;
+        }
+        finally
+        {
+            if (handle != IntPtr.Zero)
+            {
+                CloseHandle(handle);
+            }
+        }
+    }
+
+    private static bool? IsCritical(IntPtr handle)
+    {
+        try
+        {
+            return IsProcessCritical(handle, out bool critical) ? critical : null;
+        }
+        catch
+        {
+            return null;
         }
     }
 
@@ -414,6 +478,10 @@ internal static class ProcessNative
 
     [DllImport("kernel32.dll", SetLastError = true)]
     private static extern uint GetPriorityClass(IntPtr process);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool IsProcessCritical(IntPtr process, [MarshalAs(UnmanagedType.Bool)] out bool critical);
 
     [DllImport("kernel32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]

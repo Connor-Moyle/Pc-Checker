@@ -131,7 +131,9 @@ follows, so you know what to expect and contributors know what to build.
   services, lsass and PC Checker itself are never offered. *End process
   tree* leaves such processes running if they appear in the tree, and only
   counts a process as a child when it started after its parent (Windows
-  reuses process ids).
+  reuses process ids). Any other process that Windows itself marks as
+  critical (for example a svchost hosting DCOM or RPC) is also refused at the
+  moment of ending it.
 - Before ending or re-prioritising, the app checks that the process id still
   belongs to the same run of the program (same start time).
 - Realtime priority is only offered in Advanced mode, with a warning that it

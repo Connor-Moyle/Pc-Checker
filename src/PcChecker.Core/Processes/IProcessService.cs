@@ -15,6 +15,12 @@ public interface IProcessService
     Task<ProcessSnapshot> SampleAsync(CancellationToken cancellationToken);
 
     /// <summary>
+    /// Forgets the previous reading, so the next <see cref="SampleAsync"/> starts a new baseline (zero rates) instead of
+    /// averaging over a pause or the time the page was hidden.
+    /// </summary>
+    void ResetRates();
+
+    /// <summary>
     /// Ends the process (and, with <paramref name="includeChildren"/>, the processes it started). Critical Windows
     /// processes and PC Checker itself are refused. Journaled through the change guard without a restore point.
     /// </summary>

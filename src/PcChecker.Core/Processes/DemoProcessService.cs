@@ -39,6 +39,11 @@ public sealed class DemoProcessService : IProcessService
         }
     }
 
+    /// <summary>Demo values are generated fresh on every sample, so there is no baseline to forget.</summary>
+    public void ResetRates()
+    {
+    }
+
     public async Task<OperationResult> EndProcessAsync(ProcessInfo process, bool includeChildren, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(process);

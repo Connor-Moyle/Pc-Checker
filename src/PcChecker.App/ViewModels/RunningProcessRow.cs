@@ -172,7 +172,7 @@ public sealed partial class RunningProcessRow : ObservableObject
             ? start.ToLocalTime().ToString("f", CultureInfo.CurrentCulture) + " (" + ProcessText.Age(start, now) + ")"
             : string.Empty;
         PathText = process.Path is { } path && ProcessSuspicionRules.IsFullPath(path) ? path : string.Empty;
-        PriorityText = entry.IsGroup ? "—" : PriorityRules.Label(process.Priority);
+        PriorityText = entry.IsGroup ? "—" : ProcessesViewModel.PriorityLabel(process.Priority);
         ParentText = entry.IsGroup ? "—" : process.ParentPid.ToString(CultureInfo.InvariantCulture);
         IsFlagged = Flags.Count > 0;
         FlagText = IsFlagged ? string.Join("\n", Flags) : null;

@@ -55,11 +55,11 @@ public sealed partial class WindowsProcessService
 
         return _guard.RunGuardedAsync($"Set priority of {target} to {label}", options, _ => Task.Run(() =>
         {
-            var (ok, error, previous) = ProcessNative.SetPriority(process.Pid, process.StartTime!.Value.ToFileTime(), PriorityRules.ToPriorityClass(priority));
+            var (ok, error, previous, applied) = ProcessNative.SetPriority(process.Pid, process.StartTime!.Value.ToFileTime(), PriorityRules.ToPriorityClass(priority));
             if (ok)
             {
                 string was = PriorityRules.Label(PriorityRules.FromPriorityClass(previous) ?? process.Priority);
-                return OperationResult.Ok($"{process.Name} now runs at {label} priority (was {was}). It goes back to normal when the program restarts.");
+                return OperationResult.Ok(PriorityRules.ResultMessage(process.Name, priority, PriorityRules.FromPriorityClass(applied), was));
             }
 
             return OperationResult.Fail(error switch
@@ -79,6 +79,9 @@ public sealed partial class WindowsProcessService
             return OperationResult.Fail($"The program file of {process.Name} is not known or no longer exists.");
         }
 
+        // Explorer only understands /select with the path glued on as one argument, /select,"C:\path\file.exe", which
+        // ArgumentList cannot produce (it would quote the whole token). The path is a fully qualified existing file, and
+        // Windows file names cannot contain a quote, so it cannot break out of the quotes.
         return ShellLauncher.Open("explorer.exe", $"/select,\"{process.Path}\"");
     }
 
@@ -96,9 +99,13 @@ public sealed partial class WindowsProcessService
             return reason;
         }
 
-        return process.StartTime is null
-            ? $"PC Checker cannot tell {process.Name} apart from a newer process with the same ID, so it leaves it alone. Use Task Manager if you need to end it."
-            : null;
+        if (process.StartTime is null)
+        {
+            return $"PC Checker cannot tell {process.Name} apart from a newer process with the same ID, so it leaves it alone. Use Task Manager if you need to end it.";
+        }
+
+        // The name list covers the well-known ones; Windows also flags others (such as some svchost hosts) as critical.
+        return ProcessNative.IsCriticalProcess(process.Pid) == true ? CriticalProcessRules.MarkedCriticalReason : null;
     }
 
     private OperationResult EndCore(ProcessInfo process, bool includeChildren, CancellationToken cancellationToken)
@@ -153,6 +160,9 @@ public sealed partial class WindowsProcessService
                 case ProcessNative.EndOutcome.AccessDenied:
                     problems.Add($"Windows refused to end {target.Name} (PID {target.Pid})");
                     break;
+                case ProcessNative.EndOutcome.Critical:
+                    skipped.Add(target.Name);
+                    break;
                 default:
                     problems.Add($"{target.Name} (PID {target.Pid}) could not be ended (error {error})");
                     break;
@@ -169,6 +179,7 @@ public sealed partial class WindowsProcessService
                 OperationResult.Ok((includeChildren && ended > 1 ? $"{process.Name} and {ended - 1} process(es) it started were ended." : $"{process.Name} was ended.") + notes),
             ProcessNative.EndOutcome.AlreadyExited => OperationResult.Ok($"{process.Name} had already closed." + notes),
             ProcessNative.EndOutcome.AccessDenied => OperationResult.Fail($"Windows refused to end {process.Name}. It is protected or belongs to another account." + notes),
+            ProcessNative.EndOutcome.Critical => OperationResult.Fail(CriticalProcessRules.MarkedCriticalReason + notes),
             _ => OperationResult.Fail($"{process.Name} could not be ended." + notes),
         };
     }

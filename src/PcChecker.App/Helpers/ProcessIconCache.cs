@@ -9,7 +9,8 @@ namespace PcChecker.App.Helpers;
 
 /// <summary>
 /// Small program icons for the process list, read with SHGetFileInfo and cached per file (including misses). Callers
-/// pass a budget so only a few new icons are read per refresh; the rest appear on the next ones. UI thread only.
+/// pass a budget so only a few new icons are read per refresh; the rest appear on the next ones. Only files on local
+/// fixed or removable drives are read, so a slow or offline network share never blocks the UI thread. UI thread only.
 /// </summary>
 internal sealed class ProcessIconCache
 {
@@ -18,6 +19,7 @@ internal sealed class ProcessIconCache
     private const int MaxEntries = 2048;
 
     private readonly Dictionary<string, ImageSource?> _icons = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, bool> _localRoots = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>The icon of <paramref name="path"/>, or null when unknown, not loaded yet or the budget is spent.</summary>
     public ImageSource? Get(string? path, ref int budget)
@@ -37,10 +39,48 @@ internal sealed class ProcessIconCache
             return null;
         }
 
+        if (!IsLocal(path))
+        {
+            _icons[path] = null;
+            return null;
+        }
+
         budget--;
         var icon = Load(path);
         _icons[path] = icon;
         return icon;
+    }
+
+    /// <summary>True for a path on a local fixed or removable drive (not UNC, not a mapped network drive); cached per root.</summary>
+    private bool IsLocal(string path)
+    {
+        if (path.StartsWith(@"\\", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        string? root = Path.GetPathRoot(path);
+        if (string.IsNullOrEmpty(root))
+        {
+            return false;
+        }
+
+        if (!_localRoots.TryGetValue(root, out bool local))
+        {
+            try
+            {
+                // DriveType comes from GetDriveType, which does not touch the network.
+                local = new DriveInfo(root).DriveType is DriveType.Fixed or DriveType.Removable;
+            }
+            catch
+            {
+                local = false;
+            }
+
+            _localRoots[root] = local;
+        }
+
+        return local;
     }
 
     private static ImageSource? Load(string path)

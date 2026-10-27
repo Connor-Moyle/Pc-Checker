@@ -231,7 +231,7 @@
               </StackPanel>
               <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top">
                 <ui:ToggleSwitch Content="Only flagged" IsChecked="{Binding ShowFlaggedOnly}" Margin="0,0,16,0" VerticalAlignment="Center"
-                                 Visibility="{Binding HasFlagged, Converter={StaticResource BoolToVisibility}}"
+                                 Visibility="{Binding ShowFlaggedToggle, Converter={StaticResource BoolToVisibility}}"
                                  ToolTip="Show only the processes marked as worth a closer look" />
                 <ui:ToggleSwitch Content="Group by app" IsChecked="{Binding GroupByApp}" Margin="0,0,16,0" VerticalAlignment="Center"
                                  ToolTip="Put all processes of the same program under one line with their totals" />

@@ -38,6 +38,22 @@ public static class PriorityRules
         _ => null,
     };
 
+    /// <summary>
+    /// Message after a successful change. <paramref name="applied"/> is the class read back from Windows (null when it
+    /// could not be read); when it differs from <paramref name="requested"/> (Realtime without the privilege becomes
+    /// High) the message says what was actually set.
+    /// </summary>
+    public static string ResultMessage(string name, ProcessPriority requested, ProcessPriority? applied, string previousLabel)
+    {
+        const string Restart = "It goes back to normal when the program restarts.";
+        if (applied is { } actual && actual != requested)
+        {
+            return $"Windows set {name} to {Label(actual)} instead of {Label(requested)} priority (was {previousLabel}). {Restart}";
+        }
+
+        return $"{name} now runs at {Label(requested)} priority (was {previousLabel}). {Restart}";
+    }
+
     /// <summary>Maps a Windows priority-class value (GetPriorityClass) to <see cref="ProcessPriority"/>.</summary>
     public static ProcessPriority? FromPriorityClass(uint value) => value switch
     {
