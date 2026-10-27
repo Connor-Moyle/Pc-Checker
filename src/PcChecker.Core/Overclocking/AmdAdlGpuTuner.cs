@@ -230,7 +230,7 @@ public sealed class AmdAdlGpuTuner : IGpuTuner
     public OperationResult SetFan(int? percent) =>
         OperationResult.Fail("AMD fan control goes through the Fans page (shared hardware monitor), not Overdrive8.");
 
-    public OperationResult Reset()
+    public OperationResult Reset(bool resetFan)
     {
         if (Method == GpuControlMethod.None)
         {

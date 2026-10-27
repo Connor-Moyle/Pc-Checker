@@ -40,5 +40,10 @@ public interface IGpuTuner : IDisposable
     /// <summary>Fixed fan speed, or null to return the fan to automatic control.</summary>
     OperationResult SetFan(int? percent);
 
-    OperationResult Reset();
+    /// <summary>
+    /// Returns clocks, power and temperature limits to stock. Fans are only returned to automatic control when
+    /// <paramref name="resetFan"/> is true, i.e. when the overclock profile itself fixed them; otherwise they are left
+    /// to whoever owns them (the Fans page).
+    /// </summary>
+    OperationResult Reset(bool resetFan);
 }

@@ -558,7 +558,10 @@ public sealed partial class WindowsOverclockService : IOverclockService, IDispos
 
             if (_tuner is not null)
             {
-                var gpu = await Task.Run(() => _tuner.Reset(), cancellationToken).ConfigureAwait(false);
+                // The vendor tuner only touches the fans when this profile fixed them through it; fans the Fans page
+                // drives through the shared hardware monitor are handled below (or left to that page).
+                bool resetFan = !_fanViaHost && _applied.GpuFanPercent is not null;
+                var gpu = await Task.Run(() => _tuner.Reset(resetFan), cancellationToken).ConfigureAwait(false);
                 (gpu.Success ? messages : failures).Add(gpu.Message);
             }
 

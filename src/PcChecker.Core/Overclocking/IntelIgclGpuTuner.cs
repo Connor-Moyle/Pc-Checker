@@ -282,7 +282,7 @@ public sealed class IntelIgclGpuTuner : IGpuTuner
     public OperationResult SetFan(int? percent) =>
         OperationResult.Fail("Intel Arc fan control goes through the Fans page (shared hardware monitor) or Intel Graphics Software.");
 
-    public OperationResult Reset()
+    public OperationResult Reset(bool resetFan)
     {
         if (Method == GpuControlMethod.None)
         {

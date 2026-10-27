@@ -303,7 +303,7 @@ public sealed class NvApiGpuTuner : IGpuTuner
         }
     }
 
-    public OperationResult Reset()
+    public OperationResult Reset(bool resetFan)
     {
         if (_gpu is null)
         {
@@ -335,7 +335,7 @@ public sealed class NvApiGpuTuner : IGpuTuner
             }
         }
 
-        if (_fanControl)
+        if (resetFan && _fanControl)
         {
             var r = SetFan(null);
             if (!r.Success)
