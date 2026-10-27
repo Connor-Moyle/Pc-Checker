@@ -37,6 +37,8 @@ the Action Journal with an undo hint, and a log line. See
 
 The first thing you see.
 
+- **What needs attention** at the top: up to five recommendations, each with
+  one button (see [Help, shortcuts and undo](#help-shortcuts-and-undo)).
 - **Health score** gauge from the last health check, or a *Run a health check*
   button if there is none yet.
 - **Live tiles**: CPU temperature, GPU temperature, memory used and current
@@ -1914,6 +1916,47 @@ It appears once: never in screenshot runs or `--scheduled` runs, and not for
 people upgrading from an earlier version (their settings file already exists).
 **Settings → About → Show welcome again** (or *Show the welcome again* in quick
 search) brings it back.
+
+### Help, shortcuts and undo
+
+Small things that make the app easier for someone who is not a PC expert.
+
+- **What needs attention** (top of the Dashboard): up to five plain-language
+  recommendations built from what PC Checker already read, most urgent first:
+  Windows Update turned off or updates waiting, a restart to finish updates,
+  a nearly full drive (the system drive at 95 % or under 5 GB free is urgent),
+  devices with a driver problem, two or more heavy startup apps, PawnIO
+  missing (so CPU and motherboard fans can't be read), no check-up yet or the
+  last one 14 days ago or more, and what the last check-up left to do. Each has
+  one button: *Review*, *Free up space*, *Install updates*, *Check drivers*,
+  *Run check-up* or *Install* (PawnIO, after the usual confirmation). With
+  nothing to do it says *Everything looks good* and when the PC was last
+  checked. Live problems (temperatures, critical health items) stay in the
+  Alerts card.
+- **Page help**: every page header has a **?** button (or press **F1**) that
+  says in two or three sentences what the page does and the safest first step,
+  with a link to the matching section of these docs on GitHub.
+- **Keyboard shortcuts**: press **?** anywhere outside a text box (or search
+  for *Show keyboard shortcuts*) for a list of the keys that work everywhere
+  (Ctrl+K, F1, F5, Ctrl+Tab, F6, Alt+letter, Shift+F10, Esc) and the extra keys
+  of the page you are on (for example Delete and Enter on Processes).
+- **F5** presses the page's own refresh or scan button on the Dashboard,
+  Check-up, Health, Overview, Battery, Displays, Keyboard & Mouse, History,
+  Power, Fans, Apps, Leftovers, Windows Update, Startup, Cleanup, Registry,
+  Speed check and Logs. It does nothing while the page is busy, and anything
+  that changes the PC still asks first.
+- **Undo**: after a reversible change succeeds (turning a startup app on or
+  off, a service's startup type on the Startup page, one Optimize tweak), the
+  green notification has an **Undo** button for 10 seconds. Undo does the
+  change the other way round through the same safety steps, and both are in
+  the Action Journal. Changes made together (Check-up's *Fix selected*,
+  *Apply all safe*) are not offered; the Action Journal says how to undo them.
+- **Simple and Advanced mode**: tabs for pages that mostly matter to
+  experienced users (Services, Old drivers, Windows Features, Registry,
+  Overclock, Latency) carry a small *Advanced* chip; every page stays open to
+  everyone. New users see a one-time, closable *You're in Simple mode* hint on
+  the Dashboard and in Settings.
+- **Tray menu**: *Run a check-up* opens PC Checker and starts one.
 
 ## Accessibility
 

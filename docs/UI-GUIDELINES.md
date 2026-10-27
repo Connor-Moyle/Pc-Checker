@@ -29,7 +29,17 @@ Every page follows the same order, top to bottom:
 
 - Subtitle: one sentence, under about 90 characters, or a live status line
   such as "Checked 2 minutes ago".
-- At most **one primary button** and **one secondary button**.
+- At most **one primary button** and **one secondary button**. Button text
+  is a verb: "Scan now", "Run check-up", "Clean selected", "Detect fans".
+  A rare, hard-to-undo action (reset everything) goes in **More**, not in the
+  header as a red button.
+- The **?** help button next to the title comes with `controls:SectionHeader`;
+  you do not add it. Its text lives in `src/PcChecker.Core/Shell/HelpCatalog.cs`,
+  keyed by the page's file name in `NavigationCatalog`: what the page does
+  (one sentence), the safest first step (one or two sentences) and the docs
+  heading it links to. A new page needs an entry there; a test fails without
+  one, and another checks that the docs heading exists. F1 opens the same
+  help.
 - Every other action goes in a **More** drop-down:
 
   ```xml
@@ -75,11 +85,57 @@ Every page follows the same order, top to bottom:
 
 - Advanced-only content is hidden, not disabled, when Advanced mode is off.
 - Risky actions sit in the advanced area, below the everyday controls.
+- A page whose main job is a deep or risky change gets an *Advanced* chip on
+  its tab: add its key to `SimpleModeRules.AdvancedPageKeys`
+  (`src/PcChecker.Core/Shell/SimpleModeRules.cs`). The page itself stays open
+  to everyone.
+- New users see a one-time *You're in Simple mode* hint on the Dashboard and in
+  Settings (`SimpleModeHintViewModel`); do not add more hints like it.
+
+## Keyboard
+
+- **F1** opens the page's help, **?** (typed outside a text box) lists every
+  shortcut, **F5** presses the page's refresh or scan button.
+- To support F5, let the page's view model implement `IRefreshablePage`
+  (`src/PcChecker.App/ViewModels/RefreshablePages.cs` has the existing ones)
+  and return the header's own command, so its busy check and confirmations
+  still apply. Leave out heavy or risky "refreshes" (reloading drivers).
+- Page keys (Delete, Enter, Ctrl+F…) are listed in
+  `KeyboardShortcutCatalog` so the shortcuts list shows them; keep it in step
+  with the page.
+- Rows with actions get a right-click menu with the same commands
+  (Shift+F10 opens it from the keyboard).
+
+## Notifications and Undo
+
+- After a change succeeds, show `INotificationService.Success(...)` with what
+  happened in plain words.
+- When the same service can take the change straight back, run it through
+  `UndoOffers.RunAsync(change, undo, description)` (or set
+  `ChangeOptions.Undo` in the service). The success notification then offers
+  **Undo** for 10 seconds. The undo must call the service again (so it is
+  guarded and journaled) and put the page's row back.
+- Do not offer Undo for batches, deletions, uninstalls or anything that needs a
+  restart; the Action Journal says how to undo those.
+
+## Dashboard: What needs attention
+
+- The card at the top of the Dashboard lists at most five recommendations from
+  `AttentionRules` (`src/PcChecker.Core/Shell/AttentionRules.cs`), most urgent
+  first, each with exactly one button that opens a page or starts an action
+  that confirms first.
+- A rule only reads results the app already has; an unknown value never makes
+  an item. Write the title as the problem ("Drive C: is 92 % full"), the
+  detail as why it matters, and the button as a verb ("Free up space").
+- Live problems (temperatures, critical health items) stay in the Alerts card,
+  so nothing is said twice.
 
 ## Empty and busy states
 
 - Before the first scan a page shows one clear call to action
   (`controls:EmptyState`), not empty tables.
+- Every empty state says what to do next and, where there is one, has the
+  button for it in `EmptyState.Action` ("Reload sensors", "Detect fans").
 - Long operations use `controls:BusyOverlay` with a cancel button where
   possible.
 

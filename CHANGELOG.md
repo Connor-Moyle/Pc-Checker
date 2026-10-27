@@ -6,6 +6,19 @@ All notable changes to PC Checker are recorded here. The format follows
 
 ## [Unreleased]
 
+### Added
+- **Easier to use**: *What needs attention* at the top of the Dashboard (up to
+  five recommendations such as "Drive C: is 92 % full" or "3 apps start with
+  Windows and slow it down", each with one button, or "Everything looks good"
+  with the last check time); a **?** help button in every page header (also
+  F1) with what the page does, the safest first step and a docs link; a
+  keyboard shortcuts list on **?**; F5 to refresh or scan the page; an
+  **Undo** button for 10 seconds on the notification after a reversible
+  change (startup apps, service startup types, single Optimize tweaks); an
+  *Advanced* chip on tabs for expert pages and a one-time "You're in Simple
+  mode" hint; *Run a check-up* in the tray menu; empty states on Temperatures
+  and Fans with a next step; Settings' *Reset to defaults* moved under *More*.
+
 ## [0.5.0] - 2026-10-27
 
 A Task Manager replacement (Processes, Live usage, Services, Users), every fan, drive and RGB device found correctly, debloat tweaks that really apply, drivers from the makers themselves, Windows Update roll back, PawnIO from inside the app, and much wider debloat, cleanup and AMD coverage.
