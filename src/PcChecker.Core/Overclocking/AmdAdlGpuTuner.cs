@@ -239,10 +239,31 @@ public sealed class AmdAdlGpuTuner : IGpuTuner
 
         try
         {
-            int code = AmdAdlNative.SetSettings(_context, _adapterIndex, _ranges.Count, new Dictionary<int, int>(), resetAll: true);
-            return code == AmdAdlNative.AdlOk
-                ? OperationResult.Ok("The graphics card is back at AMD default settings.")
-                : OperationResult.Fail("Overdrive8 reset failed (" + AdlValueRules.DescribeError(code) + ").");
+            // Every entry is sent as requested + reset with the default value: the driver skips entries not flagged
+            // as requested, so an unrequested "reset" can return OK without changing anything.
+            var entries = AdlValueRules.BuildResetEntries(_ranges.Count, _ranges, includeFans: resetFan);
+            int code = AmdAdlNative.SetSettings(_context, _adapterIndex, entries);
+            if (code != AmdAdlNative.AdlOk)
+            {
+                return OperationResult.Fail("Overdrive8 reset failed (" + AdlValueRules.DescribeError(code) + ").");
+            }
+
+            // Only report stock once the driver confirms it.
+            var (readCode, current) = AmdAdlNative.GetCurrentSettings(_context, _adapterIndex);
+            if (readCode != AmdAdlNative.AdlOk)
+            {
+                return OperationResult.Fail("The Overdrive8 reset was sent, but the current values could not be read back to confirm it (" + AdlValueRules.DescribeError(readCode) + "). Check AMD Software: Adrenalin Edition → Performance → Tuning.");
+            }
+
+            var notDefault = AdlValueRules.FeaturesNotAtDefault(_ranges, current);
+            if (notDefault.Count > 0)
+            {
+                return OperationResult.Fail("The AMD driver accepted the reset but still reports non-default values for: " + string.Join(", ", notDefault.Select(AdlValueRules.DescribeFeature))
+                    + ". Use Reset in AMD Software: Adrenalin Edition → Performance → Tuning.");
+            }
+
+            _logger.LogInformation("Overdrive8 reset confirmed by read-back.");
+            return OperationResult.Ok("The graphics card is back at AMD default settings.");
         }
         catch (Exception ex)
         {
@@ -287,7 +308,7 @@ public sealed class AmdAdlGpuTuner : IGpuTuner
 
         try
         {
-            int code = AmdAdlNative.SetSettings(_context, _adapterIndex, _ranges.Count, values, resetAll: false);
+            int code = AmdAdlNative.SetSettings(_context, _adapterIndex, AdlValueRules.BuildSetEntries(_ranges.Count, values));
             if (code != AmdAdlNative.AdlOk)
             {
                 return OperationResult.Fail("The AMD driver rejected the change (" + AdlValueRules.DescribeError(code) + ").");

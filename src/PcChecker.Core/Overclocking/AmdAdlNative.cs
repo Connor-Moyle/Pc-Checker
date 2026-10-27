@@ -185,11 +185,13 @@ internal static class AmdAdlNative
     }
 
     /// <summary>
-    /// Applies one or more feature values. Buffers are over-allocated (<see cref="Od8Feature.MaxCount"/> entries) so a
-    /// driver with a larger OD8_COUNT than the SDK we compiled against can never write past the end.
+    /// Sends a set table built by <see cref="AdlValueRules.BuildSetEntries"/> or <see cref="AdlValueRules.BuildResetEntries"/>.
+    /// Buffers are over-allocated (<see cref="Od8Feature.MaxCount"/> entries) so a driver with a larger OD8_COUNT than
+    /// the SDK we compiled against can never write past the end.
     /// </summary>
-    public static int SetSettings(IntPtr context, int adapterIndex, int featureCount, IReadOnlyDictionary<int, int> values, bool resetAll)
+    public static int SetSettings(IntPtr context, int adapterIndex, IReadOnlyList<Od8SetEntry> entries)
     {
+        ArgumentNullException.ThrowIfNull(entries);
         int entrySize = Marshal.SizeOf<Od8SingleSetSetting>();
         int setBytes = 4 + Od8Feature.MaxCount * entrySize;
         int currentBytes = 4 + Od8Feature.MaxCount * 4;
@@ -200,17 +202,13 @@ internal static class AmdAdlNative
             Marshal.Copy(new byte[setBytes], 0, set, setBytes);
             Marshal.Copy(new byte[currentBytes], 0, current, currentBytes);
 
-            int count = Math.Clamp(featureCount, 1, Od8Feature.MaxCount);
+            int count = Math.Clamp(entries.Count, 1, Od8Feature.MaxCount);
             Marshal.WriteInt32(set, count);
             Marshal.WriteInt32(current, count);
-            for (int i = 0; i < count; i++)
+            for (int i = 0; i < count && i < entries.Count; i++)
             {
-                var entry = new Od8SingleSetSetting { Value = 0, Requested = 0, Reset = resetAll ? 1 : 0 };
-                if (values.TryGetValue(i, out int v))
-                {
-                    entry = new Od8SingleSetSetting { Value = v, Requested = 1, Reset = 0 };
-                }
-
+                var e = entries[i];
+                var entry = new Od8SingleSetSetting { Value = e.Value, Requested = e.Requested ? 1 : 0, Reset = e.Reset ? 1 : 0 };
                 Marshal.StructureToPtr(entry, set + 4 + i * entrySize, false);
             }
 

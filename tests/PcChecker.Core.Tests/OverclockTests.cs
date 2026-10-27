@@ -368,6 +368,51 @@ public class AdlValueRulesTests
         Assert.False(limits.FanControl);
         Assert.Equal("not supported by this card", AdlValueRules.DescribeError(-8));
     }
+
+    [Fact]
+    public void Reset_entries_are_requested_with_the_default_value()
+    {
+        Od8Range[] ranges = [.. Ranges, new(Od8Feature.FanTargetTemp, 25, 95, 75)];
+        var entries = AdlValueRules.BuildResetEntries(16, ranges, includeFans: false);
+
+        Assert.Equal(16, entries.Length);
+        Assert.Equal(new Od8SetEntry(2500, true, true), entries[Od8Feature.GfxClkFmax]);
+        Assert.Equal(new Od8SetEntry(2000, true, true), entries[Od8Feature.UclkFmax]);
+        Assert.Equal(new Od8SetEntry(0, true, true), entries[Od8Feature.PowerPercentage]);
+        Assert.Equal(new Od8SetEntry(110, true, true), entries[Od8Feature.OperatingTempMax]);
+
+        // Unsupported features and (unless asked) fan features are not touched at all.
+        Assert.Equal(default, entries[Od8Feature.FanMinSpeed]);
+        Assert.Equal(default, entries[Od8Feature.GfxClkFmin]);
+        Assert.Equal(default, entries[Od8Feature.FanTargetTemp]);
+        Assert.Equal(new Od8SetEntry(75, true, true), AdlValueRules.BuildResetEntries(16, ranges, includeFans: true)[Od8Feature.FanTargetTemp]);
+    }
+
+    [Fact]
+    public void Set_entries_request_only_the_changed_features()
+    {
+        var entries = AdlValueRules.BuildSetEntries(14, new Dictionary<int, int> { [Od8Feature.PowerPercentage] = 10 });
+        Assert.Equal(new Od8SetEntry(10, true, false), entries[Od8Feature.PowerPercentage]);
+        Assert.All(entries.Where((_, i) => i != Od8Feature.PowerPercentage), e => Assert.False(e.Requested));
+    }
+
+    [Fact]
+    public void Read_back_reports_managed_features_left_off_default()
+    {
+        var atDefault = new int[14];
+        atDefault[Od8Feature.GfxClkFmax] = 2500;
+        atDefault[Od8Feature.UclkFmax] = 2000;
+        atDefault[Od8Feature.OperatingTempMax] = 110;
+        Assert.Empty(AdlValueRules.FeaturesNotAtDefault(Ranges, atDefault));
+
+        var stillTuned = (int[])atDefault.Clone();
+        stillTuned[Od8Feature.GfxClkFmax] = 2700;
+        stillTuned[Od8Feature.PowerPercentage] = 15;
+        Assert.Equal([Od8Feature.GfxClkFmax, Od8Feature.PowerPercentage], AdlValueRules.FeaturesNotAtDefault(Ranges, stillTuned));
+
+        // A read-back too short to contain a managed feature cannot confirm it.
+        Assert.Contains(Od8Feature.OperatingTempMax, AdlValueRules.FeaturesNotAtDefault(Ranges, atDefault.Take(10).ToArray()));
+    }
 }
 
 public class IgclValueRulesTests
