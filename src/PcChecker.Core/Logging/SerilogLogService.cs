@@ -140,7 +140,9 @@ public sealed class SerilogLogService : ILogService, IDisposable
             }
 
             // The file sink is unbuffered, so the files on disk already hold every line written so far.
-            using var zip = ZipFile.Open(targetPath, ZipArchiveMode.Create);
+            // FileMode.Create replaces a file the user chose to overwrite in the save dialog (ZipFile.Open would refuse it).
+            using var stream = new FileStream(targetPath, FileMode.Create, FileAccess.Write, FileShare.None);
+            using var zip = new ZipArchive(stream, ZipArchiveMode.Create);
             if (Directory.Exists(dir))
             {
                 foreach (var file in Directory.EnumerateFiles(dir))

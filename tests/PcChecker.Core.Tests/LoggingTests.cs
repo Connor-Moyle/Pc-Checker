@@ -323,6 +323,22 @@ public class LoggingTests : IDisposable
     }
 
     [Fact]
+    public async Task Export_replaces_an_existing_file()
+    {
+        var target = Path.Combine(_dir, "export", "pc-checker-logs.zip");
+        Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+        await File.WriteAllTextAsync(target, new string('x', 100_000));
+
+        using var svc = new SerilogLogService(new LoggingSettings { FileEnabled = false, Directory = Path.Combine(_dir, "logs") });
+        svc.CreateLogger<LoggingTests>().LogInformation("first");
+        await svc.ExportZipAsync(target, CancellationToken.None);
+        await svc.ExportZipAsync(target, CancellationToken.None);
+
+        using var archive = ZipFile.OpenRead(target);
+        Assert.Contains(DiagnosticsExport.SummaryEntry, archive.Entries.Select(e => e.FullName));
+    }
+
+    [Fact]
     public void Strip_secrets_blanks_keys_anywhere_and_survives_bad_json()
     {
         var json = """{ "Claude": { "ProtectedApiKey": "abc", "Model": "m" }, "Nested": [ { "apiKey": "k" } ], "Keep": 1 }""";
