@@ -7,6 +7,13 @@ All notable changes to PC Checker are recorded here. The format follows
 ## [Unreleased]
 
 ### Added
+- Nothing yet.
+
+## [0.2.0] - 2026-10-27
+
+New tools and a calmer layout on every page.
+
+### Added
 - **Network** (its own section): Wi-Fi analysis with signal, band, channel
   congestion and link-rate checks; a speed test with download, upload,
   loaded latency (bufferbloat), jitter and packet loss; and Wi-Fi tuning
@@ -51,6 +58,19 @@ All notable changes to PC Checker are recorded here. The format follows
 ### Changed
 - The Drivers page header keeps *Scan drivers* and *Check for updates*; the
   other actions (and the new *Old and unused drivers…*) moved to a *More* menu.
+- **Every page tidied**: each page has at most one main and one secondary
+  button with the rest under *More*, summary tiles in even rows, one-line
+  help with details in tooltips or collapsed *About* sections, and options
+  and advanced settings collapsed at the end. Settings is grouped into
+  titled cards.
+- The GPU stress test loads the graphics card itself with a built-in
+  DirectX 11 compute workload, so it no longer needs a game running.
+- Screenshots are named after their page (`fans.png`), so links survive
+  pages moving.
+
+### Fixed
+- Closed status bars no longer leave a blank band under page headers.
+
 
 ## [0.1.1] - 2026-10-27
 
@@ -156,6 +176,7 @@ Initial release.
   itself from GitHub Releases with Stable and Beta channels and verifies every
   download against its published SHA-256.
 
-[Unreleased]: https://github.com/Connor-Moyle/Pc-Checker/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/Connor-Moyle/Pc-Checker/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/Connor-Moyle/Pc-Checker/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/Connor-Moyle/Pc-Checker/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/Connor-Moyle/Pc-Checker/releases/tag/v0.1.0
