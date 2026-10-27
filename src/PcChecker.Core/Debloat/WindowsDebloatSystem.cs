@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using PcChecker.Core.Common;
 using PcChecker.Core.Optimization;
 using PcChecker.Core.Performance;
+using PcChecker.Core.Storage;
 using PcChecker.Core.WindowsFeatures;
 
 namespace PcChecker.Core.Debloat;
@@ -10,8 +11,8 @@ namespace PcChecker.Core.Debloat;
 /// <summary>
 /// <see cref="IDebloatSystem"/> on Windows: registry through <see cref="WindowsRegistryAccessor"/>, services with
 /// <c>sc.exe config</c>, scheduled tasks with <c>schtasks /Change</c> (judged by exit code, so it works on every
-/// display language), app and optional feature changes through <see cref="IWindowsFeatureService"/> (which guards them
-/// itself), and reviewed catalog scripts through <see cref="PowerShellRunner"/>. Every query degrades to "unknown".
+/// display language; their messages are decoded from the console OEM code page), app and optional feature changes
+/// through <see cref="IWindowsFeatureService"/> (which guards them itself), and reviewed catalog scripts through <see cref="PowerShellRunner"/>. Every query degrades to "unknown".
 /// </summary>
 public sealed class WindowsDebloatSystem : IDebloatSystem
 {
@@ -146,7 +147,8 @@ public sealed class WindowsDebloatSystem : IDebloatSystem
 
     public async Task<OperationResult> SetServiceStartModeAsync(string serviceName, DebloatStartMode mode, CancellationToken cancellationToken)
     {
-        var result = await ExternalCommand.RunAsync("sc.exe", $"config \"{serviceName}\" start= {ServiceStartModes.ScArgument(mode)}", cancellationToken, TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+        var result = await ExternalCommand.RunAsync("sc.exe", $"config \"{serviceName}\" start= {ServiceStartModes.ScArgument(mode)}", cancellationToken, TimeSpan.FromSeconds(30),
+            outputEncoding: StorageCommandRunner.OemEncoding()).ConfigureAwait(false);
         return result.Success
             ? OperationResult.Ok($"{serviceName} set to {ServiceStartModes.Display(mode)}.")
             : OperationResult.Fail($"Could not change the {serviceName} service: {Clean(result.LastLine)}");
@@ -154,7 +156,8 @@ public sealed class WindowsDebloatSystem : IDebloatSystem
 
     public async Task<OperationResult> SetTaskEnabledAsync(string taskPath, bool enabled, CancellationToken cancellationToken)
     {
-        var result = await ExternalCommand.RunAsync("schtasks.exe", $"/Change /TN \"{taskPath}\" /{(enabled ? "Enable" : "Disable")}", cancellationToken, TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+        var result = await ExternalCommand.RunAsync("schtasks.exe", $"/Change /TN \"{taskPath}\" /{(enabled ? "Enable" : "Disable")}", cancellationToken,
+            TimeSpan.FromSeconds(30), outputEncoding: StorageCommandRunner.OemEncoding()).ConfigureAwait(false);
         return result.Success
             ? OperationResult.Ok($"{taskPath} {(enabled ? "enabled" : "disabled")}.")
             : OperationResult.Fail($"Could not change the task {taskPath}: {Clean(result.LastLine)}");
