@@ -86,7 +86,7 @@ body:
     id: logs
     attributes:
       label: Diagnostics export
-      description: Logs page → **Export diagnostics**, then drag the zip here. Serial numbers are masked when *Redact serial numbers* is on in Settings → Logging.
+      description: Logs page → **Export diagnostics**, then drag the zip here. Serial numbers are masked when *Hide serial numbers and MAC addresses in logs* is on (Logs page → **Logging settings** tab).
   - type: textarea
     id: hardware
     attributes:

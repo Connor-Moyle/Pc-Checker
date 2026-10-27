@@ -21,7 +21,7 @@ Open a **Bug report** issue and include:
 - PC Checker version (Settings → About, or the title bar)
 - Which page, what you did, what you expected and what happened instead
 - The diagnostics export (Logs page → **Export diagnostics**). Serial numbers
-  are masked when *Redact serial numbers* is on in Settings → Logging.
+  are masked when *Hide serial numbers and MAC addresses in logs* is on (Logs → Logging settings).
 
 ## Reporting a hardware or driver problem
 

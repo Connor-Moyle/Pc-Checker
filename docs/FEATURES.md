@@ -619,7 +619,7 @@ Stable or Beta channel in Settings.
 *Export full report* on the Dashboard writes hardware, health, performance,
 software, drivers and sensors as a standalone HTML page (dark theme, print
 friendly), JSON or Markdown. Reports contain the same data the app shows,
-including serial numbers unless *Redact serial numbers* is on.
+including serial numbers unless *Hide serial numbers and MAC addresses in logs* is on.
 
 ## Demo mode and screenshots
 

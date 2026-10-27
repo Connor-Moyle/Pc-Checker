@@ -48,7 +48,7 @@ The assistant is optional and off until you add an API key.
   sent with your message so the answers are specific to your PC. The *Context
   being shared* expander on the Ask Claude page shows the exact text before
   you send; the size limit is in Settings.
-- *Redact serial numbers* (Settings → Logging) also strips serial numbers and
+- *Hide serial numbers and MAC addresses in logs* (Logs → Logging settings) also strips serial numbers and
   MAC addresses from what is sent.
 - The hardware profile sent to the overclock advisor never includes serial
   numbers.
@@ -64,7 +64,7 @@ Anthropic's handling of API traffic is covered by their
 ## Reports, exports and logs
 
 Reports and the Hardware page's JSON export contain the same data the app
-shows, including serial numbers unless *Redact serial numbers* is on. Review a
+shows, including serial numbers unless *Hide serial numbers and MAC addresses in logs* is on. Review a
 report before sharing it. The diagnostics zip contains the log files, the
 Action Journal, your settings with the API key removed and a short system
 summary; the same redaction applies. Screenshots taken with

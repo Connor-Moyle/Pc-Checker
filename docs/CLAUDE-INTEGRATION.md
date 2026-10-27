@@ -74,9 +74,9 @@ Each chat request carries:
 - your questions and Claude's previous answers from this chat.
 
 The **What is shared with Claude** panel on the page shows the exact summary
-text that will be attached, so you can check it before asking. With *Redact
-serial numbers* on (Settings → Logging) serial numbers and MAC addresses are
-masked before sending.
+text that will be attached, so you can check it before asking. With *Hide
+serial numbers and MAC addresses in logs* on (Logs → Logging settings) serial
+numbers and MAC addresses are masked before sending.
 
 The overclock advisor sends a JSON hardware profile (CPU, GPUs, memory,
 current sensor readings, detected tuning capabilities and your safety limits).

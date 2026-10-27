@@ -6,7 +6,7 @@ report and undo changes.
 ## Where logs live
 
 `%LOCALAPPDATA%\PcChecker\logs` by default. Change the folder in
-**Settings → Logging**. The Action Journal is `actions.jsonl` next to the
+**Logs → Logging settings**. The Action Journal is `actions.jsonl` next to the
 settings file.
 
 ## Settings
@@ -22,7 +22,7 @@ settings file.
 | JSON format | Off | One JSON object per line instead of text, for log tools |
 | Output template | Serilog default | Customise the text layout |
 | In-app buffer | 2,000 entries | How much the live viewer keeps |
-| Redact serial numbers | Off | Mask serial numbers and MAC addresses in logs, reports and assistant context |
+| Redact serial numbers (*Hide serial numbers and MAC addresses in logs*) | Off | Mask serial numbers and MAC addresses in logs, reports and assistant context |
 | Log sensor samples | Off | Very chatty; only for diagnosing sensor problems |
 
 Changes apply immediately without a restart.
@@ -62,7 +62,7 @@ The file is append-only; once it reaches 5 MB it is archived as
 **Logs → Export diagnostics** writes a zip containing the log files, the action
 journal, the lines currently in the live viewer, a short system summary (OS,
 runtime, app version, logging settings) and a copy of `settings.json` with the
-API key and any other secret removed. When *Redact serial numbers* is on, the
+API key and any other secret removed. When *Hide serial numbers and MAC addresses in logs* is on, the
 exported files are masked as well.
 
 ## For developers
