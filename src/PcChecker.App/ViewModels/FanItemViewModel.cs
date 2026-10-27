@@ -67,6 +67,7 @@ public sealed partial class FanItemViewModel : ObservableObject
         HardwareName = device.HardwareName;
         Hardware = device.Hardware;
         Controllable = device.Controllable;
+        Capability = device.Capability;
         MinPercent = device.MinPercent;
         MaxPercent = device.MaxPercent;
         _rpm = device.Rpm;
@@ -83,6 +84,12 @@ public sealed partial class FanItemViewModel : ObservableObject
     public string HardwareName { get; }
     public HardwareKind Hardware { get; }
     public bool Controllable { get; }
+
+    /// <summary>Controllable, control without RPM reading, or read-only.</summary>
+    public FanCapability Capability { get; }
+
+    /// <summary>One line on the card for a read-only fan or a control without RPM reading; null otherwise.</summary>
+    public string? CapabilityNote => FanListRules.Describe(Capability, Hardware);
     public double MinPercent { get; }
     public double MaxPercent { get; }
 

@@ -31,6 +31,7 @@ public sealed partial class CheckupViewModel : ViewModelBase
         [CheckupSource.Performance] = typeof(PerformancePage),
         [CheckupSource.Debloat] = typeof(DebloatPage),
         [CheckupSource.OldDrivers] = typeof(DriverCleanupPage),
+        [CheckupSource.Sensors] = typeof(FansPage),
     };
 
     private readonly ICheckupService _checkup;

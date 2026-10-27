@@ -41,6 +41,7 @@ using PcChecker.Core.Reports;
 using PcChecker.Core.Restore;
 using PcChecker.Core.Scheduling;
 using PcChecker.Core.Sensors;
+using PcChecker.Core.Sensors.PawnIo;
 using PcChecker.Core.Settings;
 using PcChecker.Core.SetupBackup;
 using PcChecker.Core.Software;
@@ -116,6 +117,7 @@ public static class ServiceRegistration
         Add<IAppUpdateService, GitHubExeUpdateService, DemoAppUpdateService>(services, demo);
         Add<IPcAssistantService, ClaudeAssistantService, DemoPcAssistantService>(services, demo);
         Add<IFanControlService, LibreHardwareFanControlService, DemoFanControlService>(services, demo);
+        Add<IPawnIoService, WindowsPawnIoService, DemoPawnIoService>(services, demo);
         Add<ILightingService, OpenRgbLightingService, DemoLightingService>(services, demo);
         Add<IStorageToolsService, WindowsStorageToolsService, DemoStorageToolsService>(services, demo);
         Add<IMemoryService, WindowsMemoryService, DemoMemoryService>(services, demo);
@@ -169,6 +171,7 @@ public static class ServiceRegistration
         services.AddSingleton<ScheduledRunner>();
         services.AddSingleton<TrayIconService>();
         services.AddSingleton<AppUpdateFlow>();
+        services.AddSingleton<PawnIoInstallFlow>();
 
         // Shell
         services.AddSingleton<QuickActionRunner>();

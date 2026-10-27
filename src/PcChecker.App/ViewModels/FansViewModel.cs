@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
+using PcChecker.App.Localization;
 using PcChecker.App.Services;
 using PcChecker.Core.Common;
 using PcChecker.Core.Fans;
@@ -20,6 +21,7 @@ public sealed partial class FansViewModel : ViewModelBase
     private readonly IDialogService _dialogs;
     private readonly INotificationService _notifications;
     private readonly ILogger<FansViewModel> _logger;
+    private readonly PawnIoInstallFlow _pawnIoFlow;
     private static readonly TimeSpan SettingsSaveDelay = TimeSpan.FromMilliseconds(750);
     private bool _controlConsentGiven;
     private bool _loadingSettings;
@@ -73,9 +75,12 @@ public sealed partial class FansViewModel : ViewModelBase
     [NotifyPropertyChangedFor(nameof(SoftwareControlledText))]
     private int _softwareControlledCount;
 
-    public FansViewModel(IFanControlService fans, ISettingsService settings, IDialogService dialogs, INotificationService notifications, ILogger<FansViewModel> logger)
+    public FansViewModel(IFanControlService fans, ISettingsService settings, IDialogService dialogs, INotificationService notifications,
+        PawnIoInstallFlow pawnIoFlow, ILogger<FansViewModel> logger)
         : base(settings)
     {
+        _pawnIoFlow = pawnIoFlow;
+        _diagnostics = fans as IFanDiagnostics;
         _fans = fans;
         _advanced = fans as IFanControlAdvanced;
         _dialogs = dialogs;
@@ -149,6 +154,8 @@ public sealed partial class FansViewModel : ViewModelBase
         await RefreshTemperatureSourcesAsync(force: true);
         RefreshProfiles();
         await RefreshRawControlsAsync();
+        await RefreshPawnIoAsync(ct);
+        await RefreshDiagnosticsAsync(ct);
         ActiveProfileName = _fans.ActiveProfile?.Name;
         LastAppliedProfileName = Settings.Current.Fans.ActiveProfileName;
         if (_advanced is not null)
@@ -162,8 +169,8 @@ public sealed partial class FansViewModel : ViewModelBase
             AlertCount = Alerts.Count;
         }
 
-        StatusText = IsAvailable
-            ? $"{Fans.Count(f => f.Controllable)} controllable fan(s) and {Fans.Count(f => !f.Controllable)} read-only fan(s) found."
+        StatusText = IsAvailable || Fans.Count > 0
+            ? Loc.F("{0} controllable fan(s) and {1} read-only fan(s) found.", Fans.Count(f => f.Controllable), Fans.Count(f => !f.Controllable))
             : null;
     }
 
@@ -203,6 +210,7 @@ public sealed partial class FansViewModel : ViewModelBase
         }
 
         SoftwareControlledCount = Fans.Count(f => f.IsSoftwareControlled);
+        RefreshVisibleFans(devices);
         OnPropertyChanged(nameof(HasFans));
     }
 
@@ -499,6 +507,7 @@ public sealed partial class FansViewModel : ViewModelBase
             RevertToAutoOnExit = s.RevertToAutoOnExit;
             ApplyOnStartup = s.ApplyOnStartup;
             MinimumPercent = s.MinimumPercent;
+            ShowEmptyHeaders = s.ShowEmptyHeaders;
             LastAppliedProfileName = s.ActiveProfileName;
         }
         finally

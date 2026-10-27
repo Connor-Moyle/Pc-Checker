@@ -106,6 +106,8 @@
           <ui:DropDownButton Content="More" Icon="{ui:SymbolIcon MoreHorizontal24}" Margin="0,0,8,0">
             <ui:DropDownButton.Flyout>
               <ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+                <MenuItem Header="Reload sensors" Command="{Binding ReloadSensorsCommand}"
+                          ToolTip="Return every fan to automatic, restart the hardware monitor and read the sensors again. Use it after installing PawnIO." />
                 <MenuItem Header="Reset min/max" Command="{Binding ResetMinMaxCommand}"
                           ToolTip="Start the minimum, maximum and average again from now." />
                 <MenuItem Header="Temperature limits…" Command="{Binding ToggleThresholdsCommand}"
@@ -124,6 +126,15 @@
       <ui:InfoBar Severity="Warning" Title="Hardware sensors are not available" Message="{Binding UnavailableReason}"
                   IsOpen="True" Visibility="{Binding IsAvailable, Converter={StaticResource InverseBoolToVisibility}}" IsClosable="False" Margin="0,0,0,12">
         <ui:Button Content="Retry" Icon="{ui:SymbolIcon ArrowSync24}" Appearance="Primary" Command="{Binding RetryCommand}" Margin="0,8,0,4" />
+      </ui:InfoBar>
+      <ui:InfoBar Severity="Warning" Title="{Binding PawnIoTitle}" Message="{Binding PawnIoText}"
+                  IsOpen="True" Visibility="{Binding PawnIoNeedsAttention, Converter={StaticResource BoolToVisibility}}" IsClosable="False" Margin="0,0,0,12">
+        <StackPanel Orientation="Horizontal" Margin="0,8,0,4">
+          <ui:Button Content="Install PawnIO" Appearance="Primary" Icon="{ui:SymbolIcon ArrowDownload24}" Command="{Binding InstallPawnIoCommand}" Margin="0,0,8,0"
+                     ToolTip="Installs the official signed PawnIO driver with winget, or from its GitHub releases after checking the signature." />
+          <ui:Button Content="Reload sensors" Icon="{ui:SymbolIcon ArrowClockwise24}" Command="{Binding ReloadSensorsCommand}"
+                     ToolTip="Use this after installing PawnIO yourself." />
+        </StackPanel>
       </ui:InfoBar>
       <ui:InfoBar Severity="Informational" Title="Some sensors are missing" Message="{Binding WarningText}"
                   IsOpen="True" Visibility="{Binding WarningText, Converter={StaticResource NullToVisibility}}" IsClosable="True" Margin="0,0,0,12" />

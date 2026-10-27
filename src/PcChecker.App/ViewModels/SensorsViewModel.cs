@@ -4,6 +4,7 @@ using System.Windows.Data;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
+using PcChecker.App.Localization;
 using PcChecker.App.Services;
 using PcChecker.App.ViewModels.Sensors;
 using PcChecker.Core.Common;
@@ -26,6 +27,7 @@ public sealed partial class SensorsViewModel : ViewModelBase
     private readonly ISensorService _sensors;
     private readonly INotificationService _notifications;
     private readonly ILogger<SensorsViewModel> _logger;
+    private readonly PawnIoInstallFlow _pawnIoFlow;
     private readonly Dictionary<string, SensorRowViewModel> _rows = new(StringComparer.Ordinal);
     private readonly Dictionary<string, SensorGroupViewModel> _groups = new(StringComparer.OrdinalIgnoreCase);
     private DateTimeOffset _statsSince = DateTimeOffset.MinValue;
@@ -142,9 +144,11 @@ public sealed partial class SensorsViewModel : ViewModelBase
     [NotifyPropertyChangedFor(nameof(HasAlerts))]
     private int _alertCount;
 
-    public SensorsViewModel(ISensorService sensors, ISettingsService settings, INotificationService notifications, ILogger<SensorsViewModel> logger)
+    public SensorsViewModel(ISensorService sensors, ISettingsService settings, INotificationService notifications, PawnIoInstallFlow pawnIoFlow,
+        ILogger<SensorsViewModel> logger)
         : base(settings)
     {
+        _pawnIoFlow = pawnIoFlow;
         _sensors = sensors;
         _notifications = notifications;
         _logger = logger;
@@ -173,6 +177,7 @@ public sealed partial class SensorsViewModel : ViewModelBase
         {
             _sensors.Start();
             await WaitForFirstSnapshotAsync(TimeSpan.FromSeconds(6), ct);
+            await RefreshPawnIoAsync(ct);
         }, "Starting hardware monitoring…");
     }
 
@@ -230,6 +235,74 @@ public sealed partial class SensorsViewModel : ViewModelBase
 
             await WaitForFirstSnapshotAsync(TimeSpan.FromSeconds(8), ct);
         }, "Restarting the hardware monitor…");
+    }
+
+    [ObservableProperty]
+    private bool _pawnIoNeedsAttention;
+
+    [ObservableProperty]
+    private string? _pawnIoTitle;
+
+    [ObservableProperty]
+    private string? _pawnIoText;
+
+    private async Task RefreshPawnIoAsync(CancellationToken ct)
+    {
+        try
+        {
+            var status = await Task.Run(_pawnIoFlow.GetStatus, ct);
+            PawnIoNeedsAttention = status.NeedsAttention;
+            PawnIoTitle = status.State == PcChecker.Core.Sensors.PawnIo.PawnIoState.InstalledNotRunning
+                ? Loc.T("PawnIO is installed but not running")
+                : Loc.T("CPU and motherboard sensors need PawnIO");
+            PawnIoText = status.Summary;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogDebug(ex, "PawnIO status unavailable.");
+        }
+    }
+
+    [RelayCommand]
+    private async Task InstallPawnIoAsync()
+    {
+        if (!await _pawnIoFlow.ConfirmInstallAsync())
+        {
+            return;
+        }
+
+        await RunBusyAsync(async ct =>
+        {
+            var progress = new Progress<ProgressUpdate>(p => BusyText = p.Stage);
+            var result = await _pawnIoFlow.InstallAndReloadAsync(progress, ct);
+            if (!result.Success)
+            {
+                ErrorMessage = result.Message;
+            }
+
+            await WaitForFirstSnapshotAsync(TimeSpan.FromSeconds(8), ct);
+            await RefreshPawnIoAsync(ct);
+        }, Loc.T("Installing PawnIO…"), cancellable: false);
+    }
+
+    [RelayCommand]
+    private async Task ReloadSensorsAsync()
+    {
+        await RunBusyAsync(async ct =>
+        {
+            var result = await _pawnIoFlow.ReloadAsync(ct);
+            if (result.Success)
+            {
+                _notifications.Info(Loc.T("Sensors reloaded"), result.Message);
+            }
+            else
+            {
+                ErrorMessage = result.Message;
+            }
+
+            await WaitForFirstSnapshotAsync(TimeSpan.FromSeconds(8), ct);
+            await RefreshPawnIoAsync(ct);
+        }, Loc.T("Reloading sensors…"));
     }
 
     [RelayCommand]
