@@ -228,7 +228,6 @@
         <Grid>
           <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
           </Grid.RowDefinitions>
@@ -256,7 +255,7 @@
             </StackPanel>
           </Grid>
 
-          <Border Grid.Row="2" BorderThickness="1" BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}" CornerRadius="6" Background="{DynamicResource ControlFillColorDefaultBrush}">
+          <Border Grid.Row="1" BorderThickness="1" BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}" CornerRadius="6" Background="{DynamicResource ControlFillColorDefaultBrush}">
             <Grid>
               <ListView ItemsSource="{Binding JournalRecords}"
                         SelectedItem="{Binding SelectedRecord}"
@@ -308,7 +307,7 @@
             </Grid>
           </Border>
 
-          <ui:Card Grid.Row="3" Margin="0,12,0,0" Padding="16"
+          <ui:Card Grid.Row="2" Margin="0,12,0,0" Padding="16"
                    Visibility="{Binding HasSelectedRecord, Converter={StaticResource BoolToVisibility}}">
             <Grid>
               <Grid.ColumnDefinitions>
