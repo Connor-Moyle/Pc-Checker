@@ -107,9 +107,10 @@ public sealed class DemoRegistryHealthService : IRegistryHealthService
             await Task.Delay(25, cancellationToken).ConfigureAwait(false);
         }
 
-        var backup = Backup(DateTimeOffset.Now, fixable.Count, RegistryIssueRules.Summarize(fixable));
+        RegistryBackup backup;
         lock (_lock)
         {
+            backup = Backup(DateTimeOffset.Now, fixable.Count, RegistryIssueRules.Summarize(fixable), _backups.Select(b => b.Id));
             _fixedIds.UnionWith(fixable.Select(f => f.Id));
             _backupContents[backup.Id] = fixable.Select(f => f.Id).ToList();
             _backups.Insert(0, backup);
@@ -158,9 +159,16 @@ public sealed class DemoRegistryHealthService : IRegistryHealthService
         }
     }
 
-    private static RegistryBackup Backup(DateTimeOffset created, int count, string summary)
+    private static RegistryBackup Backup(DateTimeOffset created, int count, string summary, IEnumerable<string>? existingIds = null)
     {
+        // Ids only go down to the second; add "-2", "-3"... like the Windows service so two fixes in one second never collide.
+        var taken = new HashSet<string>(existingIds ?? [], StringComparer.OrdinalIgnoreCase);
         var id = RegistryBackupCatalog.NewId(created);
+        for (int n = 2; taken.Contains(id); n++)
+        {
+            id = RegistryBackupCatalog.NewId(created) + "-" + n;
+        }
+
         return new RegistryBackup(id, created, $@"{User}\AppData\Local\PcChecker\registry-backups\{id}.reg", count, summary);
     }
 

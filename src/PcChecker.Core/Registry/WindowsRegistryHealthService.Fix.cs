@@ -58,9 +58,13 @@ public sealed partial class WindowsRegistryHealthService
             var guarded = await _guard.RunGuardedAsync(description, options,
                 ct => Task.Run(() => FixCoreAsync(fixable, progress, ct), ct), progress, cancellationToken).ConfigureAwait(false);
 
-            // No result means the guard stopped before the fix ran (restore point failed with the Abort policy, or the
-            // change was cancelled): nothing was attempted, so nothing failed.
-            var value = guarded.Value ?? new RegistryFixResult(0, fixable.Count, 0, null, ["Not started: no registry entry was changed."]);
+            // No result without an error means the guard stopped before the fix ran (restore point failed with the Abort
+            // policy): nothing was attempted. With an error, the fix itself threw; the delete loop catches its own errors,
+            // so this happened before anything was removed, but point at the journal and backups in case it did not.
+            var value = guarded.Value ?? (guarded.Error is null
+                ? new RegistryFixResult(0, fixable.Count, 0, null, ["Not started: no registry entry was changed."])
+                : new RegistryFixResult(0, 0, fixable.Count, null,
+                    ["Stopped by an unexpected error. Check the Action Journal and the Backups list: any entry already removed is recorded there and can be restored."]));
             var all = new List<string> { guarded.Message };
             all.AddRange(value.Messages);
             all.AddRange(messages);
@@ -129,33 +133,54 @@ public sealed partial class WindowsRegistryHealthService
         // 3. Re-check once more right before deleting, then delete.
         int fixedCount = 0;
         int failedCount = 0;
-        for (int i = 0; i < backedUp.Count; i++)
+        int done = 0;
+        try
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            var (issue, fingerprint) = backedUp[i];
-            progress?.Report(new ProgressUpdate("Removing", 50 + 50.0 * i / backedUp.Count, issue.FullKeyPath));
+            for (; done < backedUp.Count; done++)
+            {
+                int remaining = backedUp.Count - done;
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    // Deleting has started, so report what was done instead of throwing the partial counts away.
+                    skipped += remaining;
+                    messages.Add($"Cancelled: {remaining} remaining {(remaining == 1 ? "entry was" : "entries were")} left alone.");
+                    break;
+                }
 
-            if (!IsChangeAllowed(issue) || !StillBroken(checks, issue) || !SameValue(access, issue, fingerprint))
-            {
-                skipped++;
-                messages.Add($"Skipped, changed while fixing: {issue.FullKeyPath}{ValueSuffix(issue)}");
-                continue;
-            }
+                var (issue, fingerprint) = backedUp[done];
+                progress?.Report(new ProgressUpdate("Removing", 50 + 50.0 * done / backedUp.Count, issue.FullKeyPath));
 
-            var error = Delete(access, issue);
-            if (error is null)
-            {
-                fixedCount++;
-                _logger.LogInformation("Registry leftover removed: {Key}{Value} (backup {Backup})", issue.FullKeyPath, ValueSuffix(issue), backup.Id);
-                await JournalAsync(issue, "Succeeded: removed", backup.Id).ConfigureAwait(false);
+                if (!IsChangeAllowed(issue) || !StillBroken(checks, issue) || !SameValue(access, issue, fingerprint))
+                {
+                    skipped++;
+                    messages.Add($"Skipped, changed while fixing: {issue.FullKeyPath}{ValueSuffix(issue)}");
+                    continue;
+                }
+
+                var error = Delete(access, issue);
+                if (error is null)
+                {
+                    fixedCount++;
+                    _logger.LogInformation("Registry leftover removed: {Key}{Value} (backup {Backup})", issue.FullKeyPath, ValueSuffix(issue), backup.Id);
+                    await JournalAsync(issue, "Succeeded: removed", backup.Id).ConfigureAwait(false);
+                }
+                else
+                {
+                    failedCount++;
+                    messages.Add($"Could not remove {issue.FullKeyPath}{ValueSuffix(issue)}: {error}");
+                    _logger.LogWarning("Registry leftover not removed: {Key}{Value}: {Error}", issue.FullKeyPath, ValueSuffix(issue), error);
+                    await JournalAsync(issue, "Failed: " + error, backup.Id).ConfigureAwait(false);
+                }
             }
-            else
-            {
-                failedCount++;
-                messages.Add($"Could not remove {issue.FullKeyPath}{ValueSuffix(issue)}: {error}");
-                _logger.LogWarning("Registry leftover not removed: {Key}{Value}: {Error}", issue.FullKeyPath, ValueSuffix(issue), error);
-                await JournalAsync(issue, "Failed: " + error, backup.Id).ConfigureAwait(false);
-            }
+        }
+        catch (Exception ex)
+        {
+            // Some entries may already be gone: keep the counts and the backup id so the result stays accurate.
+            int left = backedUp.Count - done - 1;
+            _logger.LogError(ex, "Registry fix stopped by an unexpected error after {Done} of {Total} entries.", done, backedUp.Count);
+            failedCount++;
+            skipped += left;
+            messages.Add($"Stopped by an unexpected error ({ex.Message}); {left} remaining {(left == 1 ? "entry was" : "entries were")} left alone.");
         }
 
         progress?.Report(new ProgressUpdate("Done", 100));
@@ -214,7 +239,14 @@ public sealed partial class WindowsRegistryHealthService
                 return (null, null);
             }
 
-            var values = new List<RegExportValue> { new(issue.ValueName, RegistryAccess.Kind(key, issue.ValueName), RegistryAccess.Raw(key, issue.ValueName)) };
+            // A value type the .reg writer cannot reproduce exactly is not backed up, so it is not removed either.
+            var kind = RegistryAccess.Kind(key, issue.ValueName);
+            if (kind == RegValueType.None)
+            {
+                return (null, null);
+            }
+
+            var values = new List<RegExportValue> { new(issue.ValueName, kind, RegistryAccess.Raw(key, issue.ValueName)) };
 
             // Removing an Open with entry also edits the list's MRUList, so back that up too.
             if (IsOpenWithListEntry(issue) && RegistryAccess.Raw(key, MruListValue) is string)
@@ -258,6 +290,7 @@ public sealed partial class WindowsRegistryHealthService
         }
         catch (InvalidOperationException ex)
         {
+            // Incomplete fallback backup (unreadable sub-key, unsupported value type, too large): skip the entry.
             _logger.LogWarning(ex, "Key {Key} could not be backed up.", issue.FullKeyPath);
             return (null, null);
         }

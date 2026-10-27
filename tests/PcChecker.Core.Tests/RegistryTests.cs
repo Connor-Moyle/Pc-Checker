@@ -590,6 +590,23 @@ public class DemoRegistryHealthServiceTests
     }
 
     [Fact]
+    public async Task Demo_fixes_in_quick_succession_get_distinct_backup_ids()
+    {
+        var svc = new DemoRegistryHealthService();
+        var scan = await svc.ScanAsync([RegistryIssueCategory.MuiCache], null, CancellationToken.None);
+        var safe = scan.Issues.Where(i => i.SafeToFix).ToList();
+        Assert.True(safe.Count >= 2);
+
+        var first = await svc.FixAsync([safe[0]], null, CancellationToken.None);
+        var second = await svc.FixAsync([safe[1]], null, CancellationToken.None);
+
+        Assert.NotEqual(first.BackupId, second.BackupId);
+        Assert.True(RegistryBackupCatalog.IsValidId(second.BackupId));
+        var ids = (await svc.ListBackupsAsync(CancellationToken.None)).Select(b => b.Id).ToList();
+        Assert.Equal(ids.Count, ids.Distinct(StringComparer.OrdinalIgnoreCase).Count());
+    }
+
+    [Fact]
     public async Task Demo_offers_an_old_backup_for_cleanup()
     {
         var backups = await new DemoRegistryHealthService().ListBackupsAsync(CancellationToken.None);

@@ -173,6 +173,11 @@ internal sealed class RegistryAccess
         return sections;
     }
 
+    /// <remarks>
+    /// Strict on purpose: a sub-key that cannot be opened or listed, or a value whose type the .reg writer cannot reproduce,
+    /// throws <see cref="InvalidOperationException"/> so the caller skips the entry instead of deleting a key whose backup
+    /// would be incomplete.
+    /// </remarks>
     private void AddTree(RegistryKey key, string fullName, List<RegExportKey> sections, int maxKeys)
     {
         if (sections.Count >= maxKeys)
@@ -180,15 +185,36 @@ internal sealed class RegistryAccess
             throw new InvalidOperationException("The key is too large to back up value by value.");
         }
 
-        var values = ValueNames(key).Select(n => new RegExportValue(n, Kind(key, n), Raw(key, n))).ToList();
-        sections.Add(new RegExportKey(fullName, values));
-        foreach (var child in SubKeyNames(key))
+        var values = new List<RegExportValue>();
+        foreach (var name in ListOrThrow(key.GetValueNames, fullName, "values"))
         {
-            using var sub = OpenChild(key, child);
-            if (sub is not null)
+            var kind = Kind(key, name);
+            if (kind == RegValueType.None)
             {
-                AddTree(sub, fullName + "\\" + child, sections, maxKeys);
+                throw new InvalidOperationException($"Value '{name}' in {fullName} has a type that cannot be backed up value by value.");
             }
+
+            values.Add(new RegExportValue(name, kind, Raw(key, name)));
+        }
+
+        sections.Add(new RegExportKey(fullName, values));
+        foreach (var child in ListOrThrow(key.GetSubKeyNames, fullName, "sub-keys"))
+        {
+            using var sub = OpenChild(key, child)
+                ?? throw new InvalidOperationException($"Sub-key {fullName}\\{child} could not be opened for the backup.");
+            AddTree(sub, fullName + "\\" + child, sections, maxKeys);
+        }
+    }
+
+    private static string[] ListOrThrow(Func<string[]> list, string fullName, string what)
+    {
+        try
+        {
+            return list();
+        }
+        catch (Exception ex) when (ex is SecurityException or UnauthorizedAccessException or IOException or ObjectDisposedException)
+        {
+            throw new InvalidOperationException($"The {what} of {fullName} could not be listed for the backup.", ex);
         }
     }
 
