@@ -259,6 +259,13 @@ public static class UiTranslator
             found.Add(FrameworkElement.ToolTipProperty);
         }
 
+        // Screen-reader names and help text are interface text too.
+        if (typeof(UIElement).IsAssignableFrom(t))
+        {
+            found.Add(System.Windows.Automation.AutomationProperties.NameProperty);
+            found.Add(System.Windows.Automation.AutomationProperties.HelpTextProperty);
+        }
+
         // Screen-reader names and help written in the XAML (AutomationProperties.Name="Search").
         if (typeof(FrameworkElement).IsAssignableFrom(t))
         {

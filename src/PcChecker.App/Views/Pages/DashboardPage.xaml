@@ -81,7 +81,7 @@
           <controls:StatCard Style="{StaticResource Tile}" Title="CPU temperature" Value="{Binding CpuTempText}" Unit="°C" Icon="DeveloperBoard24" Accent="{Binding CpuTempBrush}" Subtitle="{Binding CpuSubtitle}" />
           <controls:StatCard Style="{StaticResource Tile}" Title="GPU temperature" Value="{Binding GpuTempText}" Unit="°C" Icon="Games24" Accent="{Binding GpuTempBrush}" Subtitle="{Binding GpuSubtitle}" />
           <controls:StatCard Style="{StaticResource Tile}" Title="Memory in use" Value="{Binding RamText}" Unit="%" Icon="Memory16" Accent="{Binding RamBrush}" Subtitle="{Binding RamSubtitle}" />
-          <controls:StatCard Style="{StaticResource Tile}" Title="Power draw" Value="{Binding PowerText}" Unit="W" Icon="Flash24" Accent="{StaticResource AccentPurpleBrush}" Subtitle="{Binding PowerSubtitle}" />
+          <controls:StatCard Style="{StaticResource Tile}" Title="Power draw" Value="{Binding PowerText}" Unit="W" Icon="Flash24" Accent="{DynamicResource AccentPurpleBrush}" Subtitle="{Binding PowerSubtitle}" />
           <controls:StatCard Style="{StaticResource Tile}" Title="Disk space" Value="{Binding DiskFreeText}" Icon="HardDrive20" Accent="{Binding DiskBrush}" Subtitle="{Binding DiskFreeSubtitle}" />
           <controls:StatCard Style="{StaticResource Tile}" Title="Power draw" Value="{Binding PowerText}" Unit="W" Icon="Flash24" Accent="{DynamicResource AccentPurpleBrush}" Subtitle="{Binding PowerSubtitle}" />
         </controls:AdaptiveGrid>
@@ -94,7 +94,7 @@
               <ColumnDefinition Width="*" />
               <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
-            <ui:SymbolIcon Grid.Column="0" Symbol="ClipboardTaskListLtr24" FontSize="22" Foreground="{StaticResource AccentCyanBrush}" VerticalAlignment="Center" Margin="0,0,12,0" />
+            <controls:IconGlyph Grid.Column="0" Symbol="ClipboardTaskListLtr24" FontSize="22" Foreground="{DynamicResource AccentCyanBrush}" VerticalAlignment="Center" Margin="0,0,12,0" />
             <StackPanel Grid.Column="1" VerticalAlignment="Center">
               <ui:TextBlock FontTypography="BodyStrong" Text="Check-up" />
               <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding CheckupText}" TextWrapping="Wrap" />
@@ -144,7 +144,7 @@
                 <controls:SparklineControl ItemsSource="{Binding CpuTrend}" Height="30" Margin="0,2,0,6" ToolTip="Highest CPU temperature in each half hour" />
                 <ui:TextBlock Style="{StaticResource Caption}" Text="{Binding GpuTrendText}" />
                 <controls:SparklineControl ItemsSource="{Binding GpuTrend}" Height="30" Margin="0,2,0,0" ToolTip="Highest GPU temperature in each half hour"
-                                           Stroke="{StaticResource AccentPurpleBrush}" Fill="#33A78BFA" />
+                                           Stroke="{DynamicResource AccentPurpleBrush}" Fill="#33A78BFA" />
               </StackPanel>
               <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding TrendNote}" TextWrapping="Wrap"
                             Visibility="{Binding HasTrend, Converter={StaticResource InverseBoolToVisibility}}" />

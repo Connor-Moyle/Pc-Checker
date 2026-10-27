@@ -85,13 +85,13 @@
                              Accent="{Binding HealthStatus, Converter={StaticResource HealthStatusToBrush}}" Subtitle="{Binding HealthSubtitle}"
                              ToolTip="How much charge the battery holds now compared with its design capacity. Batteries lose capacity as they age and are charged." />
           <controls:StatCard Style="{StaticResource Tile}" Title="Charge cycles" Value="{Binding CyclesText}" Icon="ArrowClockwise24"
-                             Accent="{StaticResource AccentCyanBrush}" Subtitle="{Binding CyclesSubtitle}"
+                             Accent="{DynamicResource AccentCyanBrush}" Subtitle="{Binding CyclesSubtitle}"
                              ToolTip="One cycle is 100 % of the capacity used, in one go or spread over several charges." />
           <controls:StatCard Style="{StaticResource Tile}" Title="Full charge" Value="{Binding CapacityText}" Unit="Wh" Icon="BatteryCharge24"
-                             Accent="{StaticResource AccentPurpleBrush}" Subtitle="{Binding CapacitySubtitle}"
+                             Accent="{DynamicResource AccentPurpleBrush}" Subtitle="{Binding CapacitySubtitle}"
                              ToolTip="The energy a full battery holds today, in watt-hours." />
           <controls:StatCard Style="{StaticResource Tile}" Title="Battery life now" Value="{Binding LifeText}" Icon="Timer24"
-                             Accent="{StaticResource AccentOrangeBrush}" Subtitle="{Binding LifeSubtitle}"
+                             Accent="{DynamicResource AccentOrangeBrush}" Subtitle="{Binding LifeSubtitle}"
                              ToolTip="Windows' estimate of how long a full charge lasts in use, based on how this PC has been used." />
         </controls:AdaptiveGrid>
 
@@ -111,7 +111,7 @@
                                             Points="{Binding ChartPoints}" From="{Binding ChartFrom}" To="{Binding ChartTo}"
                                             Minimum="{Binding ChartMinimum}" Maximum="{Binding ChartMaximum}" Unit="Wh"
                                             Limit="{Binding ChartDesign}" GapThreshold="{Binding ChartGap}"
-                                            Stroke="{StaticResource AccentGreenBrush}" LimitBrush="{StaticResource AccentGreyBrush}"
+                                            Stroke="{DynamicResource AccentGreenBrush}" LimitBrush="{DynamicResource AccentGreyBrush}"
                                             AxisBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
                                             TextBrush="{DynamicResource TextFillColorSecondaryBrush}"
                                             HoverBackground="{DynamicResource ApplicationBackgroundBrush}"
@@ -152,7 +152,7 @@
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="Auto" />
                       </Grid.ColumnDefinitions>
-                      <ui:SymbolIcon Grid.Column="0" Style="{StaticResource UsageIcon}" />
+                      <controls:IconGlyph Grid.Column="0" Style="{StaticResource UsageIcon}" />
                       <StackPanel Grid.Column="1" VerticalAlignment="Center">
                         <ui:TextBlock Text="{Binding StateText}" TextTrimming="CharacterEllipsis" />
                         <ui:TextBlock Style="{StaticResource Caption}" Text="{Binding TimeText}" />

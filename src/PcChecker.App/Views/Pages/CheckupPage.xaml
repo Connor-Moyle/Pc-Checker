@@ -19,21 +19,21 @@
     <Style x:Key="RiskLabel" TargetType="ui:TextBlock">
       <Setter Property="FontSize" Value="12" />
       <Setter Property="FontWeight" Value="SemiBold" />
-      <Setter Property="Foreground" Value="{StaticResource AccentGreenBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource AccentGreenBrush}" />
       <Style.Triggers>
         <DataTrigger Binding="{Binding Risk}" Value="{x:Static opt:RiskLevel.Moderate}">
-          <Setter Property="Foreground" Value="{StaticResource AccentYellowBrush}" />
+          <Setter Property="Foreground" Value="{DynamicResource AccentYellowBrush}" />
         </DataTrigger>
         <DataTrigger Binding="{Binding Risk}" Value="{x:Static opt:RiskLevel.Advanced}">
-          <Setter Property="Foreground" Value="{StaticResource AccentOrangeBrush}" />
+          <Setter Property="Foreground" Value="{DynamicResource AccentOrangeBrush}" />
         </DataTrigger>
       </Style.Triggers>
     </Style>
     <Style x:Key="ResultLine" TargetType="ui:TextBlock" BasedOn="{StaticResource Caption}">
-      <Setter Property="Foreground" Value="{StaticResource AccentGreenBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource AccentGreenBrush}" />
       <Style.Triggers>
         <DataTrigger Binding="{Binding ResultFailed}" Value="True">
-          <Setter Property="Foreground" Value="{StaticResource AccentOrangeBrush}" />
+          <Setter Property="Foreground" Value="{DynamicResource AccentOrangeBrush}" />
         </DataTrigger>
       </Style.Triggers>
     </Style>
@@ -95,11 +95,11 @@
         <!-- Summary -->
         <controls:AdaptiveGrid MinItemWidth="200" MaxColumns="3" Margin="0,0,0,12">
           <controls:StatCard Style="{StaticResource Tile}" Title="Things to do" Value="{Binding ItemCount}" Icon="ClipboardTaskListLtr24"
-                             Accent="{StaticResource AccentCyanBrush}" Subtitle="{Binding ItemsSubtitle}" />
+                             Accent="{DynamicResource AccentCyanBrush}" Subtitle="{Binding ItemsSubtitle}" />
           <controls:StatCard Style="{StaticResource Tile}" Title="Can be fixed here" Value="{Binding FixableCount}" Icon="Wrench24"
-                             Accent="{StaticResource AccentGreenBrush}" Subtitle="{Binding FixableSubtitle}" />
+                             Accent="{DynamicResource AccentGreenBrush}" Subtitle="{Binding FixableSubtitle}" />
           <controls:StatCard Style="{StaticResource Tile}" Title="Serious" Value="{Binding UrgentText}" Icon="Warning24"
-                             Accent="{StaticResource AccentOrangeBrush}" Subtitle="{Binding UrgentSubtitle}" />
+                             Accent="{DynamicResource AccentOrangeBrush}" Subtitle="{Binding UrgentSubtitle}" />
         </controls:AdaptiveGrid>
 
         <!-- Nothing found -->

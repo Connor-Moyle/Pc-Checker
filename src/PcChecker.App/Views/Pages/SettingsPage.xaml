@@ -120,7 +120,7 @@
         <ui:Card Style="{StaticResource CardSpacing}">
           <StackPanel>
             <StackPanel Style="{StaticResource GroupHeader}">
-              <ui:SymbolIcon Style="{StaticResource GroupIcon}" Symbol="Archive24" />
+              <controls:IconGlyph Style="{StaticResource GroupIcon}" Symbol="Archive24" />
               <ui:TextBlock Style="{StaticResource GroupTitle}" Text="Your setup" />
             </StackPanel>
             <ui:CardControl Style="{StaticResource Row}" Icon="{ui:SymbolIcon ArrowExportUp24}">
