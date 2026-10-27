@@ -129,6 +129,9 @@ public sealed class InMemoryDebloatSystem : IDebloatSystem
 
     public Dictionary<string, bool> Tasks { get; } = new(StringComparer.OrdinalIgnoreCase);
     public HashSet<string> Apps { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Apps installed only for other accounts or provisioned for new accounts (not for the current user).</summary>
+    public HashSet<string> OtherUserApps { get; } = new(StringComparer.OrdinalIgnoreCase);
     public Dictionary<string, FeatureState> Features { get; } = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>Detection results for PowerShell operations, keyed by <see cref="DebloatOperation.Key"/>.</summary>
@@ -199,6 +202,20 @@ public sealed class InMemoryDebloatSystem : IDebloatSystem
         }
     }
 
+    public Task<IReadOnlySet<string>?> GetInstalledAppsForAllUsersAsync(CancellationToken cancellationToken)
+    {
+        AppQueries++;
+        if (FailQueries)
+        {
+            return Task.FromResult<IReadOnlySet<string>?>(null);
+        }
+
+        lock (_gate)
+        {
+            return Task.FromResult<IReadOnlySet<string>?>(new HashSet<string>(Apps.Concat(OtherUserApps), StringComparer.OrdinalIgnoreCase));
+        }
+    }
+
     public Task<FeatureState> GetOptionalFeatureStateAsync(string featureName, CancellationToken cancellationToken)
     {
         lock (_gate)
@@ -262,6 +279,10 @@ public sealed class InMemoryDebloatSystem : IDebloatSystem
         lock (_gate)
         {
             Apps.Remove(operation.PackageName);
+            if (allUsers)
+            {
+                OtherUserApps.Remove(operation.PackageName);
+            }
         }
 
         return OperationResult.Ok($"{operation.FriendlyName} removed{(allUsers ? " for all users" : string.Empty)}.");

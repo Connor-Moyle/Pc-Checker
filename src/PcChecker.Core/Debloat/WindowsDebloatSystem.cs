@@ -65,7 +65,27 @@ public sealed class WindowsDebloatSystem : IDebloatSystem
             return null;
         }
 
-        var result = await PowerShellRunner.RunAsync("Get-AppxPackage | ForEach-Object { $_.Name }", QueryTimeout, cancellationToken).ConfigureAwait(false);
+        return await QueryAppNamesAsync("Get-AppxPackage | ForEach-Object { $_.Name }", cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<IReadOnlySet<string>?> GetInstalledAppsForAllUsersAsync(CancellationToken cancellationToken)
+    {
+        if (!PlatformGuard.IsWindows)
+        {
+            return null;
+        }
+
+        // Every account's packages plus the provisioned ones new accounts get, as Remove-AppxPackage -AllUsers and
+        // Remove-AppxProvisionedPackage act on both.
+        const string script =
+            "$ErrorActionPreference = 'Stop'; Get-AppxPackage -AllUsers | ForEach-Object { $_.Name }; " +
+            "Get-AppxProvisionedPackage -Online | ForEach-Object { $_.DisplayName }";
+        return await QueryAppNamesAsync(script, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<IReadOnlySet<string>?> QueryAppNamesAsync(string script, CancellationToken cancellationToken)
+    {
+        var result = await PowerShellRunner.RunAsync(script, QueryTimeout, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
         {
             _logger.LogWarning("Installed app query failed: {Error}", FirstLine(result.StdErr));

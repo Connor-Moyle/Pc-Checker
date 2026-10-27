@@ -453,6 +453,23 @@ public class DebloatEngineTests
     }
 
     [Fact]
+    public async Task Removal_for_all_users_runs_when_only_other_accounts_still_have_the_app()
+    {
+        var (engine, system) = Create();
+        system.OtherUserApps.Add("Clipchamp.Clipchamp");
+        var app = Tweak("apps.clipchamp");
+
+        Assert.Equal(TweakOutcome.Skipped, (await engine.ApplyAsync(app, default)).Outcome);
+        Assert.Contains("Clipchamp.Clipchamp", system.OtherUserApps);
+
+        engine.RemoveAppsForAllUsers = true;
+        Assert.Equal(TweakOutcome.Applied, (await engine.ApplyAsync(app, default)).Outcome);
+        Assert.DoesNotContain("Clipchamp.Clipchamp", system.OtherUserApps);
+
+        Assert.Equal(TweakOutcome.Skipped, (await engine.ApplyAsync(app, default)).Outcome);
+    }
+
+    [Fact]
     public async Task Capture_book_persists_between_sessions()
     {
         var dir = Path.Combine(Path.GetTempPath(), "pcchecker-debloat-" + Guid.NewGuid().ToString("N"));

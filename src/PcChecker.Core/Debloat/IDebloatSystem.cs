@@ -20,6 +20,12 @@ public interface IDebloatSystem
     /// <summary>Package names of the Store apps installed for the current user; null when the query failed.</summary>
     Task<IReadOnlySet<string>?> GetInstalledAppsAsync(CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Package names of the Store apps installed for any account or provisioned for new accounts (what a removal for all
+    /// users acts on); null when the query failed.
+    /// </summary>
+    Task<IReadOnlySet<string>?> GetInstalledAppsForAllUsersAsync(CancellationToken cancellationToken);
+
     /// <summary>State of an optional feature; <see cref="FeatureState.NotPresent"/> when this Windows has no such feature.</summary>
     Task<FeatureState> GetOptionalFeatureStateAsync(string featureName, CancellationToken cancellationToken);
 

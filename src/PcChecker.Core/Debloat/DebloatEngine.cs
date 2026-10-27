@@ -29,6 +29,7 @@ public sealed class DebloatEngine
 
     private bool _inBatch;
     private IReadOnlySet<string>? _batchInstalledApps;
+    private bool _batchInstalledAppsForAllUsers;
 
     /// <summary>
     /// Starts a batch: the installed-app list is read once for the whole batch instead of once per app removal (each
@@ -297,7 +298,9 @@ public sealed class DebloatEngine
 
             case AppxRemovalOp app:
             {
-                var installed = await InstalledAppsAsync(cancellationToken).ConfigureAwait(false);
+                // A removal for all users also acts on other accounts and the provisioned package, so the app counts as
+                // present when any of those still has it, even if the current account removed it already.
+                var installed = await InstalledAppsAsync(RemoveAppsForAllUsers, cancellationToken).ConfigureAwait(false);
                 if (installed is not null && !installed.Contains(app.PackageName))
                 {
                     return (null, null);
@@ -423,17 +426,19 @@ public sealed class DebloatEngine
 
     // ---- helpers -------------------------------------------------------------------------------------------------
 
-    private async Task<IReadOnlySet<string>?> InstalledAppsAsync(CancellationToken cancellationToken)
+    private async Task<IReadOnlySet<string>?> InstalledAppsAsync(bool allUsers, CancellationToken cancellationToken)
     {
-        if (_inBatch && _batchInstalledApps is not null)
+        if (_inBatch && _batchInstalledApps is not null && _batchInstalledAppsForAllUsers == allUsers)
         {
             return _batchInstalledApps;
         }
 
-        var installed = await SafeAsync(() => _system.GetInstalledAppsAsync(cancellationToken), null).ConfigureAwait(false);
+        var installed = await SafeAsync(() => allUsers ? _system.GetInstalledAppsForAllUsersAsync(cancellationToken) : _system.GetInstalledAppsAsync(cancellationToken), null)
+            .ConfigureAwait(false);
         if (_inBatch)
         {
             _batchInstalledApps = installed;
+            _batchInstalledAppsForAllUsers = allUsers;
         }
 
         return installed;
