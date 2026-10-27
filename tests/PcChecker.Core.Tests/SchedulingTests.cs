@@ -620,6 +620,31 @@ public class SchedulingTests
     }
 
     [Fact]
+    public void Tray_and_overlay_limits_match_the_alert_limits()
+    {
+        var monitoring = new MonitoringSettings();
+        const string ryzen = "AMD Ryzen 9 7950X 16-Core Processor";
+
+        // A Ryzen 7000/9000 at its 95 °C design point is "warm" (90/98 °C), as on the Temperatures page, not critical.
+        Assert.Equal((90d, 98d), TrayText.LimitsFor(OverlayMetricIds.CpuTemp, monitoring, ryzen));
+        Assert.Equal(HealthStatus.Warning, TrayText.LevelFor(OverlayMetricIds.CpuTemp, 95, monitoring, ryzen));
+        Assert.Equal(HealthStatus.Critical, TrayText.LevelFor(OverlayMetricIds.CpuTemp, 95, monitoring, "Intel(R) Core(TM) i9-14900K"));
+
+        // The hot spot has its own limits (100/110 °C), not the GPU core's plus 10.
+        Assert.Equal((100d, 110d), TrayText.LimitsFor(OverlayMetricIds.GpuHotspot, monitoring, null));
+        Assert.Equal(HealthStatus.Good, TrayText.LevelFor(OverlayMetricIds.GpuHotspot, 95, monitoring, null));
+        Assert.Null(TrayText.LimitsFor(OverlayMetricIds.CpuLoad, monitoring, null));
+
+        var snapshot = new SensorSnapshot(DateTimeOffset.Now,
+        [
+            new SensorReading("cpu/t", ryzen, HardwareKind.Cpu, SensorKind.Temperature, "Core (Tctl/Tdie)", 95, null, null, "°C"),
+        ]);
+        var readings = TrayReadings.From(snapshot);
+        Assert.Equal(ryzen, readings.CpuName);
+        Assert.Equal(1, TrayText.ActiveAlerts(readings, monitoring)); // one warning, counted once
+    }
+
+    [Fact]
     public void Tray_readings_come_from_the_sensor_snapshot()
     {
         var snapshot = new SensorSnapshot(DateTimeOffset.Now,

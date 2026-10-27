@@ -12,7 +12,8 @@ public sealed record TrayReadings(
     double? DriveTempC,
     double? CpuLoadPercent,
     double? GpuLoadPercent,
-    double? RamPercent)
+    double? RamPercent,
+    string? CpuName = null)
 {
     public static TrayReadings Empty { get; } = new(null, null, null, null, null, null);
 
@@ -30,7 +31,8 @@ public sealed record TrayReadings(
             Value(snapshot, OverlayMetricIds.DiskTemp),
             Value(snapshot, OverlayMetricIds.CpuLoad),
             Value(snapshot, OverlayMetricIds.GpuLoad),
-            Value(snapshot, OverlayMetricIds.RamPercent));
+            Value(snapshot, OverlayMetricIds.RamPercent),
+            TemperatureRoles.CpuNameOf(snapshot.Readings));
     }
 
     private static double? Value(SensorSnapshot snapshot, string metricId)
@@ -124,6 +126,28 @@ public static class TrayText
         return celsius >= critC ? HealthStatus.Critical : celsius >= warnC ? HealthStatus.Warning : HealthStatus.Good;
     }
 
+    /// <summary>
+    /// Warning and critical limits for a temperature metric of the tray and the overlay, the same ones the alerts and
+    /// the Temperatures page use: the CPU limits follow <see cref="TemperatureRoles.CpuThresholds"/> (a Ryzen 7000/9000
+    /// is not "critical" at its 95 °C design point), the hot spot has its own limits. Null for other metrics.
+    /// </summary>
+    public static (double Warn, double Crit)? LimitsFor(string metricId, MonitoringSettings thresholds, string? cpuName)
+    {
+        ArgumentNullException.ThrowIfNull(thresholds);
+        return metricId switch
+        {
+            OverlayMetricIds.CpuTemp => TemperatureRoles.CpuThresholds(thresholds, cpuName),
+            OverlayMetricIds.GpuTemp => (thresholds.GpuWarnC, thresholds.GpuCritC),
+            OverlayMetricIds.GpuHotspot => (Math.Max(thresholds.GpuHotSpotWarnC, thresholds.GpuWarnC), Math.Max(thresholds.GpuHotSpotCritC, thresholds.GpuCritC)),
+            OverlayMetricIds.DiskTemp => (thresholds.DiskWarnC, thresholds.DiskCritC),
+            _ => null,
+        };
+    }
+
+    /// <summary>The level of one temperature metric against <see cref="LimitsFor"/>; Unknown for a metric without limits.</summary>
+    public static HealthStatus LevelFor(string metricId, double? celsius, MonitoringSettings thresholds, string? cpuName) =>
+        LimitsFor(metricId, thresholds, cpuName) is { } limits ? Level(celsius, limits.Warn, limits.Crit) : HealthStatus.Unknown;
+
     /// <summary>How many of CPU, GPU and drive are at or above their warning thresholds right now.</summary>
     public static int ActiveAlerts(TrayReadings readings, MonitoringSettings thresholds)
     {
@@ -135,9 +159,9 @@ public static class TrayText
         }
 
         int count = 0;
-        count += Level(readings.CpuTempC, thresholds.CpuWarnC, thresholds.CpuCritC) >= HealthStatus.Warning ? 1 : 0;
-        count += Level(readings.GpuTempC, thresholds.GpuWarnC, thresholds.GpuCritC) >= HealthStatus.Warning ? 1 : 0;
-        count += Level(readings.DriveTempC, thresholds.DiskWarnC, thresholds.DiskCritC) >= HealthStatus.Warning ? 1 : 0;
+        count += LevelFor(OverlayMetricIds.CpuTemp, readings.CpuTempC, thresholds, readings.CpuName) >= HealthStatus.Warning ? 1 : 0;
+        count += LevelFor(OverlayMetricIds.GpuTemp, readings.GpuTempC, thresholds, readings.CpuName) >= HealthStatus.Warning ? 1 : 0;
+        count += LevelFor(OverlayMetricIds.DiskTemp, readings.DriveTempC, thresholds, readings.CpuName) >= HealthStatus.Warning ? 1 : 0;
         return count;
     }
 
