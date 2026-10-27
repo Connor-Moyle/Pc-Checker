@@ -93,7 +93,15 @@ public sealed partial class WindowsTaskSchedulerService : ITaskSchedulerService
                         unreadable++;
                     }
                 }
+            }
+            catch (Exception ex) when (ex is COMException or UnauthorizedAccessException or Microsoft.CSharp.RuntimeBinder.RuntimeBinderException)
+            {
+                // A folder whose tasks this account may not read (other users' private tasks): count it and carry on.
+                unreadable++;
+            }
 
+            try
+            {
                 dynamic subfolders = folder.GetFolders(0);
                 int folderCount = (int)subfolders.Count;
                 for (int i = 1; i <= folderCount; i++)
@@ -103,7 +111,6 @@ public sealed partial class WindowsTaskSchedulerService : ITaskSchedulerService
             }
             catch (Exception ex) when (ex is COMException or UnauthorizedAccessException or Microsoft.CSharp.RuntimeBinder.RuntimeBinderException)
             {
-                // A folder this account may not read (other users' private tasks): count it and carry on.
                 unreadable++;
             }
         }
@@ -207,7 +214,7 @@ public sealed partial class WindowsTaskSchedulerService : ITaskSchedulerService
     public Task<OperationResult> RunAsync(ScheduledTaskInfo task, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(task);
-        if (TaskSafetyRules.RunRefusal(task, advancedMode: true) is { } refusal)
+        if (TaskSafetyRules.RunRefusal(task) is { } refusal)
         {
             return Task.FromResult(OperationResult.Fail(refusal));
         }
@@ -225,6 +232,11 @@ public sealed partial class WindowsTaskSchedulerService : ITaskSchedulerService
     public Task<OperationResult> EndAsync(ScheduledTaskInfo task, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(task);
+        if (TaskSafetyRules.EndRefusal(task) is { } refusal)
+        {
+            return Task.FromResult(OperationResult.Fail(refusal));
+        }
+
         var options = new ChangeOptions(false, false, Module, task.Path, false, "Use Run now on the Scheduled tasks page to start it again.");
         return _guard.RunGuardedAsync($"End scheduled task {task.Path}", options, async ct =>
         {

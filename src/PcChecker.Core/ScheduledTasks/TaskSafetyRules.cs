@@ -2,7 +2,7 @@ namespace PcChecker.Core.ScheduledTasks;
 
 /// <summary>
 /// Which actions the Scheduled tasks page offers for a task, with the plain reason when one is refused. Windows' own
-/// tasks (\Microsoft\Windows\) are read-only outside Advanced mode, Microsoft's tasks are never deleted, and PC
+/// tasks (\Microsoft\Windows\) are read-only (Advanced mode may only turn them off or on), Microsoft's tasks are never deleted, and PC
 /// Checker's own schedules are managed in Settings. Pure.
 /// </summary>
 public static class TaskSafetyRules
@@ -10,13 +10,16 @@ public static class TaskSafetyRules
     public const string OwnTaskReason = "This is one of PC Checker's own schedules. Turn it on or off in Settings → Schedules.";
     public const string WindowsReadOnlyReason = "Windows uses this task for its own upkeep, so it is read-only here. Turn on Advanced mode to turn it off or on.";
 
-    /// <summary>Why "Run now" is refused, or null.</summary>
-    public static string? RunRefusal(ScheduledTaskInfo task, bool advancedMode)
+    /// <summary>Why Windows' own tasks are never started or stopped from here: Windows runs them when it needs to.</summary>
+    public const string WindowsRunReason = "Windows starts and stops its own upkeep tasks itself, so they are not started or ended from here.";
+
+    /// <summary>Why "Run now" is refused, or null. Windows' own tasks are never started from here.</summary>
+    public static string? RunRefusal(ScheduledTaskInfo task)
     {
         ArgumentNullException.ThrowIfNull(task);
-        if (task.IsWindowsTask && !advancedMode)
+        if (task.IsWindowsTask)
         {
-            return WindowsReadOnlyReason;
+            return WindowsRunReason;
         }
 
         if (task.State == TaskRunState.Running)
@@ -37,13 +40,13 @@ public static class TaskSafetyRules
         return null;
     }
 
-    /// <summary>Why "End" is refused, or null.</summary>
-    public static string? EndRefusal(ScheduledTaskInfo task, bool advancedMode)
+    /// <summary>Why "End" is refused, or null. Windows' own tasks are never stopped from here.</summary>
+    public static string? EndRefusal(ScheduledTaskInfo task)
     {
         ArgumentNullException.ThrowIfNull(task);
-        if (task.IsWindowsTask && !advancedMode)
+        if (task.IsWindowsTask)
         {
-            return WindowsReadOnlyReason;
+            return WindowsRunReason;
         }
 
         return task.State == TaskRunState.Running ? null : "It is not running.";

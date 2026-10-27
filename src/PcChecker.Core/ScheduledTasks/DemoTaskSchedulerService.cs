@@ -33,7 +33,7 @@ public sealed class DemoTaskSchedulerService : ITaskSchedulerService
 
     public async Task<OperationResult> RunAsync(ScheduledTaskInfo task, CancellationToken cancellationToken)
     {
-        if (TaskSafetyRules.RunRefusal(task, advancedMode: true) is { } refusal)
+        if (TaskSafetyRules.RunRefusal(task) is { } refusal)
         {
             return OperationResult.Fail(refusal);
         }
@@ -45,6 +45,11 @@ public sealed class DemoTaskSchedulerService : ITaskSchedulerService
 
     public async Task<OperationResult> EndAsync(ScheduledTaskInfo task, CancellationToken cancellationToken)
     {
+        if (TaskSafetyRules.EndRefusal(task) is { } refusal)
+        {
+            return OperationResult.Fail(refusal);
+        }
+
         await DemoData.DelayAsync(cancellationToken).ConfigureAwait(false);
         Replace(task.Path, t => t with { State = TaskRunState.Ready, LastResult = TaskResultText.TaskTerminated });
         return OperationResult.Ok($"{task.Name} was stopped.");

@@ -300,6 +300,8 @@ public class ScheduledTasksTests
         Assert.Null(TaskSafetyRules.ToggleRefusal(windows, advancedMode: true));
         Assert.NotNull(TaskSafetyRules.DeleteRefusal(windows));
         Assert.NotNull(TaskSafetyRules.TurnOffWarning(windows));
+        Assert.Equal(TaskSafetyRules.WindowsRunReason, TaskSafetyRules.RunRefusal(windows));
+        Assert.Equal(TaskSafetyRules.WindowsRunReason, TaskSafetyRules.EndRefusal(windows with { State = TaskRunState.Running }));
 
         var edge = Info(@"\MicrosoftEdgeUpdateTaskMachineUA", microsoft: true);
         Assert.Null(TaskSafetyRules.ToggleRefusal(edge, advancedMode: false));
@@ -311,14 +313,14 @@ public class ScheduledTasksTests
 
         var vendor = Info(@"\Adobe Acrobat Update Task");
         Assert.Null(TaskSafetyRules.DeleteRefusal(vendor));
-        Assert.Null(TaskSafetyRules.RunRefusal(vendor, false));
-        Assert.Equal("It is not running.", TaskSafetyRules.EndRefusal(vendor, false));
+        Assert.Null(TaskSafetyRules.RunRefusal(vendor));
+        Assert.Equal("It is not running.", TaskSafetyRules.EndRefusal(vendor));
 
         // Never start a program from a writable folder with administrator rights.
         var elevated = Info(@"\Updater", program: @"C:\Users\Alex\AppData\Local\Temp\u.exe", user: "S-1-5-18");
-        Assert.Contains("administrator rights", TaskSafetyRules.RunRefusal(elevated, true));
+        Assert.Contains("administrator rights", TaskSafetyRules.RunRefusal(elevated));
         var disabled = vendor with { State = TaskRunState.Disabled };
-        Assert.Equal("The task is turned off. Turn it on first.", TaskSafetyRules.RunRefusal(disabled, false));
+        Assert.Equal("The task is turned off. Turn it on first.", TaskSafetyRules.RunRefusal(disabled));
     }
 
     [Fact]

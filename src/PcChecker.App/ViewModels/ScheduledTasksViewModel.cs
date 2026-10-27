@@ -223,9 +223,9 @@ public sealed partial class ScheduledTasksViewModel : ViewModelBase
 
     private bool HasSelectionForCommand() => SelectedRow is not null;
 
-    private bool CanRunNow() => SelectedRow is { } row && TaskSafetyRules.RunRefusal(row.Task, IsAdvancedMode) is null;
+    private bool CanRunNow() => SelectedRow is { } row && TaskSafetyRules.RunRefusal(row.Task) is null;
 
-    private bool CanEnd() => SelectedRow is { } row && TaskSafetyRules.EndRefusal(row.Task, IsAdvancedMode) is null;
+    private bool CanEnd() => SelectedRow is { } row && TaskSafetyRules.EndRefusal(row.Task) is null;
 
     private bool CanTurnOff() => SelectedRow is { IsOn: true } row && TaskSafetyRules.ToggleRefusal(row.Task, IsAdvancedMode) is null;
 
