@@ -61,6 +61,16 @@ public class XamlAccessibilityTests
     }
 
     [Fact]
+    public void Only_read_only_grids_are_a_single_tab_stop()
+    {
+        // With TabNavigation="Once" Tab leaves the grid after one stop and the arrow keys only move between cells, so
+        // switches, buttons and drop-downs inside an editable grid's cells would be out of keyboard reach.
+        var grids = Elements(ListTypes).Where(x => x.Element.Attribute("KeyboardNavigation.TabNavigation")?.Value == "Once").ToList();
+        Assert.NotEmpty(grids);
+        Assert.Empty(grids.Where(x => x.Element.Attribute("IsReadOnly")?.Value != "True").Select(Describe));
+    }
+
+    [Fact]
     public void Standalone_icons_use_IconGlyph_so_screen_readers_skip_or_name_them()
     {
         // ui:SymbolIcon exposes its font glyph as text; the {ui:SymbolIcon} markup extension on a button is fine.

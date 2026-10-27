@@ -230,7 +230,7 @@
               </Grid>
             </Border>
 
-            <ui:DataGrid AutomationProperties.Name="Startup apps" KeyboardNavigation.TabNavigation="Once" Style="{StaticResource StartupGrid}" ItemsSource="{Binding StartupApps}"
+            <ui:DataGrid AutomationProperties.Name="Startup apps" Style="{StaticResource StartupGrid}" ItemsSource="{Binding StartupApps}"
                          Visibility="{Binding HasNoApps, Converter={StaticResource InverseBoolToVisibility}}">
               <ui:DataGrid.Columns>
                 <DataGridTemplateColumn Header="On" Width="70" CellTemplate="{StaticResource EnabledCell}" />
@@ -266,7 +266,7 @@
               <ui:ToggleSwitch Grid.Column="1" Content="Show Windows tasks" IsChecked="{Binding ShowWindowsTasks}" VerticalAlignment="Top"
                                ToolTip="Also list tasks published by Microsoft" />
             </Grid>
-            <ui:DataGrid AutomationProperties.Name="Scheduled logon tasks" KeyboardNavigation.TabNavigation="Once" Style="{StaticResource StartupGrid}" ItemsSource="{Binding LogonTasks}"
+            <ui:DataGrid AutomationProperties.Name="Scheduled logon tasks" Style="{StaticResource StartupGrid}" ItemsSource="{Binding LogonTasks}"
                          Visibility="{Binding HasNoTasks, Converter={StaticResource InverseBoolToVisibility}}">
               <ui:DataGrid.Columns>
                 <DataGridTemplateColumn Header="On" Width="70" CellTemplate="{StaticResource EnabledCell}" />
@@ -435,7 +435,7 @@
             </StackPanel>
           </ui:CardExpander.Header>
           <StackPanel>
-            <ui:DataGrid AutomationProperties.Name="Startup services" KeyboardNavigation.TabNavigation="Once" Style="{StaticResource StartupGrid}" ItemsSource="{Binding Services}"
+            <ui:DataGrid AutomationProperties.Name="Startup services" Style="{StaticResource StartupGrid}" ItemsSource="{Binding Services}"
                          Visibility="{Binding HasNoServices, Converter={StaticResource InverseBoolToVisibility}}">
               <ui:DataGrid.Columns>
                 <DataGridTemplateColumn Header="Service" Width="2*">

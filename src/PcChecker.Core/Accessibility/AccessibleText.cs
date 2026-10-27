@@ -126,7 +126,7 @@ public static class AccessibleText
         }
 
         var escaped = text.Replace("_", "__", StringComparison.Ordinal);
-        int at = escaped.IndexOf(key.ToString(), StringComparison.CurrentCultureIgnoreCase);
+        int at = escaped.IndexOf(key.ToString(), StringComparison.OrdinalIgnoreCase);
         if (at < 0)
         {
             at = 0;

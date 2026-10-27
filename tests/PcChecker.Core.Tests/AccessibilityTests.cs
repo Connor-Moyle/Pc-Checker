@@ -187,6 +187,23 @@ public class AccessibilityTests
     }
 
     [Fact]
+    public void Access_key_letter_matching_does_not_depend_on_the_ui_culture()
+    {
+        var previous = System.Globalization.CultureInfo.CurrentCulture;
+        try
+        {
+            // Under Turkish rules "i" and "I" are different letters; the key must still land on the same letter.
+            System.Globalization.CultureInfo.CurrentCulture = new System.Globalization.CultureInfo("tr-TR");
+            Assert.Equal("Bul_ingen", AccessibleText.ApplyAccessKey("Bulingen", 'I'));
+            Assert.Equal("Tar_Ia", AccessibleText.ApplyAccessKey("TarIa", 'i'));
+        }
+        finally
+        {
+            System.Globalization.CultureInfo.CurrentCulture = previous;
+        }
+    }
+
+    [Fact]
     public void Translates_labels_that_carry_an_access_key()
     {
         var german = new Translator("de", new Dictionary<string, string>

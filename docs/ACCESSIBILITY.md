@@ -33,13 +33,15 @@ keyboard, except the few drawings listed under [Known gaps](#known-gaps).
   opens one (F6 brings you back to the menu from anywhere).
 - **Section tabs**: Tab moves into the row of tabs; Left and Right move between
   them and open the page straight away.
-- **Data tables** (Processes, Startup, sensors, SMART attributes, event logs
-  and the others): a read-only table is one Tab stop. Inside it, the arrow keys
+- **Data tables** (sensors, SMART attributes, event logs, memory modules and
+  the others): a read-only table is one Tab stop. Inside it, the arrow keys
   move between rows and cells, Home and End go to the first and last cell of a
   row, Ctrl+Home and Ctrl+End to the first and last row, Page Up and Page Down
   scroll. On Processes, **Delete** ends the selected program (it asks first).
-  Tables with check boxes or buttons in their rows (driver updates, Windows
-  updates, services) let Tab reach those controls.
+  Tables with switches, buttons or drop-downs in their rows (Processes, the
+  Startup apps, logon tasks and services, driver updates, Windows updates) let
+  Tab reach those controls, so you can expand a program group, turn a startup
+  item on or off, remove it or change a service's start mode from the keyboard.
 - **Quick search**: Up and Down move the highlight, Page Up and Page Down jump,
   Enter opens, Esc closes.
 - **Fan curve** (Cooling & RGB → Fans): Tab to the curve, then Left and Right
@@ -152,8 +154,9 @@ themes), PC Checker switches WPF UI to its high-contrast theme, whatever the
 colours and accents use the contrast theme's highlight colour, text on badges
 uses its highlight text colour, and small notes use the normal text colour. So
 text stays readable in Aquatic, Desert, Dusk, Night sky or a custom contrast
-theme. Turning high contrast on or off while PC Checker runs takes effect at
-once; turning it off returns to the theme you chose.
+theme. Turning high contrast on or off, or switching from one contrast theme to
+another, while PC Checker runs takes effect at once; turning it off returns to
+the theme you chose.
 
 In high contrast the status colours all look the same; the words on the badges
 (*Good*, *Warning*, *Safe*, *Restart needed* and so on) still say which is which.
@@ -180,7 +183,12 @@ The rules are checked by `XamlAccessibilityTests` and `AccessibilityTests`:
   (`<AccessText Text="_Scan" />`), because WPF UI's button does not turn an
   underscore in plain content into a key. Keep them unique on a page.
 - A read-only `ui:DataGrid` gets `KeyboardNavigation.TabNavigation="Once"` so it
-  is one Tab stop with arrow keys inside.
+  is one Tab stop with arrow keys inside. Never use it on a grid whose rows hold
+  buttons, switches or drop-downs: arrow keys move between cells but do not
+  reach the controls inside them.
+- `ThemeColors.Accent(...)` hands out one shared brush per colour that changes
+  colour with the theme. Bind it as it is; do not freeze it or copy its colour,
+  or the badge keeps the old shade after a theme change.
 
 ## Known gaps
 
@@ -189,10 +197,6 @@ The rules are checked by `XamlAccessibilityTests` and `AccessibilityTests`:
   numbers they show are on the page as text (current, average and peak values,
   tile values and the block counts). The History page's *Export CSV* gives the
   full data.
-- **Theme switch while running.** After changing the theme in Settings (or
-  Windows changing it), colours set in XAML change at once, but a few status
-  colours worked out in code (for example the badges in an already loaded list)
-  keep the previous shade until the page refreshes its data or is opened again.
 - **Hidden icons are only hidden from the normal views.** WPF has no way to
   remove an element from the raw UI Automation tree, so inspection tools still
   see decorative icons there; Narrator, NVDA and JAWS use the normal views and
