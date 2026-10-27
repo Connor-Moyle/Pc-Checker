@@ -34,6 +34,20 @@ public static partial class DebloatCatalog
     internal const string OneDriveRemovedDetectScript =
         "-not ((Test-Path \"$env:LOCALAPPDATA\\Microsoft\\OneDrive\\OneDrive.exe\") -or (Test-Path \"$env:ProgramFiles\\Microsoft OneDrive\\OneDrive.exe\"))";
 
+    /// <summary>Removes the fax print queue, found by its driver so it works whatever the queue is called in this language.</summary>
+    internal const string FaxQueueRemoveScript =
+        "$ErrorActionPreference = 'Stop'; " +
+        "Get-Printer | Where-Object { $_.DriverName -eq 'Microsoft Shared Fax Driver' } | ForEach-Object { Remove-Printer -Name $_.Name }";
+
+    /// <summary>Recreates the Windows fax queue when no queue uses the fax driver.</summary>
+    internal const string FaxQueueAddScript =
+        "$ErrorActionPreference = 'Stop'; " +
+        "if (-not (Get-Printer | Where-Object { $_.DriverName -eq 'Microsoft Shared Fax Driver' })) { Add-Printer -Name 'Fax' -DriverName 'Microsoft Shared Fax Driver' -PortName 'SHRFAX:' }";
+
+    /// <summary>Prints True when no print queue uses the fax driver.</summary>
+    internal const string FaxQueueRemovedDetectScript =
+        "$ErrorActionPreference = 'Stop'; -not (Get-Printer | Where-Object { $_.DriverName -eq 'Microsoft Shared Fax Driver' })";
+
     private static IEnumerable<DebloatTweak> EdgeTweaks() =>
     [
         Tweak("edge.background", EdgeCategory, "Stop Microsoft Edge running in the background",
@@ -43,13 +57,29 @@ public static partial class DebloatCatalog
             warning: EdgeManagedNote),
 
         Tweak("edge.nags", EdgeCategory, "Turn off Edge sidebar, shopping and first-run nags",
-            "Hides the Edge sidebar (including Copilot), the shopping assistant, product recommendations and the first-run setup pages.",
-            RiskLevel.Moderate, From(WinUtil, ShutUp10, Optimizer),
+            "Hides the Edge sidebar (including Copilot), the shopping assistant, product recommendations, the first-run pages, new tab page content and promoted sites, Microsoft Rewards, default-browser prompts, Acrobat and donation buttons, and turns off feedback, search-result and tab-service data sharing.",
+            RiskLevel.Moderate, From(WinUtil, Win11Debloat, ShutUp10, Optimizer, XdAntiSpy),
             [
                 Machine(EdgePolicy, "HubsSidebarEnabled", 0, null),
                 Machine(EdgePolicy, "EdgeShoppingAssistantEnabled", 0, null),
                 Machine(EdgePolicy, "ShowRecommendationsEnabled", 0, null),
                 Machine(EdgePolicy, "HideFirstRunExperience", 1, null),
+                Machine(EdgePolicy, "UserFeedbackAllowed", 0, null),
+                Machine(EdgePolicy, "ShowMicrosoftRewards", 0, null),
+                Machine(EdgePolicy, "NewTabPageContentEnabled", 0, null),
+                Machine(EdgePolicy, "NewTabPageHideDefaultTopSites", 1, null),
+                Machine(EdgePolicy, "DefaultBrowserSettingEnabled", 0, null),
+                Machine(EdgePolicy, "DefaultBrowserSettingsCampaignEnabled", 0, null),
+                Machine(EdgePolicy, "SpotlightExperiencesAndRecommendationsEnabled", 0, null),
+                Machine(EdgePolicy, "ShowAcrobatSubscriptionButton", 0, null),
+                Machine(EdgePolicy, "WalletDonationEnabled", 0, null),
+                Machine(EdgePolicy, "MicrosoftEdgeInsiderPromotionEnabled", 0, null),
+                Machine(EdgePolicy, "WebWidgetAllowed", 0, null),
+                Machine(EdgePolicy, "ImportOnEachLaunch", 0, null),
+                Machine(EdgePolicy, "AlternateErrorPagesEnabled", 0, null),
+                Machine(EdgePolicy, "Edge3PSerpTelemetryEnabled", 0, null),
+                Machine(EdgePolicy, "TabServicesEnabled", 0, null),
+                Machine(EdgePolicy, "GamerModeEnabled", 0, null),
             ],
             warning: EdgeManagedNote),
 
@@ -101,13 +131,15 @@ public static partial class DebloatCatalog
             warning: "Modern games often run better with optimizations on, and alt-tab becomes slower. Revert if a game misbehaves."),
 
         Tweak("gaming.xboxservices", GamingCategory, "Disable Xbox services",
-            "Disables Xbox Live auth, game saves, networking and accessory services for PCs that never use Xbox features.",
+            "Disables Xbox Live auth, game saves, networking and accessory services, and the game-save tasks that would start them again, for PCs that never use Xbox features.",
             RiskLevel.Advanced, From(WinUtil, DebloatWindows10, AtlasOS, HardenDebloat),
             [
                 Service("XblAuthManager", DebloatStartMode.Disabled, DebloatStartMode.Manual),
                 Service("XblGameSave", DebloatStartMode.Disabled, DebloatStartMode.Manual),
                 Service("XboxNetApiSvc", DebloatStartMode.Disabled, DebloatStartMode.Manual),
                 Service("XboxGipSvc", DebloatStartMode.Disabled, DebloatStartMode.Manual),
+                DisableTask(@"\Microsoft\XblGameSave\XblGameSaveTask"),
+                DisableTask(@"\Microsoft\XblGameSave\XblGameSaveTaskLogon"),
             ],
             advancedOnly: true,
             warning: "Breaks Game Pass, Xbox app sign-in, cloud saves in Xbox games and Xbox accessory updates."),
@@ -146,9 +178,13 @@ public static partial class DebloatCatalog
     private static IEnumerable<DebloatTweak> ServiceTweaks() =>
     [
         Tweak("svc.fax", ServicesCategory, "Disable the Fax service",
-            "Safe if you never send faxes from this PC. Applied only when no physical printer is installed (multifunction printers can fax through it).",
-            RiskLevel.Advanced, From(WinUtil, DebloatWindows10, AtlasOS, ReviOS),
-            [Service("Fax", DebloatStartMode.Disabled, DebloatStartMode.Manual)], advancedOnly: true)
+            "Safe if you never send faxes from this PC. Also removes the \"Fax\" print queue so no dead printer is left behind. Applied only when no physical printer is installed (multifunction printers can fax through it).",
+            RiskLevel.Advanced, From(WinUtil, DebloatWindows10, AtlasOS, ReviOS, XdAntiSpy),
+            [
+                new PowerShellOp("fax.queue", "Remove the Fax print queue (Microsoft Shared Fax Driver)", FaxQueueRemoveScript, FaxQueueAddScript, FaxQueueRemovedDetectScript, null),
+                Service("Fax", DebloatStartMode.Disabled, DebloatStartMode.Manual),
+            ],
+            advancedOnly: true)
         with { Precondition = DebloatPrecondition.NoPhysicalPrinters },
 
         Tweak("svc.spooler", ServicesCategory, "Disable the Print Spooler",
@@ -164,9 +200,15 @@ public static partial class DebloatCatalog
             [Service("RemoteRegistry", DebloatStartMode.Disabled, DebloatStartMode.Disabled)], advancedOnly: true),
 
         Tweak("svc.mapsbroker", ServicesCategory, "Set Downloaded Maps Manager to manual",
-            "Safe if you don't use offline maps; the Maps app starts the service when it needs it.",
-            RiskLevel.Advanced, From(WinUtil, DebloatWindows10, AtlasOS),
-            [Service("MapsBroker", DebloatStartMode.Manual, DebloatStartMode.AutomaticDelayed)], advancedOnly: true),
+            "Safe if you don't use offline maps; the Maps app starts the service when it needs it. Also turns off automatic offline-map updates and their scheduled tasks.",
+            RiskLevel.Advanced, From(WinUtil, Sophia, DebloatWindows10, AtlasOS),
+            [
+                Service("MapsBroker", DebloatStartMode.Manual, DebloatStartMode.AutomaticDelayed),
+                Machine(@"SYSTEM\Maps", "AutoUpdateEnabled", 0, 1),
+                DisableTask(@"\Microsoft\Windows\Maps\MapsToastTask"),
+                DisableTask(@"\Microsoft\Windows\Maps\MapsUpdateTask"),
+            ],
+            advancedOnly: true),
 
         Tweak("svc.retaildemo", ServicesCategory, "Disable the Retail Demo service",
             "Only used by store display PCs. Safe on every home PC.",

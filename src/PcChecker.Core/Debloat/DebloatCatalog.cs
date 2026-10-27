@@ -15,7 +15,10 @@ public static partial class DebloatCatalog
     public const string AiCategory = "AI & Copilot";
     public const string TaskbarCategory = "Taskbar & Start";
     public const string ExplorerCategory = "File Explorer";
+    public const string PreferencesCategory = "Windows preferences";
     public const string EdgeCategory = "Edge & OneDrive";
+    public const string OtherAppsCategory = "Other apps";
+    public const string InstallsCategory = "Automatic installs";
     public const string GamingCategory = "Gaming & Xbox";
     public const string UpdateCategory = "Windows Update";
     public const string ServicesCategory = "Background services";
@@ -42,13 +45,16 @@ public static partial class DebloatCatalog
     /// <summary>Categories in display order.</summary>
     public static IReadOnlyList<string> Categories { get; } =
     [
-        PrivacyCategory, AdsCategory, AiCategory, TaskbarCategory, ExplorerCategory, EdgeCategory, GamingCategory, UpdateCategory, ServicesCategory, AppsCategory,
+        PrivacyCategory, AdsCategory, AiCategory, TaskbarCategory, ExplorerCategory, PreferencesCategory, EdgeCategory, OtherAppsCategory, GamingCategory,
+        UpdateCategory, ServicesCategory, InstallsCategory, AppsCategory,
     ];
 
     public static IReadOnlyList<DebloatTweak> All { get; } =
     [
-        .. PrivacyTweaks(), .. AdsTweaks(), .. AiTweaks(), .. TaskbarTweaks(), .. ExplorerTweaks(), .. EdgeTweaks(),
-        .. GamingTweaks(), .. UpdateTweaks(), .. ServiceTweaks(), .. AppTweaks(),
+        .. PrivacyTweaks(), .. MorePrivacyTweaks(), .. AdsTweaks(), .. MoreAdsTweaks(), .. AiTweaks(), .. MoreAiTweaks(),
+        .. TaskbarTweaks(), .. MoreTaskbarTweaks(), .. ExplorerTweaks(), .. MoreExplorerTweaks(), .. PreferenceTweaks(),
+        .. EdgeTweaks(), .. MoreEdgeTweaks(), .. OtherAppTweaks(), .. GamingTweaks(), .. MoreGamingTweaks(), .. UpdateTweaks(), .. MoreUpdateTweaks(),
+        .. ServiceTweaks(), .. MoreServiceTweaks(), .. InstallTweaks(), .. AppTweaks(),
     ];
 
     private static readonly Dictionary<string, DebloatTweak> ById = All.ToDictionary(t => t.Id, StringComparer.OrdinalIgnoreCase);
@@ -90,6 +96,23 @@ public static partial class DebloatCatalog
     private static RegistryValueOp ExplorerFlag(string name, int applied, int? windowsDefault) => User(ExplorerAdvanced, name, applied, windowsDefault);
 
     private static RegistryValueOp ContentFlagOff(string name) => User(ContentDelivery, name, 0, 1);
+
+    private static RegistryValueOp DefaultUserText(string path, string name, string applied, string? windowsDefault) =>
+        new(DebloatHive.Users, @".DEFAULT\" + path, name, DebloatValueKind.String, applied, windowsDefault);
+
+    /// <summary>The tweak only applies when one of these keys exists (software installed).</summary>
+    private static DebloatRequirement Needs(string missingText, params DebloatKeyRef[] anyOf) => new(missingText, anyOf);
+
+    private static DebloatKeyRef MachineKey(string path) => new(DebloatHive.LocalMachine, path);
+
+    private static DebloatKeyRef UserKey(string path) => new(DebloatHive.CurrentUser, path);
+
+    /// <summary>The App Paths registration of a desktop program, per machine and per user.</summary>
+    private static DebloatKeyRef[] AppPath(string exe) =>
+    [
+        MachineKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\" + exe),
+        UserKey(@"Software\Microsoft\Windows\CurrentVersion\App Paths\" + exe),
+    ];
 
     private static ServiceOp Service(string name, DebloatStartMode applied, DebloatStartMode windowsDefault) => new(name, applied, windowsDefault);
 

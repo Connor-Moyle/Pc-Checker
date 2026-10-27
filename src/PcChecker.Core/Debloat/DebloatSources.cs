@@ -17,10 +17,12 @@ public static class DebloatSources
     public const string AtlasOS = "AtlasOS";
     public const string ReviOS = "ReviOS";
     public const string HardenDebloat = "Windows-Optimize-Harden-Debloat";
+    public const string Tiny11 = "Tiny11";
+    public const string XdAntiSpy = "xd-AntiSpy";
 
     /// <summary>Every known source, in the order used by docs/DEBLOAT.md.</summary>
     public static IReadOnlyList<string> All { get; } =
     [
-        WinUtil, Win11Debloat, ShutUp10, Sophia, Privatezilla, BloatyNosy, DebloatWindows10, Optimizer, AtlasOS, ReviOS, HardenDebloat,
+        WinUtil, Win11Debloat, ShutUp10, Sophia, Privatezilla, BloatyNosy, DebloatWindows10, Optimizer, AtlasOS, ReviOS, HardenDebloat, Tiny11, XdAntiSpy,
     ];
 }

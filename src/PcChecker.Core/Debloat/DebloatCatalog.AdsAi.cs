@@ -22,9 +22,13 @@ public static partial class DebloatCatalog
             [ContentFlagOff("RotatingLockScreenOverlayEnabled"), ContentFlagOff("SubscribedContent-338387Enabled")]),
 
         Tweak("ads.settings", AdsCategory, "Turn off suggested content in Settings",
-            "The Settings app stops showing suggested content and offers.",
-            RiskLevel.Safe, From(Win11Debloat, ShutUp10, Sophia),
-            [ContentFlagOff("SubscribedContent-338393Enabled"), ContentFlagOff("SubscribedContent-353694Enabled"), ContentFlagOff("SubscribedContent-353696Enabled")]),
+            "The Settings app stops showing suggested content, offers and online tips.",
+            RiskLevel.Safe, From(Win11Debloat, ShutUp10, Sophia, Optimizer, AtlasOS),
+            [
+                ContentFlagOff("SubscribedContent-338393Enabled"), ContentFlagOff("SubscribedContent-353694Enabled"), ContentFlagOff("SubscribedContent-353696Enabled"),
+                ContentFlagOff("SubscribedContent-353698Enabled"),
+                Machine(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer", "AllowOnlineTips", 0, null),
+            ]),
 
         // Own operations rather than the Optimize page's notification action: that action also switches
         // SubscribedContent-338388Enabled, which belongs to ads.start, so reverting it would undo half of ads.start.
@@ -53,9 +57,12 @@ public static partial class DebloatCatalog
             minBuild: Windows11_22H2, explorer: true),
 
         Tweak("ads.notificationsuggest", AdsCategory, "Turn off suggestion notifications",
-            "Stops the \"Suggested\" notifications Windows sends (for example, offers to set up your phone or try new features).",
-            RiskLevel.Safe, From(Sophia, ShutUp10),
-            [User(@"Software\Microsoft\Windows\CurrentVersion\Notifications\Settings\Windows.SystemToast.Suggested", "Enabled", 0, null)]),
+            "Stops the \"Suggested\" notifications Windows sends (for example, offers to set up your phone or try new features) and the Windows Backup reminders that push OneDrive storage.",
+            RiskLevel.Safe, From(Sophia, ShutUp10, Win11Debloat),
+            [
+                User(@"Software\Microsoft\Windows\CurrentVersion\Notifications\Settings\Windows.SystemToast.Suggested", "Enabled", 0, null),
+                User(@"Software\Microsoft\Windows\CurrentVersion\Notifications\Settings\Windows.SystemToast.BackupReminder", "Enabled", 0, null),
+            ]),
 
         Tweak("ads.scoobe", AdsCategory, "Stop \"Let's finish setting up your device\" nags",
             "Windows stops showing the full-screen setup reminders that push Microsoft 365, OneDrive and Game Pass.",
@@ -83,9 +90,9 @@ public static partial class DebloatCatalog
             minBuild: Windows11_22H2, explorer: true),
 
         Tweak("ai.copilotapp", AiCategory, "Remove the Copilot app",
-            "Uninstalls the Microsoft Copilot app. You can reinstall it from the Microsoft Store.",
+            "Uninstalls the Microsoft Copilot app and its Copilot provider package. You can reinstall it from the Microsoft Store.",
             RiskLevel.Safe, From(WinUtil, Win11Debloat, BloatyNosy),
-            [new AppxRemovalOp("Microsoft.Copilot", "Copilot")], minBuild: Windows11_22H2),
+            [new AppxRemovalOp("Microsoft.Copilot", "Copilot"), new AppxRemovalOp("Microsoft.Windows.Ai.Copilot.Provider", "Copilot provider")], minBuild: Windows11_22H2),
 
         Tweak("ai.recall", AiCategory, "Turn off Recall snapshots",
             "Stops Windows saving snapshots of your screen for Recall and prevents Recall from being enabled (Copilot+ PCs).",
@@ -94,6 +101,7 @@ public static partial class DebloatCatalog
                 User(WindowsAiUser, "DisableAIDataAnalysis", 1, null),
                 Machine(WindowsAiMachine, "DisableAIDataAnalysis", 1, null),
                 Machine(WindowsAiMachine, "AllowRecallEnablement", 0, null),
+                Machine(WindowsAiMachine, "TurnOffSavingSnapshots", 1, null),
             ],
             minBuild: Windows11_24H2),
 
@@ -109,12 +117,14 @@ public static partial class DebloatCatalog
             minBuild: Windows11_24H2),
 
         Tweak("ai.paint", AiCategory, "Turn off AI features in Paint",
-            "Uses Paint's documented policies to turn off Cocreator, Generative fill and Image Creator.",
+            "Uses Paint's policies to turn off Cocreator, Generative fill, Image Creator, Generative erase and Remove background.",
             RiskLevel.Safe, From(WinUtil, Win11Debloat),
             [
                 Machine(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Paint", "DisableCocreator", 1, null),
                 Machine(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Paint", "DisableGenerativeFill", 1, null),
                 Machine(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Paint", "DisableImageCreator", 1, null),
+                Machine(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Paint", "DisableGenerativeErase", 1, null),
+                Machine(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Paint", "DisableRemoveBackground", 1, null),
             ],
             minBuild: Windows11_22H2),
 

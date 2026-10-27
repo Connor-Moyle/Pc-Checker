@@ -59,12 +59,16 @@ public static partial class DebloatCatalog
 
         Tweak("privacy.inking", PrivacyCategory, "Turn off inking and typing personalisation",
             "Windows stops collecting what you type and write to build a personal dictionary, and stops sending typing insights.",
-            RiskLevel.Safe, From(ShutUp10, Sophia, Privatezilla, HardenDebloat),
+            RiskLevel.Safe, From(WinUtil, Win11Debloat, ShutUp10, Sophia, Privatezilla, AtlasOS, Optimizer, Tiny11, HardenDebloat),
             [
                 User(@"Software\Microsoft\InputPersonalization", "RestrictImplicitTextCollection", 1, null),
                 User(@"Software\Microsoft\InputPersonalization", "RestrictImplicitInkCollection", 1, null),
                 User(@"Software\Microsoft\InputPersonalization\TrainedDataStore", "HarvestContacts", 0, null),
                 User(@"Software\Microsoft\Input\TIPC", "Enabled", 0, null),
+                User(@"Software\Microsoft\Input\Settings", "InsightsEnabled", 0, null),
+                User(@"Software\Microsoft\Personalization\Settings", "AcceptedPrivacyPolicy", 0, null),
+                Machine(@"SOFTWARE\Policies\Microsoft\InputPersonalization", "AllowInputPersonalization", 0, null),
+                Machine(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\TextInput", "AllowLinguisticDataCollection", 0, null),
             ]),
 
         Tweak("privacy.speech", PrivacyCategory, "Turn off online speech recognition",
@@ -101,18 +105,21 @@ public static partial class DebloatCatalog
             warning: "Maps, Weather, automatic time zone and Find my device lose your location."),
 
         Tweak("privacy.wer", PrivacyCategory, "Don't send error reports to Microsoft",
-            "Windows Error Reporting stops uploading crash reports. Crash dumps are still written locally for troubleshooting.",
+            "Windows Error Reporting stops uploading crash reports and its upload queue task is turned off. Crash dumps and logs are still written locally for troubleshooting.",
             RiskLevel.Moderate, From(ShutUp10, Sophia, Privatezilla, DebloatWindows10, AtlasOS, HardenDebloat),
             [
                 Machine(@"SOFTWARE\Microsoft\Windows\Windows Error Reporting", "Disabled", 1, null),
                 Machine(@"SOFTWARE\Policies\Microsoft\Windows\Windows Error Reporting", "Disabled", 1, null),
                 Service("WerSvc", DebloatStartMode.Manual, DebloatStartMode.Manual),
+                Machine(@"SOFTWARE\Policies\Microsoft\PCHealth\ErrorReporting", "DoReport", 0, null),
+                Machine(@"SOFTWARE\Policies\Microsoft\Windows\Windows Error Reporting", "DontSendAdditionalData", 1, null),
+                DisableTask(@"\Microsoft\Windows\Windows Error Reporting\QueueReporting"),
             ],
             warning: "Microsoft no longer receives the reports it uses to offer fixes for crashing apps."),
 
         Tweak("privacy.ceiptasks", PrivacyCategory, "Disable telemetry scheduled tasks",
-            "Disables the Customer Experience Improvement Program, compatibility appraiser, disk diagnostic and feedback data-collection tasks.",
-            RiskLevel.Moderate, From(WinUtil, Sophia, Privatezilla, DebloatWindows10, Optimizer, HardenDebloat),
+            "Sets the Customer Experience Improvement Program policy to off and disables the CEIP, compatibility appraiser (including the 24H2 \"Exp\" task), device information, usage reporting, disk diagnostic and feedback data-collection tasks.",
+            RiskLevel.Moderate, From(WinUtil, Win11Debloat, Sophia, Privatezilla, DebloatWindows10, Optimizer, AtlasOS, HardenDebloat),
             [
                 DisableTask(Ceip + "Consolidator"),
                 DisableTask(Ceip + "UsbCeip"),
@@ -123,6 +130,14 @@ public static partial class DebloatCatalog
                 DisableTask(@"\Microsoft\Windows\DiskDiagnostic\Microsoft-Windows-DiskDiagnosticDataCollector"),
                 DisableTask(@"\Microsoft\Windows\Feedback\Siuf\DmClient"),
                 DisableTask(@"\Microsoft\Windows\Feedback\Siuf\DmClientOnScenarioDownload"),
+                DisableTask(@"\Microsoft\Windows\Application Experience\Microsoft Compatibility Appraiser Exp"),
+                DisableTask(@"\Microsoft\Windows\Application Experience\MareBackup"),
+                DisableTask(@"\Microsoft\Windows\Flighting\FeatureConfig\UsageDataReporting"),
+                DisableTask(@"\Microsoft\Windows\Device Information\Device"),
+                DisableTask(@"\Microsoft\Windows\Device Information\Device User"),
+                DisableTask(@"\Microsoft\Windows\Power Efficiency Diagnostics\AnalyzeSystem"),
+                Machine(@"SOFTWARE\Policies\Microsoft\SQMClient\Windows", "CEIPEnable", 0, null),
+                Machine(@"SOFTWARE\Policies\Microsoft\AppV\CEIP", "CEIPEnable", 0, null),
             ],
             warning: "The compatibility appraiser also checks whether a feature update fits your PC; Windows Update still works."),
 
