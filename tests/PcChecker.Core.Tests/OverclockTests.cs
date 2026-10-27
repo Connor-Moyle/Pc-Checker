@@ -291,6 +291,39 @@ public class OverclockSessionStoreTests
     }
 }
 
+public class OverclockSessionBootTests
+{
+    private static readonly DateTimeOffset Boot = new(2026, 10, 27, 8, 0, 0, TimeSpan.Zero);
+
+    [Fact]
+    public void Same_boot_is_recognised_despite_small_clock_drift()
+    {
+        var session = new OverclockSession { BootUtc = Boot, AppliedUtc = Boot.AddHours(1) };
+        Assert.True(OverclockSessionStore.IsFromCurrentBoot(session, Boot));
+        Assert.True(OverclockSessionStore.IsFromCurrentBoot(session, Boot.AddSeconds(40)));
+        Assert.True(OverclockSessionStore.IsFromCurrentBoot(session, Boot.AddSeconds(-40)));
+    }
+
+    [Fact]
+    public void A_reboot_since_the_apply_is_detected()
+    {
+        var session = new OverclockSession { BootUtc = Boot, AppliedUtc = Boot.AddHours(1) };
+        Assert.False(OverclockSessionStore.IsFromCurrentBoot(session, Boot.AddHours(3)));
+
+        // Applied right after boot and rebooted right away: the new boot still comes after the apply.
+        var quick = new OverclockSession { BootUtc = Boot, AppliedUtc = Boot.AddSeconds(20) };
+        Assert.False(OverclockSessionStore.IsFromCurrentBoot(quick, Boot.AddMinutes(3)));
+    }
+
+    [Fact]
+    public void Sessions_without_a_boot_time_count_as_an_earlier_boot()
+    {
+        Assert.False(OverclockSessionStore.IsFromCurrentBoot(new OverclockSession { AppliedUtc = Boot }, Boot));
+        var roundTrip = OverclockSessionStore.Deserialize(OverclockSessionStore.Serialize(new OverclockSession { BootUtc = Boot }));
+        Assert.Equal(Boot, roundTrip!.BootUtc);
+    }
+}
+
 public class SupportMatrixBuilderTests
 {
     [Fact]
@@ -658,6 +691,49 @@ public class OverclockWatchdogOnceTests
             var later = await service.CheckUncleanShutdownAndRevertAsync(CancellationToken.None);
             Assert.Same(results[0], later);
             Assert.Equal(1, settings.Saves);
+        }
+        finally
+        {
+            try { Directory.Delete(dir, true); } catch (IOException) { }
+        }
+    }
+
+    [Fact]
+    public async Task Clean_session_from_this_boot_is_kept_because_the_tuning_is_still_live()
+    {
+        string dir = Path.Combine(Path.GetTempPath(), "pcchecker-watchdog-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        try
+        {
+            var settings = new CountingSettings(dir);
+            string sessionPath = OverclockSessionStore.PathFor(dir);
+            var profile = new OverclockProfile { Name = "Daily", GpuCoreOffsetMhz = 100, CpuAllCoreRatio = 54 };
+            Assert.True(OverclockSessionStore.Save(sessionPath, new OverclockSession
+            {
+                Clean = true,
+                Profile = profile,
+                AppliedUtc = DateTimeOffset.UtcNow,
+                BootUtc = OverclockSessionStore.CurrentBootUtc(),
+                CpuTouched = true,
+                XtuTunableIds = [34],
+            }));
+
+            using var service = new WindowsOverclockService(settings, new DemoSensorService(), new PcChecker.Core.Sensors.DemoHardwareMonitorHost(),
+                new DemoHardwareInventoryService(), new PcChecker.Core.Fans.DemoFanControlService(), new PassThroughGuard(),
+                Microsoft.Extensions.Logging.Abstractions.NullLogger<WindowsOverclockService>.Instance);
+
+            var result = await service.CheckUncleanShutdownAndRevertAsync(CancellationToken.None);
+
+            Assert.True(result.Success);
+            var kept = OverclockSessionStore.Load(sessionPath);
+            Assert.NotNull(kept);
+            Assert.False(kept.Clean);
+            Assert.Equal([34], kept.XtuTunableIds);
+            Assert.Equal("Daily", settings.Current.Overclock.ActiveProfileName);
+            Assert.False(settings.Current.Overclock.LastSessionClean);
+            var state = await service.GetStateAsync(CancellationToken.None);
+            Assert.Equal(100, state.Current.GpuCoreOffsetMhz);
+            Assert.Equal(54, state.Current.CpuAllCoreRatio);
         }
         finally
         {

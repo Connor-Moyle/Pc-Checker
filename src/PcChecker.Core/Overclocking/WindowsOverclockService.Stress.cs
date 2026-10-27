@@ -40,9 +40,22 @@ public sealed partial class WindowsOverclockService
             return OperationResult.Ok("No overclock session to recover.");
         }
 
+        if (session.Clean && OverclockSessionStore.IsFromCurrentBoot(session, OverclockSessionStore.CurrentBootUtc()))
+        {
+            // The app was closed and reopened without a reboot: the clean exit left the tuning in place, so it is
+            // still live. Keep the session (and its XTU ids) so the page, Reset and the stress-test revert know about it.
+            _applied = session.Profile;
+            session.Clean = false;
+            OverclockSessionStore.Save(SessionPath, session);
+            _settings.Current.Overclock.ActiveProfileName = session.Profile.Name;
+            _settings.Current.Overclock.LastSessionClean = false;
+            await _settings.SaveAsync().ConfigureAwait(false);
+            return OperationResult.Ok($"The overclock profile \"{session.Profile.Name}\" is still applied from earlier in this Windows session.");
+        }
+
         if (session.Clean)
         {
-            // Profiles never survive a reboot (driver deltas are volatile); start fresh.
+            // The PC has rebooted since: profiles never survive a reboot (driver deltas are volatile); start fresh.
             OverclockSessionStore.Delete(SessionPath);
             _settings.Current.Overclock.ActiveProfileName = null;
             _settings.Current.Overclock.LastSessionClean = true;

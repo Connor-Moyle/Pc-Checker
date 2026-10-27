@@ -18,6 +18,13 @@ public sealed class OverclockSession
     /// <summary>False while a profile is live; set to true on a clean exit.</summary>
     public bool Clean { get; set; }
 
+    /// <summary>
+    /// When Windows last started, as seen when the profile was applied. A clean exit leaves the tuning live until
+    /// the next reboot, so a later start compares this with its own boot time to know whether it still is.
+    /// Null in files written before this was recorded.
+    /// </summary>
+    public DateTimeOffset? BootUtc { get; set; }
+
     public GpuControlMethod GpuMethod { get; set; } = GpuControlMethod.None;
     public CpuControlMethod CpuMethod { get; set; } = CpuControlMethod.None;
 
@@ -76,6 +83,29 @@ public static class OverclockSessionStore
     }
 
     public static string PathFor(string directory) => Path.Combine(directory, FileName);
+
+    /// <summary>How far two boot-time readings of the same Windows session may drift apart (clock corrections).</summary>
+    public static readonly TimeSpan BootTolerance = TimeSpan.FromMinutes(2);
+
+    /// <summary>When Windows started, from the tick count (which only resets on a reboot).</summary>
+    public static DateTimeOffset CurrentBootUtc() => DateTimeOffset.UtcNow - TimeSpan.FromMilliseconds(Environment.TickCount64);
+
+    /// <summary>
+    /// True when the session was applied during the current Windows session, i.e. the PC has not rebooted since, so
+    /// the driver and XTU settings it recorded are still live. A session without a boot time cannot tell and counts as
+    /// an earlier boot.
+    /// </summary>
+    public static bool IsFromCurrentBoot(OverclockSession session, DateTimeOffset currentBootUtc)
+    {
+        ArgumentNullException.ThrowIfNull(session);
+        if (session.BootUtc is not { } boot)
+        {
+            return false;
+        }
+
+        // A reboot after the profile was applied puts the current boot after AppliedUtc.
+        return (currentBootUtc - boot).Duration() <= BootTolerance && currentBootUtc <= session.AppliedUtc + BootTolerance;
+    }
 
     public static OverclockSession? Load(string path)
     {

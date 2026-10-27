@@ -130,9 +130,9 @@ public sealed partial class WindowsOverclockService : IOverclockService, IDispos
                 SupportMatrix = matrix,
             };
 
-            // Restore knowledge of a profile that is still live from this session.
+            // Restore knowledge of a profile that is still live: not ended yet, or ended cleanly without a reboot since.
             var session = OverclockSessionStore.Load(SessionPath);
-            if (session is { Clean: false })
+            if (session is { Clean: false } || (session is not null && OverclockSessionStore.IsFromCurrentBoot(session, OverclockSessionStore.CurrentBootUtc())))
             {
                 _applied = session.Profile;
             }
@@ -225,6 +225,7 @@ public sealed partial class WindowsOverclockService : IOverclockService, IDispos
             var session = OverclockSessionStore.Load(SessionPath) ?? new OverclockSession();
             session.Profile = profile.Clone();
             session.AppliedUtc = DateTimeOffset.UtcNow;
+            session.BootUtc = OverclockSessionStore.CurrentBootUtc();
             session.Clean = false;
             session.GpuMethod = capabilities.GpuMethod;
             session.CpuMethod = capabilities.CpuMethod;
