@@ -243,6 +243,17 @@ public class LatencyParserTests
     }
 
     [Theory]
+    [InlineData("Ja", "yes")]
+    [InlineData(" Nein ", "no")]
+    [InlineData("Oui", "yes")]
+    [InlineData("いいえ", "no")]
+    [InlineData("Yes", "yes")]
+    [InlineData("Enhanced", "Enhanced")]
+    [InlineData(null, null)]
+    public void Captured_boot_flags_are_written_back_as_english_yes_or_no(string? captured, string? expected) =>
+        Assert.Equal(expected, BcdEditParser.ToBcdBool(captured));
+
+    [Theory]
     [InlineData("Ja", true)]
     [InlineData("Nein", false)]
     [InlineData("Oui", true)]

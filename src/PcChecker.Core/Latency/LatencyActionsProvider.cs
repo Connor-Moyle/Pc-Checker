@@ -537,7 +537,8 @@ public sealed class LatencyActionsProvider : IOptimizationActionProvider
     /// </summary>
     private static Task<OperationResult> SetBootValueAsync(string name, string? value, string? fallbackWhenUnknown, CancellationToken ct)
     {
-        value ??= fallbackWhenUnknown;
+        // A captured value is what bcdedit /enum printed, which is localized (Ja/Nein, Oui/Non); /set only takes yes/no.
+        value = BcdEditParser.ToBcdBool(value ?? fallbackWhenUnknown);
         return value is null
             ? LatencyProbes.BcdEditAsync($"/deletevalue {name}", ct)
             : LatencyProbes.BcdEditAsync($"/set {name} {value}", ct);
