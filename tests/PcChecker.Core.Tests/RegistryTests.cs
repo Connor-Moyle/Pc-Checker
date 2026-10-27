@@ -556,6 +556,60 @@ public class RegistryBackupCatalogTests
         Assert.Null(RegistryBackupCatalog.DeserializeManifest("{not json"));
         Assert.Null(RegistryBackupCatalog.DeserializeManifest("{\"Id\":\"../evil\",\"IssueCount\":0,\"Summary\":\"\",\"Issues\":[]}"));
     }
+
+    [Fact]
+    public void Seal_matches_only_the_files_it_was_made_from()
+    {
+        var issue = RegistryIssueRules.Create(RegistryIssueCategory.AppPaths, "HKLM", @"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\old.exe", null, "p", @"C:\old.exe");
+        var manifest = RegistryBackupCatalog.EncodeManifest(new RegistryBackupManifest("registry-backup-20250102-030405", DateTimeOffset.Now, 1, "1 entry", [issue]));
+        var reg = RegistryBackupCatalog.EncodeRegFile(RegExportBuilder.Build([new RegExportKey(issue.FullKeyPath, [new RegExportValue(null, RegValueType.String, @"C:\old.exe")])]));
+        var seal = RegistryBackupCatalog.Seal(reg, manifest);
+
+        Assert.True(RegistryBackupCatalog.SealMatches(reg, manifest, seal));
+        Assert.True(RegistryBackupCatalog.SealMatches(reg, manifest, seal.ToLowerInvariant()));
+
+        var changed = (byte[])reg.Clone();
+        changed[^2] ^= 1;
+        Assert.False(RegistryBackupCatalog.SealMatches(changed, manifest, seal));
+        Assert.False(RegistryBackupCatalog.SealMatches(reg, [.. manifest, (byte)' '], seal));
+        Assert.False(RegistryBackupCatalog.SealMatches(reg, manifest, null));
+        Assert.False(RegistryBackupCatalog.SealMatches(reg, manifest, ""));
+    }
+
+    [Fact]
+    public void Reg_files_round_trip_as_utf16_with_a_byte_order_mark()
+    {
+        var text = RegExportBuilder.Build([new RegExportKey(@"HKEY_CURRENT_USER\Software\Test", [new RegExportValue("Ünïcode", RegValueType.String, "x")])]);
+        var bytes = RegistryBackupCatalog.EncodeRegFile(text);
+        Assert.Equal([0xFF, 0xFE], bytes[..2]);
+        Assert.Equal(text, RegistryBackupCatalog.DecodeText(bytes));
+    }
+
+    [Fact]
+    public void Keys_a_backup_was_not_made_for_are_found()
+    {
+        var keyIssue = RegistryIssueRules.Create(RegistryIssueCategory.UninstallEntries, "HKLM", @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\OldApp", null, "p", @"C:\x.exe");
+        var valueIssue = RegistryIssueRules.Create(RegistryIssueCategory.StartupEntries, "HKCU", @"Software\Microsoft\Windows\CurrentVersion\Run", "Old", "p", @"C:\y.exe");
+        var issues = new[] { keyIssue, valueIssue };
+
+        var own = RegExportBuilder.Merge([
+            "Windows Registry Editor Version 5.00\r\n\r\n[HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\OldApp]\r\n\"DisplayName\"=\"Old\"\r\n\r\n" +
+            "[HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\oldapp\\Sub]\r\n@=\"x\"\r\n",
+            RegExportBuilder.Build([new RegExportKey(valueIssue.FullKeyPath, [new RegExportValue("Old", RegValueType.String, @"C:\y.exe")])]),
+        ]);
+        Assert.Empty(RegistryBackupCatalog.KeysOutsideBackup(own, issues));
+
+        var planted = own + "\r\n[HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run]\r\n\"Evil\"=\"C:\\\\evil.exe\"\r\n" +
+                      "\r\n[-HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\WinDefend]\r\n" +
+                      "\r\n[HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\OldAppX]\r\n";
+        Assert.Equal(
+            [
+                @"HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Run",
+                @"-HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\WinDefend",
+                @"HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\OldAppX",
+            ],
+            RegistryBackupCatalog.KeysOutsideBackup(planted, issues));
+    }
 }
 
 public class DemoRegistryHealthServiceTests

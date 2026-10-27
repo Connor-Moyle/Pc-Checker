@@ -1,8 +1,10 @@
 using System.Diagnostics;
+using System.Security.AccessControl;
 using Microsoft.Extensions.Logging;
 using PcChecker.Core.Common;
 using PcChecker.Core.Logging;
 using PcChecker.Core.Restore;
+using PcChecker.Core.Scheduling;
 using PcChecker.Core.Startup;
 
 namespace PcChecker.Core.RegistryHealth;
@@ -178,11 +180,62 @@ public sealed partial class WindowsRegistryHealthService : IRegistryHealthServic
             return Task.FromResult(OperationResult.Fail("The backup file no longer exists."));
         }
 
+        if (!PlatformGuard.IsWindows)
+        {
+            return Task.FromResult(OperationResult.Fail("Registry backups can only be restored on Windows."));
+        }
+
+        // The backup folder is in the user's profile, where any program can change it, while the import runs elevated.
+        // Read both files once, check them against the seal kept in HKLM and against the entries they were made for,
+        // and import exactly those bytes from a folder only administrators can write to.
+        byte[] regFile;
+        byte[] manifestFile;
+        try
+        {
+            regFile = File.ReadAllBytes(file);
+            manifestFile = File.ReadAllBytes(Path.ChangeExtension(file, RegistryBackupCatalog.ManifestExtension));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return Task.FromResult(OperationResult.Fail("The backup could not be read, so it was not imported: " + ex.Message, ex));
+        }
+
+        var manifest = RegistryBackupCatalog.DeserializeManifest(RegistryBackupCatalog.DecodeText(manifestFile));
+        if (!RegistryBackupCatalog.SealMatches(regFile, manifestFile, RegistryBackupSeals.Read(backupId))
+            || manifest is null || !string.Equals(manifest.Id, backupId, StringComparison.Ordinal))
+        {
+            _logger.LogWarning("Registry backup {Id} was not imported: it does not match the seal recorded when it was saved.", backupId);
+            return Task.FromResult(OperationResult.Fail(
+                "This backup was not imported because PC Checker cannot confirm it is unchanged since it was saved. Backups made by " +
+                "older versions cannot be confirmed either. If you trust it, open the .reg file in Registry Editor to check it and import it there."));
+        }
+
+        var foreign = RegistryBackupCatalog.KeysOutsideBackup(RegistryBackupCatalog.DecodeText(regFile), manifest.Issues);
+        if (foreign.Count > 0)
+        {
+            _logger.LogWarning("Registry backup {Id} was not imported: it contains {Key}, which is not one of its entries.", backupId, foreign[0]);
+            return Task.FromResult(OperationResult.Fail($"This backup was not imported because it contains a key it was not made for ({foreign[0]})."));
+        }
+
         var options = new ChangeOptions(CreateBefore: true, CreateAfter: null, ModuleName, file, Reversible: false,
             UndoHint: "Use the restore point created before the restore.");
         return _guard.RunGuardedAsync($"Restore registry backup {backupId}", options, async ct =>
         {
-            var output = await CommandRunner.RunAsync(RegExe(), $"import \"{file}\" /reg:64", TimeSpan.FromMinutes(2), ct).ConfigureAwait(false);
+            CommandOutput output;
+            try
+            {
+                output = await ProtectedTaskFile.UseFolderAsync("PcChecker-reg-", "registry import", async (folder, c) =>
+                {
+                    string verified = Path.Combine(folder, "restore.reg");
+                    await File.WriteAllBytesAsync(verified, regFile, c).ConfigureAwait(false);
+                    return await CommandRunner.RunAsync(RegExe(), $"import \"{verified}\" /reg:64", TimeSpan.FromMinutes(2), c).ConfigureAwait(false);
+                }, ex => _logger.LogDebug(ex, "Could not remove the temporary registry import folder."), ct).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or PrivilegeNotHeldException)
+            {
+                return OperationResult.Fail("The backup could not be prepared in a protected folder, so it was not imported: " + ex.Message, ex);
+            }
+
             if (!output.Success)
             {
                 return OperationResult.Fail($"Windows could not import the backup: {output.FirstLine}");
@@ -215,6 +268,11 @@ public sealed partial class WindowsRegistryHealthService : IRegistryHealthServic
                 if (File.Exists(sidecar))
                 {
                     File.Delete(sidecar);
+                }
+
+                if (PlatformGuard.IsWindows)
+                {
+                    RegistryBackupSeals.Remove(backupId);
                 }
 
                 return Task.FromResult(OperationResult.Ok("Backup deleted."));

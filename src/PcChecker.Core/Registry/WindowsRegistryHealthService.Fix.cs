@@ -1,8 +1,9 @@
-using System.Text;
+using System.Security.AccessControl;
 using Microsoft.Extensions.Logging;
 using PcChecker.Core.Common;
 using PcChecker.Core.Logging;
 using PcChecker.Core.Restore;
+using PcChecker.Core.Scheduling;
 using PcChecker.Core.Startup;
 
 namespace PcChecker.Core.RegistryHealth;
@@ -257,30 +258,36 @@ public sealed partial class WindowsRegistryHealthService
             return (RegExportBuilder.Build([new RegExportKey(issue.FullKeyPath, values)]), RegistryAccess.Fingerprint(key, issue.ValueName));
         }
 
-        // A whole key: reg.exe exports every value type and sub-key exactly.
-        string temp = Path.Combine(Path.GetTempPath(), $"pcchecker-reg-{Guid.NewGuid():N}.reg");
+        // A whole key: reg.exe exports every value type and sub-key exactly. The export goes to a folder only
+        // administrators can write to: what is read back becomes the backup the elevated restore imports later.
         try
         {
-            var output = await CommandRunner.RunAsync(RegExe(), $"export \"{issue.Hive}\\{issue.KeyPath}\" \"{temp}\" /y /reg:64",
-                TimeSpan.FromMinutes(1), cancellationToken).ConfigureAwait(false);
-            if (output.Success && File.Exists(temp))
+            var exported = await ProtectedTaskFile.UseFolderAsync("PcChecker-reg-", "registry export", async (folder, ct) =>
             {
-                var text = await File.ReadAllTextAsync(temp, cancellationToken).ConfigureAwait(false);
-                if (RegExportBuilder.KeyNames(text).Count > 0)
+                string target = Path.Combine(folder, "export.reg");
+                var output = await CommandRunner.RunAsync(RegExe(), $"export \"{issue.Hive}\\{issue.KeyPath}\" \"{target}\" /y /reg:64",
+                    TimeSpan.FromMinutes(1), ct).ConfigureAwait(false);
+                if (output.Success && File.Exists(target))
                 {
-                    return (text, null);
+                    var text = await File.ReadAllTextAsync(target, ct).ConfigureAwait(false);
+                    if (RegExportBuilder.KeyNames(text).Count > 0)
+                    {
+                        return text;
+                    }
                 }
-            }
 
-            _logger.LogDebug("reg export failed for {Key} ({Output}); falling back to a value-by-value backup.", issue.FullKeyPath, output.FirstLine);
+                _logger.LogDebug("reg export failed for {Key} ({Output}); falling back to a value-by-value backup.", issue.FullKeyPath, output.FirstLine);
+                return null;
+            }, ex => _logger.LogDebug(ex, "Could not remove the temporary registry export folder."), cancellationToken).ConfigureAwait(false);
+
+            if (exported is not null)
+            {
+                return (exported, null);
+            }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or PrivilegeNotHeldException)
         {
             _logger.LogDebug(ex, "reg export output could not be read for {Key}.", issue.FullKeyPath);
-        }
-        finally
-        {
-            TryDelete(temp);
         }
 
         try
@@ -307,12 +314,28 @@ public sealed partial class WindowsRegistryHealthService
         }
 
         string regPath = Path.Combine(_backupDirectory, id + RegistryBackupCatalog.RegExtension);
+        string manifestPath = Path.ChangeExtension(regPath, RegistryBackupCatalog.ManifestExtension);
         string summary = RegistryIssueRules.Summarize(issues);
 
-        // UTF-16 with a byte-order mark, like regedit and reg export write it.
-        File.WriteAllText(regPath, RegExportBuilder.Merge(sections), Encoding.Unicode);
+        // UTF-16 with a byte-order mark, like regedit and reg export write it. The seal is made from these bytes, not
+        // from the files read back, and kept in HKLM so a restore can tell when the files were changed afterwards.
+        byte[] regFile = RegistryBackupCatalog.EncodeRegFile(RegExportBuilder.Merge(sections));
         var manifest = new RegistryBackupManifest(id, created, issues.Count, summary, issues);
-        File.WriteAllText(Path.ChangeExtension(regPath, RegistryBackupCatalog.ManifestExtension), RegistryBackupCatalog.SerializeManifest(manifest));
+        byte[] manifestFile = RegistryBackupCatalog.EncodeManifest(manifest);
+        File.WriteAllBytes(regPath, regFile);
+        File.WriteAllBytes(manifestPath, manifestFile);
+        try
+        {
+            RegistryBackupSeals.Save(id, RegistryBackupCatalog.Seal(regFile, manifestFile));
+        }
+        catch (IOException)
+        {
+            // A backup that cannot be restored is no backup: remove it so the fix stops before deleting anything.
+            TryDelete(regPath);
+            TryDelete(manifestPath);
+            throw;
+        }
+
         _logger.LogInformation("Registry backup {Id} written with {Count} entries: {File}", id, issues.Count, regPath);
         return new RegistryBackup(id, created, regPath, issues.Count, summary);
     }

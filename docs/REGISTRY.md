@@ -106,7 +106,11 @@ Whatever a scan finds, PC Checker never changes:
    value by value. If an entry cannot be backed up it is skipped, never
    removed. All entries of one fix go into one file:
    `%LOCALAPPDATA%\PcChecker\registry-backups\registry-backup-<date>-<time>.reg`,
-   with a `.json` file next to it that lists what was removed and why.
+   with a `.json` file next to it that lists what was removed and why. A
+   hash of both files is kept under
+   `HKEY_LOCAL_MACHINE\SOFTWARE\PcChecker\RegistryBackups`, where only
+   administrators can write. If PC Checker cannot record it, nothing is
+   removed.
 5. Each entry is checked once more and then removed (the key, or just the
    value). The result lists what was removed, skipped or failed.
 
@@ -115,7 +119,11 @@ Whatever a scan finds, PC Checker never changes:
 The **Backups** section lists every fix with its date, number of entries and
 a summary. **Restore** imports the `.reg` file again with `reg import`
 (after a confirmation and a new restore point); restored entries show up
-again in the next scan. **Delete** removes a backup, and backups older than
+again in the next scan. Because the backup folder is in your profile, where
+any program you run can change it, PC Checker first checks both files against
+the recorded hash and checks that the `.reg` file only touches the entries the
+backup was made for. A backup that fails either check, or was made by an older
+version without a hash, is not imported. **Delete** removes a backup, and backups older than
 90 days are offered for cleanup — they are never deleted automatically. You
 can also double-click a backup file in Explorer to import it, or use the
 restore point from System Restore.
