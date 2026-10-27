@@ -372,17 +372,35 @@ public sealed partial class WindowsOptimizationService
             ("netsh.exe", "int ip reset"),
             ("ipconfig.exe", "/flushdns"),
         };
-        foreach (var (exe, args) in steps)
+        var warnings = new List<string>();
+        for (int i = 0; i < steps.Length; i++)
         {
+            var (exe, args) = steps[i];
             Emit($"> {exe} {args}");
-            var result = await ExternalCommand.RunAsync(exe, args, ct, TimeSpan.FromMinutes(2), Emit).ConfigureAwait(false);
-            if (!result.Success && !result.Combined.Contains("Access is denied", StringComparison.OrdinalIgnoreCase))
+            var result = await ExternalCommand.RunAsync(exe, args, ct, TimeSpan.FromMinutes(2), Emit, Storage.StorageCommandRunner.OemEncoding()).ConfigureAwait(false);
+            if (result.Success)
             {
+                continue;
+            }
+
+            if (i == 0)
+            {
+                // Nothing has been changed yet, so stopping here is safe.
                 return OperationResult.Fail($"{exe} {args} failed: {result.LastLine}");
             }
+
+            // Once Winsock has been reset the remaining steps still run and a restart is needed either way. netsh int
+            // ip reset routinely exits non-zero for one key it cannot reset, with a message in the display language.
+            warnings.Add($"{exe} {args} reported a problem (exit code {result.ExitCode}): {result.LastLine}");
         }
 
-        return OperationResult.Ok("Network stack reset. Restart Windows to finish; you may need to reconnect to Wi-Fi.", rebootRequired: true);
+        string message = "Network stack reset. Restart Windows to finish; you may need to reconnect to Wi-Fi.";
+        if (warnings.Count > 0)
+        {
+            message += " Some steps reported a problem, which is common and usually harmless: " + string.Join(" ", warnings);
+        }
+
+        return OperationResult.Ok(message, rebootRequired: true);
     }
 
     // ---- Privacy and services ------------------------------------------------------------------------------------
