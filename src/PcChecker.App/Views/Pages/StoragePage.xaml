@@ -15,6 +15,9 @@
   <Page.Resources>
     <storage:StorageInverseBoolConverter x:Key="InverseBool" />
     <storage:StorageBoolToInfoBarSeverityConverter x:Key="BoolToInfoBarSeverity" />
+    <Style x:Key="Tile" TargetType="controls:StatCard">
+      <Setter Property="Margin" Value="0" />
+    </Style>
     <Style x:Key="PillBorder" TargetType="Border">
       <Setter Property="CornerRadius" Value="10" />
       <Setter Property="Padding" Value="8,2" />
@@ -67,25 +70,26 @@
         <!-- Drives -->
         <ui:TextBlock Style="{StaticResource CardTitle}" Text="Your drives" />
         <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding DevicesSummary}" TextWrapping="Wrap" Margin="0,0,0,8" />
-        <ListBox ItemsSource="{Binding Devices}" SelectedItem="{Binding SelectedDevice}" BorderThickness="0" Background="Transparent" Padding="0" Margin="0,0,0,8"
+        <ListBox ItemsSource="{Binding Devices}" SelectedItem="{Binding SelectedDevice}" BorderThickness="0" Background="Transparent" Padding="0" Margin="0,0,0,12"
                  IsEnabled="{Binding IsAnyToolRunning, Converter={StaticResource InverseBool}}"
                  ScrollViewer.HorizontalScrollBarVisibility="Disabled">
           <ListBox.ItemsPanel>
             <ItemsPanelTemplate>
-              <WrapPanel Orientation="Horizontal" />
+              <controls:AdaptiveGrid MinItemWidth="320" MaxColumns="3" />
             </ItemsPanelTemplate>
           </ListBox.ItemsPanel>
           <ListBox.ItemContainerStyle>
             <Style TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
               <Setter Property="Padding" Value="0" />
-              <Setter Property="Margin" Value="0,0,12,12" />
+              <Setter Property="Margin" Value="0" />
               <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+              <Setter Property="VerticalContentAlignment" Value="Stretch" />
               <Setter Property="ToolTip" Value="Click to select this drive. The tools below work on the selected drive." />
             </Style>
           </ListBox.ItemContainerStyle>
           <ListBox.ItemTemplate>
             <DataTemplate DataType="{x:Type vm:StorageDeviceItem}">
-              <ui:Card Padding="14" Width="340">
+              <ui:Card Padding="16" VerticalAlignment="Stretch">
                 <Grid>
                   <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
@@ -129,7 +133,7 @@
         </ListBox>
 
         <controls:EmptyState Icon="HardDrive20" Title="No drives found"
-                             Message="PC Checker could not list any physical drives. Make sure it is running as administrator, then press Refresh."
+                             Message="No physical drives could be listed. Run PC Checker as administrator, then press Refresh."
                              Visibility="{Binding HasSelectedDevice, Converter={StaticResource InverseBoolToVisibility}}" />
 
         <StackPanel Visibility="{Binding HasSelectedDevice, Converter={StaticResource BoolToVisibility}}">
@@ -139,7 +143,7 @@
             <ui:CardExpander.Header>
               <StackPanel>
                 <ui:TextBlock FontTypography="BodyStrong" Text="Surface scan — is every part of the drive readable?" />
-                <ui:TextBlock Style="{StaticResource Muted}" Text="Reads the drive block by block without writing anything. Unreadable blocks mean the drive is failing." TextWrapping="Wrap" />
+                <ui:TextBlock Style="{StaticResource Muted}" Text="Reads every block without writing. Unreadable blocks mean the drive is failing." TextWrapping="Wrap" />
               </StackPanel>
             </ui:CardExpander.Header>
             <StackPanel>
@@ -182,7 +186,7 @@
                 </StackPanel>
               </Grid>
 
-              <ui:InfoBar Severity="Warning" IsOpen="True" IsClosable="False" Margin="0,12,0,0"
+              <ui:InfoBar Severity="Warning" IsOpen="True" IsClosable="True" Margin="0,12,0,0"
                           Title="A full scan of a large hard disk takes hours"
                           Message="Start with a Quick scan. Run a Full scan when a drive makes noises, Windows reports disk errors, or SMART shows reallocated sectors."
                           Visibility="{Binding HasScanMap, Converter={StaticResource InverseBoolToVisibility}}" />
@@ -190,7 +194,7 @@
               <!-- Live progress -->
               <StackPanel Visibility="{Binding HasScanMap, Converter={StaticResource BoolToVisibility}}" Margin="0,16,0,0">
                 <ProgressBar Value="{Binding ScanPercent, Mode=OneWay}" Minimum="0" Maximum="100" Height="6" />
-                <UniformGrid Columns="6" Margin="0,12,0,0">
+                <controls:AdaptiveGrid MinItemWidth="110" MaxColumns="6" Margin="0,12,0,0">
                   <StackPanel>
                     <ui:TextBlock Style="{StaticResource StatLabel}" Text="Progress" />
                     <ui:TextBlock Style="{StaticResource StatValue}" Text="{Binding ScanPercent, StringFormat='{}{0:0.0} %'}" />
@@ -215,7 +219,7 @@
                     <ui:TextBlock Style="{StaticResource StatLabel}" Text="Time left" />
                     <ui:TextBlock Style="{StaticResource StatValue}" Text="{Binding ScanEtaText}" />
                   </StackPanel>
-                </UniformGrid>
+                </controls:AdaptiveGrid>
                 <ui:TextBlock Style="{StaticResource Caption}" Margin="0,8,0,6" Text="{Binding ScanBlocksText, StringFormat='Blocks read: {0}'}" />
                 <controls:BlockMapControl Map="{Binding ScanMap}" CellSize="7" />
               </StackPanel>
@@ -251,7 +255,8 @@
             <ui:CardExpander.Header>
               <StackPanel>
                 <ui:TextBlock FontTypography="BodyStrong" Text="Benchmark — how fast is the drive?" />
-                <ui:TextBlock Style="{StaticResource Muted}" Text="Writes a temporary file, reads it back and does random 4 KB reads and writes, then compares with typical drives." TextWrapping="Wrap" />
+                <ui:TextBlock Style="{StaticResource Muted}" Text="Sequential and random 4 KB speeds, compared with typical drives." TextWrapping="Wrap"
+                              ToolTip="Writes a temporary file, reads it back and does random 4 KB reads and writes. The file is deleted afterwards." />
               </StackPanel>
             </ui:CardExpander.Header>
             <StackPanel>
@@ -291,16 +296,16 @@
                 </StackPanel>
               </Grid>
               <ui:TextBlock Style="{StaticResource Muted}" Margin="0,8,0,0" TextWrapping="Wrap"
-                            Text="Sequential speed matters for big files and game installs. Random 4K speed is what makes Windows and apps feel snappy."
+                            Text="Sequential speed matters for big files; random 4K speed makes Windows feel snappy."
                             Visibility="{Binding HasBenchmarkResult, Converter={StaticResource InverseBoolToVisibility}}" />
 
               <StackPanel Visibility="{Binding HasBenchmarkResult, Converter={StaticResource BoolToVisibility}}" Margin="0,16,0,0">
-                <UniformGrid Columns="4">
-                  <controls:StatCard Title="Sequential read" Value="{Binding SeqReadText}" Unit="MB/s" Icon="ArrowDownload24" Accent="{StaticResource AccentCyanBrush}" Margin="0,0,12,0" />
-                  <controls:StatCard Title="Sequential write" Value="{Binding SeqWriteText}" Unit="MB/s" Icon="ArrowUpload24" Accent="{StaticResource AccentPurpleBrush}" Margin="0,0,12,0" />
-                  <controls:StatCard Title="Random 4K read" Value="{Binding Rand4kReadText}" Unit="MB/s" Icon="ArrowShuffle24" Accent="{StaticResource AccentGreenBrush}" Subtitle="{Binding Rand4kReadIopsText}" Margin="0,0,12,0" />
-                  <controls:StatCard Title="Random 4K write" Value="{Binding Rand4kWriteText}" Unit="MB/s" Icon="ArrowShuffle24" Accent="{StaticResource AccentOrangeBrush}" Subtitle="{Binding Rand4kWriteIopsText}" />
-                </UniformGrid>
+                <controls:AdaptiveGrid MinItemWidth="200" MaxColumns="4">
+                  <controls:StatCard Style="{StaticResource Tile}" Title="Sequential read" Value="{Binding SeqReadText}" Unit="MB/s" Icon="ArrowDownload24" Accent="{StaticResource AccentCyanBrush}" />
+                  <controls:StatCard Style="{StaticResource Tile}" Title="Sequential write" Value="{Binding SeqWriteText}" Unit="MB/s" Icon="ArrowUpload24" Accent="{StaticResource AccentPurpleBrush}" />
+                  <controls:StatCard Style="{StaticResource Tile}" Title="Random 4K read" Value="{Binding Rand4kReadText}" Unit="MB/s" Icon="ArrowShuffle24" Accent="{StaticResource AccentGreenBrush}" Subtitle="{Binding Rand4kReadIopsText}" />
+                  <controls:StatCard Style="{StaticResource Tile}" Title="Random 4K write" Value="{Binding Rand4kWriteText}" Unit="MB/s" Icon="ArrowShuffle24" Accent="{StaticResource AccentOrangeBrush}" Subtitle="{Binding Rand4kWriteIopsText}" />
+                </controls:AdaptiveGrid>
                 <ui:InfoBar IsOpen="True" IsClosable="False" Severity="Informational" Margin="0,12,0,0" Title="Verdict" Message="{Binding BenchmarkSummary}" />
                 <ui:TextBlock FontTypography="BodyStrong" Margin="0,12,0,4" Text="{Binding BenchmarkExpectedClass, StringFormat='Compared with typical drives (this one is treated as: {0})'}" />
                 <Grid Margin="0,0,0,4">
@@ -360,7 +365,7 @@
             <ui:CardExpander.Header>
               <StackPanel>
                 <ui:TextBlock FontTypography="BodyStrong" Text="Check disk, repair and optimize" />
-                <ui:TextBlock Style="{StaticResource Muted}" Text="Windows' own file system tools, with their output shown live. Every repair asks before it changes anything." TextWrapping="Wrap" />
+                <ui:TextBlock Style="{StaticResource Muted}" Text="Windows' own file system tools with live output. Every repair asks first." TextWrapping="Wrap" />
               </StackPanel>
             </ui:CardExpander.Header>
             <StackPanel>
@@ -369,18 +374,12 @@
                 <ComboBox MinWidth="260" ItemsSource="{Binding DeviceVolumes}" SelectedItem="{Binding SelectedVolume}" DisplayMemberPath="Label" IsEnabled="{Binding IsAnyToolRunning, Converter={StaticResource InverseBool}}" />
               </StackPanel>
 
-              <Grid>
-                <Grid.ColumnDefinitions>
-                  <ColumnDefinition Width="*" />
-                  <ColumnDefinition Width="*" />
-                  <ColumnDefinition Width="*" />
-                </Grid.ColumnDefinitions>
-
-                <ui:Card Grid.Column="0" Margin="0,0,12,0" Padding="14" VerticalAlignment="Stretch">
+              <controls:AdaptiveGrid MinItemWidth="260" MaxColumns="3">
+                <ui:Card Padding="16" VerticalAlignment="Stretch" VerticalContentAlignment="Top">
                   <StackPanel>
                     <ui:TextBlock FontTypography="BodyStrong" Text="Check disk (chkdsk)" />
                     <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,4,0,10"
-                                  Text="Scan now looks for file system problems without changing anything. Fix options repair what the scan found." />
+                                  Text="Scan finds file system problems without changing anything; the fixes repair them." />
                     <ui:Button Content="Scan now" Appearance="Primary" Icon="{ui:SymbolIcon Search24}" Command="{Binding CheckDiskScanCommand}" HorizontalAlignment="Stretch" Margin="0,0,0,6"
                                ToolTip="chkdsk X: /scan — online, read-only, no restart." />
                     <ui:Button Content="Spot fix" Icon="{ui:SymbolIcon Wrench24}" Command="{Binding SpotFixCommand}" HorizontalAlignment="Stretch" Margin="0,0,0,6"
@@ -390,7 +389,7 @@
                   </StackPanel>
                 </ui:Card>
 
-                <ui:Card Grid.Column="1" Margin="0,0,12,0" Padding="14" VerticalAlignment="Stretch">
+                <ui:Card Padding="16" VerticalAlignment="Stretch" VerticalContentAlignment="Top">
                   <StackPanel>
                     <ui:TextBlock FontTypography="BodyStrong" Text="Repair volume" ToolTip="PowerShell Repair-Volume: the modern version of chkdsk." />
                     <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,4,0,10" Text="{Binding RepairModeHelp}" />
@@ -405,17 +404,17 @@
                   </StackPanel>
                 </ui:Card>
 
-                <ui:Card Grid.Column="2" Padding="14" VerticalAlignment="Stretch">
+                <ui:Card Padding="16" VerticalAlignment="Stretch" VerticalContentAlignment="Top">
                   <StackPanel>
                     <ui:TextBlock FontTypography="BodyStrong" Text="Optimize (TRIM / defragment)" />
                     <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,4,0,10" Text="{Binding OptimizeHelp}" />
                     <ui:Button Content="Optimize now" Appearance="Primary" Icon="{ui:SymbolIcon Rocket24}" Command="{Binding OptimizeCommand}" HorizontalAlignment="Stretch"
                                ToolTip="Optimize-Volume -ReTrim for SSDs, -Defrag for hard disks." />
                     <ui:TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,10,0,0"
-                                  Text="Windows already does this weekly in the background; run it by hand after deleting a lot of files." />
+                                  Text="Windows does this weekly; run it after deleting a lot of files." />
                   </StackPanel>
                 </ui:Card>
-              </Grid>
+              </controls:AdaptiveGrid>
 
               <!-- Tool output -->
               <StackPanel Margin="0,16,0,0" Visibility="{Binding ToolTitle, Converter={StaticResource NullToVisibility}}">
@@ -456,14 +455,12 @@
           <!-- Disk events -->
           <ui:CardExpander Icon="{ui:SymbolIcon Warning24}" IsExpanded="True" Margin="0,0,0,12">
             <ui:CardExpander.Header>
-              <StackPanel>
+              <StackPanel ToolTip="Windows logs an event whenever a drive, cable or controller misbehaves. The same message repeating for one drive is the thing to watch for.">
                 <ui:TextBlock FontTypography="BodyStrong" Text="{Binding EventsTitle}" />
                 <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding EventsSummary}" TextWrapping="Wrap" />
               </StackPanel>
             </ui:CardExpander.Header>
             <StackPanel>
-              <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,8"
-                            Text="Windows writes an event whenever a drive, cable or controller misbehaves. The same message repeating for one drive is the thing to watch for." />
               <ItemsControl ItemsSource="{Binding DiskEvents}">
                 <ItemsControl.ItemTemplate>
                   <DataTemplate DataType="{x:Type vm:DiskEventItem}">
@@ -506,7 +503,7 @@
             <ui:CardExpander.Header>
               <StackPanel>
                 <ui:TextBlock FontTypography="BodyStrong" Text="Vendor tools" />
-                <ui:TextBlock Style="{StaticResource Muted}" Text="Firmware updates, detailed health and secure erase come from the drive maker's own software." TextWrapping="Wrap" />
+                <ui:TextBlock Style="{StaticResource Muted}" Text="Firmware updates, detailed health and secure erase from the drive maker." TextWrapping="Wrap" />
               </StackPanel>
             </ui:CardExpander.Header>
             <ItemsControl ItemsSource="{Binding VendorTools}">
