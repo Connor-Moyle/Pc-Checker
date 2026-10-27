@@ -17,13 +17,14 @@ public sealed partial class NetworkViewModel
     private NetworkSnapshot? _before;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowMeasureBaseline))]
     private bool _isQuickImproveOpen;
 
     [ObservableProperty]
     private string? _quickImproveSummary;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(ShowCompareOffer))]
+    [NotifyPropertyChangedFor(nameof(ShowCompareOffer), nameof(ShowMeasureBaseline))]
     private bool _quickImproveApplied;
 
     [ObservableProperty]
@@ -37,6 +38,9 @@ public sealed partial class NetworkViewModel
     public bool HasComparison => ComparisonCount > 0;
     public bool ShowCompareOffer => QuickImproveApplied && !HasComparison;
     public bool HasBeforeSpeed => _before?.DownloadMbps is not null;
+
+    /// <summary>Offer a "before" speed test while nothing has been applied yet and no speed numbers exist.</summary>
+    public bool ShowMeasureBaseline => IsQuickImproveOpen && !QuickImproveApplied && !HasBeforeSpeed;
 
     [RelayCommand]
     private Task OpenQuickImproveAsync() => RunBusyAsync(async ct =>
@@ -61,7 +65,25 @@ public sealed partial class NetworkViewModel
         IsQuickImproveOpen = true;
         OnPropertyChanged(nameof(HasQuickImproveItems));
         OnPropertyChanged(nameof(HasBeforeSpeed));
+        OnPropertyChanged(nameof(ShowMeasureBaseline));
     }, "Finding recommended changes…");
+
+    [RelayCommand]
+    private async Task MeasureBaselineAsync()
+    {
+        if (!IsIdle || QuickImproveApplied)
+        {
+            return;
+        }
+
+        if (await RunSpeedTestCoreAsync())
+        {
+            // Nothing has been applied yet, so the current Wi-Fi report and this speed test are the "before" state.
+            _before = NetworkSnapshot.From(WifiReport, SpeedResult);
+            OnPropertyChanged(nameof(HasBeforeSpeed));
+            OnPropertyChanged(nameof(ShowMeasureBaseline));
+        }
+    }
 
     [RelayCommand]
     private void CloseQuickImprove()
@@ -141,14 +163,22 @@ public sealed partial class NetworkViewModel
             return;
         }
 
-        await RunBusyAsync(async ct =>
+        bool analyzed = await RunBusyAsync(async ct =>
         {
             var progress = new Progress<ProgressUpdate>(p => BusyText = p.Stage);
             ApplyAdapters(await _network.GetAdaptersAsync(ct));
             ApplyWifi(await _network.AnalyzeWifiAsync(progress, ct));
         }, "Analyzing Wi-Fi again…");
+        if (!analyzed)
+        {
+            return; // Cancelled or failed: do not go on to the speed test, which uses data.
+        }
 
-        bool speed = await RunSpeedTestCoreAsync();
+        bool runSpeed = HasBeforeSpeed || await _dialogs.ConfirmAsync("Run the speed test too?",
+            "No speed test was run before the changes, so there are no \"before\" speed numbers to compare with. "
+            + "The speed test still shows how fast the connection is now, but it uses data.\n\nChoose Cancel to compare only the Wi-Fi numbers.",
+            "Run speed test");
+        bool speed = runSpeed && await RunSpeedTestCoreAsync();
         var after = NetworkSnapshot.From(WifiReport, speed ? SpeedResult : null);
         Comparison.Clear();
         foreach (var row in NetworkSnapshot.Compare(_before ?? new NetworkSnapshot(null, null, null, null, null, null, null, null), after))

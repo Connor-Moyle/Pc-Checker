@@ -150,8 +150,12 @@ public sealed partial class WindowsNetworkTuningService
         var provider = NetworkTuningCatalog.DnsProviderFromActionId(actionId) ?? NetworkTuningCatalog.DefaultDnsProvider;
         IReadOnlyDictionary<string, string?>? previous;
         string? before;
+        bool firstCapture = false;
         if (apply)
         {
+            // Like the adapter-setting path: a failed first apply must not leave a capture behind, or a later
+            // Apply would keep these stale values and Revert would restore them over a hand-made change.
+            firstCapture = Captured(action.Id) is null;
             previous = Capture(action.Id, await ReadCurrentAsync(action.Id, cancellationToken).ConfigureAwait(false));
             before = previous.Count == 0 ? null : NetworkTuningCaptureStore.Describe(previous);
         }
@@ -177,6 +181,10 @@ public sealed partial class WindowsNetworkTuningService
             {
                 Forget(action.Id);
             }
+        }
+        else if (apply && firstCapture)
+        {
+            Forget(action.Id);
         }
 
         return result;
@@ -281,8 +289,12 @@ public sealed partial class WindowsNetworkTuningService
             return OperationResult.Fail("No Wi-Fi adapter was found in the registry.");
         }
 
+        // Remember what each key held before this run so a failure part-way through can put the
+        // keys already written back, instead of leaving the adapters in a mixed state.
+        var written = new List<(string Key, int? Old)>();
         foreach (var key in keys)
         {
+            int? original = LatencyProbes.ReadDword(RegistryHive.LocalMachine, key, "PnPCapabilities");
             OperationResult result;
             if (apply)
             {
@@ -300,8 +312,23 @@ public sealed partial class WindowsNetworkTuningService
 
             if (!result.Success)
             {
-                return result;
+                bool rolledBack = true;
+                foreach (var (doneKey, doneOld) in written)
+                {
+                    var undo = doneOld is { } v
+                        ? LatencyProbes.WriteDword(RegistryHive.LocalMachine, doneKey, "PnPCapabilities", v)
+                        : LatencyProbes.DeleteValue(RegistryHive.LocalMachine, doneKey, "PnPCapabilities");
+                    rolledBack &= undo.Success;
+                }
+
+                return written.Count == 0
+                    ? result
+                    : OperationResult.Fail(result.Message + (rolledBack
+                        ? " The adapters already changed were put back as they were."
+                        : " Some adapters were already changed and could not all be put back; use Revert on the Network page."));
             }
+
+            written.Add((key, original));
         }
 
         return OperationResult.Ok($"Updated {keys.Count} Wi-Fi adapter(s).");

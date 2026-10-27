@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Net;
 using System.Net.Http.Headers;
+using System.Net.Sockets;
 using PcChecker.Core.Common;
 
 namespace PcChecker.Core.Network;
@@ -17,6 +18,12 @@ public static class NetworkSpeedTester
     public const double RampSeconds = 0.5;
     public const int IdleProbes = 10;
     public const int LoadedProbeIntervalMs = 250;
+
+    /// <summary>
+    /// Connections the latency probes may open. A probe times out after 5 s and one starts every
+    /// <see cref="LoadedProbeIntervalMs"/>, so at most 20 are in flight: probes never wait in a queue for a free connection.
+    /// </summary>
+    public const int ProbeConnections = 24;
     public static readonly TimeSpan PhaseLimit = TimeSpan.FromSeconds(15);
 
     private const int BufferSize = 64 * 1024;
@@ -38,15 +45,15 @@ public static class NetworkSpeedTester
         var total = Stopwatch.StartNew();
 
         using var transfer = CreateClient(Streams + 2, Timeout.InfiniteTimeSpan);
-        using var probe = CreateClient(2, TimeSpan.FromSeconds(5));
         var probeStats = new ProbeStats();
+        using var probe = CreateClient(ProbeConnections, TimeSpan.FromSeconds(5), probeStats.ConnectionOpened);
 
         // 1. Idle latency.
         progress?.Report(new ProgressUpdate("Measuring idle latency", 2, server));
         var idle = new List<double>();
         for (int i = 0; i <= IdleProbes; i++)
         {
-            var ms = await ProbeAsync(probe, server, probeStats, cancellationToken).ConfigureAwait(false);
+            var (ms, _) = await ProbeAsync(probe, server, probeStats, cancellationToken).ConfigureAwait(false);
             // The first request also pays for DNS and the TLS handshake; leave it out.
             if (ms is { } v && i > 0)
             {
@@ -208,8 +215,9 @@ public static class NetworkSpeedTester
     {
         try
         {
-            var ms = await ProbeAsync(probe, server, stats, cancellationToken).ConfigureAwait(false);
-            if (ms is { } v)
+            var (ms, newConnection) = await ProbeAsync(probe, server, stats, cancellationToken).ConfigureAwait(false);
+            // A probe that had to open a connection also timed the TCP and TLS handshake; that is not queueing delay.
+            if (ms is { } v && !newConnection)
             {
                 lock (sink)
                 {
@@ -223,16 +231,21 @@ public static class NetworkSpeedTester
         }
     }
 
-    /// <summary>Time to the response headers of an empty download, in ms; null when it failed.</summary>
-    private static async Task<double?> ProbeAsync(HttpClient client, string server, ProbeStats stats, CancellationToken cancellationToken)
+    /// <summary>
+    /// Time to the response headers of an empty download, in ms (null when it failed), and whether a probe
+    /// connection was opened while it ran (the time then includes a handshake; with probes overlapping it may have
+    /// been another probe's connection, so this errs on the side of dropping a sample).
+    /// </summary>
+    private static async Task<(double? Ms, bool NewConnection)> ProbeAsync(HttpClient client, string server, ProbeStats stats, CancellationToken cancellationToken)
     {
+        int connectionsBefore = stats.ConnectionsOpened;
         var stopwatch = Stopwatch.StartNew();
         try
         {
             using var response = await client.GetAsync($"https://{server}/__down?bytes=0", HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
             double ms = stopwatch.Elapsed.TotalMilliseconds;
             stats.Record(response.IsSuccessStatusCode ? null : $"HTTP {(int)response.StatusCode} {response.ReasonPhrase}", response.StatusCode);
-            return response.IsSuccessStatusCode ? ms : null;
+            return (response.IsSuccessStatusCode ? ms : null, stats.ConnectionsOpened != connectionsBefore);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -241,7 +254,7 @@ public static class NetworkSpeedTester
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or IOException)
         {
             stats.Record(ex is TaskCanceledException ? "timed out" : ex.Message, null);
-            return null;
+            return (null, stats.ConnectionsOpened != connectionsBefore);
         }
     }
 
@@ -270,7 +283,7 @@ public static class NetworkSpeedTester
         return $"Could not reach {server}{detail}. Check that you are online and that a firewall, proxy or filter is not blocking it, then try again.";
     }
 
-    private static HttpClient CreateClient(int connections, TimeSpan timeout)
+    private static HttpClient CreateClient(int connections, TimeSpan timeout, Action? onConnect = null)
     {
         var handler = new SocketsHttpHandler
         {
@@ -280,6 +293,26 @@ public static class NetworkSpeedTester
             ConnectTimeout = TimeSpan.FromSeconds(10),
             UseCookies = false,
         };
+        if (onConnect is not null)
+        {
+            // Same as the default connect, plus a count so probes can tell when they paid for a new connection.
+            handler.ConnectCallback = async (context, ct) =>
+            {
+                onConnect();
+                var socket = new Socket(SocketType.Stream, ProtocolType.Tcp) { NoDelay = true };
+                try
+                {
+                    await socket.ConnectAsync(context.DnsEndPoint, ct).ConfigureAwait(false);
+                    return new NetworkStream(socket, ownsSocket: true);
+                }
+                catch
+                {
+                    socket.Dispose();
+                    throw;
+                }
+            };
+        }
+
         var client = new HttpClient(handler, disposeHandler: true) { Timeout = timeout };
         client.DefaultRequestHeaders.UserAgent.Clear();
         client.DefaultRequestHeaders.UserAgent.ParseAdd(NetworkSystemInfo.UserAgent);
@@ -293,8 +326,13 @@ public static class NetworkSpeedTester
     {
         private int _sent;
         private int _failed;
+        private int _connections;
 
         public int Sent => Volatile.Read(ref _sent);
+        public int ConnectionsOpened => Volatile.Read(ref _connections);
+
+        public void ConnectionOpened() => Interlocked.Increment(ref _connections);
+
         public int Failed => Volatile.Read(ref _failed);
         public string? LastError { get; private set; }
 

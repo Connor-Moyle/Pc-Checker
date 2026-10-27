@@ -78,8 +78,10 @@ neighbours more than faint ones and ignores your own router.
    first 0.5 s (TCP ramp-up) is ignored.
 3. **Upload**: four parallel POSTs of random (incompressible) data to `/__up`
    until `UploadMegabytes` (25 MB) or 15 seconds.
-4. **Latency under load**: during both transfers a separate connection sends
-   an empty request every 250 ms. Bufferbloat = median loaded − median idle
+4. **Latency under load**: during both transfers a separate pool of
+   connections (up to 24, so probes never queue behind each other) sends an
+   empty request every 250 ms. A probe that had to open a new connection is
+   left out, because its time includes the TCP and TLS handshake. Bufferbloat = median loaded − median idle
    latency, graded A+ (< 5 ms), A (< 30), B (< 60), C (< 200), D (< 400),
    F (≥ 400).
 
@@ -167,7 +169,8 @@ interface output). Order (`set profileorder`), auto-connect and metered
 forget (`delete profile`). Before a network is forgotten its profile is
 exported (password still encrypted, readable only on this PC) to
 `%LOCALAPPDATA%\PcChecker\wifi-profile-backups\`; the journal entry shows the
-`netsh wlan add profile filename=…` command that brings it back. Names with
+`netsh wlan add profile filename=…` command that brings it back. If the
+export fails, nothing is deleted and the page says so. Names with
 double quotes are refused rather than passed to netsh unsafely.
 
 Before the first change to a saved network, its position, auto-connect and

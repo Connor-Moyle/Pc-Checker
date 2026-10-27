@@ -165,8 +165,12 @@
 
             <StackPanel Orientation="Horizontal" Margin="0,8,0,0" Visibility="{Binding HasQuickImproveItems, Converter={StaticResource BoolToVisibility}}">
               <ui:Button Appearance="Primary" Content="Apply selected changes" Icon="{ui:SymbolIcon CheckmarkCircle24}" Command="{Binding ApplyQuickImproveCommand}" IsEnabled="{Binding IsIdle}" Margin="0,0,8,0" />
-              <ui:TextBlock Style="{StaticResource Caption}" VerticalAlignment="Center" TextWrapping="Wrap" MaxWidth="560"
-                            Text="Run the speed test before applying if you want a before/after comparison." />
+              <ui:Button Content="Measure speed first" Icon="{ui:SymbolIcon TopSpeed24}" Command="{Binding MeasureBaselineCommand}" IsEnabled="{Binding IsIdle}" Margin="0,0,8,0"
+                         Visibility="{Binding ShowMeasureBaseline, Converter={StaticResource BoolToVisibility}}"
+                         ToolTip="Runs the speed test now so the before/after comparison has speed numbers. Uses data." />
+              <ui:TextBlock Style="{StaticResource Caption}" VerticalAlignment="Center" TextWrapping="Wrap" MaxWidth="460"
+                            Visibility="{Binding ShowMeasureBaseline, Converter={StaticResource BoolToVisibility}}"
+                            Text="No speed test yet: measure first if you want a before/after speed comparison." />
             </StackPanel>
 
             <ui:InfoBar Severity="Success" Title="Changes applied" IsOpen="{Binding ShowCompareOffer, Mode=OneWay}" IsClosable="False" Margin="0,12,0,0"

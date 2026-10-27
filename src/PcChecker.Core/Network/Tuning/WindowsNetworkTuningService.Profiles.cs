@@ -109,12 +109,17 @@ public sealed partial class WindowsNetworkTuningService
             return OperationResult.Fail("This network name contains characters netsh cannot handle safely; forget it in Windows Settings → Wi-Fi → Manage known networks instead.");
         }
 
-        string undo = backupFile is null
-            ? "No backup could be made; reconnect to the network and type its password again."
-            : $"netsh wlan add profile filename=\"{backupFile}\" (re-adds the network with its saved password on this PC)";
-        var options = new ChangeOptions(false, null, Module, $"Wi-Fi profile {profile.Name}", backupFile is not null, undo);
+        // The confirmation promised a backup; without one, do not delete anything.
+        if (backupFile is null)
+        {
+            return OperationResult.Fail($"PC Checker could not save a backup of \"{profile.Name}\", so it was not forgotten. "
+                + "If you still want to remove it, use Windows Settings → Wi-Fi → Manage known networks (you will need the password to connect again).");
+        }
+
+        string undo = $"netsh wlan add profile filename=\"{backupFile}\" (re-adds the network with its saved password on this PC)";
+        var options = new ChangeOptions(false, null, Module, $"Wi-Fi profile {profile.Name}", true, undo);
         var result = await RunNetshGuardedAsync($"Forget Wi-Fi network \"{profile.Name}\"", options, arguments,
-            $"\"{profile.Name}\" was forgotten." + (backupFile is null ? string.Empty : $" A backup was saved to {backupFile}."), cancellationToken).ConfigureAwait(false);
+            $"\"{profile.Name}\" was forgotten. A backup was saved to {backupFile}.", cancellationToken).ConfigureAwait(false);
         if (result.Success)
         {
             Forget(NetworkTuningCaptureStore.ProfileEntryId(profile.Name)); // Nothing left to revert; the backup file is the way back.
