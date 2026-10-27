@@ -81,6 +81,12 @@ public sealed class GeneralSettings
 
     /// <summary>Quick search items opened most recently, newest first (index ids such as "page:drivers").</summary>
     public List<string> RecentSearchItems { get; set; } = [];
+
+    /// <summary>True after the "You're in Simple mode" hint (Dashboard and Settings) was closed; it shows once.</summary>
+    public bool SimpleModeHintDismissed { get; set; }
+
+    /// <summary>When the last check-up finished (UTC), so the Dashboard can suggest a new one after a while.</summary>
+    public DateTimeOffset? LastCheckupUtc { get; set; }
 }
 
 public enum UpdateChannel

@@ -65,6 +65,7 @@ public static class SetupMachineFields
     [
         ClaudeApiKey,
         "General.WindowWidth", "General.WindowHeight", "General.WindowMaximized", "General.WelcomeSeen", "General.RecentSearchItems",
+        "General.SimpleModeHintDismissed", "General.LastCheckupUtc",
         "Updates.LastCheckedUtc",
         "Logging.Directory",
         "History.PreviousRetentionDays", "History.RetentionLoweredAt",
