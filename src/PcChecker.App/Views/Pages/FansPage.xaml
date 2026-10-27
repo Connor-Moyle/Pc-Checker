@@ -13,7 +13,7 @@
   <Page.Resources>
     <!-- One fan card -->
     <DataTemplate x:Key="FanCardTemplate" DataType="{x:Type vm:FanItemViewModel}">
-      <ui:Card Width="470" Margin="0,0,12,12" Padding="16" VerticalAlignment="Top">
+      <ui:Card Padding="16" VerticalAlignment="Stretch" VerticalContentAlignment="Top">
         <StackPanel>
           <!-- Title row -->
           <Grid>
@@ -78,11 +78,8 @@
                 <ui:Button Grid.Column="2" Content="+5" Command="{Binding NudgeManualCommand}" CommandParameter="5" Padding="8,4" Margin="8,0,8,0" />
                 <ui:TextBlock Grid.Column="3" FontTypography="BodyStrong" Text="{Binding ManualPercentText}" MinWidth="48" VerticalAlignment="Center" TextAlignment="Right" />
               </Grid>
-              <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                <ui:Button Content="Apply speed" Appearance="Primary" Icon="{ui:SymbolIcon Checkmark24}" Command="{Binding ApplyManualCommand}" />
-                <ui:TextBlock Style="{StaticResource Muted}" VerticalAlignment="Center" Margin="12,0,0,0" TextWrapping="Wrap"
-                              Text="Speeds below the page minimum ask for confirmation." />
-              </StackPanel>
+              <ui:Button Content="Apply speed" Appearance="Primary" Icon="{ui:SymbolIcon Checkmark24}" Command="{Binding ApplyManualCommand}" Margin="0,8,0,0"
+                         ToolTip="Speeds below the minimum fan speed in Options ask for confirmation." />
             </StackPanel>
 
             <!-- Curve -->
@@ -140,12 +137,13 @@
       <RowDefinition Height="*" />
     </Grid.RowDefinitions>
 
-    <controls:SectionHeader Grid.Row="0" Title="Fans" Subtitle="Fan speeds, custom curves and profiles for quiet or cool operation.">
+    <controls:SectionHeader Grid.Row="0" Title="Fans"
+                            Subtitle="{Binding StatusText, TargetNullValue='Fan speeds, curves and profiles for quiet or cool running.'}">
       <controls:SectionHeader.Actions>
         <StackPanel Orientation="Horizontal">
-          <ui:Button Content="Detect fans" Icon="{ui:SymbolIcon ArrowSync24}" Command="{Binding DetectCommand}" Margin="0,0,8,0" />
-          <ui:Button Content="Revert all to automatic" Appearance="Caution" Icon="{ui:SymbolIcon ArrowReset24}" Command="{Binding RevertAllCommand}"
+          <ui:Button Content="Revert all to automatic" Appearance="Caution" Icon="{ui:SymbolIcon ArrowReset24}" Command="{Binding RevertAllCommand}" Margin="0,0,8,0"
                      ToolTip="Hand every fan back to the motherboard or graphics driver." />
+          <ui:Button Content="Detect fans" Appearance="Primary" Icon="{ui:SymbolIcon ArrowSync24}" Command="{Binding DetectCommand}" />
         </StackPanel>
       </controls:SectionHeader.Actions>
     </controls:SectionHeader>
@@ -209,9 +207,8 @@
         <!-- Profiles -->
         <ui:Card Style="{StaticResource CardSpacing}">
           <StackPanel>
-            <ui:TextBlock Style="{StaticResource CardTitle}" Text="Profiles" />
-            <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,10"
-                          Text="A profile remembers the mode, speed or curve of every fan. Silent, Balanced and Performance are built in; save your own from the current settings." />
+            <ui:TextBlock Style="{StaticResource CardTitle}" Text="Profiles"
+                          ToolTip="A profile remembers the mode, speed or curve of every fan. Silent, Balanced and Performance are built in; save your own from the current settings." />
             <Grid>
               <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" MaxWidth="360" />
@@ -244,43 +241,15 @@
               <ui:Button Grid.Column="1" Content="Save current as…" Icon="{ui:SymbolIcon Save24}" Command="{Binding SaveProfileAsCommand}" Margin="8,0,0,0" />
               <ui:TextBlock Grid.Column="2" Style="{StaticResource Muted}" Text="{Binding SoftwareControlledText}" VerticalAlignment="Center" Margin="16,0,0,0" />
             </Grid>
-            <Separator Margin="0,14,0,10" />
-            <Grid>
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="*" />
-              </Grid.ColumnDefinitions>
-              <StackPanel Grid.Column="0" Margin="0,0,16,0">
-                <StackPanel Orientation="Horizontal">
-                  <ui:ToggleSwitch IsChecked="{Binding RevertToAutoOnExit}" />
-                  <ui:TextBlock Text="Revert to automatic on exit" VerticalAlignment="Center" Margin="8,0,0,0" />
-                </StackPanel>
-                <ui:TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Text="Hands fans back to the firmware when you close PC Checker (recommended)." />
-              </StackPanel>
-              <StackPanel Grid.Column="1" Margin="0,0,16,0">
-                <StackPanel Orientation="Horizontal">
-                  <ui:ToggleSwitch IsChecked="{Binding ApplyOnStartup}" />
-                  <ui:TextBlock Text="Apply active profile at startup" VerticalAlignment="Center" Margin="8,0,0,0" />
-                </StackPanel>
-                <ui:TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Text="Re-applies the last profile you applied whenever the app starts." />
-              </StackPanel>
-              <StackPanel Grid.Column="2">
-                <StackPanel Orientation="Horizontal">
-                  <ui:NumberBox Value="{Binding MinimumPercent, Mode=TwoWay}" Minimum="0" Maximum="100" SmallChange="5" ClearButtonEnabled="False" Width="110" />
-                  <ui:TextBlock Text="Minimum fan speed (%)" VerticalAlignment="Center" Margin="8,0,0,0" />
-                </StackPanel>
-                <ui:TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Text="Curves and manual speeds never go below this unless you confirm." />
-              </StackPanel>
-            </Grid>
           </StackPanel>
         </ui:Card>
 
         <!-- Fan cards -->
-        <ItemsControl ItemsSource="{Binding Fans}" ItemTemplate="{StaticResource FanCardTemplate}">
+        <ItemsControl ItemsSource="{Binding Fans}" ItemTemplate="{StaticResource FanCardTemplate}" Margin="0,0,0,12"
+                      Visibility="{Binding HasFans, Converter={StaticResource BoolToVisibility}}">
           <ItemsControl.ItemsPanel>
             <ItemsPanelTemplate>
-              <WrapPanel Orientation="Horizontal" />
+              <controls:AdaptiveGrid MinItemWidth="420" MaxColumns="3" />
             </ItemsPanelTemplate>
           </ItemsControl.ItemsPanel>
         </ItemsControl>
@@ -288,20 +257,45 @@
         <controls:EmptyState Icon="ArrowSyncCircle24"
                              Title="No fans to show"
                              Message="Click “Detect fans” after making sure PC Checker runs as administrator. Laptops and many pre-built PCs keep their fans under firmware control."
+                             Margin="0,0,0,12"
                              Visibility="{Binding HasFans, Converter={StaticResource InverseBoolToVisibility}}" />
-
-        <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding StatusText}" Margin="0,4,0,8"
-                      Visibility="{Binding StatusText, Converter={StaticResource NullToVisibility}}" />
 
         <ui:Button Content="Simulate an overheating CPU (demo)" Appearance="Secondary" Icon="{ui:SymbolIcon Fire24}" Command="{Binding SimulateOverheatCommand}" Margin="0,0,0,12"
                    Visibility="{Binding IsDemoMode, Converter={StaticResource BoolToVisibility}}" />
 
+        <!-- Options -->
+        <ui:CardExpander Header="Options" Icon="{ui:SymbolIcon Settings24}" IsExpanded="False" Margin="0,0,0,12" ContentPadding="16">
+          <controls:AdaptiveGrid MinItemWidth="260" MaxColumns="3">
+            <StackPanel>
+              <StackPanel Orientation="Horizontal">
+                <ui:ToggleSwitch IsChecked="{Binding RevertToAutoOnExit}" />
+                <ui:TextBlock Text="Revert to automatic on exit" VerticalAlignment="Center" Margin="8,0,0,0" />
+              </StackPanel>
+              <ui:TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,4,0,0" Text="Hands fans back to the firmware when you close the app (recommended)." />
+            </StackPanel>
+            <StackPanel>
+              <StackPanel Orientation="Horizontal">
+                <ui:ToggleSwitch IsChecked="{Binding ApplyOnStartup}" />
+                <ui:TextBlock Text="Apply active profile at startup" VerticalAlignment="Center" Margin="8,0,0,0" />
+              </StackPanel>
+              <ui:TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,4,0,0" Text="Re-applies the last profile you applied when the app starts." />
+            </StackPanel>
+            <StackPanel>
+              <StackPanel Orientation="Horizontal">
+                <ui:NumberBox Value="{Binding MinimumPercent, Mode=TwoWay}" Minimum="0" Maximum="100" SmallChange="5" ClearButtonEnabled="False" Width="110" />
+                <ui:TextBlock Text="Minimum fan speed (%)" VerticalAlignment="Center" Margin="8,0,0,0" />
+              </StackPanel>
+              <ui:TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,4,0,0" Text="Curves and manual speeds never go below this unless you confirm." />
+            </StackPanel>
+          </controls:AdaptiveGrid>
+        </ui:CardExpander>
+
         <!-- Advanced: raw controls -->
-        <ui:CardExpander Margin="0,0,0,12" Visibility="{Binding IsAdvancedMode, Converter={StaticResource BoolToVisibility}}">
+        <ui:CardExpander Margin="0,0,0,12" IsExpanded="False" Visibility="{Binding IsAdvancedMode, Converter={StaticResource BoolToVisibility}}">
           <ui:CardExpander.Header>
             <StackPanel>
-              <ui:TextBlock FontTypography="BodyStrong" Text="Raw fan controls (advanced)" />
-              <ui:TextBlock Style="{StaticResource Muted}" Text="Every control the hardware monitor exposes, with its identifier, mode and software value." />
+              <ui:TextBlock FontTypography="BodyStrong" Text="Raw fan controls" />
+              <ui:TextBlock Style="{StaticResource Muted}" Text="Each hardware control with its identifier, mode and software value." />
             </StackPanel>
           </ui:CardExpander.Header>
           <ui:DataGrid ItemsSource="{Binding RawControls}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" HeadersVisibility="Column" MaxHeight="320">
