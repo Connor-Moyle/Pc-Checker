@@ -128,7 +128,7 @@ public sealed class DemoProcessService : IProcessService
     public Task<OperationResult> SuspendAsync(ProcessInfo process, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(process);
-        if (ProcessSafetyRules.SuspendRefusal(process, ProcessGrouping.Classify(process, DemoWindows), OwnProcessId) is { } reason)
+        if (ProcessSafetyRules.SuspendRefusal(process, DemoWindows, OwnProcessId) is { } reason)
         {
             return Task.FromResult(OperationResult.Fail(reason));
         }
@@ -158,7 +158,7 @@ public sealed class DemoProcessService : IProcessService
     public Task<OperationResult> SetEfficiencyModeAsync(ProcessInfo process, bool on, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(process);
-        if (ProcessSafetyRules.EfficiencyRefusal(process, ProcessGrouping.Classify(process, DemoWindows), OwnProcessId) is { } reason)
+        if (ProcessSafetyRules.EfficiencyRefusal(process, DemoWindows, OwnProcessId) is { } reason)
         {
             return Task.FromResult(OperationResult.Fail(reason));
         }
@@ -234,7 +234,7 @@ public sealed class DemoProcessService : IProcessService
     public async Task<OperationResult> RestartAsync(ProcessInfo process, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(process);
-        if (ProcessSafetyRules.RestartRefusal(process, ProcessGrouping.Classify(process, DemoWindows), OwnProcessId, DemoProcessData.User) is { } reason)
+        if (ProcessSafetyRules.RestartRefusal(process, DemoWindows, OwnProcessId, DemoProcessData.User) is { } reason)
         {
             return OperationResult.Fail(reason);
         }

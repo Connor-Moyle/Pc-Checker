@@ -243,13 +243,13 @@ public static class ProcessSorting
     private static string Text(ProcessSortColumn column, ProcessInfo p) => column switch
     {
         ProcessSortColumn.Name => p.Name,
-        ProcessSortColumn.Publisher => p.Signature.Publisher ?? "￿",
-        ProcessSortColumn.User => p.User ?? "￿",
-        ProcessSortColumn.Path => p.Path ?? "￿",
-        ProcessSortColumn.GpuEngine => p.GpuEngine ?? "￿",
-        ProcessSortColumn.CommandLine => p.CommandLine ?? "￿",
-        ProcessSortColumn.Description => p.Description ?? "￿",
-        ProcessSortColumn.Architecture => p.Architecture == ProcessArchitecture.Unknown ? "￿" : p.Architecture.ToString(),
+        ProcessSortColumn.Publisher => p.Signature.Publisher ?? "\uFFFF",
+        ProcessSortColumn.User => p.User ?? "\uFFFF",
+        ProcessSortColumn.Path => p.Path ?? "\uFFFF",
+        ProcessSortColumn.GpuEngine => p.GpuEngine ?? "\uFFFF",
+        ProcessSortColumn.CommandLine => p.CommandLine ?? "\uFFFF",
+        ProcessSortColumn.Description => p.Description ?? "\uFFFF",
+        ProcessSortColumn.Architecture => p.Architecture == ProcessArchitecture.Unknown ? "\uFFFF" : p.Architecture.ToString(),
         _ => string.Empty,
     };
 

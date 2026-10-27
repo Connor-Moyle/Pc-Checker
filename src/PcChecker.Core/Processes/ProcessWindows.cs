@@ -23,13 +23,78 @@ internal static class ProcessWindows
     private const int SwMaximize = 3;
     private const int SwRestore = 9;
 
+    // The desktop (File Explorer's "Program Manager" and its wallpaper layer) and the stand-in windows Windows draws
+    // over a frozen window ("Ghost", owned by the desktop window manager, not by the frozen program).
+    private static readonly HashSet<string> SkippedClasses = new(StringComparer.Ordinal) { "Progman", "WorkerW", "Ghost" };
+
+    // The app window last seen for each process, so a window Windows has hidden behind its "Not responding" stand-in
+    // is still found (and still reported as hung) on the next refresh.
+    private static readonly object LastSeenLock = new();
+    private static Dictionary<int, AppWindow> _lastSeen = [];
+
     /// <summary>The main window of one process.</summary>
     internal readonly record struct AppWindow(long Handle, string Title, bool MarkedHung, bool PingTimedOut);
 
-    /// <summary>The first (topmost) app window of every process that has one.</summary>
+    /// <summary>
+    /// The first (topmost) app window of every process that has one. A process whose window was found last time but
+    /// is hidden now is kept when that same window still exists and hangs: Windows hides a frozen window behind a
+    /// stand-in "ghost" window that belongs to another process (not checked on every Windows build; harmless when
+    /// the frozen window stays visible, as it is then found directly).
+    /// </summary>
     public static IReadOnlyDictionary<int, AppWindow> Enumerate()
     {
         var windows = new Dictionary<int, AppWindow>();
+        try
+        {
+            EnumerateVisible(windows);
+            Dictionary<int, AppWindow> previous;
+            lock (LastSeenLock)
+            {
+                previous = _lastSeen;
+            }
+
+            foreach (var (pid, window) in previous)
+            {
+                if (!windows.ContainsKey(pid) && StillHung(window.Handle, pid) is { } hung)
+                {
+                    windows[pid] = hung with { Title = window.Title };
+                }
+            }
+
+            lock (LastSeenLock)
+            {
+                _lastSeen = new Dictionary<int, AppWindow>(windows);
+            }
+        }
+        catch
+        {
+            // Return what was found so far.
+        }
+
+        return windows;
+    }
+
+    private static AppWindow? StillHung(long handle, int pid)
+    {
+        try
+        {
+            var hwnd = new IntPtr(handle);
+            if (handle == 0 || !IsWindow(hwnd) || OwnerPid(hwnd) != pid || !IsHungAppWindow(hwnd))
+            {
+                return null;
+            }
+
+            bool timedOut = SendMessageTimeout(hwnd, WmNull, IntPtr.Zero, IntPtr.Zero, SmtoAbortIfHung | SmtoBlock, 250, out _) == IntPtr.Zero;
+            return new AppWindow(handle, string.Empty, true, timedOut);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static void EnumerateVisible(Dictionary<int, AppWindow> windows)
+    {
         try
         {
             EnumWindows((hwnd, _) =>
@@ -61,10 +126,8 @@ internal static class ProcessWindows
         }
         catch
         {
-            // Return what was found so far.
+            // Keep what was found so far.
         }
-
-        return windows;
     }
 
     /// <summary>Every app window of a process (to close them all).</summary>
@@ -180,6 +243,11 @@ internal static class ProcessWindows
             return false;
         }
 
+        if (SkippedClasses.Contains(ClassName(hwnd)))
+        {
+            return false;
+        }
+
         int length = GetWindowTextLength(hwnd);
         if (length <= 0)
         {
@@ -216,10 +284,12 @@ internal static class ProcessWindows
         return (int)(inner != 0 ? inner : pid);
     }
 
-    private static bool IsFrameHost(IntPtr hwnd)
+    private static bool IsFrameHost(IntPtr hwnd) => ClassName(hwnd) == "ApplicationFrameWindow";
+
+    private static string ClassName(IntPtr hwnd)
     {
         var name = new StringBuilder(64);
-        return GetClassName(hwnd, name, name.Capacity) > 0 && name.ToString() == "ApplicationFrameWindow";
+        return GetClassName(hwnd, name, name.Capacity) > 0 ? name.ToString() : string.Empty;
     }
 
     private delegate bool EnumWindowsProc(IntPtr hwnd, IntPtr lParam);

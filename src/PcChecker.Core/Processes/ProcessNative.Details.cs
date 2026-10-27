@@ -17,10 +17,14 @@ internal static partial class ProcessNative
     private const int SystemProcessInformationClass = 5;
     private const int ProcessCommandLineInformationClass = 60;
     private const int ProcessPowerThrottlingClass = 4;
+    private const int NtProcessPowerThrottlingStateClass = 77;
     private const int ProcessMachineTypeInfoClass = 9;
     private const int TokenElevationClass = 20;
     private const uint StatusInfoLengthMismatch = 0xC0000004;
     private const uint StatusBufferTooSmall = 0xC0000023;
+
+    // Set once the efficiency mode query has failed and been logged.
+    private static int _efficiencyQueryWarned;
 
     // Layout of SYSTEM_PROCESS_INFORMATION and SYSTEM_THREAD_INFORMATION on 64-bit Windows (x64 and ARM64).
     private const int ProcessEntrySize = 256;
@@ -240,13 +244,38 @@ internal static partial class ProcessNative
         }
     }
 
+    /// <summary>
+    /// Whether efficiency mode is on. Older Windows 10 and 11 builds do not answer GetProcessInformation for this
+    /// class; the same state is then read with NtQueryInformationProcess (ProcessPowerThrottlingState), which Task
+    /// Manager uses. When both fail the first time, a warning is written once, so an "Efficiency mode: off"
+    /// everywhere can be explained from the log.
+    /// </summary>
     private static bool ReadEfficiency(IntPtr handle)
     {
         try
         {
+            int size = Marshal.SizeOf<PowerThrottlingState>();
             var state = new PowerThrottlingState { Version = EfficiencyModeRules.Version };
-            return GetProcessInformation(handle, ProcessPowerThrottlingClass, ref state, Marshal.SizeOf<PowerThrottlingState>())
-                   && EfficiencyModeRules.IsOn(state.ControlMask, state.StateMask);
+            if (GetProcessInformation(handle, ProcessPowerThrottlingClass, ref state, size))
+            {
+                return EfficiencyModeRules.IsOn(state.ControlMask, state.StateMask);
+            }
+
+            int error = Marshal.GetLastWin32Error();
+            state = new PowerThrottlingState { Version = EfficiencyModeRules.Version };
+            int status = NtQueryInformationProcess(handle, NtProcessPowerThrottlingStateClass, ref state, size, out _);
+            if (status == 0)
+            {
+                return EfficiencyModeRules.IsOn(state.ControlMask, state.StateMask);
+            }
+
+            if (Interlocked.Exchange(ref _efficiencyQueryWarned, 1) == 0)
+            {
+                System.Diagnostics.Trace.TraceWarning(
+                    $"Efficiency mode could not be read (GetProcessInformation error {error}, NtQueryInformationProcess status 0x{status:X8}); it is shown as off.");
+            }
+
+            return false;
         }
         catch
         {
@@ -394,6 +423,9 @@ internal static partial class ProcessNative
 
     [DllImport("ntdll.dll")]
     private static extern int NtQueryInformationProcess(IntPtr process, int informationClass, IntPtr information, int length, out int returnLength);
+
+    [DllImport("ntdll.dll", EntryPoint = "NtQueryInformationProcess")]
+    private static extern int NtQueryInformationProcess(IntPtr process, int informationClass, ref PowerThrottlingState information, int length, out int returnLength);
 
     [DllImport("ntdll.dll")]
     private static extern int NtSuspendProcess(IntPtr process);

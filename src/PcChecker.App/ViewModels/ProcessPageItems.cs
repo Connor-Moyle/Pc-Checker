@@ -131,17 +131,18 @@ public sealed partial class AffinityChoices : ObservableObject
 
     public ulong Mask => AffinityMath.ToMask(Processors.Where(p => p.IsChecked).Select(p => p.Index));
 
-    partial void OnAllCheckedChanged(bool? value)
+    /// <summary>
+    /// "All processors" clicked: ticks every processor, or unticks them all when every one was ticked. A plain
+    /// two-state checkbox would go from the mixed state to unticked and clear every processor.
+    /// </summary>
+    [RelayCommand]
+    private void ToggleAll()
     {
-        if (_updating || value is null)
-        {
-            return;
-        }
-
+        bool target = AllChecked != true;
         _updating = true;
         foreach (var processor in Processors)
         {
-            processor.IsChecked = value.Value;
+            processor.IsChecked = target;
         }
 
         _updating = false;

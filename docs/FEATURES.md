@@ -220,7 +220,10 @@ second), Low (every 4 seconds) or Paused; *Pause updates* freezes it to read.
     group, every process of the program.
   - *End process tree*, *Restart* (closes the program and starts the same
     file with the same options, with your normal rights unless it had
-    administrator rights; File Explorer is restarted by Windows itself).
+    administrator rights and lives in Program Files or the Windows folder;
+    File Explorer is restarted by Windows itself). Store apps, Windows'
+    own programs and browser helper processes are not restarted: start them
+    again from the Start menu or restart the main program.
   - *Suspend* / *Resume*: pauses a program so it uses no processor time.
   - *Efficiency mode*: Windows' EcoQoS power throttling plus Low priority,
     as Task Manager sets it; turning it off restores Normal priority.
@@ -235,8 +238,10 @@ second), Low (every 4 seconds) or Paused; *Pause updates* freezes it to read.
 - **Run new task** (header): opens a program, folder, document or web
   address and remembers the last ten. It starts with your normal rights,
   even though PC Checker runs as administrator, unless you tick *Create this
-  task with administrative privileges*. Programs in Temp or AppData folders
-  are never started as administrator.
+  task with administrative privileges*. Only programs in Program Files or
+  the Windows folder are started as administrator (a bare name such as
+  `cmd` is looked up on the PATH first). The program opens through the
+  desktop, so a mistyped name shows Windows' own error message.
 
 Every change is recorded in the Action Journal with an undo hint; no restore
 point is made because no Windows setting changes.

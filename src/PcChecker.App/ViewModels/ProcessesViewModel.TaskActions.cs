@@ -16,7 +16,8 @@ public sealed partial class ProcessesViewModel
 
     private bool CanSuspend() => SelectedRow is { IsSection: false, Process: not null, IsSuspended: false } && !IsSelectedProtected();
 
-    private bool CanResume() => SelectedRow is { IsSection: false, Process: not null, IsSuspended: true };
+    // Any suspended member is enough: after a partial failure a group shows as running but still holds paused processes.
+    private bool CanResume() => SelectedRow is { IsSection: false, Process: not null } row && row.Members.Any(m => m.State == ProcessRunState.Suspended);
 
     private bool CanChangeProcess() => SelectedRow is { CanEnd: true, Process: not null };
 
@@ -43,7 +44,7 @@ public sealed partial class ProcessesViewModel
 
         string title = Title(row);
         var targets = row.Members.Where(m => m.State != ProcessRunState.Suspended).ToList();
-        if (targets.Select(m => ProcessSafetyRules.SuspendRefusal(m, row.Category, _processes.OwnProcessId)).FirstOrDefault(r => r is not null) is { } refusal)
+        if (targets.Select(m => ProcessSafetyRules.SuspendRefusal(m, _windowsDirectory, _processes.OwnProcessId)).FirstOrDefault(r => r is not null) is { } refusal)
         {
             await _dialogs.ShowMessageAsync(Loc.F("{0} cannot be suspended", title), refusal);
             return;
@@ -82,7 +83,7 @@ public sealed partial class ProcessesViewModel
 
         string title = Title(row);
         bool turnOn = !row.Members.All(m => m.EfficiencyMode);
-        if (row.Members.Select(m => ProcessSafetyRules.EfficiencyRefusal(m, row.Category, _processes.OwnProcessId)).FirstOrDefault(r => r is not null) is { } refusal)
+        if (row.Members.Select(m => ProcessSafetyRules.EfficiencyRefusal(m, _windowsDirectory, _processes.OwnProcessId)).FirstOrDefault(r => r is not null) is { } refusal)
         {
             await _dialogs.ShowMessageAsync(Loc.T("Efficiency mode is not available"), refusal);
             return;
@@ -151,7 +152,7 @@ public sealed partial class ProcessesViewModel
 
         string title = Title(row);
         // The account check happens in the service, which knows whose programs it can start again.
-        if (ProcessSafetyRules.RestartRefusal(lead, row.Category, _processes.OwnProcessId, currentUser: null) is { } refusal)
+        if (ProcessSafetyRules.RestartRefusal(lead, _windowsDirectory, _processes.OwnProcessId, currentUser: null) is { } refusal)
         {
             await _dialogs.ShowMessageAsync(Loc.F("{0} cannot be restarted here", title), refusal);
             return;
@@ -246,7 +247,7 @@ public sealed partial class ProcessesViewModel
         Settings.Current.Processes.RecentRunCommands = CommandLineText.AddRecent(Settings.Current.Processes.RecentRunCommands, command);
         SaveSettings();
         await RunActionAsync(ct => _processes.RunNewTaskAsync(command, choices.AsAdministrator, ct),
-            Loc.T("Started"), Loc.F("Could not start {0}", command), Loc.F("Starting {0}…", command));
+            Loc.T("Opening"), Loc.F("Could not start {0}", command), Loc.F("Starting {0}…", command));
     }
 
     private void ShowSelectedWindow(WindowCommand command)

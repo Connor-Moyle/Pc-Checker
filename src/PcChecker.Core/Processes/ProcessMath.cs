@@ -70,24 +70,34 @@ public static class ProcessMath
 
     /// <summary>
     /// GPU use per process id the way Task Manager shows it: the busiest engine's utilisation (not the sum of all
-    /// engines), with that engine's name, "GPU 0 - 3D". Graphics adapters are numbered in the order of their LUIDs.
-    /// Instances without a process id and idle engines are ignored.
+    /// engines), with that engine's name, "GPU 0 - 3D". Graphics adapters are numbered in the order of their LUIDs
+    /// (idle ones included, so the numbers do not change between samples). Instances without a process id and idle
+    /// engines are otherwise ignored.
     /// </summary>
     public static IReadOnlyDictionary<int, (double Percent, string Engine)> BusiestGpuEngineByPid(IEnumerable<KeyValuePair<string, double>> engineValues)
     {
         ArgumentNullException.ThrowIfNull(engineValues);
         var parsed = new List<(int Pid, string Luid, string Type, double Value)>();
+        var luids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var (instance, value) in engineValues)
         {
-            if (double.IsNaN(value) || value <= 0 || !ProcessMetrics.TryParseGpuEnginePid(instance, out int pid))
+            if (!ProcessMetrics.TryParseGpuEnginePid(instance, out int pid))
             {
                 continue;
             }
 
-            parsed.Add((pid, Part(instance, "_luid_", "_phys_") ?? string.Empty, Part(instance, "_engtype_", null) ?? "Engine", value));
+            // Every adapter counts for the numbering, idle or not, so "GPU 1" stays "GPU 1" while "GPU 0" rests.
+            string luid = Part(instance, "_luid_", "_phys_") ?? string.Empty;
+            luids.Add(luid);
+            if (double.IsNaN(value) || value <= 0)
+            {
+                continue;
+            }
+
+            parsed.Add((pid, luid, Part(instance, "_engtype_", null) ?? "Engine", value));
         }
 
-        var adapters = parsed.Select(p => p.Luid).Distinct(StringComparer.OrdinalIgnoreCase).Order(StringComparer.OrdinalIgnoreCase)
+        var adapters = luids.Order(StringComparer.OrdinalIgnoreCase)
             .Select((luid, index) => (luid, index)).ToDictionary(x => x.luid, x => x.index, StringComparer.OrdinalIgnoreCase);
         var result = new Dictionary<int, (double Percent, string Engine)>();
         foreach (var item in parsed)

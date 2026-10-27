@@ -10,7 +10,7 @@
   <!-- Body of Processes → Set affinity: one checkbox per logical processor. -->
   <StackPanel MaxWidth="560">
     <ui:TextBlock TextWrapping="Wrap" Margin="0,0,0,10" Text="{Binding Intro}" />
-    <CheckBox IsThreeState="False" IsChecked="{Binding AllChecked}" Content="All processors" Margin="0,0,0,8"
+    <CheckBox IsThreeState="False" IsChecked="{Binding AllChecked, Mode=OneWay}" Command="{Binding ToggleAllCommand}" Content="All processors" Margin="0,0,0,8"
               ToolTip="Tick or untick every processor at once" />
     <ScrollViewer MaxHeight="300" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
       <ItemsControl ItemsSource="{Binding Processors}" AutomationProperties.Name="Processors">

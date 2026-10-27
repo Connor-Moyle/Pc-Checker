@@ -51,7 +51,7 @@ public sealed partial class WindowsProcessService
     public Task<OperationResult> SuspendAsync(ProcessInfo process, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(process);
-        string? refusal = Precheck(process) ?? ProcessSafetyRules.SuspendRefusal(process, ProcessGrouping.Classify(process, WindowsDirectoryPath), OwnProcessId);
+        string? refusal = Precheck(process) ?? ProcessSafetyRules.SuspendRefusal(process, WindowsDirectoryPath, OwnProcessId);
         if (refusal is not null)
         {
             return Task.FromResult(OperationResult.Fail(refusal));
@@ -81,7 +81,7 @@ public sealed partial class WindowsProcessService
     public Task<OperationResult> SetEfficiencyModeAsync(ProcessInfo process, bool on, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(process);
-        string? refusal = Precheck(process) ?? ProcessSafetyRules.EfficiencyRefusal(process, ProcessGrouping.Classify(process, WindowsDirectoryPath), OwnProcessId);
+        string? refusal = Precheck(process) ?? ProcessSafetyRules.EfficiencyRefusal(process, WindowsDirectoryPath, OwnProcessId);
         if (refusal is not null)
         {
             return Task.FromResult(OperationResult.Fail(refusal));
@@ -210,7 +210,7 @@ public sealed partial class WindowsProcessService
     {
         ArgumentNullException.ThrowIfNull(process);
         string? refusal = Precheck(process)
-            ?? ProcessSafetyRules.RestartRefusal(process, ProcessGrouping.Classify(process, WindowsDirectoryPath), OwnProcessId, Environment.UserName);
+            ?? ProcessSafetyRules.RestartRefusal(process, WindowsDirectoryPath, OwnProcessId, Environment.UserName);
         if (refusal is not null)
         {
             return Task.FromResult(OperationResult.Fail(refusal));
@@ -239,10 +239,9 @@ public sealed partial class WindowsProcessService
             return Task.FromResult(OperationResult.Fail($"Windows cannot find \"{parsed.Target}\". Check the name and try again."));
         }
 
-        if (asAdministrator && ProcessSuspicionRules.IsUserWritableLocation(parsed.Target))
+        if (asAdministrator && ElevationRefusal(parsed.Target) is { } elevationRefusal)
         {
-            return Task.FromResult(OperationResult.Fail(
-                "PC Checker does not start programs from a Temp or AppData folder with administrator rights, because any program can put files there. Untick the administrator box, or right-click the file and choose Run as administrator if you trust it."));
+            return Task.FromResult(OperationResult.Fail(elevationRefusal));
         }
 
         var options = new ChangeOptions(CreateBefore: false, CreateAfter: false, Module, parsed.Target, Reversible: false,
@@ -290,12 +289,20 @@ public sealed partial class WindowsProcessService
             }
         }
 
-        // Started again with the user's normal rights unless it had administrator rights and lives in a protected folder.
-        bool elevated = process.IsElevated == true && !ProcessSuspicionRules.IsUserWritableLocation(path);
+        // Started again with the user's normal rights unless it had administrator rights and lives in Program Files or
+        // the Windows folder. A file anywhere else could have been swapped while the program was closed, and PC Checker
+        // (already an administrator) would pass its rights on without a Windows prompt.
+        bool hadAdmin = process.IsElevated == true;
+        bool elevated = hadAdmin && ProcessSafetyRules.MayRunElevated(path, WindowsDirectoryPath, ProgramFilesFolders());
         var launched = Launch(new RunCommand(path, arguments), elevated, Path.GetDirectoryName(path));
         string note = process.CommandLine is null ? " Its original options could not be read, so it started without them." : string.Empty;
+        if (hadAdmin && !elevated)
+        {
+            note += " It had administrator rights before, but PC Checker started it without them because its file is outside Program Files and Windows. Start it as administrator yourself if it needs them.";
+        }
+
         return launched.Success
-            ? OperationResult.Ok($"{process.Name} was restarted.{note}")
+            ? OperationResult.Ok($"{process.Name} was asked to start again.{note}")
             : OperationResult.Fail($"{process.Name} was closed but could not be started again: {launched.Message}");
     }
 
@@ -319,17 +326,21 @@ public sealed partial class WindowsProcessService
                 return OperationResult.Ok($"Started {command.Target} with administrator rights.");
             }
 
+            // The desktop opens it later, on its own: a wrong name shows Windows' own error message, not ours.
             UnelevatedLauncher.Open(command.Target, command.Arguments, workingDirectory);
-            return OperationResult.Ok($"Started {command.Target}.");
+            return OperationResult.Ok($"Asked Windows to open {command.Target}.");
         }
         catch (Exception ex) when (ProcessCatalog.Normalize(command.Target) == "explorer" && !asAdministrator)
         {
-            // Without a desktop there is nobody to ask; start File Explorer directly so the taskbar comes back.
+            // Without a desktop there is nobody to ask, and a missing taskbar is worse than the alternative: File
+            // Explorer is started directly from PC Checker so the taskbar comes back. It then has administrator rights
+            // (as PC Checker does) until it is restarted or the user signs out, so the message says so. Windows
+            // normally starts File Explorer again by itself, so this is only reached when it did not.
             _logger.LogInformation(ex, "Starting File Explorer directly because the desktop is not running.");
             try
             {
-                using var started = Process.Start(new ProcessStartInfo("explorer.exe") { UseShellExecute = true });
-                return OperationResult.Ok("Started File Explorer.");
+                using var started = Process.Start(new ProcessStartInfo(Path.Combine(WindowsDirectoryPath, "explorer.exe")) { UseShellExecute = true });
+                return OperationResult.Ok("Started File Explorer. It runs with administrator rights until you sign out or restart it; sign out and in again when you can.");
             }
             catch (Exception inner)
             {
@@ -346,6 +357,46 @@ public sealed partial class WindowsProcessService
                     ex);
         }
     }
+
+    /// <summary>
+    /// Why a Run new task command may not get administrator rights, or null: a program (or shortcut or script) must
+    /// live in Program Files or the Windows folder. Bare names are looked up on the PATH first, the way Windows does,
+    /// so a name that leads to a user's own folder (such as a Store app alias) is caught too. Folders, documents and
+    /// web addresses open in their usual app.
+    /// </summary>
+    private static string? ElevationRefusal(string target)
+    {
+        const string Refusal = "PC Checker only starts programs from Program Files or the Windows folder with administrator rights, because a program in your own folders could have been changed by any other program. Untick the administrator box, or right-click the file and choose Run as administrator if you trust it.";
+        if (target.Contains("://", StringComparison.Ordinal) || Directory.Exists(target))
+        {
+            return null;
+        }
+
+        if (ProcessSuspicionRules.IsFullPath(target))
+        {
+            return !ProcessSafetyRules.IsRunnableFile(target) || ProcessSafetyRules.MayRunElevated(target, WindowsDirectoryPath, ProgramFilesFolders())
+                ? null
+                : Refusal;
+        }
+
+        string? resolved = ProcessSafetyRules.ResolveOnPath(target, Environment.GetEnvironmentVariable("PATH"),
+            Environment.GetEnvironmentVariable("PATHEXT"), File.Exists);
+        if (resolved is not null)
+        {
+            return ProcessSafetyRules.MayRunElevated(resolved, WindowsDirectoryPath, ProgramFilesFolders()) ? null : Refusal;
+        }
+
+        // Not on the PATH: a protocol ("ms-settings:") or a name from Windows' App Paths list, which only lists
+        // installed programs; a relative path is refused because PC Checker cannot tell where it leads.
+        return target.Contains('\\', StringComparison.Ordinal) || target.Contains('/', StringComparison.Ordinal) ? Refusal : null;
+    }
+
+    private static IReadOnlyList<string> ProgramFilesFolders() =>
+    [
+        Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
+        Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
+        Environment.GetEnvironmentVariable("ProgramW6432") ?? string.Empty,
+    ];
 
     /// <summary>Common refusals for actions on one process: not Windows, critical, or a process that cannot be told apart from a newer one.</summary>
     private string? Precheck(ProcessInfo process) =>

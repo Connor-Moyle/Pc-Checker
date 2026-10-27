@@ -320,17 +320,17 @@ public class TaskManagerProcessesTests
         var game = P(720, "game.exe", @"D:\Games\game.exe", window: true);
         var pausedGame = game with { State = ProcessRunState.Suspended };
 
-        Assert.NotNull(ProcessSafetyRules.SuspendRefusal(lsass, ProcessCategory.Windows, OwnPid));
-        Assert.Contains("part of Windows", ProcessSafetyRules.SuspendRefusal(dwm, ProcessCategory.Windows, OwnPid));
-        Assert.Contains("PC Checker", ProcessSafetyRules.SuspendRefusal(P(OwnPid, "PcChecker.exe", @"C:\Tools\PcChecker.exe"), ProcessCategory.App, OwnPid));
-        Assert.Null(ProcessSafetyRules.SuspendRefusal(game, ProcessCategory.App, OwnPid));
-        Assert.Contains("already", ProcessSafetyRules.SuspendRefusal(pausedGame, ProcessCategory.App, OwnPid));
+        Assert.NotNull(ProcessSafetyRules.SuspendRefusal(lsass, Windows, OwnPid));
+        Assert.Contains("part of Windows", ProcessSafetyRules.SuspendRefusal(dwm, Windows, OwnPid));
+        Assert.Contains("PC Checker", ProcessSafetyRules.SuspendRefusal(P(OwnPid, "PcChecker.exe", @"C:\Tools\PcChecker.exe"), Windows, OwnPid));
+        Assert.Null(ProcessSafetyRules.SuspendRefusal(game, Windows, OwnPid));
+        Assert.Contains("already", ProcessSafetyRules.SuspendRefusal(pausedGame, Windows, OwnPid));
 
         Assert.Null(ProcessSafetyRules.ResumeRefusal(pausedGame, OwnPid));
         Assert.NotNull(ProcessSafetyRules.ResumeRefusal(game, OwnPid));
 
-        Assert.NotNull(ProcessSafetyRules.EfficiencyRefusal(dwm, ProcessCategory.Windows, OwnPid));
-        Assert.Null(ProcessSafetyRules.EfficiencyRefusal(game, ProcessCategory.App, OwnPid));
+        Assert.NotNull(ProcessSafetyRules.EfficiencyRefusal(dwm, Windows, OwnPid));
+        Assert.Null(ProcessSafetyRules.EfficiencyRefusal(game, Windows, OwnPid));
     }
 
     [Fact]
@@ -343,17 +343,115 @@ public class TaskManagerProcessesTests
         var kernelName = P(90, "Registry", "Registry", signature: SignatureInfo.Unknown);
         var svchost = P(95, "svchost.exe", @"C:\Windows\System32\svchost.exe", signature: Microsoft);
 
-        Assert.Null(ProcessSafetyRules.RestartRefusal(explorer, ProcessCategory.App, OwnPid, "Alex"));
-        Assert.Null(ProcessSafetyRules.RestartRefusal(app, ProcessCategory.App, OwnPid, "alex"));
-        Assert.Contains("service", ProcessSafetyRules.RestartRefusal(service, ProcessCategory.Background, OwnPid, "Alex"));
-        Assert.Contains("Sam", ProcessSafetyRules.RestartRefusal(otherUser, ProcessCategory.Background, OwnPid, "Alex"));
-        Assert.NotNull(ProcessSafetyRules.RestartRefusal(kernelName, ProcessCategory.Windows, OwnPid, "Alex"));
-        Assert.Contains("part of Windows", ProcessSafetyRules.RestartRefusal(svchost, ProcessCategory.Windows, OwnPid, "Alex"));
+        Assert.Null(ProcessSafetyRules.RestartRefusal(explorer, Windows, OwnPid, "Alex"));
+        Assert.Null(ProcessSafetyRules.RestartRefusal(app, Windows, OwnPid, "alex"));
+        Assert.Contains("service", ProcessSafetyRules.RestartRefusal(service, Windows, OwnPid, "Alex"));
+        Assert.Contains("Sam", ProcessSafetyRules.RestartRefusal(otherUser, Windows, OwnPid, "Alex"));
+        Assert.NotNull(ProcessSafetyRules.RestartRefusal(kernelName, Windows, OwnPid, "Alex"));
+        Assert.Contains("part of Windows", ProcessSafetyRules.RestartRefusal(svchost, Windows, OwnPid, "Alex"));
 
         Assert.Contains("sign-in secrets", ProcessSafetyRules.DumpRefusal(P(700, "lsass.exe", null), OwnPid));
         Assert.NotNull(ProcessSafetyRules.DumpRefusal(P(600, "csrss.exe", null), OwnPid));
         Assert.Null(ProcessSafetyRules.DumpRefusal(app, OwnPid));
         Assert.Null(ProcessSafetyRules.DumpRefusal(P(OwnPid, "PcChecker.exe", @"C:\Tools\PcChecker.exe"), OwnPid));
+    }
+
+    [Fact]
+    public void Windowed_windows_programs_are_refused_by_what_they_are_not_by_their_section()
+    {
+        // File Explorer always owns the desktop window, so it is shown under Apps; it must still never be paused.
+        var explorer = P(50, "explorer.exe", @"C:\Windows\explorer.exe", window: true, signature: Microsoft);
+        var frameHost = P(51, "ApplicationFrameHost.exe", @"C:\Windows\System32\ApplicationFrameHost.exe", window: true, signature: Microsoft);
+        var settings = P(52, "SystemSettings.exe", @"C:\Windows\ImmersiveControlPanel\SystemSettings.exe", window: true, signature: Microsoft);
+        Assert.Equal(ProcessCategory.App, ProcessGrouping.Classify(explorer, Windows));
+
+        foreach (var process in new[] { explorer, frameHost, settings })
+        {
+            Assert.Contains("part of Windows", ProcessSafetyRules.SuspendRefusal(process, Windows, OwnPid));
+            Assert.NotNull(ProcessSafetyRules.EfficiencyRefusal(process, Windows, OwnPid));
+        }
+
+        // Explorer under any signature state, even before its signature was checked.
+        Assert.NotNull(ProcessSafetyRules.SuspendRefusal(explorer with { Signature = SignatureInfo.Pending }, Windows, OwnPid));
+        Assert.Null(ProcessSafetyRules.RestartRefusal(explorer, Windows, OwnPid, "Alex"));
+        Assert.Contains("Start menu", ProcessSafetyRules.RestartRefusal(settings, Windows, OwnPid, "Alex"));
+    }
+
+    [Fact]
+    public void A_windows_folder_program_counts_as_windows_while_its_signature_is_checked()
+    {
+        var pending = P(30, "unknownhost.exe", @"C:\Windows\System32\unknownhost.exe", signature: SignatureInfo.Pending);
+        Assert.Equal(ProcessCategory.Windows, ProcessGrouping.Classify(pending, Windows));
+        Assert.NotNull(ProcessSafetyRules.SuspendRefusal(pending, Windows, OwnPid));
+        Assert.NotNull(ProcessSafetyRules.EfficiencyRefusal(pending, Windows, OwnPid));
+
+        // Once checked and not Microsoft's, it is an ordinary background process.
+        var vendor = pending with { Signature = Vendor };
+        Assert.Equal(ProcessCategory.Background, ProcessGrouping.Classify(vendor, Windows));
+        Assert.Null(ProcessSafetyRules.SuspendRefusal(vendor, Windows, OwnPid));
+
+        // Outside the Windows folder a pending signature changes nothing.
+        Assert.Equal(ProcessCategory.Background, ProcessGrouping.Classify(P(31, "tool.exe", @"C:\Tools\tool.exe", signature: SignatureInfo.Pending), Windows));
+    }
+
+    [Fact]
+    public void Store_apps_and_browser_helpers_are_not_restarted()
+    {
+        var calculator = P(40, "CalculatorApp.exe", @"C:\Program Files\WindowsApps\Microsoft.WindowsCalculator_11.2_x64__8wekyb3d8bbwe\CalculatorApp.exe", window: true);
+        var renderer = P(41, "chrome.exe", @"C:\Program Files\Google\Chrome\Application\chrome.exe",
+            commandLine: "\"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe\" --type=renderer --renderer-client-id=7");
+        var browser = renderer with { Pid = 42, CommandLine = "\"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe\"", WindowHandle = 0x2000 };
+
+        Assert.Contains("Store app", ProcessSafetyRules.RestartRefusal(calculator, Windows, OwnPid, "Alex"));
+        Assert.Contains("helper process", ProcessSafetyRules.RestartRefusal(renderer, Windows, OwnPid, "Alex"));
+        Assert.Null(ProcessSafetyRules.RestartRefusal(browser, Windows, OwnPid, "Alex"));
+        Assert.True(ProcessSafetyRules.IsPackagedApp(@"C:\Windows\SystemApps\Microsoft.Windows.StartMenuExperienceHost_cw5n1h2txyewy\StartMenuExperienceHost.exe"));
+        Assert.False(ProcessSafetyRules.IsPackagedApp(@"C:\Program Files\Apps\app.exe"));
+    }
+
+    [Fact]
+    public void Only_program_files_and_windows_programs_may_run_as_administrator()
+    {
+        string[] programFiles = [@"C:\Program Files", @"C:\Program Files (x86)"];
+        Assert.True(ProcessSafetyRules.MayRunElevated(@"C:\Program Files\Vendor\tool.exe", Windows, programFiles));
+        Assert.True(ProcessSafetyRules.MayRunElevated(@"C:\Program Files (x86)\Steam\steam.exe", Windows, programFiles));
+        Assert.True(ProcessSafetyRules.MayRunElevated(@"C:\Windows\System32\cmd.exe", Windows, programFiles));
+
+        Assert.False(ProcessSafetyRules.MayRunElevated(@"C:\Users\Alex\Downloads\setup.exe", Windows, programFiles));
+        Assert.False(ProcessSafetyRules.MayRunElevated(@"C:\Users\Alex\Desktop\tool.exe", Windows, programFiles));
+        Assert.False(ProcessSafetyRules.MayRunElevated(@"D:\Games\game.exe", Windows, programFiles));
+        Assert.False(ProcessSafetyRules.MayRunElevated(@"C:\Windows\Temp\x.exe", Windows, programFiles));
+        Assert.False(ProcessSafetyRules.MayRunElevated(@"C:\Windows\Tasks\x.exe", Windows, programFiles));
+        Assert.False(ProcessSafetyRules.MayRunElevated(@"C:\Program Files\..\Users\Alex\x.exe", Windows, programFiles));
+        Assert.False(ProcessSafetyRules.MayRunElevated(@"C:\Program FilesEvil\x.exe", Windows, programFiles));
+        Assert.False(ProcessSafetyRules.MayRunElevated("tool.exe", Windows, programFiles));
+
+        Assert.True(ProcessSafetyRules.IsRunnableFile(@"C:\x\setup.EXE"));
+        Assert.True(ProcessSafetyRules.IsRunnableFile(@"C:\x\script.ps1"));
+        Assert.False(ProcessSafetyRules.IsRunnableFile(@"C:\x\notes.txt"));
+    }
+
+    [Fact]
+    public void Bare_names_are_looked_up_on_the_path_like_windows_does()
+    {
+        var files = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            @"C:\Windows\System32\notepad.exe",
+            @"C:\Users\Alex\AppData\Local\Microsoft\WindowsApps\wt.exe",
+            @"C:\Windows\System32\run.cmd",
+        };
+        const string path = @"C:\Windows\System32;""C:\Users\Alex\AppData\Local\Microsoft\WindowsApps"";relative";
+
+        Assert.Equal(@"C:\Windows\System32\notepad.exe", ProcessSafetyRules.ResolveOnPath("notepad", path, ".COM;.EXE;.CMD", files.Contains));
+        Assert.Equal(@"C:\Windows\System32\notepad.exe", ProcessSafetyRules.ResolveOnPath("notepad.exe", path, ".COM;.EXE", files.Contains));
+        Assert.Equal(@"C:\Users\Alex\AppData\Local\Microsoft\WindowsApps\wt.exe", ProcessSafetyRules.ResolveOnPath("wt", path, null, files.Contains));
+        Assert.Equal(@"C:\Windows\System32\run.cmd", ProcessSafetyRules.ResolveOnPath("run", path, ".EXE;.CMD", files.Contains));
+        Assert.Null(ProcessSafetyRules.ResolveOnPath("missing", path, ".EXE", files.Contains));
+        Assert.Null(ProcessSafetyRules.ResolveOnPath(@"sub\notepad", path, ".EXE", files.Contains));
+        Assert.Null(ProcessSafetyRules.ResolveOnPath("ms-settings:", path, ".EXE", files.Contains));
+
+        // The alias resolves into the user's own folder, so it is not started as administrator.
+        Assert.False(ProcessSafetyRules.MayRunElevated(ProcessSafetyRules.ResolveOnPath("wt", path, null, files.Contains), Windows, [@"C:\Program Files"]));
     }
 
     // ------------------------------------------------------------------ text helpers
@@ -430,6 +528,14 @@ public class TaskManagerProcessesTests
         Assert.Equal((12.0, "GPU 1 - 3D"), busiest[200]);       // second adapter by LUID
         Assert.False(busiest.ContainsKey(300));
         Assert.Equal(2, busiest.Count);
+
+        // Adapter numbers come from every adapter, idle or not: the second adapter stays "GPU 1" while the first rests.
+        var secondOnly = new Dictionary<string, double>
+        {
+            ["pid_100_luid_0x00000000_0x0000D1A5_phys_0_eng_0_engtype_3D"] = 0,
+            ["pid_200_luid_0x00000000_0x0000E000_phys_0_eng_0_engtype_3D"] = 25,
+        };
+        Assert.Equal((25.0, "GPU 1 - 3D"), ProcessMath.BusiestGpuEngineByPid(secondOnly)[200]);
         Assert.Equal("0 MB/s", ProcessMath.FormatMegabytesPerSecond(1000));
         Assert.Equal("0.1 MB/s", ProcessMath.FormatMegabytesPerSecond(0.1 * 1024 * 1024));
         Assert.Equal("12.4 MB/s", ProcessMath.FormatMegabytesPerSecond(12.4 * 1024 * 1024));

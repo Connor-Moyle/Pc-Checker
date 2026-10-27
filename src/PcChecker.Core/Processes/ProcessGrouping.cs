@@ -11,8 +11,9 @@ public static class ProcessGrouping
 
     /// <summary>
     /// Apps have a window on the taskbar. Windows processes are Windows' own programs: the kernel's processes, and
-    /// known Windows programs or Microsoft-signed programs that run from the Windows folder (drivers' helpers in
-    /// DriverStore count as background processes, as in Task Manager). Everything else runs in the background.
+    /// known Windows programs or Microsoft-signed programs (or ones whose signature is still being checked) that run
+    /// from the Windows folder (drivers' helpers in DriverStore count as background processes, as in Task Manager).
+    /// Everything else runs in the background.
     /// </summary>
     public static ProcessCategory Classify(ProcessInfo process, string windowsDirectory)
     {
@@ -52,7 +53,10 @@ public static class ProcessGrouping
             return true;
         }
 
-        return process.Signature.IsSigned && (process.Signature.Publisher?.StartsWith("Microsoft", StringComparison.OrdinalIgnoreCase) ?? false);
+        // The signature check runs in the background; until it finishes, a program in the Windows folder counts as
+        // Windows' own, so it is not offered for suspending first and only then moved to Windows processes.
+        return process.Signature.State == SignatureState.Pending
+               || (process.Signature.IsSigned && (process.Signature.Publisher?.StartsWith("Microsoft", StringComparison.OrdinalIgnoreCase) ?? false));
     }
 
     /// <summary>
