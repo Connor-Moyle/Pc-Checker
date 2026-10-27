@@ -148,28 +148,68 @@ public partial class App : Application
         }
     }
 
-    /// <summary>Creates the tray icon (when wanted), hooks minimize/close to tray and opens the job pipe. False on failure.</summary>
+    /// <summary>
+    /// Creates the tray icon (when wanted), hooks minimize/close to tray and opens the job pipe. False when the tray
+    /// could not be set up. The pipe is opened either way, so scheduled jobs and a second launch reach this copy.
+    /// </summary>
     private bool InitializeTray(MainWindow window, bool startInTray)
     {
+        TrayIconService? tray = null;
+        bool ready;
         try
         {
             var services = _services ?? throw new InvalidOperationException("Services are not built yet.");
-            var tray = services.GetRequiredService<TrayIconService>();
+            tray = services.GetRequiredService<TrayIconService>();
             tray.Initialize(window, startInTray);
-            var runner = services.GetRequiredService<ScheduledRunner>();
-            runner.StartListening(tray.ShowMainWindow);
-            if (!AppOptions.Current.IsDemo)
-            {
-                runner.CheckMovedTasksInBackground();
-            }
-
-            return true;
+            ready = true;
         }
         catch (Exception ex)
         {
             _logger?.LogWarning(ex, "The tray icon could not be set up; the window opens normally.");
-            return false;
+            ready = false;
         }
+
+        StartJobPipe(window, ready ? tray : null);
+        return ready;
+    }
+
+    /// <summary>Answers scheduled jobs and "show" requests from a second launch; shows the window directly without a tray.</summary>
+    private void StartJobPipe(MainWindow window, TrayIconService? tray)
+    {
+        try
+        {
+            var services = _services ?? throw new InvalidOperationException("Services are not built yet.");
+            var runner = services.GetRequiredService<ScheduledRunner>();
+            runner.StartListening(tray is not null ? tray.ShowMainWindow : () => BringToFront(window));
+            if (!AppOptions.Current.IsDemo)
+            {
+                runner.CheckMovedTasksInBackground();
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "The job pipe could not be started; scheduled jobs run in their own process.");
+        }
+    }
+
+    private static void BringToFront(Window window)
+    {
+        if (!window.IsVisible)
+        {
+            window.Show();
+        }
+
+        if (window.WindowState == WindowState.Minimized)
+        {
+            window.WindowState = WindowState.Normal;
+        }
+
+        window.Activate();
+
+        // Activate alone does not always win focus from a background process; a brief Topmost flip does.
+        window.Topmost = true;
+        window.Topmost = false;
+        window.Focus();
     }
 
     /// <summary>
