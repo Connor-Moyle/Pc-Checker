@@ -70,6 +70,8 @@ public static class NavigationCatalog
             Page("Debloat", "debloat", typeof(DebloatPage)),
             Page("Right-click menu", "context-menu", typeof(ContextMenuPage)),
             Page("Registry", "registry", typeof(RegistryPage))),
+        Section("Security", SymbolRegular.ShieldCheckmark24,
+            Page("Backups", "backups", typeof(BackupsPage))),
         Section("Performance", SymbolRegular.TopSpeed24,
             Page("Speed check", "performance", typeof(PerformancePage)),
             Page("Optimize", "optimize", typeof(OptimizePage)),

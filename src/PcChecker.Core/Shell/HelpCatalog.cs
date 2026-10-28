@@ -168,6 +168,12 @@ public static class HelpCatalog
             T("Scan, then fix only the categories marked Safe. A backup is saved first and can be restored from this page."),
             "REGISTRY.md", null),
 
+        // Security
+        new("backups",
+            T("Backups shows your restore points, whether System Protection is on for each drive, Windows' own backups and the copies PC Checker keeps."),
+            T("Make sure System Protection is on for the Windows drive and create a restore point. Deleting asks first, and old copies go to the Recycle Bin."),
+            Features, "Backups"),
+
         // Performance
         new("performance",
             T("Speed check looks for what slows this PC down: startup apps, busy programs, low memory, full drives and settings."),

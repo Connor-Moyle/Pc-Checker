@@ -35,6 +35,7 @@ public static class PageSearchKeywords
         ["debloat"] = T("bloatware privacy telemetry ads copilot tweaks"),
         ["context-menu"] = T("context menu right click shell extensions send to show more options classic menu"),
         ["registry"] = T("leftover entries regedit"),
+        ["backups"] = T("restore point system restore system protection shadow copies vss file history onedrive backup system image"),
         ["performance"] = T("slow slowdown speed scan processes"),
         ["live-usage"] = T("task manager performance graphs cpu usage ram disk activity network gpu utilization"),
         ["optimize"] = T("tweaks faster game mode visual effects"),
