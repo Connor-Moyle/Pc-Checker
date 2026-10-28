@@ -43,6 +43,7 @@ using PcChecker.Core.Network;
 using PcChecker.Core.Network.Tuning;
 using PcChecker.Core.Optimization;
 using PcChecker.Core.Overclocking;
+using PcChecker.Core.RamTuning;
 using PcChecker.Core.Performance;
 using PcChecker.Core.Privacy;
 using PcChecker.Core.Power;
@@ -145,6 +146,7 @@ public static class ServiceRegistration
         Add<IDriveInventoryService, WindowsDriveInventoryService, DemoDriveInventoryService>(services, demo);
         Add<IStorageToolsService, WindowsStorageToolsService, DemoStorageToolsService>(services, demo);
         Add<IMemoryService, WindowsMemoryService, DemoMemoryService>(services, demo);
+        Add<IRamTuningService, WindowsRamTuningService, DemoRamTuningService>(services, demo);
         Add<IBatteryService, WindowsBatteryService, DemoBatteryService>(services, demo);
         Add<IDisplayService, WindowsDisplayService, DemoDisplayService>(services, demo);
         Add<IAudioService, WindowsAudioService, DemoAudioService>(services, demo);
@@ -273,6 +275,7 @@ public static class ServiceRegistration
         services.AddSingleton<ConnectionsViewModel>().AddSingleton<ConnectionsPage>();
         services.AddSingleton<HostsViewModel>().AddSingleton<HostsPage>();
         services.AddSingleton<OverclockViewModel>().AddSingleton<OverclockPage>();
+        services.AddSingleton<RamTuningViewModel>().AddSingleton<RamTuningPage>();
         services.AddSingleton<AssistantViewModel>().AddSingleton<AssistantPage>();
         services.AddSingleton<LogsViewModel>().AddSingleton<LogsPage>();
         services.AddSingleton<SettingsViewModel>().AddSingleton<SettingsPage>();

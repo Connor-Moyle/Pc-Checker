@@ -211,6 +211,10 @@ public static class HelpCatalog
             T("Overclock reads and tunes graphics card and processor clocks, voltages and power limits, with a stress test."),
             T("This is for experienced users. Start with the stress test and the advisor; Reset to defaults always takes you back."),
             Features, "Overclock"),
+        new("ram-tuning",
+            T("RAM tuning writes a step-by-step BIOS plan for faster, stable memory, made for your memory, processor and board."),
+            T("Do stage 1 and 2 first (BIOS update, XMP or EXPO), then press Check my change. PC Checker never changes BIOS settings itself."),
+            Features, "RAM tuning"),
 
         // Gaming
         new("games",

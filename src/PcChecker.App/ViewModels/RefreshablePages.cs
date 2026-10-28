@@ -146,3 +146,8 @@ public sealed partial class AppHistoryViewModel : IRefreshablePage
 {
     ICommand IRefreshablePage.RefreshKeyCommand => RefreshNowCommand;
 }
+
+public sealed partial class RamTuningViewModel : IRefreshablePage
+{
+    ICommand IRefreshablePage.RefreshKeyCommand => RefreshCommand;
+}
