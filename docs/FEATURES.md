@@ -209,58 +209,107 @@ writes nothing to disk.
 ### Crashes
 
 Blue screens, sudden shutdowns, graphics driver resets and app crashes from
-the last 90 days, explained in plain words. The page only reads; it never
-changes or deletes anything.
+the last 90 days, explained in plain words with what probably caused them and
+fixes ranked by likelihood. Reading is automatic and changes nothing; every fix
+that changes the PC asks first and is journaled.
 
 - **Where it looks**: the System log (BugCheck event 1001, Kernel-Power 41,
   EventLog 6008, Display 4101), the Application log (Application Error 1000,
   Application Hang 1002), the small memory dumps in `%SystemRoot%\Minidump`,
   `MEMORY.DMP` and the graphics driver reports in
-  `%SystemRoot%\LiveKernelReports\WATCHDOG`. Values come from the event data
-  and the dump headers, never from the translated message, so it works on
-  every Windows language.
+  `%SystemRoot%\LiveKernelReports\WATCHDOG`. Around the crashes it also reads
+  WHEA-Logger (17, 18, 19, 20, 47), disk and NTFS errors (7, 11, 51, 55, 153),
+  sleep and wake (Kernel-Power 42 and 107, Power-Troubleshooter 1), Windows
+  starts (Kernel-General 12), new driver services (7045) and the end of
+  `%windir%\INF\setupapi.dev.log`. Values come from the event data, dump
+  headers and the always-English setup log, never from translated messages,
+  so it works on every Windows language.
 - **One entry per incident**: a dump is matched to its BugCheck event, a
   Kernel-Power 41 that repeats a blue screen and an EventLog 6008 next to it
-  are folded in, and dumps whose event was cleared get their own entry. When
-  Windows wrote both `MEMORY.DMP` and a small dump for the same crash, they
-  make one entry. A blue screen shows at the crash time from the dump, not
-  when Windows logged it at the next start.
-- **Tiles**: blue screens, sudden shutdowns, driver resets and app crashes in
-  the last 30 days.
-- **Timeline**: newest first, grouped by day, with a filter by type and date
-  range (7, 30 or 90 days). Right-click a crash to copy its details, ask
-  Claude, search online, open Event Viewer or the dump folder; Ctrl+C copies
-  the selected crash.
-- **Details**: what the stop code or error means, the likely cause, first
-  steps (safest first), buttons to the right PC Checker page (Drivers, Memory
-  test, Storage, Health, Temperatures, and Overclock when PC Checker has an
-  overclock applied and the stop code points at hardware), Microsoft's bug
-  check reference for the code, and *Ask Claude about this crash*, which opens
-  Ask Claude with the details filled in.
-- **Probably caused by**: read from small memory dumps. A driver whose memory
-  a stop-code parameter or the crash address points into, else the first
-  driver from outside Windows on the crashing thread's stack, else the
-  graphics driver for a graphics stop code. It is labelled as a best guess.
-- **Stop codes explained**: about 50 common ones, such as
-  IRQL_NOT_LESS_OR_EQUAL, SYSTEM_SERVICE_EXCEPTION, PAGE_FAULT_IN_NONPAGED_AREA,
-  DPC_WATCHDOG_VIOLATION, CLOCK_WATCHDOG_TIMEOUT, WHEA_UNCORRECTABLE_ERROR,
-  VIDEO_TDR_FAILURE, MEMORY_MANAGEMENT and CRITICAL_PROCESS_DIED. App crashes
-  explain their exception code (access violation, stack buffer overrun, heap
-  corruption, .NET exception, illegal instruction and more).
-- **Most crashing apps**: programs by number of crashes and hangs, with the
-  file they crash in most often; *Show these* filters the timeline.
-- **Hardware errors**: WHEA reports are explained on the Health page; this
-  page shows how many there were and links there.
-- **Dashboard**: *What needs attention* mentions blue screens and sudden
-  shutdowns from the last 7 days.
+  are folded in, and dumps whose event was cleared get their own entry. A blue
+  screen shows at the crash time from the dump, not when Windows logged it.
+- **Crash summary** (top of the page): the single most likely cause across the
+  crashes of the last 30 days (weighed from each crash's guesses and the
+  patterns between them) with the fix to try first and *Show the crash*.
+- **Tiles and timeline**: counts for the last 30 days; the timeline is newest
+  first, grouped by day, filtered by type and date range. Right-click a crash
+  to copy the full report, ask Claude, search online, open Event Viewer or the
+  dump folder, or mark it solved.
+- **What happened**: the stop code or error in plain words. 140 stop codes
+  are explained (every common gaming, overclock, driver, storage and memory
+  one and the rarer ones seen in the wild), each with its likely causes in
+  order (driver, RAM and XMP/EXPO, CPU overclock or undervolt, graphics card,
+  heat, power supply, drive, Windows files, security or anti-cheat software,
+  BIOS) and ordered fix steps, safest first.
+- **What the details say**: the stop-code parameters decoded where Microsoft
+  documents them: for 0x0A/0xD1 the address, IRQL, read/write/execute and the
+  driver of the faulting instruction (and a null-pointer hint); for 0x50 the
+  operation, fault type and driver; for 0x1A the sub-code from a table of 48
+  (0x41790, 0x61941, 0x3F, 0x5003…) and whether it points at hardware; for
+  0x124 the error source (machine check, PCI Express…), the machine-check
+  status (cache, memory controller, bus/Infinity Fabric, internal timer) and,
+  from the WHEA-Logger record of the same crash, the bank and the processor
+  core; the sub-types of 0x9F, 0x133, 0x119 and 0x139; the exception of
+  0x3B/0x1E/0x7E; the driver of 0x116/0x117; the drive status of 0x7A; the
+  core of 0x101. Kernel-Power 41 says whether it was a blue screen, the power
+  button, sleep or hibernate, or a power loss.
+- **Probably caused by**, with *Very likely*, *Likely* or *Possible*: the
+  driver from the dump (its device, maker, signer, version and date, whether
+  it is Microsoft's or a third party's, and a newer version when the Drivers
+  page's last search found one, with *Check for updates* and *Open in Device
+  Manager*), an overclock PC Checker applied shortly before, overheating, a
+  driver installed just before, the hardware itself for WHEA errors, and the
+  stop code's usual causes.
+- **App crashes**: about 120 common faulting files are recognised (NVIDIA,
+  AMD and Intel user-mode graphics drivers, DirectX and its old runtime,
+  Visual C++ and .NET runtimes, overlays such as Discord, Steam, RivaTuner,
+  OBS and NVIDIA, anti-cheats, antivirus hooks, audio effects such as
+  Nahimic and Sonic Studio, controller libraries, ReShade or another mod's
+  `dxgi.dll` in the game folder, upscalers and game libraries), 34 exception
+  codes are explained, and each program shows its crash count, first and last
+  crash, the versions that crashed and its faulting files. Programs that are
+  part of a detected game link to the Games page and the Missing DLLs scan of
+  their folder.
+- **Patterns**: the same stop code or driver again and again, a module that
+  crashes several programs, crashes that began after a driver install
+  (`setupapi.dev.log`, service installs, Windows Update driver history), after
+  a Windows update, after PC Checker applied an overclock or tweak (Action
+  Journal), crashes under heavy load and crashes around sleep and wake, each as
+  a sentence with a confidence word ("every crash since…", "often").
+- **Before the crash**: from the History recording (when it was running) the
+  CPU and GPU temperature and load and the power draw in the ten minutes
+  before, as small charts and ranges, with overheating flagged against the
+  alert limits; corrected WHEA errors in the hour before, drive errors in the
+  day before, minutes since waking, PC Checker changes in the six hours before
+  and how long Windows had been running.
+- **Try these fixes**: up to six buttons ranked for this crash, each with a
+  one-line reason: update or roll back the blamed driver (the Drivers page with
+  the device selected; rollback is confirmed, behind a restore point and falls
+  back to Device Manager), reset the overclock, test BIOS defaults (XMP/EXPO,
+  PBO, Curve Optimizer; advice, as Windows cannot change them), Windows Memory
+  Diagnostic (MemTest86 linked as the deeper test), *Repair Windows files*
+  (DISM /RestoreHealth then sfc /scannow with live progress read from the
+  percentage only, DISM cancellable, the result in plain words and journaled),
+  a disk check now or at the next restart, Temperatures and Fans, reinstall a
+  runtime (Missing DLLs with the package selected), repair .NET, verify game
+  files through the launcher, scan the game for missing DLLs, how to turn off
+  the overlay that crashed (its app is opened, never closed), and Apps or
+  Windows Update to remove what was installed just before.
+- **Copy crash report and Ask Claude**: the full report with every section,
+  in English, for a support request; Ask Claude opens with it filled in.
+- **Mark as solved**: kept per crash; a solved crash stays in the list but no
+  longer counts in the summary or in the Dashboard's *What needs attention*.
 
-Limitations: the guess uses no debugging symbols and does not walk the stack,
-so it can be wrong; WinDbg gives the definitive answer. Complete and kernel
-dumps (`MEMORY.DMP`) only give the stop code and parameters, not the driver
-list; the guess then comes from the small dump of the same crash when there is
-one. Overclocks set in the BIOS or other tools cannot be seen. Demo mode
-shows two blue screens, a sudden shutdown, three driver resets and crashes of
-two games.
+Limitations: the driver guess uses no debugging symbols and does not walk the
+stack, so it can be wrong; WinDbg gives the definitive answer. The process
+that died in CRITICAL_PROCESS_DIED and the full WHEA record of a 0x124 are in
+kernel memory, so the page uses the WHEA-Logger event instead. Overclocks set
+in the BIOS or other tools cannot be seen or reset from Windows. Temperatures
+before a crash exist only when PC Checker was recording. Demo mode shows a
+VIDEO_TDR_FAILURE in nvlddmkm.sys 566.36 with a newer driver and crashes only
+since that driver was installed, a WHEA machine check 20 minutes after an
+overclock with the CPU at 96 °C, a power loss, three driver resets, a game
+crash in the Discord overlay and a .NET program crash.
 
 ---
 
