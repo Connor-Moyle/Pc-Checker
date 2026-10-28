@@ -6,6 +6,10 @@ All notable changes to PC Checker are recorded here. The format follows
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-10-28
+
+RAM tuning with a personal BIOS plan for faster, stable memory, a Game ready check with one-click fixes, Upgrade advice, Device tests for controllers, keyboards, mice, screens, speakers and microphones, and a DNS page that tests and switches DNS servers.
+
 ### Added
 - **RAM tuning** (Performance section): a personal, step-by-step BIOS plan
   for faster, stable memory. Detects the kit, slots, ranks, mixed kits,
@@ -756,7 +760,8 @@ Initial release.
   itself from GitHub Releases with Stable and Beta channels and verifies every
   download against its published SHA-256.
 
-[Unreleased]: https://github.com/Connor-Moyle/Pc-Checker/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/Connor-Moyle/Pc-Checker/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/Connor-Moyle/Pc-Checker/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/Connor-Moyle/Pc-Checker/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/Connor-Moyle/Pc-Checker/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/Connor-Moyle/Pc-Checker/compare/v0.5.0...v0.6.0
