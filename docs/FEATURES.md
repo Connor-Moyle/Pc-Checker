@@ -1926,6 +1926,68 @@ this PC, and the safety features.
 - **Advanced**: raw limits, offsets up to the driver's range beyond your
   Settings maximum (still validated), and the session file.
 
+### RAM tuning
+
+A personal, step-by-step plan for faster memory that you follow in the BIOS.
+PC Checker cannot change BIOS settings; it writes the plan, then checks the
+result from Windows. Nothing on the PC is changed by this page.
+
+- **Your memory**: the kit (size, modules, DDR4 or DDR5), the speed it runs
+  at against its rating, XMP/EXPO on or off (the same verdict as the Memory
+  page), dual or single channel, the slots used (A1/A2/B1/B2 from
+  `Win32_PhysicalMemory`), ranks (SMBIOS type 17), mixed kits, the processor
+  platform, the board and BIOS from the Drivers page's *Your PC* facts, and
+  the likely **memory chips** from the part number: Crucial and Micron are
+  Micron; retail DDR5 at 6600 MT/s and up, 6400 CL32 and 6000 CL30 with tRCD
+  38 or lower is SK hynix; DDR4 with a true latency of 8.75 ns or lower is
+  Samsung B-die. Anything else is shown as *unknown* rather than guessed, with
+  how to find out (HWiNFO, Corsair's label version).
+- **Your plan**, from safest to advanced, each step with what it does, where
+  it is in your board's BIOS (ASUS *Ai Tweaker > Ai Overclock Tuner*, MSI
+  *OC > Extreme Memory Profile*, GIGABYTE *Tweaker > Extreme Memory Profile
+  (X.M.P.)*, ASRock *OC Tweaker > DRAM Configuration*, or a general hint),
+  the safe range and the risk:
+  1. **Update the BIOS** (with a link to your board's BIOS page). Intel Core
+     13th and 14th gen need Intel's 0x12B or newer microcode and *Intel
+     Default Settings*; AM5 BIOSes from before May 2023 lack AMD's 1.30 V SoC
+     limit. Save your settings as a BIOS profile first.
+  2. **Turn on XMP or EXPO** (D.O.C.P. / A-XMP on AM4), with the right slots
+     and what the first start looks like (memory training).
+  3. **Tune for your processor**: AM5 DDR5-6000 with UCLK = MEMCLK (1:1,
+     6200–6400 if it trains), FCLK 2000 MHz (2100 if stable), Memory Context
+     Restore, VSOC at or below 1.30 V, 5200–5600 with four modules and, in
+     Advanced mode on Ryzen 9000, DDR5-8000 at 1:2; AM4 DDR4-3600 with FCLK
+     1800 (Zen 3: 3733–3800 / 1866–1900 if stable); Intel 12th–14th gen DDR5
+     in Gear 2 (6000 with two modules, up to 6800–7200 if stable, 5200–5600
+     with four), DDR4 in Gear 1 up to 3600–4000; Core Ultra 200S with Intel
+     200S Boost and CUDIMM.
+  4. **Manual timings** (Advanced mode only, and only for known chips): tRFC
+     in nanoseconds converted to clocks at your speed (SK hynix 16 Gbit 180 →
+     160 ns, Samsung B-die 280 → 260 ns), tWR 48 on SK hynix DDR5, tREFI raised
+     only while the modules stay below 50 °C, one change at a time.
+- **Voltage limits** for your platform with typical values and the daily
+  maximum, never above the makers' limits (AM5 VSOC 1.30 V, DDR5 VDD/VDDQ
+  1.40 V, Intel System Agent 1.25 V, Intel 200S Boost's VDD2 1.40 V and VCCSA
+  1.20 V, DDR4 1.45 V or 1.50 V for B-die).
+- **If it does not boot**: wait for memory training, the board's own
+  fallback, Clear CMOS, then one speed step lower.
+- **Check my change** re-reads the speed, XMP/EXPO and channels after the
+  BIOS change and compares them with the plan, and counts memory blue screens
+  (0x1A, 0x50, 0x4E, 0x12B and 0x124 with a memory source) and WHEA hardware
+  errors since you started the plan, from the Crashes page's scan. Every
+  check is kept with its time (`ram-tuning.json` next to the settings).
+- **Test the stability**: TestMem5 with anta777's Extreme config, Karhu RAM
+  Test, OCCT, y-cruncher VT3 and MemTest86, each with how long to run it
+  (links only; nothing is downloaded). The built-in **quick memory check**
+  tests a share of the free memory (70 % by default, always leaving 2 GB for
+  Windows) on every core at below-normal priority with walking ones and
+  zeros, random patterns and moving inversions for 2 to 60 minutes, shows
+  progress and errors, can be stopped at any time and stops by itself when
+  Windows runs low on memory. It is a quick screen, not a replacement for the
+  tools above.
+- **DIMM temperature**: DDR5 module sensors (LibreHardwareMonitor with
+  PawnIO) with a warning above 50–55 °C for tight timings.
+
 ### AMD platform support
 
 AMD-specific behaviour across the app (CPU traits come from the processor

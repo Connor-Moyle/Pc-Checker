@@ -297,6 +297,12 @@ follows, so you know what to expect and contributors know what to build.
 - Page-file and `bcdedit` changes are confirmed, journaled with the previous
   values, and tell you when a restart is needed.
 - Clearing the standby list is harmless; Windows refills it.
+- The RAM tuning page changes nothing: BIOS settings are only ever changed by
+  you, in the BIOS. Its plan never suggests a voltage above the makers'
+  limits (AM5 SoC 1.30 V and the others in its table), and timing values are
+  only given for chips it can identify. Its quick memory check uses at most
+  90 % of the free memory, always leaves 2 GB for Windows, runs at
+  below-normal priority and stops by itself when Windows runs low.
 
 ## Storage rules
 

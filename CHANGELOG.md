@@ -6,6 +6,20 @@ All notable changes to PC Checker are recorded here. The format follows
 
 ## [Unreleased]
 
+### Added
+- **RAM tuning** (Performance section): a personal, step-by-step BIOS plan
+  for faster, stable memory. Detects the kit, slots, ranks, mixed kits,
+  XMP/EXPO state, likely memory chips, processor platform, board and BIOS;
+  plans the BIOS update (Intel 0x12B microcode, AM5 SoC voltage limit),
+  XMP/EXPO with the menu path for ASUS, MSI, GIGABYTE and ASRock boards,
+  platform tuning for AM5, AM4, Intel 12th–14th gen and Core Ultra 200S, and
+  easy manual timings for known chips in Advanced mode; shows a voltage
+  limits table and what to do if the PC does not start. *Check my change*
+  compares the result with the plan and counts memory blue screens and WHEA
+  errors since the plan started. Adds a quick built-in memory check and links
+  to TestMem5, Karhu, OCCT, y-cruncher and MemTest86, and shows DDR5 module
+  temperatures.
+
 ## [0.8.0] - 2026-10-28
 
 A Security section (Security status, Privacy, Backups and restore points), a Crashes page that explains blue screens and app crashes in depth with ranked fixes, App history in Task manager, and a Games library for every launcher.
