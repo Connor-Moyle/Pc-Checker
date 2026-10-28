@@ -60,6 +60,7 @@ Every project targets `net8.0-windows10.0.19041.0`. `EnableWindowsTargeting` is 
 | `Displays` | `IDisplayService`, `DisplayInfo`/`DisplayMode`, profiles, `DisplayModeMath` |
 | `Audio` | `IAudioService` (NAudio.Wasapi Core Audio wrappers), devices and sessions |
 | `Input` | `IInputService`, `IMousePollingMeter`, mouse/keyboard settings, profiles, vendor links |
+| `DeviceTests` | `IGamepadTestService` (Windows.Gaming.Input gamepads and raw controllers, XInput fallback, vibration), `ISoundTestService` (WASAPI test tones and microphone capture kept in memory), `StickMath` (drift, roundness), `GamepadMapping`, `KeyboardLayout` and `KeyCodes` (physical keys), `KeyRolloverTracker`, `ClickTimingAnalyzer`, `MouseTestMath`, `FrameTimingAnalyzer`, `TestSignalGenerator`, `WavFile`, `AudioLevelMath` |
 | `Latency` | `ILatencyService`, `LatencyReport`, `LatencyRules`, `BcdEditParser`, `PowerCfgQueryParser`, `LatencyActionIds` |
 | `Processes` | `IProcessService`, `ProcessCatalog`, `ProcessRateTracker`, `ProcessMath`, `ProcessSorting`, `CriticalProcessRules`, `ProcessSuspicionRules`, `SignatureCache`; the Task Manager parts: `ProcessGrouping` (Apps, Background, Windows processes), `ProcessStatusRules` (suspended, not responding, end-task plan, efficiency mode), `ProcessSafetyRules`, `PowerUsageRules`, `ProcessHeatMap`, `AffinityMath`, `ProcessColumns`, `CommandLineText`, `ProcessesSettings` |
 | `LiveUsage` | `ILiveUsageService` (Task Manager's Performance tab: PDH counters added by English name through `PdhQuery`, `GetPerformanceInfo`, DXGI), `SampleRing`, `LiveUsageFormat`, `LiveUsageMath`, `CounterInstanceParser`, `CpuTopologyParser`, `LiveUsageText`, `LiveUsagePreferencesStore` |
@@ -118,6 +119,7 @@ Monitor         Temperatures · Power · Processes
 Monitor         Temperatures · Power · History
 Hardware        Overview · Health · Storage · Memory · Battery · Upgrade advice
 Devices         Displays · Audio · Keyboard & Mouse
+Devices         Displays · Audio · Keyboard & Mouse · Device tests
 Cooling & RGB   Fans · Lighting
 Apps & Drivers  Apps · Leftovers · Drivers · Startup · Windows Features
 Clean up        Cleanup

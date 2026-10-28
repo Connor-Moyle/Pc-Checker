@@ -43,6 +43,18 @@ All notable changes to PC Checker are recorded here. The format follows
   from History; same-socket processor upgrades for AM4, AM5, LGA1700 and
   LGA1851 with end-of-platform notes; Windows 11 readiness for Windows 10 PCs;
   *Ask Claude for a plan* and *Copy summary*. Read only.
+- **Device tests** (Devices section): one page to check that a controller,
+  keyboard, mouse, screen, speakers and microphone work, without changing
+  anything. Controller: live sticks with a trail, triggers, buttons, a stick
+  drift check, a roundness check, vibration (body and trigger motors) and
+  battery, through Windows.Gaming.Input with an XInput fallback. Keyboard: a
+  full-size on-screen keyboard with keys tested, rollover and a ghosting
+  hint. Mouse: every button, wheel and tilt, double-click timing, worn-switch
+  detection and the polling rate. Screen: full-screen colours, ramps, a dark
+  evenness test and a motion test with frame counter on the chosen screen.
+  Speakers: left, right, both and a sweep, after a volume warning.
+  Microphone: live level with no-signal and clipping hints, and a 5-second
+  recording kept in memory only.
 ## [0.8.0] - 2026-10-28
 
 A Security section (Security status, Privacy, Backups and restore points), a Crashes page that explains blue screens and app crashes in depth with ranked fixes, App history in Task manager, and a Games library for every launcher.

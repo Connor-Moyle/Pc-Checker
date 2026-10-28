@@ -19,6 +19,7 @@ using PcChecker.Core.Crashes;
 using PcChecker.Core.ContextMenus;
 using PcChecker.Core.Debloat;
 using PcChecker.Core.DiskSpace;
+using PcChecker.Core.DeviceTests;
 using PcChecker.Core.Displays;
 using PcChecker.Core.Drivers;
 using PcChecker.Core.Drivers.Platform;
@@ -170,6 +171,8 @@ public static class ServiceRegistration
         Add<ITaskManagerReplacementService, WindowsTaskManagerReplacementService, DemoTaskManagerReplacementService>(services, demo);
         Add<IRestartScheduler, WindowsRestartScheduler, DemoRestartScheduler>(services, demo);
         Add<IMousePollingMeter, RawInputPollingMeter, DemoMousePollingMeter>(services, demo);
+        Add<IGamepadTestService, WindowsGamepadTestService, DemoGamepadTestService>(services, demo);
+        Add<ISoundTestService, WindowsSoundTestService, DemoSoundTestService>(services, demo);
         Add<IRegistryHealthService, WindowsRegistryHealthService, DemoRegistryHealthService>(services, demo);
         Add<IDebloatService, WindowsDebloatService, DemoDebloatService>(services, demo);
         Add<IContextMenuService, WindowsContextMenuService, DemoContextMenuService>(services, demo);
@@ -236,6 +239,7 @@ public static class ServiceRegistration
         services.AddSingleton<TrayIconService>();
         services.AddSingleton<AppUpdateFlow>();
         services.AddSingleton<PawnIoInstallFlow>();
+        services.AddSingleton<DeviceTestWindows>();
 
         // Shell
         services.AddSingleton<QuickActionRunner>();
@@ -269,6 +273,7 @@ public static class ServiceRegistration
         services.AddSingleton<DisplaysViewModel>().AddSingleton<DisplaysPage>();
         services.AddSingleton<AudioViewModel>().AddSingleton<AudioPage>();
         services.AddSingleton<InputViewModel>().AddSingleton<InputPage>();
+        services.AddSingleton<DeviceTestsViewModel>().AddSingleton<DeviceTestsPage>();
         services.AddSingleton<FansViewModel>().AddSingleton<FansPage>();
         services.AddSingleton<LightingViewModel>().AddSingleton<LightingPage>();
         services.AddSingleton<DriversViewModel>().AddSingleton<DriversPage>();

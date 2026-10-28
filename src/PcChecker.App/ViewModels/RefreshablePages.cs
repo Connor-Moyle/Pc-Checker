@@ -161,3 +161,8 @@ public sealed partial class GameReadyViewModel : IRefreshablePage
 {
     ICommand IRefreshablePage.RefreshKeyCommand => CheckCommand;
 }
+
+public sealed partial class DeviceTestsViewModel : IRefreshablePage
+{
+    ICommand IRefreshablePage.RefreshKeyCommand => RefreshDevicesCommand;
+}

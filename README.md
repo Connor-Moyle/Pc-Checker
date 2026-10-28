@@ -172,6 +172,7 @@ limitations, is in [docs/FEATURES.md](docs/FEATURES.md).
 | **Displays** | Arrangement preview with identify, resolution and refresh rate with a keep-or-revert countdown, orientation, primary display, HDR, brightness and contrast over DDC/CI or the laptop panel, display profiles, and shortcuts to Windows, Night light, colour calibration and your GPU control panel. |
 | **Audio** | Output and input devices with volume, mute and live level meters, default and communications device, a per-app mixer, audio service restart and the troubleshooter. |
 | **Keyboard & Mouse** | Pointer speed, Enhance pointer precision (acceleration), double-click, scroll, trails, keyboard repeat and cursor blink, accessibility toggles, profiles (Windows default, Gaming, Precision, Accessibility), a mouse polling-rate meter and links to your peripheral vendor's software. RGB for peripherals lives on the Lighting page. |
+| **Device tests** | Controller test with live sticks, triggers and buttons, stick drift and roundness checks, vibration and battery; a keyboard tester with rollover and ghosting hints; a mouse tester for every button, wheel tilt, click timing, worn switches and polling rate; full-screen dead-pixel, banding, backlight and motion tests on the screen you pick; left/right speaker tones and a sweep; and a microphone meter with a 5-second recording kept in memory. Read-only. |
 
 ### Cooling & RGB
 

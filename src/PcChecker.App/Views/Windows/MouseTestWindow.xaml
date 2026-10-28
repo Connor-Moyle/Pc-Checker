@@ -1,0 +1,136 @@
+<ui:FluentWindow x:Class="PcChecker.App.Views.Windows.MouseTestWindow"
+                 xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                 xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+                 xmlns:controls="clr-namespace:PcChecker.App.Controls"
+                 xmlns:vm="clr-namespace:PcChecker.App.ViewModels"
+                 xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+                 xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+                 d:DataContext="{d:DesignInstance vm:MouseTestViewModel}"
+                 mc:Ignorable="d"
+                 Title="Mouse test"
+                 Width="920" Height="700" MinWidth="640" MinHeight="560"
+                 WindowStartupLocation="CenterOwner"
+                 WindowBackdropType="Mica"
+                 ExtendsContentIntoTitleBar="True"
+                 WindowCornerPreference="Round">
+  <Window.Resources>
+    <Style x:Key="InputBorder" TargetType="Border">
+      <Setter Property="CornerRadius" Value="6" />
+      <Setter Property="Padding" Value="10,8" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="BorderBrush" Value="{DynamicResource ControlStrokeColorDefaultBrush}" />
+      <Setter Property="Background" Value="{DynamicResource ControlFillColorDefaultBrush}" />
+      <Style.Triggers>
+        <DataTrigger Binding="{Binding WasUsed}" Value="True">
+          <Setter Property="BorderBrush" Value="{DynamicResource AccentGreenBrush}" />
+          <Setter Property="BorderThickness" Value="2" />
+        </DataTrigger>
+        <DataTrigger Binding="{Binding IsActive}" Value="True">
+          <Setter Property="Background" Value="{DynamicResource AccentBlueBrush}" />
+        </DataTrigger>
+      </Style.Triggers>
+    </Style>
+    <Style x:Key="InputText" TargetType="TextBlock">
+      <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+      <Style.Triggers>
+        <DataTrigger Binding="{Binding IsActive}" Value="True">
+          <Setter Property="Foreground" Value="{DynamicResource OnAccentTextBrush}" />
+        </DataTrigger>
+      </Style.Triggers>
+    </Style>
+  </Window.Resources>
+
+  <Grid>
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="*" />
+    </Grid.RowDefinitions>
+
+    <ui:TitleBar Grid.Row="0" Title="Mouse test" ShowMaximize="True" ShowMinimize="False" />
+
+    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="24,8,24,16">
+      <StackPanel>
+        <Grid Margin="0,0,0,12">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
+          </Grid.ColumnDefinitions>
+          <ui:TextBlock Grid.Column="0" FontTypography="BodyStrong" TextWrapping="Wrap" VerticalAlignment="Center"
+                        Text="Click every button and roll and tilt the wheel inside the box. Each one lights up while used and gets a green edge once tested." />
+          <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+            <ui:Button Content="Start again" Icon="{ui:SymbolIcon ArrowClockwise24}" Command="{Binding ResetCommand}" Margin="12,0,8,0" />
+            <ui:Button Content="Close" Icon="{ui:SymbolIcon Dismiss24}" Click="OnClose" />
+          </StackPanel>
+        </Grid>
+
+        <!-- Test area: every press, wheel step and tilt inside it is captured here and goes nowhere else. -->
+        <Border x:Name="TestArea" Height="180" CornerRadius="8" BorderThickness="2" Margin="0,0,0,12"
+                BorderBrush="{DynamicResource AccentBlueBrush}" Background="{DynamicResource ControlFillColorSecondaryBrush}"
+                AutomationProperties.Name="Mouse test area"
+                MouseDown="OnTestAreaMouseDown" MouseUp="OnTestAreaMouseUp" PreviewMouseWheel="OnTestAreaWheel">
+          <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="16">
+            <controls:IconGlyph Symbol="CursorClick24" FontSize="32" HorizontalAlignment="Center" />
+            <ui:TextBlock Text="{Binding ClickText}" TextWrapping="Wrap" TextAlignment="Center" Margin="0,8,0,0" />
+          </StackPanel>
+        </Border>
+
+        <ui:InfoBar Severity="Warning" Title="Possible worn switch" Message="{Binding ChatterText}"
+                    IsOpen="{Binding HasChatter, Mode=OneWay}" IsClosable="True" Margin="0,0,0,12" />
+
+        <ItemsControl ItemsSource="{Binding Inputs}" Margin="0,0,0,16" Focusable="False" AutomationProperties.Name="Mouse buttons and wheel">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <controls:AdaptiveGrid MinItemWidth="150" MaxColumns="5" Spacing="8" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate DataType="{x:Type vm:MouseInputItem}">
+              <Border Style="{StaticResource InputBorder}" AutomationProperties.Name="{Binding Name}">
+                <Grid>
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                  </Grid.ColumnDefinitions>
+                  <TextBlock Grid.Column="0" Style="{StaticResource InputText}" Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                  <TextBlock Grid.Column="1" Style="{StaticResource InputText}" Text="{Binding CountText}" Margin="8,0,0,0" />
+                </Grid>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <!-- Polling rate -->
+        <ui:Card Padding="16" Margin="0,0,0,12">
+          <StackPanel>
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
+              <StackPanel Grid.Column="0">
+                <ui:TextBlock Style="{StaticResource CardTitle}" Text="Polling rate" />
+                <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap"
+                              Text="How many times a second the mouse reports its position. Gaming mice usually run at 1000 Hz." />
+              </StackPanel>
+              <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                <ui:Button Content="Measure" Appearance="Primary" Icon="{ui:SymbolIcon Gauge24}" Command="{Binding MeasurePollingRateCommand}" Margin="0,0,8,0" />
+                <ui:Button Content="Stop" Icon="{ui:SymbolIcon Stop24}" Command="{Binding StopPollingRateCommand}" />
+              </StackPanel>
+            </Grid>
+            <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+              <ui:TextBlock FontTypography="Subtitle" Text="{Binding LiveHz, StringFormat={}{0} Hz}" Margin="0,0,16,0" />
+              <ui:TextBlock FontTypography="BodyStrong" Text="{Binding PollingResult}" VerticalAlignment="Center" />
+            </StackPanel>
+            <ui:TextBlock Text="{Binding PollingStatus}" TextWrapping="Wrap" Margin="0,6,0,0" />
+            <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding SmoothnessText}" TextWrapping="Wrap" Margin="0,4,0,0"
+                          Visibility="{Binding SmoothnessText, Converter={StaticResource NullToVisibility}}" />
+          </StackPanel>
+        </ui:Card>
+
+        <ui:TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap"
+                      Text="DPI (how far the pointer moves per inch of mouse movement) is stored inside the mouse and Windows cannot read it. Use the mouse maker's app to see or change it. Pointer speed and the double-click limit are on the Keyboard &amp; Mouse page." />
+      </StackPanel>
+    </ScrollViewer>
+  </Grid>
+</ui:FluentWindow>
