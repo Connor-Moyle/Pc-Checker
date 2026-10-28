@@ -555,7 +555,7 @@ public class CrashEventTests
         Assert.Equal("nvlddmkm.sys", blue[0].Blame?.Module);
         Assert.Single(report.Events, e => e.Kind == CrashKind.SuddenShutdown);
         Assert.Equal(3, report.Events.Count(e => e.Kind == CrashKind.DriverReset));
-        Assert.Equal(2, CrashRules.AppGroups(report.Events).Count);
+        Assert.Equal(3, CrashRules.AppGroups(report.Events).Count);
         Assert.Equal("overclock", CrashAdvice.For(blue[1], report.OverclockApplied).Pages[0].PageKey);
 
         var glance = await service.GetGlanceAsync(CancellationToken.None);

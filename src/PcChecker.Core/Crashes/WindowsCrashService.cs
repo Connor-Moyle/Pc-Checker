@@ -3,7 +3,10 @@ using Microsoft.Extensions.Logging;
 using PcChecker.Core.Common;
 using PcChecker.Core.Crashes.Dumps;
 using PcChecker.Core.Health;
+using PcChecker.Core.History;
+using PcChecker.Core.Logging;
 using PcChecker.Core.Settings;
+using PcChecker.Core.WindowsUpdate;
 
 using static PcChecker.Core.Crashes.CrashText;
 
@@ -13,21 +16,37 @@ namespace PcChecker.Core.Crashes;
 /// Reads crashes from the System and Application event logs (EventLogReader with XPath filters; values taken from the
 /// event XML, never from the translated message) and the dump folders (%SystemRoot%\Minidump, MEMORY.DMP,
 /// LiveKernelReports\WATCHDOG). Read-only. Every source is guarded: a missing log or an unreadable folder becomes a
-/// warning and the rest still loads.
+/// warning and the rest still loads. Around the crashes it also reads WHEA, disk, sleep/wake, start and driver-install
+/// events and the end of setupapi.dev.log (<see cref="CrashReport.SystemEvents"/>), and on request the History samples,
+/// the Action Journal and the Windows Update history (<see cref="LoadContextAsync"/>) and the blamed driver's file and
+/// device (<see cref="InspectDriverAsync"/>).
 /// </summary>
-public sealed class WindowsCrashService : ICrashService
+public sealed partial class WindowsCrashService : ICrashService
 {
     private const int MaxEventsPerLog = 2000;
+    private const int MaxContextEvents = 4000;
     private const int MaxDumps = 200;
 
     private readonly ISettingsService _settings;
     private readonly ILogger<WindowsCrashService> _logger;
+    private readonly IActionJournal? _journal;
+    private readonly IWindowsUpdateService? _updates;
+    private readonly IHistoryService? _history;
     private readonly string _windows;
 
     public WindowsCrashService(ISettingsService settings, ILogger<WindowsCrashService> logger)
+        : this(settings, logger, null, null, null)
+    {
+    }
+
+    public WindowsCrashService(ISettingsService settings, ILogger<WindowsCrashService> logger, IActionJournal? journal, IWindowsUpdateService? updates,
+        IHistoryService? history)
     {
         _settings = settings;
         _logger = logger;
+        _journal = journal;
+        _updates = updates;
+        _history = history;
         var windows = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
         _windows = string.IsNullOrEmpty(windows) ? @"C:\Windows" : windows;
     }
@@ -53,16 +72,21 @@ public sealed class WindowsCrashService : ICrashService
             progress?.Report(new ProgressUpdate(T("Reading crash dump files…"), 60));
             var dumps = ReadDumps(now, warnings, cancellationToken);
 
-            progress?.Report(new ProgressUpdate(T("Counting hardware error reports…"), 85));
+            progress?.Report(new ProgressUpdate(T("Counting hardware error reports…"), 75));
             int? whea = CountWhea(cancellationToken);
+
+            progress?.Report(new ProgressUpdate(T("Reading events around the crashes…"), 85));
+            var system = ReadXml("System", CrashEventMapper.ContextQuery(CrashRules.WindowDays), MaxContextEvents, CrashEventMapper.MapSystemEvent, warnings, cancellationToken);
+            system.AddRange(CrashSystemEventRules.FromSetupApi(ReadSetupApiLog(now)));
 
             var report = new CrashReport
             {
                 Captured = now,
-                Events = CrashRules.Merge(events, dumps, now),
+                Events = CrashSystemEventRules.AttachWhea(CrashRules.Merge(events, dumps, now), system),
                 WheaErrors = whea,
                 OverclockApplied = CrashRules.IsOverclockApplied(_settings.Current.Overclock),
                 Warnings = warnings,
+                SystemEvents = system.OrderBy(e => e.Time).ToList(),
             };
             Last = report;
             Scanned?.Invoke(this, report);
@@ -72,25 +96,43 @@ public sealed class WindowsCrashService : ICrashService
     public Task<CrashGlance> GetGlanceAsync(CancellationToken cancellationToken) =>
         Task.Run(() =>
         {
+            var solved = SolvedIds();
             if (Last is { } last && DateTimeOffset.Now - last.Captured < TimeSpan.FromMinutes(10))
             {
-                return CrashRules.Glance(last.Events, DateTimeOffset.Now);
+                return CrashRules.Glance(last.Events, DateTimeOffset.Now, CrashRules.AttentionDays, solved);
             }
 
             var now = DateTimeOffset.Now;
             var events = ReadLog("System", CrashEventMapper.SystemQuery(CrashRules.AttentionDays), [], cancellationToken);
-            return CrashRules.Glance(CrashRules.Merge(events, [], now, CrashRules.AttentionDays), now);
+            return CrashRules.Glance(CrashRules.Merge(events, [], now, CrashRules.AttentionDays), now, CrashRules.AttentionDays, solved);
         }, cancellationToken);
 
-    private List<CrashEvent> ReadLog(string log, string xpath, List<CrashWarning> warnings, CancellationToken ct)
+    private IReadOnlyCollection<string> SolvedIds()
     {
-        var result = new List<CrashEvent>();
+        try
+        {
+            return _settings.Current.Crashes?.SolvedIds?.ToHashSet(StringComparer.Ordinal) ?? [];
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Solved crash ids could not be read.");
+            return [];
+        }
+    }
+
+    private List<CrashEvent> ReadLog(string log, string xpath, List<CrashWarning> warnings, CancellationToken ct) =>
+        ReadXml(log, xpath, MaxEventsPerLog, CrashEventMapper.Map, warnings, ct);
+
+    private List<TItem> ReadXml<TItem>(string log, string xpath, int max, Func<EventXmlRecord, TItem?> map, List<CrashWarning> warnings, CancellationToken ct)
+        where TItem : class
+    {
+        var result = new List<TItem>();
         try
         {
             var query = new EventLogQuery(log, PathType.LogName, xpath) { ReverseDirection = true };
             using var reader = new EventLogReader(query);
             int read = 0;
-            for (EventRecord? record = reader.ReadEvent(); record is not null && read < MaxEventsPerLog; record = reader.ReadEvent())
+            for (EventRecord? record = reader.ReadEvent(); record is not null && read < max; record = reader.ReadEvent())
             {
                 ct.ThrowIfCancellationRequested();
                 using (record)
@@ -106,9 +148,9 @@ public sealed class WindowsCrashService : ICrashService
                         continue;
                     }
 
-                    if (EventXmlRecord.Parse(xml) is { } parsed && CrashEventMapper.Map(parsed) is { } crash)
+                    if (EventXmlRecord.Parse(xml) is { } parsed && map(parsed) is { } item)
                     {
-                        result.Add(crash);
+                        result.Add(item);
                     }
                 }
             }

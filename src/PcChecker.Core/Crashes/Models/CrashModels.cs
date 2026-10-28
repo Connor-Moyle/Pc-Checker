@@ -84,6 +84,12 @@ public sealed record CrashEvent
     /// <summary>Kernel-Power 41: the power button was held down to turn the PC off.</summary>
     public bool PowerButtonHeld { get; init; }
 
+    /// <summary>Kernel-Power 41: everything the event recorded (stop code, power button, sleep state); null for other sources.</summary>
+    public KernelPowerDetails? Power { get; init; }
+
+    /// <summary>BugCheck 0x124: the WHEA-Logger record of the same crash (error source, core, machine-check status), when found.</summary>
+    public WheaErrorInfo? Whea { get; init; }
+
     // Driver resets
 
     /// <summary>The graphics driver named by the event (nvlddmkm, amdkmdag, igfx…).</summary>
@@ -100,6 +106,9 @@ public sealed record CrashEvent
     public string? ModuleName { get; init; }
 
     public string? ModuleVersion { get; init; }
+
+    /// <summary>Full path of the faulting module, when the event has it (to tell a game-folder dxgi.dll from Windows' own).</summary>
+    public string? ModulePath { get; init; }
 
     public uint? ExceptionCode { get; init; }
 
@@ -128,6 +137,46 @@ public sealed record CrashReport
 
     /// <summary>Things that could not be read, in plain words (for example the dump folder needs administrator rights).</summary>
     public IReadOnlyList<CrashWarning> Warnings { get; init; } = [];
+
+    /// <summary>Events around the crashes: WHEA errors, disk errors, sleep and wake, starts, driver installs. Oldest first.</summary>
+    public IReadOnlyList<CrashSystemEvent> SystemEvents { get; init; } = [];
+}
+
+/// <summary>What a <see cref="CrashSystemEvent"/> is.</summary>
+public enum CrashSystemEventKind
+{
+    /// <summary>WHEA-Logger 17/19/47: the hardware corrected an error by itself.</summary>
+    WheaCorrected,
+
+    /// <summary>WHEA-Logger 18/20: an uncorrectable hardware error (goes with a 0x124 blue screen).</summary>
+    WheaFatal,
+
+    /// <summary>disk 7/11/51/153 or Ntfs 55: a drive or file-system error.</summary>
+    DiskError,
+
+    /// <summary>Kernel-Power 42: the PC went to sleep or hibernated.</summary>
+    Sleep,
+
+    /// <summary>Kernel-Power 107 or Power-Troubleshooter 1: the PC woke up.</summary>
+    Wake,
+
+    /// <summary>Kernel-General 12: Windows started.</summary>
+    Boot,
+
+    /// <summary>A driver was installed or updated (Service Control Manager 7045 for a .sys file, or setupapi.dev.log).</summary>
+    DriverInstalled,
+}
+
+/// <summary>
+/// One event that helps explain a crash. <see cref="Detail"/> is a file, device or driver name from event data (never
+/// translated message text); <see cref="Whea"/> is set for WHEA events.
+/// </summary>
+public sealed record CrashSystemEvent(DateTimeOffset Time, CrashSystemEventKind Kind, string? Detail = null)
+{
+    public WheaErrorInfo? Whea { get; init; }
+
+    /// <summary>The event id it came from (0 for the setup log).</summary>
+    public int EventId { get; init; }
 }
 
 /// <summary>Something the scan could not read: an English format ("{0} needs administrator rights…") and its values.</summary>

@@ -237,11 +237,16 @@ public static class CrashRules
             recent.Count(e => e.Kind is CrashKind.AppCrash or CrashKind.AppHang));
     }
 
-    /// <summary>The Dashboard's count of blue screens and sudden shutdowns in the last <paramref name="days"/> days.</summary>
-    public static CrashGlance Glance(IEnumerable<CrashEvent> events, DateTimeOffset now, int days = AttentionDays)
+    /// <summary>
+    /// The Dashboard's count of blue screens and sudden shutdowns in the last <paramref name="days"/> days. Crashes the
+    /// user marked as solved (<paramref name="solved"/>, by id) are left out.
+    /// </summary>
+    public static CrashGlance Glance(IEnumerable<CrashEvent> events, DateTimeOffset now, int days = AttentionDays, IReadOnlyCollection<string>? solved = null)
     {
         ArgumentNullException.ThrowIfNull(events);
-        var recent = events.Where(e => e.Time >= now.AddDays(-days) && e.Kind is CrashKind.BlueScreen or CrashKind.SuddenShutdown).ToList();
+        var recent = events.Where(e => e.Time >= now.AddDays(-days) && e.Kind is CrashKind.BlueScreen or CrashKind.SuddenShutdown)
+            .Where(e => solved is null || !solved.Contains(e.Id))
+            .ToList();
         return new CrashGlance(
             recent.Count(e => e.Kind == CrashKind.BlueScreen),
             recent.Count(e => e.Kind == CrashKind.SuddenShutdown),
@@ -274,6 +279,36 @@ public static class CrashRules
             .ThenBy(a => a.AppName, StringComparer.OrdinalIgnoreCase)
             .Take(Math.Max(0, max))
             .ToList();
+    }
+
+    /// <summary>
+    /// One program's crash history: crashes and hangs, first and last, the versions that crashed (newest first) and
+    /// the faulting files (most common first). Null when the program has no crashes.
+    /// </summary>
+    public static AppCrashStats? AppStats(IEnumerable<CrashEvent> events, string appName)
+    {
+        ArgumentNullException.ThrowIfNull(events);
+        ArgumentNullException.ThrowIfNull(appName);
+        var name = appName.Trim();
+        var list = events.Where(e => e.Kind is CrashKind.AppCrash or CrashKind.AppHang && string.Equals(e.AppName?.Trim(), name, StringComparison.OrdinalIgnoreCase)).ToList();
+        if (list.Count == 0)
+        {
+            return null;
+        }
+
+        var versions = list.Where(e => !string.IsNullOrWhiteSpace(e.AppVersion))
+            .GroupBy(e => e.AppVersion!.Trim(), StringComparer.OrdinalIgnoreCase)
+            .OrderByDescending(g => g.Max(e => e.Time))
+            .Select(g => g.Key)
+            .ToList();
+        var modules = list.Where(e => e.Kind == CrashKind.AppCrash && !string.IsNullOrWhiteSpace(e.ModuleName))
+            .GroupBy(e => e.ModuleName!.Trim(), StringComparer.OrdinalIgnoreCase)
+            .OrderByDescending(g => g.Count()).ThenBy(g => g.Key, StringComparer.OrdinalIgnoreCase)
+            .Take(3)
+            .Select(g => (g.Key, g.Count()))
+            .ToList();
+        return new AppCrashStats(list.OrderByDescending(e => e.Time).First().AppName!.Trim(), list.Count(e => e.Kind == CrashKind.AppCrash),
+            list.Count(e => e.Kind == CrashKind.AppHang), list.Min(e => e.Time), list.Max(e => e.Time), versions, modules);
     }
 
     /// <summary>The page filter: the kinds to show (empty = all) and the earliest time.</summary>
