@@ -78,10 +78,14 @@ public static partial class SecurityCheckBuilder
         var status = EncryptionStatus(system.ProtectionStatus, system.ConversionStatus);
         string summary = status switch
         {
+            HealthStatus.Good when system.ConversionStatus == 2 => $"Drive {system.Drive} is being encrypted",
             HealthStatus.Good => $"Drive {system.Drive} is encrypted",
             HealthStatus.Warning when system.ConversionStatus == 1 => $"Drive {system.Drive} is encrypted, but protection is paused",
-            HealthStatus.Warning => $"Drive {system.Drive} is not encrypted",
-            _ => $"Drive {system.Drive}: {EncryptionText(system.ProtectionStatus, system.ConversionStatus)}",
+            HealthStatus.Warning when system.ConversionStatus == 0 => $"Drive {system.Drive} is not encrypted",
+            HealthStatus.Warning when system.ConversionStatus == 3 => $"Drive {system.Drive} is being decrypted",
+            HealthStatus.Warning when system.ConversionStatus == 4 => $"Encrypting drive {system.Drive} is paused part-way",
+            HealthStatus.Warning when system.ConversionStatus == 5 => $"Decrypting drive {system.Drive} is paused part-way",
+            _ => $"Drive {system.Drive} ({EncryptionText(system.ProtectionStatus, system.ConversionStatus)})",
         };
         int otherPlain = facts.Volumes.Count(v => !ReferenceEquals(v, system) && v.ConversionStatus == 0);
         if (otherPlain > 0)

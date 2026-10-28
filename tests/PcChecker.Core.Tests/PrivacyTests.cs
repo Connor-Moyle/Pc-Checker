@@ -109,7 +109,8 @@ public class PrivacyTests
 
     [Theory]
     [InlineData(PrivacyQuickStatusRules.ActivityHistory, TweakStatus.Applied, "Off", HealthStatus.Good)]
-    [InlineData(PrivacyQuickStatusRules.ActivityHistory, TweakStatus.NotApplied, "On", HealthStatus.Warning)]
+    [InlineData(PrivacyQuickStatusRules.ActivityHistory, TweakStatus.NotApplied, "Not turned off for the whole PC", HealthStatus.Warning)]
+    [InlineData(PrivacyQuickStatusRules.AdvertisingId, TweakStatus.NotApplied, "On", HealthStatus.Warning)]
     [InlineData(PrivacyQuickStatusRules.AdvertisingId, TweakStatus.Partial, "Partly off", HealthStatus.Warning)]
     [InlineData(PrivacyQuickStatusRules.DiagnosticData, TweakStatus.Applied, "Required data only", HealthStatus.Good)]
     [InlineData(PrivacyQuickStatusRules.DiagnosticData, TweakStatus.NotApplied, "Optional data may be sent", HealthStatus.Warning)]

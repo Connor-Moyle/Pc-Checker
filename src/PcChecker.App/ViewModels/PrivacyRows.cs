@@ -46,7 +46,15 @@ public sealed class CapabilityGroup
 
     public string CountText => Apps.Count == 1 ? Loc.T("1 app used it") : Loc.F("{0} apps used it", Apps.Count);
 
-    public string EmptyText => Loc.F("No app has used the {0} yet.", Title.ToLower(CultureInfo.CurrentCulture));
+    public string EmptyText => Loc.F("No app has used the {0} yet.", Noun(Capability));
+
+    /// <summary>The capability as a translated lower-case noun for use inside a sentence ("the camera").</summary>
+    public static string Noun(CapabilityKind capability) => capability switch
+    {
+        CapabilityKind.Camera => Loc.T("camera"),
+        CapabilityKind.Microphone => Loc.T("microphone"),
+        _ => Loc.T("location"),
+    };
 
     public ICommand OpenSettingsCommand { get; }
 }

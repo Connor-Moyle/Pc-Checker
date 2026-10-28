@@ -29,14 +29,25 @@ public static class SecurityCenterState
         return new SecurityProductState(enabled, snoozed, upToDate, provider);
     }
 
+    /// <summary>The exact display names Windows uses for its own Security Center entries (not translated).</summary>
+    private static readonly HashSet<string> MicrosoftNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "Windows Defender",
+        "Microsoft Defender",
+        "Microsoft Defender Antivirus",
+        "Windows Firewall",
+        "Windows Defender Firewall",
+        "Microsoft Defender Firewall",
+    };
+
     /// <summary>
-    /// True for Microsoft Defender's own entry: its reporting path is a <c>windowsdefender://</c> link, or its name says
-    /// Defender (the name is not translated by Windows).
+    /// True for Microsoft Defender's own entry: its reporting path is a <c>windowsdefender://</c> link, or its name is
+    /// exactly one of Windows' own names (the name is not translated by Windows). A name that only contains the word,
+    /// such as "Bitdefender Antivirus", is a third-party product.
     /// </summary>
     public static bool IsMicrosoftProduct(string? name, string? reportingPath) =>
-        (reportingPath?.StartsWith("windowsdefender:", StringComparison.OrdinalIgnoreCase) ?? false)
-        || (name?.Contains("Defender", StringComparison.OrdinalIgnoreCase) ?? false)
-        || (name?.Contains("Windows Firewall", StringComparison.OrdinalIgnoreCase) ?? false);
+        (reportingPath?.TrimStart().StartsWith("windowsdefender:", StringComparison.OrdinalIgnoreCase) ?? false)
+        || (name is not null && MicrosoftNames.Contains(name.Trim()));
 
     /// <summary>The third-party product that is switched on, if any; Microsoft's own entries are skipped.</summary>
     public static SecurityProduct? ActiveThirdParty(IEnumerable<SecurityProduct> products)

@@ -134,10 +134,15 @@ public sealed partial class PrivacyViewModel : ViewModelBase, IRefreshablePage
             return;
         }
 
-        string capability = ConsentStoreParser.Name(app.Capability).ToLower(CultureInfo.CurrentCulture);
-        if (!await _dialogs.ConfirmAsync(Loc.T("Turn off access?"),
-            Loc.F("Stop {0} from using the {1}? The app asks again or shows an error the next time it needs it. You can turn it back on with Undo or in Windows Settings.", app.DisplayName, capability),
-            Loc.T("Turn off")))
+        string capability = CapabilityGroup.Noun(app.Capability);
+        string question = Loc.F("Stop {0} from using the {1}? The app asks again or shows an error the next time it needs it. You can turn it back on with Undo or in Windows Settings.", app.DisplayName, capability);
+        if (app.Scope == ConsentScope.Machine)
+        {
+            // The record that was found is the machine-wide one, so Deny is written for every user on this PC.
+            question += " " + Loc.T("This setting is shared by every user on this PC, so it changes for all of them.");
+        }
+
+        if (!await _dialogs.ConfirmAsync(Loc.T("Turn off access?"), question, Loc.T("Turn off")))
         {
             return;
         }

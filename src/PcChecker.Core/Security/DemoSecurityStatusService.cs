@@ -45,7 +45,7 @@ public sealed class DemoSecurityStatusService : ISecurityStatusService
             Volumes = [new EncryptedVolume("C:", true, 1, 1), new EncryptedVolume("D:", false, 0, 0)],
             EncryptionAvailable = true,
             LicenseStatus = 1,
-            Windows = new WindowsVersionInfo("Windows 10 Pro", "Professional", "24H2", 26100, 4946),
+            Windows = new WindowsVersionInfo("Windows 10 Pro", "Professional", "25H2", 26200, 6899),
             PendingRestartReason = null,
             RemoteDesktopEnabled = false,
             GuestAccountEnabled = false,

@@ -46,6 +46,35 @@ public class SecurityTests
         Assert.False(SecurityCenterState.IsMicrosoftProduct("Norton 360", @"C:\Program Files\Norton\wsc_proxy.exe"));
     }
 
+    [Fact]
+    public void Bitdefender_is_a_third_party_product_even_though_its_name_contains_Defender()
+    {
+        const string path = @"C:\Program Files\Bitdefender\Bitdefender Security\wsccommunicator.exe";
+        Assert.False(SecurityCenterState.IsMicrosoftProduct("Bitdefender Antivirus", path));
+        Assert.False(SecurityCenterState.IsMicrosoftProduct("Bitdefender Firewall", path));
+        Assert.True(SecurityCenterState.IsMicrosoftProduct("Microsoft Defender Antivirus", null));
+        Assert.True(SecurityCenterState.IsMicrosoftProduct(" Windows Defender ", null));
+
+        var av = new SecurityProduct("Bitdefender Antivirus", 0x041000, SecurityCenterState.IsMicrosoftProduct("Bitdefender Antivirus", path));
+        var fw = new SecurityProduct("Bitdefender Firewall", 0x011000, SecurityCenterState.IsMicrosoftProduct("Bitdefender Firewall", path));
+        var facts = new SecurityFacts
+        {
+            Defender = new DefenderStatus { AntivirusEnabled = false, RealTimeProtection = false, DefinitionAgeDays = 0 },
+            Antivirus = [new SecurityProduct("Windows Defender", 0x060100, true), av],
+            Firewalls = [fw],
+            FirewallProfiles = [new("Domain", false), new("Private", false), new("Public", false)],
+        };
+
+        var antivirus = SecurityCheckBuilder.Antivirus(facts, Now);
+        Assert.Equal(HealthStatus.Good, antivirus.Status);
+        Assert.Contains("Bitdefender Antivirus", antivirus.Summary);
+
+        var firewall = SecurityCheckBuilder.Firewall(facts);
+        Assert.Equal(HealthStatus.Good, firewall.Status);
+        Assert.Equal(SecurityFix.None, firewall.Fix);
+        Assert.Contains("Bitdefender Firewall", firewall.Summary);
+    }
+
     [Theory]
     [InlineData(1, 2, 1, UacLevel.AlwaysNotify)]
     [InlineData(1, 5, 1, UacLevel.Default)]
@@ -252,6 +281,20 @@ public class SecurityTests
     public void Encryption_status_rules(int protection, int conversion, HealthStatus expected) =>
         Assert.Equal(expected, SecurityCheckBuilder.EncryptionStatus(protection, conversion));
 
+    [Theory]
+    [InlineData(1, 1, "Drive C: is encrypted")]
+    [InlineData(0, 2, "Drive C: is being encrypted")]
+    [InlineData(0, 1, "Drive C: is encrypted, but protection is paused")]
+    [InlineData(0, 0, "Drive C: is not encrypted")]
+    [InlineData(0, 3, "Drive C: is being decrypted")]
+    [InlineData(0, 4, "Encrypting drive C: is paused part-way")]
+    [InlineData(0, 5, "Decrypting drive C: is paused part-way")]
+    public void Encryption_summary_matches_the_conversion_state(int protection, int conversion, string expected)
+    {
+        var facts = new SecurityFacts { EncryptionAvailable = true, Volumes = [new EncryptedVolume("C:", true, protection, conversion)] };
+        Assert.Equal(expected, SecurityCheckBuilder.Encryption(facts).Summary);
+    }
+
     [Fact]
     public void Value_rules_read_numbers_not_translated_text()
     {
@@ -304,6 +347,8 @@ public class SecurityTests
         var facts = await demo.ReadAsync(CancellationToken.None);
         var checks = SecurityCheckBuilder.Build(facts, Now);
         Assert.All(checks.Where(c => c.Id != SecurityCheckIds.CredentialGuard), c => Assert.NotEqual(HealthStatus.Unknown, c.Status));
+        // The demo story: Windows itself is still supported, so it is not among the things to fix.
+        Assert.Equal(HealthStatus.Good, checks.Single(c => c.Id == SecurityCheckIds.WindowsVersion).Status);
         Assert.NotEmpty(await demo.GetRecentThreatsAsync(CancellationToken.None));
         Assert.True((await demo.TurnOffSmb1Async(CancellationToken.None)).Success);
         Assert.False((await demo.ReadAsync(CancellationToken.None)).Smb1Enabled);

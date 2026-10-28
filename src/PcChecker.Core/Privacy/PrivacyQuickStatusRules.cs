@@ -20,7 +20,7 @@ public static class PrivacyQuickStatusRules
     {
         var (title, explanation) = tweakId switch
         {
-            ActivityHistory => ("Activity history", "Windows keeps a list of the apps, files and sites you used and can upload it."),
+            ActivityHistory => ("Activity history", "Windows keeps a list of the apps, files and sites you used and can upload it. This checks the setting for the whole PC; a switch you turned off in Windows Settings is not shown here."),
             AdvertisingId => ("Advertising ID", "Apps use a per-user ID to show you personalised ads."),
             DiagnosticData => ("Diagnostic data", "How much usage and crash data Windows sends to Microsoft."),
             _ => (tweakId, string.Empty),
@@ -34,6 +34,9 @@ public static class PrivacyQuickStatusRules
             (DiagnosticData, TweakStatus.Applied) => ("Required data only", HealthStatus.Good),
             (DiagnosticData, TweakStatus.NotApplied) => ("Optional data may be sent", HealthStatus.Warning),
             (DiagnosticData, TweakStatus.Partial) => ("Partly limited", HealthStatus.Warning),
+            // The tweak checks the machine-wide policy only; the user's own Settings switch is not read, so "On"
+            // would be wrong for someone who turned it off there.
+            (ActivityHistory, TweakStatus.NotApplied) => ("Not turned off for the whole PC", HealthStatus.Warning),
             (_, TweakStatus.Applied) => ("Off", HealthStatus.Good),
             (_, TweakStatus.NotApplied) => ("On", HealthStatus.Warning),
             (_, TweakStatus.Partial) => ("Partly off", HealthStatus.Warning),
