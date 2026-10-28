@@ -18,6 +18,7 @@ Cooling & RGB   Fans · Lighting
 Apps & Drivers  Apps · Leftovers · Drivers · Old drivers · Windows Update ·
                 Startup · Scheduled tasks · Windows Features
 Clean up        Cleanup · Disk space · Debloat · Right-click menu · Registry
+Security        Security · Privacy
 Performance     Speed check · Optimize · Benchmark · Overclock
 Gaming          Overlay · Latency · Missing DLLs
 Network         Network · Connections · Hosts file
@@ -1475,6 +1476,74 @@ your settings, Action Journal entry with how to undo it) and is reversible.
 - **Backups** lists every fix with *Restore*, *Delete* and *Open folder*;
   backups older than 90 days are offered for cleanup, never removed
   automatically. Details: [REGISTRY.md](REGISTRY.md).
+
+---
+
+## Security
+
+### Security
+
+A plain-language status board: one traffic light per protection (green good,
+yellow worth a look, red fix this, grey could not be checked), what it is now,
+what it means, and a button that opens the Windows setting (Windows Security,
+Settings or the PC Checker page) or makes the safe fix.
+
+- **Virus protection**: Microsoft Defender's real-time, tamper and
+  cloud-delivered protection, definition version and age, last quick and full
+  scan, engine and platform versions. When another antivirus is the active one
+  (Windows Security Center), it is shown instead and Defender's scans are
+  switched off on the page.
+- **Firewall** per network type (work, home, public), or the third-party
+  firewall in charge. *Turn on* switches a profile back on; turning the
+  firewall off is never offered.
+- **Windows version**: the version, edition and build, and the date Microsoft
+  stops sending security fixes (a small table for Windows 10 22H2 and Windows
+  11 21H2 to 25H2, Home/Pro and Enterprise/Education). Yellow 90 days before
+  the end, red after; anything not in the table says to check Microsoft's
+  lifecycle page.
+- **Automatic updates** paused (links to the Windows Update page), **User
+  Account Control** level (the four slider positions, off, or custom),
+  **SmartScreen** for apps and files and in Edge, **Old file sharing (SMB
+  1.0)** with *Turn off SMB 1.0* (restore point first, restart to finish),
+  **Drive encryption** per fixed drive (BitLocker or device encryption, read
+  only), **Secure Boot**, the **TPM** (present, ready, version), **Memory
+  integrity**, **Credential Guard**, **Windows activation**, **Remote
+  Desktop**, the **Guest account** and a waiting **Restart**.
+- **Security score** out of 100: each check has a weight (antivirus and
+  firewall most); a red item costs its full weight, a yellow one half, grey
+  nothing. **Fix these first** lists the three biggest problems.
+- **Microsoft Defender**: *Quick scan* (header), *Full scan* and *Update
+  definitions* run Microsoft's own `MpCmdRun.exe` with a progress line and
+  Cancel (which stops the scan); **Recent threats** lists what Defender found,
+  how severe it was and what happened to it, with *Open Protection history*.
+
+Everything is read through WMI and the registry using numbers and fixed names,
+so it works the same on every Windows language. Checking never changes
+anything. Fixes ask first and are written to the Action Journal; turning a
+firewall profile on and SMB 1.0 off make a restore point first (per
+Settings). Accounts with blank passwords cannot be checked without the
+password and are skipped.
+
+### Privacy
+
+- **Camera, Microphone, Location**: every app Windows recorded using them
+  (Store apps and desktop programs), when it last started, for how long, and
+  *In use now* while it is using it. Each card shows the switch state (off for
+  the whole device, off for all apps, desktop apps off, or on) and *Open
+  settings* opens that Windows privacy page.
+- **Turn off** stops one Store app from using the camera, microphone or
+  location after you confirm: it sets that app's own switch to Deny, writes it
+  to the Action Journal and offers **Undo**, which puts the previous value
+  back. Desktop programs share one Windows switch, so they are changed in
+  Windows Settings.
+- **Windows privacy settings**: activity history, the advertising ID and the
+  diagnostic data level at a glance. *Change* opens that tweak on the Debloat
+  page, which saves the old value for Revert.
+
+The records come from Windows' capability consent store
+(`CapabilityAccessManager\ConsentStore` in HKCU and HKLM). When PC Checker
+runs as a different administrator account, the page says whose records these
+are.
 
 ---
 

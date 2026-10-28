@@ -168,6 +168,16 @@ public static class HelpCatalog
             T("Scan, then fix only the categories marked Safe. A backup is saved first and can be restored from this page."),
             "REGISTRY.md", null),
 
+        // Security
+        new("security",
+            T("Security shows how well this PC is protected: antivirus, firewall, Windows version, encryption and more, each with a traffic light and a score."),
+            T("Start with \"Fix these first\". Checking only reads; each fix asks first, and other items open the Windows setting."),
+            Features, "Security"),
+        new("privacy",
+            T("Privacy shows which apps recently used your camera, microphone and location, and how Windows' main privacy settings are set."),
+            T("Look for apps marked In use now. Turn off asks first and Undo puts it back."),
+            Features, "Privacy"),
+
         // Performance
         new("performance",
             T("Speed check looks for what slows this PC down: startup apps, busy programs, low memory, full drives and settings."),

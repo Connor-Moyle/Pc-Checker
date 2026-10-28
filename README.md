@@ -200,6 +200,13 @@ limitations, is in [docs/FEATURES.md](docs/FEATURES.md).
 | **Right-click menu** | Everything programs added to File Explorer's right-click menu (files, folders, drives, desktop, common file types, Send to and Windows 11 app entries) with the program, publisher and where it shows. Turns entries off and on without deleting them, marks ones whose program is gone, keeps Windows' own entries read-only, switches Windows 11 to the full menu, and restarts File Explorer. |
 | **Registry** | Finds leftover entries that point at programs, files and folders that are gone (uninstall entries, App Paths, startup entries, MUI cache, file associations, fonts, help files and more), backs each one up to a `.reg` file and creates a restore point before removing it, and restores any fix from the Backups list. Honest by design: tidies things up, does not promise speed. See [docs/REGISTRY.md](docs/REGISTRY.md). |
 
+### Security
+
+| Page | What it does |
+|---|---|
+| **Security** | A traffic light for each protection in plain words: Microsoft Defender (or your other antivirus), firewall, Windows version and its end of support, paused updates, User Account Control, SmartScreen, SMB 1.0, drive encryption, Secure Boot, TPM, memory integrity, activation, Remote Desktop and the Guest account, with a score out of 100 and the three things to fix first. Quick and full Defender scans, definition updates and recent threats; safe fixes (firewall on, SMB 1.0 off) ask first, everything else opens the Windows setting. |
+| **Privacy** | Which apps used the camera, microphone and location, when, for how long and which are using them right now; turn one Store app's access off with Undo, and see activity history, advertising ID and diagnostic data with a link to the Debloat tweak that changes them. |
+
 ### Performance
 
 | Page | What it does |
