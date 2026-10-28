@@ -64,6 +64,9 @@ public sealed record AttentionFacts
 
     /// <summary>Devices whose driver reports a problem (from the last driver scan); null when unknown.</summary>
     public int? DeviceProblems { get; init; }
+
+    /// <summary>Whether System Protection (restore points) covers the Windows drive; null when unknown.</summary>
+    public bool? SystemProtectionOn { get; init; }
 }
 
 /// <summary>
@@ -118,6 +121,7 @@ public static class AttentionRules
         AddPawnIo(facts, items);
         AddStartup(facts, items);
         AddCheckup(facts, items);
+        AddSystemProtection(facts, items);
         return Rank(items).Take(Math.Max(0, max)).ToList();
     }
 
@@ -270,6 +274,17 @@ public static class AttentionRules
                 facts.CheckupItems == 1 ? T("The last check-up found 1 thing to do") : T("The last check-up found {0} things to do"), [facts.CheckupItems],
                 T("Each one explains why it matters and how to fix it."), [], T("Review"), AttentionAction.OpenPage, "checkup"));
         }
+    }
+
+    private static void AddSystemProtection(AttentionFacts facts, List<AttentionItem> items)
+    {
+        if (facts.SystemProtectionOn != false)
+        {
+            return;
+        }
+
+        items.Add(Item("backups.protection-off", AttentionLevel.Warning, 3, T("System Protection is off on the Windows drive"), [],
+            T("Without restore points, a bad driver or settings change is much harder to undo."), [], T("Turn on"), AttentionAction.OpenPage, "backups"));
     }
 
     private static AttentionItem Item(string id, AttentionLevel level, int priority, string title, object[] titleArgs, string detail,
