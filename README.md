@@ -200,6 +200,12 @@ limitations, is in [docs/FEATURES.md](docs/FEATURES.md).
 | **Right-click menu** | Everything programs added to File Explorer's right-click menu (files, folders, drives, desktop, common file types, Send to and Windows 11 app entries) with the program, publisher and where it shows. Turns entries off and on without deleting them, marks ones whose program is gone, keeps Windows' own entries read-only, switches Windows 11 to the full menu, and restarts File Explorer. |
 | **Registry** | Finds leftover entries that point at programs, files and folders that are gone (uninstall entries, App Paths, startup entries, MUI cache, file associations, fonts, help files and more), backs each one up to a `.reg` file and creates a restore point before removing it, and restores any fix from the Backups list. Honest by design: tidies things up, does not promise speed. See [docs/REGISTRY.md](docs/REGISTRY.md). |
 
+### Security
+
+| Page | What it does |
+|---|---|
+| **Backups** | Restore points with type and maker, create and delete (the newest only after a second warning), System Protection and its space per drive with Turn on and a size limit, File History, OneDrive folder backup and system image status, and PC Checker's own backup folders with count, size, *Open folder* and *Delete old ones* (to the Recycle Bin). Hints when protection is off, the newest point is over 30 days old or the space is under 1 GB. |
+
 ### Performance
 
 | Page | What it does |

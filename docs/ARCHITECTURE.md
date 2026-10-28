@@ -42,6 +42,7 @@ Every project targets `net8.0-windows10.0.19041.0`. `EnableWindowsTargeting` is 
 | `DiskSpace` | `IDiskSpaceService`, `DiskTreeScanner` (parallel folder sizes), `DuplicateHasher`, `DiskSpaceAggregation`, `FileTypeClassifier`, `DiskSpaceProtection`, `DuplicateFinder` |
 | `WindowsFeatures` | `IWindowsFeatureService`, `InboxAppCatalog` |
 | `Restore` | `IRestorePointService`, `IChangeGuard`, `ChangeGuard`, `IChangeBatchRunner` and `ChangeBatch` (several guarded changes behind one restore point) |
+| `Backups` | `IBackupsService` (restore points, System Protection per drive, Windows backups, PC Checker's own backup folders), `ShadowStorageParser`, `SystemProtectionRules`, `RestorePointRules`, `WindowsBackupRules`, `AppBackupCatalog`, `BackupHealthRules` |
 | `Overclocking` | `IOverclockService`, profiles and plans, `OverclockSafetyValidator`, `OverclockPlanParser` |
 | `Power` | `IPowerService`, power snapshots and plans |
 | `History` | `IHistoryService` (background recorder), `HistoryFileStore` (one JSON Lines file per day), `HistoryLineCodec`, `HistoryRollup`, `HistoryRetention`, `HistoryEventDetector`, `HistoryCsvExporter`, `DemoHistoryGenerator` |

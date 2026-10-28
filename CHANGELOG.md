@@ -6,6 +6,17 @@ All notable changes to PC Checker are recorded here. The format follows
 
 ## [Unreleased]
 
+### Added
+- **Backups** (new Security section): System Restore points with their type
+  and who made them, *Create restore point*, delete one point (a second
+  warning for the newest) or all but the newest; System Protection per drive
+  with *Turn on*, the space restore points use and a limit in percent (with
+  Undo); File History, OneDrive folder backup and system image status with
+  links; PC Checker's own backup folders with count, size, newest date, *Open
+  folder* and *Delete old ones* to the Recycle Bin; hints for protection off,
+  no restore point in 30 days and less than 1 GB of space, and a Dashboard
+  item when System Protection is off on the Windows drive.
+
 ## [0.7.0] - 2026-10-27
 
 A Missing DLLs tab that installs the official runtime packages old games need, an install-in-Program-Files option, and a final pass over the whole app: about 70 bugs found by review and fixed (fans, Task manager, drives, lighting, startup apps, cleanup, overclocking, updates, translations) plus layout fixes.
