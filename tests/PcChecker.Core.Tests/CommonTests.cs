@@ -167,6 +167,7 @@ public class PowerShellRunnerTests
     public void Quote_escapes_single_quotes()
     {
         Assert.Equal("'it''s'", PowerShellRunner.Quote("it's"));
+        Assert.Equal("'a\u2019\u2019b\u2018\u2018'", PowerShellRunner.Quote("a\u2019b\u2018"));
     }
 
     [Fact]

@@ -132,6 +132,11 @@ public sealed partial class HostsViewModel : IRefreshablePage
     ICommand IRefreshablePage.RefreshKeyCommand => ReloadCommand;
 }
 
+public sealed partial class DnsViewModel : IRefreshablePage
+{
+    ICommand IRefreshablePage.RefreshKeyCommand => BenchmarkCommand;
+}
+
 public sealed partial class LightingViewModel : IRefreshablePage
 {
     ICommand IRefreshablePage.RefreshKeyCommand => RescanCommand;

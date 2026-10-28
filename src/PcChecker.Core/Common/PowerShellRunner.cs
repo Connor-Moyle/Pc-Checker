@@ -183,8 +183,24 @@ public static partial class PowerShellRunner
         return string.Join(Environment.NewLine, lines);
     }
 
-    /// <summary>Escapes a string for use inside a single-quoted PowerShell literal.</summary>
-    public static string Quote(string value) => "'" + value.Replace("'", "''") + "'";
+    /// <summary>
+    /// Escapes a string as a single-quoted PowerShell literal. PowerShell also ends single-quoted strings at the typographic quotes
+    /// U+2018 to U+201B, so those are doubled as well.
+    /// </summary>
+    public static string Quote(string value)
+    {
+        var text = new StringBuilder(value.Length + 2).Append('\'');
+        foreach (char c in value)
+        {
+            text.Append(c);
+            if (c is '\'' or '\u2018' or '\u2019' or '\u201A' or '\u201B')
+            {
+                text.Append(c);
+            }
+        }
+
+        return text.Append('\'').ToString();
+    }
 
     private static int SafeExitCode(Process process)
     {

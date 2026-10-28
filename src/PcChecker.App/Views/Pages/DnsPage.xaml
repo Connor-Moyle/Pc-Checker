@@ -1,0 +1,348 @@
+<Page x:Class="PcChecker.App.Views.Pages.DnsPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+      xmlns:controls="clr-namespace:PcChecker.App.Controls"
+      xmlns:vm="clr-namespace:PcChecker.App.ViewModels"
+      xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+      d:DataContext="{d:DesignInstance vm:DnsViewModel}"
+      mc:Ignorable="d"
+      Title="DNS"
+      ScrollViewer.CanContentScroll="False">
+  <Page.Resources>
+    <Style x:Key="Tile" TargetType="controls:StatCard">
+      <Setter Property="Margin" Value="0" />
+    </Style>
+    <Style x:Key="ResultGrid" TargetType="ui:DataGrid" BasedOn="{StaticResource DefaultUiDataGridStyle}">
+      <Setter Property="AutoGenerateColumns" Value="False" />
+      <Setter Property="IsReadOnly" Value="True" />
+      <Setter Property="CanUserAddRows" Value="False" />
+      <Setter Property="CanUserDeleteRows" Value="False" />
+      <Setter Property="CanUserResizeRows" Value="False" />
+      <Setter Property="CanUserReorderColumns" Value="False" />
+      <Setter Property="HeadersVisibility" Value="Column" />
+      <Setter Property="GridLinesVisibility" Value="None" />
+      <Setter Property="SelectionMode" Value="Single" />
+      <Setter Property="SelectionUnit" Value="FullRow" />
+      <Setter Property="RowHeight" Value="44" />
+      <Setter Property="MaxHeight" Value="560" />
+      <Setter Property="VerticalScrollBarVisibility" Value="Auto" />
+      <Setter Property="HorizontalScrollBarVisibility" Value="Auto" />
+    </Style>
+    <Style x:Key="TextCell" TargetType="TextBlock">
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+    </Style>
+
+    <DataTemplate x:Key="ServerCell">
+      <StackPanel VerticalAlignment="Center" ToolTip="{Binding ToolTipText}">
+        <ui:TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+        <StackPanel Orientation="Horizontal">
+          <ui:TextBlock Style="{StaticResource Caption}" Text="{Binding Address}" />
+          <ui:TextBlock Style="{StaticResource Caption}" Text="{Binding Tags, StringFormat=' · {0}'}"
+                        Visibility="{Binding HasTags, Converter={StaticResource BoolToVisibility}}" />
+        </StackPanel>
+      </StackPanel>
+    </DataTemplate>
+
+    <DataTemplate x:Key="SpeedCell">
+      <Grid VerticalAlignment="Center" ToolTip="Longer is faster: the fastest reliable server fills the bar.">
+        <ProgressBar Value="{Binding SpeedPercent, Mode=OneWay}" Maximum="100" Height="6" MinWidth="60"
+                     AutomationProperties.Name="Speed compared with the fastest server" />
+      </Grid>
+    </DataTemplate>
+
+    <DataTemplate x:Key="AnsweredCell">
+      <StackPanel Orientation="Horizontal" VerticalAlignment="Center" ToolTip="{Binding ToolTipText}">
+        <controls:IconGlyph Symbol="Warning24" FontSize="14" Margin="0,0,6,0" VerticalAlignment="Center"
+                            Foreground="{DynamicResource AccentOrangeBrush}"
+                            ToolTip="Missed more than 1 in 20 lookups: pages may sometimes fail to load"
+                            Visibility="{Binding IsUnreliable, Converter={StaticResource BoolToVisibility}}" />
+        <ui:TextBlock Text="{Binding ReliabilityText}" VerticalAlignment="Center" />
+      </StackPanel>
+    </DataTemplate>
+
+    <ContextMenu x:Key="ResultActions" DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+      <MenuItem Header="Use this server…" Command="{Binding UseSelectedCommand}" />
+      <MenuItem Header="Copy results" Command="{Binding CopyResultsCommand}" />
+    </ContextMenu>
+  </Page.Resources>
+
+  <Grid Style="{StaticResource PageRoot}">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="*" />
+    </Grid.RowDefinitions>
+
+    <controls:SectionHeader Grid.Row="0" Title="DNS" Subtitle="{Binding Subtitle}">
+      <controls:SectionHeader.Actions>
+        <StackPanel Orientation="Horizontal">
+          <ui:DropDownButton Content="More" Icon="{ui:SymbolIcon MoreHorizontal24}" Margin="0,0,8,0">
+            <ui:DropDownButton.Flyout>
+              <ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+                <MenuItem Header="Read settings again" Command="{Binding ReloadCommand}" />
+                <MenuItem Header="Reset to automatic (from router)…" Command="{Binding ResetToAutomaticCommand}"
+                          ToolTip="Lets your router hand out the DNS servers again, as on a new PC. Asks first; Undo puts the current servers back." />
+                <MenuItem Header="Undo last DNS change…" Command="{Binding UndoLastChangeCommand}" />
+                <MenuItem Header="Clear DNS cache" Command="{Binding FlushDnsCommand}"
+                          ToolTip="Makes Windows look every website up again. Harmless; fixes sites that moved." />
+                <MenuItem Header="Copy results" Command="{Binding CopyResultsCommand}" />
+              </ContextMenu>
+            </ui:DropDownButton.Flyout>
+          </ui:DropDownButton>
+          <ui:Button Appearance="Primary" Icon="{ui:SymbolIcon TopSpeed24}" Command="{Binding BenchmarkCommand}"
+                     ToolTip="Sends real DNS lookups to your current DNS and well-known public services and times them. Takes up to 30 seconds and changes nothing.">
+            <AccessText Text="_Test speed" />
+          </ui:Button>
+        </StackPanel>
+      </controls:SectionHeader.Actions>
+    </controls:SectionHeader>
+
+    <StackPanel Grid.Row="1">
+      <ui:InfoBar Severity="Error" Title="Something went wrong" Message="{Binding ErrorMessage}"
+                  IsOpen="{Binding HasError, Mode=OneWay}" IsClosable="True" Margin="0,0,0,12" />
+      <ui:InfoBar Severity="Success" Title="Done" Message="{Binding ResultMessage}"
+                  IsOpen="{Binding ShowSuccessResult, Mode=OneWay}" IsClosable="True" Margin="0,0,0,12" />
+      <ui:InfoBar Severity="Warning" Title="Not changed" Message="{Binding ResultMessage}"
+                  IsOpen="{Binding ShowFailureResult, Mode=OneWay}" IsClosable="True" Margin="0,0,0,12" />
+    </StackPanel>
+
+    <ScrollViewer Grid.Row="2" Style="{StaticResource PageScroll}">
+      <StackPanel>
+
+        <!-- Summary -->
+        <controls:AdaptiveGrid MinItemWidth="200" MaxColumns="4" Margin="0,0,0,12">
+          <controls:StatCard Style="{StaticResource Tile}" Title="Your DNS" Value="{Binding CurrentDnsText}" Icon="Globe24"
+                             Accent="{DynamicResource AccentCyanBrush}" Subtitle="{Binding CurrentDnsSubtitle}" />
+          <controls:StatCard Style="{StaticResource Tile}" Title="Your DNS speed" Value="{Binding YourSpeedText}" Icon="Timer24"
+                             Accent="{DynamicResource AccentPurpleBrush}" Subtitle="{Binding YourSpeedSubtitle}" />
+          <controls:StatCard Style="{StaticResource Tile}" Title="Fastest tested" Value="{Binding FastestText}" Icon="TopSpeed24"
+                             Accent="{DynamicResource AccentGreenBrush}" Subtitle="{Binding FastestSubtitle}" />
+          <controls:StatCard Style="{StaticResource Tile}" Title="Encryption" Value="{Binding EncryptionText}" Icon="LockClosed24"
+                             Accent="{DynamicResource AccentOrangeBrush}" Subtitle="Whether others on the network can read your lookups" />
+        </controls:AdaptiveGrid>
+
+        <!-- Before the first test: one clear call to action -->
+        <ui:Card Padding="16" Margin="0,0,0,12" Visibility="{Binding HasResults, Converter={StaticResource InverseBoolToVisibility}}">
+          <controls:EmptyState Icon="TopSpeed24" Title="How fast is your DNS?"
+                               Message="Every website and game first asks a DNS server for its address. The test times real lookups against your DNS and well-known public services, and tells you whether switching is worth it. It changes nothing.">
+            <controls:EmptyState.Action>
+              <ui:Button Content="Test speed" Appearance="Primary" Icon="{ui:SymbolIcon TopSpeed24}" Command="{Binding BenchmarkCommand}" />
+            </controls:EmptyState.Action>
+          </controls:EmptyState>
+        </ui:Card>
+
+        <StackPanel Visibility="{Binding HasResults, Converter={StaticResource BoolToVisibility}}">
+          <!-- Recommendation -->
+          <ui:Card Padding="16" Margin="0,0,0,12">
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
+              <controls:IconGlyph Grid.Column="0" Symbol="Lightbulb24" FontSize="24" Margin="0,2,16,0" VerticalAlignment="Top"
+                                  Foreground="{DynamicResource AccentYellowBrush}" />
+              <StackPanel Grid.Column="1">
+                <ui:TextBlock Style="{StaticResource CardTitle}" Text="{Binding RecommendationTitle}" />
+                <ui:TextBlock Text="{Binding RecommendationText}" TextWrapping="Wrap" Margin="0,4,0,0" />
+                <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding AlternativesText}" TextWrapping="Wrap" Margin="0,6,0,0"
+                              Visibility="{Binding AlternativesText, Converter={StaticResource NullToVisibility}}" />
+              </StackPanel>
+              <ui:Button Grid.Column="2" Appearance="Primary" Icon="{ui:SymbolIcon Checkmark24}" VerticalAlignment="Center" Margin="12,0,0,0"
+                         Content="{Binding ApplyRecommendationText}" Command="{Binding ApplyRecommendationCommand}"
+                         Visibility="{Binding HasRecommendationAction, Converter={StaticResource BoolToVisibility}}"
+                         ToolTip="Asks first, then switches the ticked adapters below. Undo puts the current servers back." />
+            </Grid>
+          </ui:Card>
+
+          <!-- Results -->
+          <ui:Card Padding="16" Margin="0,0,0,12">
+            <StackPanel>
+              <ui:TextBlock Style="{StaticResource CardTitle}" Text="Test results" />
+              <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,8"
+                            Text="Cached: sites everyone visits, usually answered from memory. New sites: made-up names nobody has looked up, so the server has to find the answer. Lower is better." />
+              <ui:DataGrid AutomationProperties.Name="DNS test results" Style="{StaticResource ResultGrid}"
+                           ItemsSource="{Binding Results}" SelectedItem="{Binding SelectedResult, Mode=TwoWay}"
+                           ContextMenu="{StaticResource ResultActions}"
+                           IsReadOnly="True" KeyboardNavigation.TabNavigation="Once"
+                           PreviewMouseRightButtonDown="OnGridRightButtonDown">
+                <ui:DataGrid.InputBindings>
+                  <KeyBinding Key="Enter" Command="{Binding UseSelectedCommand}" />
+                  <KeyBinding Key="C" Modifiers="Control" Command="{Binding CopyResultsCommand}" />
+                </ui:DataGrid.InputBindings>
+                <ui:DataGrid.Columns>
+                  <DataGridTemplateColumn Header="Server" Width="1.6*" MinWidth="170" CellTemplate="{StaticResource ServerCell}" />
+                  <DataGridTemplateColumn Header="Speed" Width="0.8*" MinWidth="80" CellTemplate="{StaticResource SpeedCell}" />
+                  <DataGridTextColumn Header="Cached" Width="80" Binding="{Binding CachedText}" ElementStyle="{StaticResource TextCell}" />
+                  <DataGridTextColumn Header="New sites" Width="84" Binding="{Binding UncachedText}" ElementStyle="{StaticResource TextCell}" />
+                  <DataGridTextColumn Header="Slowest 10 %" Width="100" Binding="{Binding P90Text}" ElementStyle="{StaticResource TextCell}" />
+                  <DataGridTemplateColumn Header="Answered" Width="96" CellTemplate="{StaticResource AnsweredCell}" />
+                  <DataGridTextColumn Header="DNSSEC" Width="76" Binding="{Binding DnssecText}" ElementStyle="{StaticResource TextCell}" />
+                  <DataGridTextColumn Header="Blocks" Width="1.2*" MinWidth="120" Binding="{Binding BlocksText}" ElementStyle="{StaticResource TextCell}" />
+                </ui:DataGrid.Columns>
+              </ui:DataGrid>
+              <Grid Margin="0,10,0,0">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <ui:TextBlock Grid.Column="0" Style="{StaticResource Caption}" Text="{Binding ResultsInfo}" TextWrapping="Wrap" VerticalAlignment="Center" />
+                <ui:Button Grid.Column="1" Content="Use selected server…" Icon="{ui:SymbolIcon ArrowSwap24}" Command="{Binding UseSelectedCommand}" Margin="12,0,0,0"
+                           ToolTip="Switches the ticked adapters to the server picked in the table (Enter does the same). Asks first." />
+              </Grid>
+            </StackPanel>
+          </ui:Card>
+        </StackPanel>
+
+        <!-- Adapters -->
+        <ui:Card Padding="16" Margin="0,0,0,12">
+          <StackPanel>
+            <ui:TextBlock Style="{StaticResource CardTitle}" Text="Your connections" />
+            <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,8"
+                          Text="The DNS servers each connected adapter uses now. Changes apply to the ticked ones." />
+            <controls:EmptyState Icon="Wifi124" Title="No connection found" MinHeight="120"
+                                 Message="No network adapter is connected to the internet. Connect, then read the settings again."
+                                 Visibility="{Binding HasNoAdapters, Converter={StaticResource BoolToVisibility}}">
+              <controls:EmptyState.Action>
+                <ui:Button Content="Read settings again" Icon="{ui:SymbolIcon ArrowSync24}" Command="{Binding ReloadCommand}" />
+              </controls:EmptyState.Action>
+            </controls:EmptyState>
+            <ItemsControl ItemsSource="{Binding Adapters}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate DataType="{x:Type vm:DnsAdapterRow}">
+                  <Border BorderThickness="0,1,0,0" BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}" Padding="0,10">
+                    <Grid>
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                      </Grid.ColumnDefinitions>
+                      <CheckBox Grid.Column="0" VerticalAlignment="Top" Margin="0,2,12,0" IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                AutomationProperties.Name="{Binding Name}" ToolTip="Change the DNS of this adapter" />
+                      <StackPanel Grid.Column="1">
+                        <ui:TextBlock FontWeight="SemiBold" Text="{Binding Name}" />
+                        <ui:TextBlock Style="{StaticResource Caption}" Text="{Binding Description}" TextTrimming="CharacterEllipsis" />
+                        <ui:TextBlock Text="{Binding ServersText, StringFormat='IPv4: {0}'}" TextWrapping="Wrap" Margin="0,4,0,0" />
+                        <ui:TextBlock Text="{Binding Ipv6Text, StringFormat='IPv6: {0}'}" TextWrapping="Wrap"
+                                      Visibility="{Binding HasIpv6, Converter={StaticResource BoolToVisibility}}" />
+                        <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding RouterText}" TextWrapping="Wrap" />
+                      </StackPanel>
+                      <StackPanel Grid.Column="2" Margin="12,0,0,0" HorizontalAlignment="Right">
+                        <ui:TextBlock Text="{Binding ModeText}" TextAlignment="Right" />
+                        <ui:TextBlock Style="{StaticResource Caption}" Text="{Binding EncryptionText}" TextAlignment="Right" />
+                      </StackPanel>
+                    </Grid>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </ui:Card>
+
+        <!-- Switch -->
+        <ui:Card Padding="16" Margin="0,0,0,12">
+          <StackPanel>
+            <ui:TextBlock Style="{StaticResource CardTitle}" Text="Switch DNS" />
+            <ui:TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,10"
+                          Text="Pick a service for the ticked connections. Every switch asks first, and Undo puts back exactly what was there." />
+            <ComboBox ItemsSource="{Binding Choices}" SelectedItem="{Binding SelectedChoice}" MaxWidth="520" HorizontalAlignment="Left" MinWidth="320"
+                      AutomationProperties.Name="DNS service to switch to">
+              <ComboBox.ItemTemplate>
+                <DataTemplate DataType="{x:Type vm:DnsChoice}">
+                  <StackPanel>
+                    <ui:TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                    <ui:TextBlock Style="{StaticResource Caption}" Text="{Binding Detail}" />
+                  </StackPanel>
+                </DataTemplate>
+              </ComboBox.ItemTemplate>
+            </ComboBox>
+
+            <Grid Margin="0,10,0,0" MaxWidth="520" HorizontalAlignment="Left"
+                  Visibility="{Binding ShowCustomFields, Converter={StaticResource BoolToVisibility}}">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="12" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+              <ui:TextBox Grid.Column="0" Text="{Binding CustomPrimary, UpdateSourceTrigger=PropertyChanged}" PlaceholderText="First server, e.g. 192.168.1.53"
+                          AutomationProperties.Name="First DNS server" />
+              <ui:TextBox Grid.Column="2" Text="{Binding CustomSecondary, UpdateSourceTrigger=PropertyChanged}" PlaceholderText="Second server (optional)"
+                          AutomationProperties.Name="Second DNS server" />
+            </Grid>
+
+            <CheckBox Content="Also set the IPv6 servers" IsChecked="{Binding SetIpv6}" Margin="0,10,0,0"
+                      Visibility="{Binding ChoiceHasIpv6, Converter={StaticResource BoolToVisibility}}"
+                      ToolTip="Recommended: otherwise Windows keeps asking the IPv6 DNS your router hands out for some lookups." />
+            <CheckBox Content="Encrypt lookups (DNS over HTTPS)" IsChecked="{Binding Encrypt}" IsEnabled="{Binding CanEncryptChoice}" Margin="0,6,0,0"
+                      ToolTipService.ShowOnDisabled="True"
+                      ToolTip="Windows 11 only, for the services listed above. Stops others on the network (and your internet provider) from reading or changing your lookups. Windows is asked to fall back to normal DNS if it cannot connect; if websites stop loading, use Undo." />
+
+            <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+              <ui:Button Appearance="Primary" Icon="{ui:SymbolIcon ArrowSwap24}" Command="{Binding SwitchCommand}" Margin="0,0,8,0"
+                         ToolTip="Asks first. A restore point is created per your settings and the DNS cache is cleared afterwards.">
+                <AccessText Text="_Switch…" />
+              </ui:Button>
+              <ui:Button Content="Reset to automatic…" Icon="{ui:SymbolIcon ArrowReset24}" Command="{Binding ResetToAutomaticCommand}"
+                         ToolTip="Lets your router hand out the DNS servers again, as on a new PC." />
+            </StackPanel>
+
+            <Border BorderThickness="0,1,0,0" BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}" Margin="0,14,0,0" Padding="0,10,0,0"
+                    Visibility="{Binding CanUndo, Converter={StaticResource BoolToVisibility}}">
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <ui:TextBlock Grid.Column="0" Style="{StaticResource Muted}" Text="{Binding UndoText}" TextWrapping="Wrap" VerticalAlignment="Center" />
+                <ui:Button Grid.Column="1" Content="Undo last change…" Icon="{ui:SymbolIcon ArrowCounterclockwise24}" Command="{Binding UndoLastChangeCommand}" Margin="12,0,0,0" />
+              </Grid>
+            </Border>
+          </StackPanel>
+        </ui:Card>
+
+        <!-- Options -->
+        <ui:CardExpander Margin="0,0,0,12" ContentPadding="16" Icon="{ui:SymbolIcon Server24}">
+          <ui:CardExpander.Header>
+            <StackPanel>
+              <ui:TextBlock FontTypography="BodyStrong" Text="Options" />
+              <ui:TextBlock Style="{StaticResource Muted}" Text="Add your own server to the test." />
+            </StackPanel>
+          </ui:CardExpander.Header>
+          <StackPanel>
+            <ui:TextBlock Text="Also test this server (for example a Pi-hole or your provider's DNS):" TextWrapping="Wrap" Margin="0,0,0,6" />
+            <ui:TextBox Text="{Binding ExtraServer, UpdateSourceTrigger=PropertyChanged}" PlaceholderText="IP address, e.g. 192.168.1.53" MaxWidth="320" HorizontalAlignment="Left"
+                        AutomationProperties.Name="Extra DNS server to test" />
+          </StackPanel>
+        </ui:CardExpander>
+
+        <!-- About -->
+        <ui:CardExpander Margin="0,0,0,12" ContentPadding="16" Icon="{ui:SymbolIcon Info24}">
+          <ui:CardExpander.Header>
+            <StackPanel>
+              <ui:TextBlock FontTypography="BodyStrong" Text="About the test and DNS services" />
+              <ui:TextBlock Style="{StaticResource Muted}" Text="How it measures, and what the services differ in." />
+            </StackPanel>
+          </ui:CardExpander.Header>
+          <StackPanel>
+            <ui:TextBlock TextWrapping="Wrap" Margin="0,0,0,8"
+                          Text="Each server gets the same lookups: popular sites (asked once first so they are in its memory, then timed twice), made-up names under a few big sites that nobody can have looked up (they start with pcc-), and one check whether it verifies DNSSEC signatures. Servers are tested a few at a time and the whole test stops after 30 seconds." />
+            <ui:TextBlock TextWrapping="Wrap" Margin="0,0,0,8"
+                          Text="Some services answer made-up names from a list of names they already know do not exist, so their New sites time can look better than real browsing." />
+            <ui:TextBlock TextWrapping="Wrap" Margin="0,0,0,8"
+                          Text="Speed is not everything. Quad9 blocks known malware and phishing sites, AdGuard DNS blocks ads and trackers, Cloudflare for Families blocks malware and adult sites, and OpenDNS blocks phishing. Cloudflare, Google and Control D block nothing." />
+            <ui:TextBlock TextWrapping="Wrap"
+                          Text="Every DNS service sees which sites you look up; your internet provider's does too unless you switch. Encrypting lookups (DNS over HTTPS) stops others on the network from reading or changing them." />
+          </StackPanel>
+        </ui:CardExpander>
+      </StackPanel>
+    </ScrollViewer>
+
+    <controls:BusyOverlay Grid.Row="0" Grid.RowSpan="3"
+                          IsBusy="{Binding IsBusy}"
+                          Text="{Binding BusyText}"
+                          CancelCommand="{Binding CancelCommand}" CanCancel="{Binding CanCancelBusy}" />
+  </Grid>
+</Page>

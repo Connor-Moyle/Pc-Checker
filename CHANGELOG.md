@@ -55,6 +55,14 @@ All notable changes to PC Checker are recorded here. The format follows
   Speakers: left, right, both and a sweep, after a volume warning.
   Microphone: live level with no-signal and clipping hints, and a 5-second
   recording kept in memory only.
+- **Network → DNS**: the DNS servers each connection uses (automatic or set
+  by hand, the router's DNS, DNS over HTTPS on or off); a 30-second test that
+  times real cached and uncached lookups against them and seven public
+  services (Cloudflare, Google, Quad9, OpenDNS, AdGuard, Cloudflare for
+  Families, Control D) with reliability and DNSSEC; a plain recommendation
+  that mentions what each service blocks; switching (IPv4, IPv6, optional
+  DNS over HTTPS) and reset to automatic, confirmed, journaled behind a
+  restore point, with an Undo that restores exactly what was there.
 ## [0.8.0] - 2026-10-28
 
 A Security section (Security status, Privacy, Backups and restore points), a Crashes page that explains blue screens and app crashes in depth with ranked fixes, App history in Task manager, and a Games library for every launcher.

@@ -2516,6 +2516,51 @@ and the Tcpip `DataBasePath` setting, as a table and as text.
 - When security software locks the file, the page says so and how to save
   anyway (pause its hosts file protection for a moment).
 
+### DNS
+Which DNS servers the PC asks for website addresses, how fast they are, and a
+safe way to switch (Network → DNS).
+- **Your connections**: for each connected adapter the IPv4 and IPv6 DNS
+  servers in use, whether they come from the router (automatic) or were typed
+  in by hand, the servers the router hands out (DHCP), and whether lookups
+  are encrypted (DNS over HTTPS, read from the per-adapter `DohFlags` switch
+  Windows 11's Settings writes plus the automatic-upgrade policy; *Needs
+  Windows 11* on Windows 10).
+- **Test speed** sends real DNS queries over UDP (PC Checker's own small DNS
+  client, A and AAAA records) to your current servers, your router and
+  Cloudflare (1.1.1.1, 1.0.0.1), Google (8.8.8.8, 8.8.4.4), Quad9 (9.9.9.9,
+  149.112.112.112), OpenDNS, AdGuard DNS, Cloudflare for Families and
+  Control D, plus one server you add under *Options*. Each server answers the
+  same lookups: popular names (google.com, youtube.com, steamcontent.com,
+  discord.com, riotgames.com…) asked once to warm its cache and then timed,
+  made-up `pcc-…` names under a few big sites that cannot be cached, and one
+  DNSSEC check. Four servers run at a time, a server that misses its first
+  four lookups is skipped, and the whole test stops after 30 seconds (Cancel
+  stops it sooner).
+- **Results** per server: median cached and new-site times, the slowest
+  10 %, how many lookups were answered, whether it checks DNSSEC signatures,
+  and what it blocks on purpose, with a speed bar.
+- **Recommendation** in plain words: the fastest reliable server (answered at
+  least 95 % of lookups) that filters the same as yours, compared with your
+  current DNS. Switching is suggested only when it saves at least 5 ms and
+  15 % per lookup, or when your DNS misses lookups; otherwise the page says no
+  change is needed. When the router's DNS beats servers typed in by hand, it
+  suggests going back to automatic. Services that block malware, phishing,
+  ads or adult sites are listed as alternatives with their times.
+- **Switch DNS** to any listed service or to servers you type in, on the
+  ticked adapters, optionally with its IPv6 pair and, on Windows 11,
+  encrypted with DNS over HTTPS (the service's template; Windows is asked to
+  fall back to normal DNS if it cannot connect, and Undo turns encryption off
+  again if websites stop loading). **Reset to automatic** lets the router
+  hand out the servers again. Every change asks first, goes through the
+  change guard (restore point per your settings, Action Journal with the
+  previous servers), clears the DNS cache and saves what it replaced to
+  `%LOCALAPPDATA%\PcChecker\dns-switch.json`, so **Undo** (in the
+  notification, on the page and after a restart) puts back exactly what was
+  there, including *automatic* and the DNS-over-HTTPS settings. If a change
+  fails partway, the saved settings are kept so Undo can still put everything
+  back. This Undo covers changes made on the DNS page only; the Network page's
+  fast/encrypted DNS action keeps its own.
+
 ---
 
 ## Ask Claude
