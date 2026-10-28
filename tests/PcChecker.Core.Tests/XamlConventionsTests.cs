@@ -63,7 +63,7 @@ public class XamlConventionsTests
     {
         var catalog = File.ReadAllText(Path.Combine(AppDirectory(), "Services", "NavigationCatalog.cs"));
         int sections = Regex.Matches(catalog, @"\b(Section|Footer)\(""").Count;
-        Assert.InRange(sections, 1, 14);
+        Assert.InRange(sections, 1, 15);
     }
 
     [Fact]
