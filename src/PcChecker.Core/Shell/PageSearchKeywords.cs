@@ -49,6 +49,7 @@ public static class PageSearchKeywords
         ["network"] = T("wifi wi fi internet speed test packet loss dns"),
         ["connections"] = T("tcpview netstat ports open ports listening tcp udp ip address firewall"),
         ["hosts"] = T("hosts file block sites redirect dns etc"),
+        ["dns"] = T("dns server benchmark fastest dns cloudflare 1.1.1.1 google 8.8.8.8 quad9 adguard opendns dns over https doh encrypted dns change dns automatic"),
         ["security"] = T("antivirus defender virus malware firewall bitlocker encryption tpm secure boot uac smartscreen activation scan threats"),
         ["privacy"] = T("camera webcam microphone mic location tracking spying permissions activity history advertising id"),
         ["assistant"] = T("claude ai chat help questions"),

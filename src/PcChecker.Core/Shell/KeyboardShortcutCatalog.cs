@@ -53,6 +53,11 @@ public static class KeyboardShortcutCatalog
         [
             new("Enter", T("Open the selected app's file location")),
         ],
+        ["dns"] =
+        [
+            new("Enter", T("Switch to the server selected in the results (asks first)")),
+            new("Ctrl+C", T("Copy the test results")),
+        ],
         ["overlay-settings"] =
         [
             new("Ctrl+Shift+O", T("Show or hide the in-game overlay (the default key; you can change it here)")),

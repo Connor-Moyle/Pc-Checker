@@ -170,6 +170,7 @@ public static class ServiceRegistration
         Add<IDebloatService, WindowsDebloatService, DemoDebloatService>(services, demo);
         Add<IContextMenuService, WindowsContextMenuService, DemoContextMenuService>(services, demo);
         Add<IHostsFileService, WindowsHostsFileService, DemoHostsFileService>(services, demo);
+        Add<PcChecker.Core.Network.Resolvers.IDnsService, PcChecker.Core.Network.Resolvers.WindowsDnsService, PcChecker.Core.Network.Resolvers.DemoDnsService>(services, demo);
         Add<ISecurityStatusService, WindowsSecurityStatusService, DemoSecurityStatusService>(services, demo);
         Add<IPrivacyService, WindowsPrivacyService, DemoPrivacyService>(services, demo);
         Add<IBackupsService, WindowsBackupsService, DemoBackupsService>(services, demo);
@@ -272,6 +273,7 @@ public static class ServiceRegistration
         services.AddSingleton<NetworkViewModel>().AddSingleton<NetworkPage>();
         services.AddSingleton<ConnectionsViewModel>().AddSingleton<ConnectionsPage>();
         services.AddSingleton<HostsViewModel>().AddSingleton<HostsPage>();
+        services.AddSingleton<DnsViewModel>().AddSingleton<DnsPage>();
         services.AddSingleton<OverclockViewModel>().AddSingleton<OverclockPage>();
         services.AddSingleton<AssistantViewModel>().AddSingleton<AssistantPage>();
         services.AddSingleton<LogsViewModel>().AddSingleton<LogsPage>();

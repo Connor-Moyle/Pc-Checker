@@ -259,6 +259,10 @@ public static class HelpCatalog
             T("Hosts file shows the entries Windows checks before looking up a website's address. Malware sometimes adds entries here to redirect or block sites."),
             T("Look for entries marked as possibly unwanted. Every save keeps a backup, and Undo last save puts the previous file back."),
             Features, "Hosts file"),
+        new("dns",
+            T("DNS shows which DNS servers your PC asks for website addresses, times real lookups against them and well-known public services, and switches to a faster one."),
+            T("Press Test speed first; it changes nothing. Switching asks first, and Undo puts back exactly what was there, including automatic."),
+            Features, "DNS"),
     ];
 
     private static readonly Dictionary<string, PageHelp> ByKey = All.ToDictionary(h => h.PageKey, StringComparer.OrdinalIgnoreCase);
