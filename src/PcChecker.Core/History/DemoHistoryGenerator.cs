@@ -4,7 +4,9 @@ namespace PcChecker.Core.History;
 /// Builds believable history for the demo desktop: the PC is on from the morning until late evening with light
 /// office use, games most evenings (longer at weekends) and is off one day. A handful of moments are planted so the
 /// notable-events list has something to show: a GPU stress test a few hours ago, a CPU hot spell three days ago and
-/// a critical one twelve days ago, a large game install, a health check that scored lower, and so on. Every value
+/// a critical one twelve days ago, a large game install, a health check that scored lower, and so on. Yesterday's
+/// gaming is a fast competitive game at a high frame rate, where the processor rather than the graphics card sets the
+/// pace (the Upgrade advice page's CPU-limited sample session). Every value
 /// comes from a hash of the minute, so the same <c>now</c> always gives the same data. Days older than a week are
 /// rolled up exactly as the real store would keep them.
 /// </summary>
@@ -74,6 +76,15 @@ public static class DemoHistoryGenerator
             gpuTemp = Math.Min(86.4, 66 + stressMinute * 1.6) + 0.6 * Smooth(key, 2);
             cpuTemp = 48 + 3 * Smooth(key, 3);
             ram = 47 + 2 * Smooth(key, 4);
+        }
+        else if (gaming && day.DaysAgo == 1)
+        {
+            // Competitive shooter at 240 Hz: the GPU waits for the CPU.
+            cpuLoad = 62 + 6 * Smooth(key, 1);
+            gpuLoad = 66 + 8 * Smooth(key, 5);
+            cpuTemp = 72 + 4 * Smooth(key, 3);
+            gpuTemp = 61 + 3 * Smooth(key, 2);
+            ram = 58 + 3 * Smooth(key, 4);
         }
         else if (gaming)
         {
@@ -171,7 +182,7 @@ public static class DemoHistoryGenerator
             int onTo = Math.Min(23 * 60 + 59, 23 * 60 + (int)(25 + 30 * Noise(seed, 21)));
             int gameFrom = 19 * 60 + (int)(30 + 30 * Noise(seed, 22));
             int gameTo = gameFrom + (weekend ? 210 : 140) + (int)(30 * Noise(seed, 23));
-            bool skipGaming = Noise(seed, 24) > 0.7 && daysAgo != 3 && daysAgo != 12;
+            bool skipGaming = Noise(seed, 24) > 0.7 && daysAgo != 1 && daysAgo != 3 && daysAgo != 12;
             int afternoonFrom = weekend ? 14 * 60 + 10 : -1;
             int afternoonTo = weekend ? 16 * 60 + 40 : -1;
             return new DayPlan(daysAgo, onFrom, Math.Max(onTo, Math.Min(gameTo + 20, 23 * 60 + 59)),
