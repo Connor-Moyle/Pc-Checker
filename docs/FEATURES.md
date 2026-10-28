@@ -1686,6 +1686,63 @@ name: Zen generation, socket, desktop/laptop/APU, X3D, Tjmax):
 
 ## Gaming
 
+### Game library
+
+The **Games** tab lists every installed game from the launchers on the PC, read
+from each launcher's own files and registry entries. No launcher is started to
+find games, and nothing is changed while looking.
+
+- **Steam**: the install folder from the registry, every library in
+  `steamapps\libraryfolders.vdf` (old and new layouts), each
+  `appmanifest_*.acf` for the name, size, last update and install state, and
+  *last played* from each account's `userdata\<id>\config\localconfig.vdf`.
+  Redistributables, Proton, the Linux runtimes and SteamVR are left out. Cover
+  art comes from Steam's own `appcache\librarycache`.
+- **Epic Games**: the launcher's `Manifests\*.item` files (add-ons and engines
+  left out).
+- **GOG Galaxy**: `HKLM\SOFTWARE\WOW6432Node\GOG.com\Games` (DLC left out).
+- **EA app**: the *EA Games* and *Electronic Arts* registry keys and the
+  Uninstall entries published by Electronic Arts, with the title and program
+  from each game's `__Installer\installerdata.xml`.
+- **Ubisoft Connect**: `HKLM\SOFTWARE\WOW6432Node\Ubisoft\Launcher\Installs`.
+- **Battle.net**: Uninstall entries published by Blizzard (the launcher's own
+  database is not readable).
+- **Riot Client**: Uninstall entries that point at `RiotClientServices.exe`.
+- **Xbox app and Microsoft Store**: installed packages with a
+  `MicrosoftGame.config`, and the folders each drive's `.GamingRoot` file lists
+  (`C:\XboxGames` by default).
+
+Each game is a card with its cover (or its program's icon), launcher, size,
+drive and when it was last played. Sort by name, size or last played; filter by
+launcher and drive; search. The tiles show how many games there are, the space
+they use and the game played last, with the space per drive below. Sizes a
+launcher does not record are measured in the background.
+
+Per game (buttons, the card's **More** button and its right-click menu):
+
+- **Play** starts the game through its launcher's link (`steam://rungameid/…`,
+  `com.epicgames.launcher://…`, `uplay://…`, `shell:AppsFolder\…`) or its
+  program, with your normal rights, not PC Checker's administrator rights.
+- **Open folder**.
+- **Verify files** asks the launcher to check and repair the game (Steam and
+  Epic directly; GOG Galaxy, the EA app, Ubisoft Connect, Battle.net and Xbox
+  open the right place and say where to click). Asks first.
+- **Uninstall** always goes through the launcher (Steam, Epic, GOG Galaxy,
+  Xbox) or the Apps page (EA, Ubisoft, Battle.net, Riot). PC Checker never
+  deletes a game's folder itself. Asks first and is written to the Action
+  Journal.
+- **Scan for missing DLLs** opens the Missing DLLs page and scans the game's
+  folder.
+- **Game profile…** opens the Overlay page's profile editor with the game's
+  program filled in (or its existing profile).
+- **Clean shader cache** (Steam games): moves `steamapps\shadercache\<appid>`,
+  and nothing else, to the Recycle Bin after asking. Steam builds it again.
+  Journaled; restore it from the Recycle Bin.
+
+Limitations: only Steam records when a game was last played. Battle.net game
+pages open only for the major titles whose launcher code is known; others open
+the Battle.net app. Games on a drive that is unplugged are not listed.
+
 ### Overlay
 
 Configures the in-game overlay; the overlay itself is a separate click-through

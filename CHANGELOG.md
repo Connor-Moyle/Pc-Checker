@@ -6,6 +6,16 @@ All notable changes to PC Checker are recorded here. The format follows
 
 ## [Unreleased]
 
+### Added
+- **Games** (Gaming, first tab): every installed game from Steam, Epic Games,
+  GOG Galaxy, the EA app, Ubisoft Connect, Battle.net, the Riot Client and the
+  Xbox app, read from the launchers' own files without starting them. Cards
+  with cover art, size, drive and last played; sort, filters, search and
+  totals per drive. Play (started without administrator rights), open the
+  folder, verify files and uninstall through the launcher, scan for missing
+  DLLs, open a game profile, and clean a Steam game's shader cache to the
+  Recycle Bin.
+
 ## [0.7.0] - 2026-10-27
 
 A Missing DLLs tab that installs the official runtime packages old games need, an install-in-Program-Files option, and a final pass over the whole app: about 70 bugs found by review and fixed (fans, Task manager, drives, lighting, startup apps, cleanup, overclocking, updates, translations) plus layout fixes.
