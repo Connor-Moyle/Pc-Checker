@@ -32,6 +32,8 @@ public sealed partial class DashboardViewModel
     private DateTimeOffset _attentionReadAt;
     private bool _attentionRefreshRunning;
     private PawnIoState? _pawnIoState;
+    private readonly Core.Crashes.ICrashService _crashes;
+    private Core.Crashes.CrashGlance? _crashGlance;
 
     [ObservableProperty] private bool _hasAttentionItems;
     [ObservableProperty] private string _attentionAllClearText = Loc.T("Nothing to do right now.");
@@ -50,6 +52,7 @@ public sealed partial class DashboardViewModel
         _liveStartupItems = null;
         await Guard(async () => _liveStartupItems = await _startup.GetStartupItemsAsync(ct).WaitAsync(GlanceTimeout, ct), "startup list");
         await Guard(async () => _pawnIoState = await Task.Run(() => _pawnIo.GetStatus().State, ct).WaitAsync(GlanceTimeout, ct), "PawnIO status");
+        await Guard(async () => _crashGlance = await _crashes.GetGlanceAsync(ct).WaitAsync(GlanceTimeout, ct), "recent crashes");
         _attentionReadAt = DateTimeOffset.Now;
         RebuildAttention();
     }
@@ -106,6 +109,8 @@ public sealed partial class DashboardViewModel
             Updates = _updateStatus is null && pending is null ? null : DashboardGlance.Updates(_updateStatus, pending),
             PawnIo = _pawnIoState,
             DeviceProblems = report?.Results.Drivers?.Drivers.Count(d => d.HasProblem),
+            RecentBlueScreens = _crashGlance?.BlueScreens,
+            RecentSuddenShutdowns = _crashGlance?.SuddenShutdowns,
         };
 
         AttentionItems.Clear();
