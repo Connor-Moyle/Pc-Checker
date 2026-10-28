@@ -71,12 +71,12 @@ public static class RamVerifier
         else if (plan.ExpectedMts is { } expected && mts < expected * (1 - Tolerance))
         {
             items.Add(new(CheckOutcome.Problem, tr.F("Still at {0} MT/s", mts),
-                tr.F("The plan expects about {0} MT/s. The setting did not stick, or the board fell back to safe settings after a failed start.", expected)));
+                tr.F("The plan expects at least {0} MT/s. The setting did not stick, or the board fell back to safe settings after a failed start.", expected)));
         }
-        else if (plan.ExpectedMts is { } expected2 && mts > expected2 * (1 + Tolerance))
+        else if (plan.ExpectedMts is { } expected2 && mts > (plan.ExpectedMaxMts ?? expected2) * (1 + Tolerance))
         {
             items.Add(new(CheckOutcome.Warning, tr.F("Running at {0} MT/s", mts),
-                tr.F("That is faster than the plan's {0} MT/s. Fine if you set it on purpose: test it well.", expected2)));
+                tr.F("That is faster than the plan's {0} MT/s. Fine if you set it on purpose: test it well.", plan.ExpectedMaxMts ?? expected2)));
         }
         else
         {
@@ -84,14 +84,22 @@ public static class RamVerifier
                 plan.ExpectedMts is null ? tr.T("The speed Windows reports now.") : tr.T("As planned.")));
         }
 
-        // XMP / EXPO
-        items.Add(facts.Xmp.State switch
-        {
-            XmpEvaluation.Enabled => new(CheckOutcome.Ok, tr.F("{0} is on", plan.ProfileName), tr.T("The memory runs at its rated speed.")),
-            XmpEvaluation.Disabled => new(CheckOutcome.Problem, tr.F("{0} is off", plan.ProfileName),
-                tr.F("The kit is rated {0} MT/s. Turn the profile on in the BIOS (stage 2).", facts.RatedMts ?? 0)),
-            _ => new(CheckOutcome.Warning, tr.F("{0} state unknown", plan.ProfileName), tr.T("Windows reports a standard speed, so the profile may be off. Check the BIOS.")),
-        });
+        // XMP / EXPO. Below the kit's rating but inside the plan's range (four modules, a DDR4-4000 kit at 3600 for 1:1)
+        // is what the plan asks for, not a profile that is off.
+        bool onPlan = facts.Xmp.State == XmpEvaluation.Disabled && plan.ExpectedMts is { } low && facts.RatedMts is { } rated && low < rated
+            && plan.IsInPlanRange(mts);
+        RamCheckItem profileItem = onPlan
+            ? new(CheckOutcome.Ok, tr.T("Speed set for your setup"),
+                tr.F("The kit is rated {0} MT/s; with your processor and modules the plan aims for {1}–{2} MT/s, and the memory runs inside that range.",
+                    facts.RatedMts ?? 0, plan.ExpectedMts ?? 0, plan.ExpectedMaxMts ?? plan.ExpectedMts ?? 0))
+            : facts.Xmp.State switch
+            {
+                XmpEvaluation.Enabled => new(CheckOutcome.Ok, tr.F("{0} is on", plan.ProfileName), tr.T("The memory runs at its rated speed.")),
+                XmpEvaluation.Disabled => new(CheckOutcome.Problem, tr.F("{0} is off", plan.ProfileName),
+                    tr.F("The kit is rated {0} MT/s. Turn the profile on in the BIOS (stage 2).", facts.RatedMts ?? 0)),
+                _ => new(CheckOutcome.Warning, tr.F("{0} state unknown", plan.ProfileName), tr.T("Windows reports a standard speed, so the profile may be off. Check the BIOS.")),
+            };
+        items.Add(profileItem);
 
         // Channels
         items.Add(facts.Layout.Mode switch
@@ -112,7 +120,7 @@ public static class RamVerifier
         if (crashes.WheaErrors > 0)
         {
             items.Add(new(CheckOutcome.Warning, tr.F("{0} hardware error(s) (WHEA) since {1}", crashes.WheaErrors, sinceText),
-                tr.T("On Ryzen these usually mean FCLK is too high: go back to 2000 MHz (AM5) or 1800 MHz (AM4). On Intel, lower the memory speed one step.")));
+                tr.T("These errors point at the memory controller or the link to it. On Ryzen they may mean FCLK is too high: try 2000 MHz (AM5) or 1800 MHz (AM4). On Intel, try the memory one speed step lower.")));
         }
 
         if (!crashes.Any)

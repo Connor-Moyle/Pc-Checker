@@ -13,14 +13,20 @@ namespace PcChecker.Core.RamTuning;
 /// numbers start with MT, HM and M3 (the makers' part number decoders). The speed/timing bins follow the
 /// community-maintained chip lists (overclock.net "B-die finder" for DDR4; the r/overclocking and overclock.net DDR5 IC
 /// threads): retail DDR5 at 6600 MT/s and above, 6400 CL32 and 6000 CL30 with tRCD 38 or lower are SK hynix, and DDR4
-/// with a true latency (CL × 2000 / MT/s) of 8.75 ns or lower (3200 CL14, 3600 CL14/15, 4000 CL15/16) is Samsung
-/// B-die. Corsair's label version (3.xx Micron, 4.xx Samsung, 5.xx SK hynix) is not visible to Windows.
+/// from 3000 to 4000 MT/s with a true latency (CL × 2000 / MT/s) of 8.75 ns or lower (3200 CL14, 3600 CL14/15,
+/// 4000 CL15/16) is Samsung B-die; faster DDR4 bins are left unknown because SK hynix DJR and Micron reach them too. Corsair's label version (3.xx Micron, 4.xx Samsung, 5.xx SK hynix) is not visible to Windows.
 /// </para>
 /// </summary>
 public static partial class RamIcCatalog
 {
     /// <summary>B-die bins have a true latency at or below this (3200 CL14 is exactly 8.75 ns).</summary>
     public const double BDieMaxTrueLatencyNs = 8.75;
+
+    /// <summary>
+    /// The B-die rule only covers DDR4-3000 to 4000. Faster bins (4400 CL19, 4600 CL19, 5000 CL20…) also have a low true
+    /// latency but are commonly SK hynix DJR or Micron, which need looser timings and less voltage than B-die.
+    /// </summary>
+    public const int BDieMaxMts = 4000;
 
     [GeneratedRegex(@"^F5-(?<s>\d{4})J(?<cl>\d{2})(?<rcd>\d{2})", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex GSkillDdr5();
@@ -170,7 +176,8 @@ public static partial class RamIcCatalog
             }
         }
 
-        if (ddr4 && timings.RatedMts is { } mts4 && timings.Cl is { } cl4 && mts4 >= 3000)
+        // At 4000 MT/s only CL16 or lower is B-die; 4000 CL17 is sold with SK hynix DJR as well.
+        if (ddr4 && timings.RatedMts is { } mts4 && timings.Cl is { } cl4 && mts4 >= 3000 && mts4 <= BDieMaxMts && !(mts4 == BDieMaxMts && cl4 > 16))
         {
             double trueLatency = cl4 * 2000.0 / mts4;
             if (trueLatency <= BDieMaxTrueLatencyNs + 0.001)

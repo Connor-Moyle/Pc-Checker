@@ -1939,8 +1939,9 @@ result from Windows. Nothing on the PC is changed by this page.
   platform, the board and BIOS from the Drivers page's *Your PC* facts, and
   the likely **memory chips** from the part number: Crucial and Micron are
   Micron; retail DDR5 at 6600 MT/s and up, 6400 CL32 and 6000 CL30 with tRCD
-  38 or lower is SK hynix; DDR4 with a true latency of 8.75 ns or lower is
-  Samsung B-die. Anything else is shown as *unknown* rather than guessed, with
+  38 or lower is SK hynix; DDR4-3000 to 4000 with a true latency of 8.75 ns
+  or lower is Samsung B-die (faster DDR4 bins are left unknown, because SK
+  hynix DJR and Micron reach them too). Anything else is shown as *unknown* rather than guessed, with
   how to find out (HWiNFO, Corsair's label version).
 - **Your plan**, from safest to advanced, each step with what it does, where
   it is in your board's BIOS (ASUS *Ai Tweaker > Ai Overclock Tuner*, MSI
@@ -1958,8 +1959,9 @@ result from Windows. Nothing on the PC is changed by this page.
      Restore, VSOC at or below 1.30 V, 5200–5600 with four modules and, in
      Advanced mode on Ryzen 9000, DDR5-8000 at 1:2; AM4 DDR4-3600 with FCLK
      1800 (Zen 3: 3733–3800 / 1866–1900 if stable); Intel 12th–14th gen DDR5
-     in Gear 2 (6000 with two modules, up to 6800–7200 if stable, 5200–5600
-     with four), DDR4 in Gear 1 up to 3600–4000; Core Ultra 200S with Intel
+     in Gear 2 (6000 with two modules, up to 6800–7200 if stable; with four
+     modules 4800 on 12th gen and 5200 on 13th/14th gen, 5600 if stable),
+     DDR4 in Gear 1 up to 3600–4000; Core Ultra 200S with Intel
      200S Boost and CUDIMM.
   4. **Manual timings** (Advanced mode only, and only for known chips): tRFC
      in nanoseconds converted to clocks at your speed (SK hynix 16 Gbit 180 →
@@ -1972,12 +1974,14 @@ result from Windows. Nothing on the PC is changed by this page.
 - **If it does not boot**: wait for memory training, the board's own
   fallback, Clear CMOS, then one speed step lower.
 - **Check my change** re-reads the speed, XMP/EXPO and channels after the
-  BIOS change and compares them with the plan, and counts memory blue screens
-  (0x1A, 0x50, 0x4E, 0x12B and 0x124 with a memory source) and WHEA hardware
-  errors since you started the plan, from the Crashes page's scan. Every
+  BIOS change and compares them with the plan's speed range (a speed below
+  the kit's rating that the plan asks for, such as four modules at 5200, counts
+  as done), and counts memory blue screens (0x1A, 0x50, 0x4E, 0x12B and 0x124
+  with a memory source) and WHEA hardware errors that name memory, the memory
+  controller or the bus to it since you started the plan, from the Crashes page's scan. Every
   check is kept with its time (`ram-tuning.json` next to the settings).
 - **Test the stability**: TestMem5 with anta777's Extreme config, Karhu RAM
-  Test, OCCT, y-cruncher VT3 and MemTest86, each with how long to run it
+  Test, OCCT, MemTest86 and, in Advanced mode, y-cruncher VT3, each with how long to run it
   (links only; nothing is downloaded). The built-in **quick memory check**
   tests a share of the free memory (70 % by default, always leaving 2 GB for
   Windows) on every core at below-normal priority with walking ones and

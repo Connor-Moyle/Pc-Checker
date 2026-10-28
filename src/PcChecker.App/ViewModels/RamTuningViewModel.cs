@@ -79,11 +79,7 @@ public sealed partial class RamTuningViewModel : ViewModelBase
         _notifications = notifications;
         _navigation = navigation;
         _logger = logger;
-        foreach (var tool in RamStabilityTools.All(Loc.Current))
-        {
-            Tools.Add(new ToolRow(tool.Name, tool.WhatItDoes, tool.Duration, tool.Url, tool.Advanced));
-        }
-
+        RebuildTools();
         foreach (var d in QuickMemoryCheck.Durations)
         {
             QuickDurations.Add(d.TotalMinutes >= 60 ? Loc.T("1 hour") : Loc.F("{0} minutes", (int)d.TotalMinutes));
@@ -94,6 +90,7 @@ public sealed partial class RamTuningViewModel : ViewModelBase
             if (e.PropertyName == nameof(IsAdvancedMode))
             {
                 RebuildStages();
+                RebuildTools();
             }
             else if (e.PropertyName == nameof(QuickPercent))
             {
@@ -111,6 +108,16 @@ public sealed partial class RamTuningViewModel : ViewModelBase
     public ObservableCollection<VoltageRow> Voltages { get; } = [];
     public ObservableCollection<string> IfNoBoot { get; } = [];
     public ObservableCollection<ToolRow> Tools { get; } = [];
+
+    /// <summary>The stability tools; the Advanced ones (y-cruncher VT3) only in Advanced mode, like the plan's steps.</summary>
+    private void RebuildTools()
+    {
+        Tools.Clear();
+        foreach (var tool in RamStabilityTools.All(Loc.Current).Where(t => IsAdvancedMode || !t.Advanced))
+        {
+            Tools.Add(new ToolRow(tool.Name, tool.WhatItDoes, tool.Duration, tool.Url, tool.Advanced));
+        }
+    }
 
     public override async Task InitializeAsync(CancellationToken cancellationToken)
     {

@@ -205,7 +205,8 @@ public class RamPlanBuilderTests
             [Module("DIMM_A1", part, 6000, 6000), Module("DIMM_A2", part, 6000, 6000), Module("DIMM_B1", part, 6000, 6000), Module("DIMM_B2", part, 6000, 6000)],
             4, "AMD Ryzen 7 7800X3D", null, null, DateTimeOffset.Now);
         var plan = RamPlanBuilder.Build(facts, Today);
-        Assert.Equal(5600, plan.ExpectedMts);
+        Assert.Equal(5200, plan.ExpectedMts);
+        Assert.Equal(5600, plan.ExpectedMaxMts);
         Assert.Contains(plan.Steps, s => s.Id == "am5-four");
     }
 }
@@ -428,5 +429,140 @@ public class QuickMemoryCheckTests
 
         var none = await QuickMemoryCheck.RunAsync(0, TimeSpan.FromSeconds(1), () => 8192 * Mb, null, CancellationToken.None);
         Assert.Equal(QuickCheckStop.NotEnoughMemory, none.Stop);
+    }
+}
+
+/// <summary>The plan's expected speed range agrees with its own steps, so following the plan never reads as a failure.</summary>
+public class RamPlanRangeTests
+{
+    private static readonly DateTimeOffset Now = new(2026, 10, 28, 12, 0, 0, TimeSpan.Zero);
+
+    private static RamFacts Am5Four(int configured)
+    {
+        var part = "F5-6000J3038F16GX2-TZ5RK";
+        return RamFactsBuilder.Build(
+            [Module("DIMM_A1", part, 6000, configured), Module("DIMM_A2", part, 6000, configured), Module("DIMM_B1", part, 6000, configured), Module("DIMM_B2", part, 6000, configured)],
+            4, "AMD Ryzen 7 7800X3D", Board(PcMaker.Asus, "ROG STRIX X670E-E GAMING WIFI", new DateTime(2025, 6, 1), "AMD Ryzen 7 7800X3D"), null, DateTimeOffset.Now);
+    }
+
+    private static RamFacts Am4BDie4000(int configured) => RamFactsBuilder.Build(
+        [Module("DIMM_A2", "F4-4000C16D-16GTZR", 4000, configured, "DDR4", 8 * Gb), Module("DIMM_B2", "F4-4000C16D-16GTZR", 4000, configured, "DDR4", 8 * Gb)],
+        4, "AMD Ryzen 7 5800X 8-Core Processor", Board(PcMaker.Asus, "ROG STRIX B550-F GAMING", new DateTime(2024, 3, 1), "AMD Ryzen 7 5800X"),
+        null, DateTimeOffset.Now);
+
+    [Fact]
+    public void Four_modules_on_am5_at_5200_follow_the_plan()
+    {
+        var facts = Am5Four(5200);
+        Assert.Equal("Disabled", facts.Xmp.State);
+        var plan = RamPlanBuilder.Build(facts, Now.Date);
+        Assert.DoesNotContain("is off", plan.Headline, StringComparison.Ordinal);
+        Assert.Equal(RamPlanTone.Good, plan.Tone);
+        Assert.Equal(RamStepState.Done, plan.Steps.Single(s => s.Id == "am5-four").State);
+        Assert.Equal(RamStepState.Done, plan.Steps.Single(s => s.Id == "profile").State);
+
+        var check = RamVerifier.Compare(plan, facts, MemoryCrashSummary.None, Now.AddDays(-1), Now);
+        Assert.Equal(CheckOutcome.Ok, check.Overall);
+        Assert.DoesNotContain(check.Items, i => i.Outcome == CheckOutcome.Problem);
+    }
+
+    [Fact]
+    public void Four_modules_on_am5_still_at_jedec_is_a_problem()
+    {
+        var facts = Am5Four(4800);
+        var plan = RamPlanBuilder.Build(facts, Now.Date);
+        Assert.Contains("EXPO is off", plan.Headline, StringComparison.Ordinal);
+        var check = RamVerifier.Compare(plan, facts, MemoryCrashSummary.None, Now.AddDays(-1), Now);
+        Assert.Equal(CheckOutcome.Problem, check.Overall);
+    }
+
+    [Fact]
+    public void Am4_ddr4_4000_b_die_at_3600_follows_the_plan()
+    {
+        var facts = Am4BDie4000(3600);
+        Assert.Equal(DramIc.SamsungBDie, facts.Modules[0].Ic.Ic);
+        var plan = RamPlanBuilder.Build(facts, Now.Date);
+        Assert.Equal(3600, plan.ExpectedMts);
+        Assert.Equal(3800, plan.ExpectedMaxMts);
+        Assert.Equal(RamPlanTone.Good, plan.Tone);
+        Assert.Equal(RamStepState.Done, plan.Steps.Single(s => s.Id == "am4-ratio").State);
+        Assert.Equal(CheckOutcome.Ok, RamVerifier.Compare(plan, facts, MemoryCrashSummary.None, Now.AddDays(-1), Now).Overall);
+    }
+
+    [Fact]
+    public void Am4_ddr4_4000_at_its_rating_is_not_called_good()
+    {
+        var facts = Am4BDie4000(4000);
+        var plan = RamPlanBuilder.Build(facts, Now.Date);
+        Assert.Equal(RamPlanTone.Info, plan.Tone);
+        Assert.Equal(RamStepState.ToDo, plan.Steps.Single(s => s.Id == "am4-ratio").State);
+        var check = RamVerifier.Compare(plan, facts, MemoryCrashSummary.None, Now.AddDays(-1), Now);
+        Assert.Equal(CheckOutcome.Warning, check.Overall);
+    }
+
+    [Fact]
+    public void Zen3_at_3800_is_inside_the_plan()
+    {
+        var facts = Am4BDie4000(3800);
+        var plan = RamPlanBuilder.Build(facts, Now.Date);
+        Assert.Equal(RamStepState.Done, plan.Steps.Single(s => s.Id == "am4-ratio").State);
+        Assert.Equal(CheckOutcome.Ok, RamVerifier.Compare(plan, facts, MemoryCrashSummary.None, Now.AddDays(-1), Now).Overall);
+    }
+
+    [Fact]
+    public void Ranges_never_exceed_the_kit_rating()
+    {
+        foreach (var facts in new[] { DemoIntel(), Am5Expo(), Am4BDie(), Am5Four(5200), Am4BDie4000(3600), Am5Expo(rated: 7200, configured: 7200, part: "F5-7200J3445G16GX2-TZ5RK") })
+        {
+            var (low, high) = RamPlanBuilder.ExpectedRange(facts, RamTuningRules.TargetFor(facts.Platform, facts.Modules.Count, facts.MaxRanks is >= 2, facts.SlotCount));
+            Assert.NotNull(low);
+            Assert.True(high >= low);
+            Assert.True(high <= facts.RatedMts);
+        }
+    }
+
+    [Fact]
+    public void A_known_chip_without_easy_timings_says_so()
+    {
+        var part = "F5-7200J3646F24GX2-TZ5RK";
+        var facts = RamFactsBuilder.Build(
+            [Module("DIMM 1", part, 7200, 6000, capacity: 24 * Gb, bank: "P0 CHANNEL A"), Module("DIMM 1", part, 7200, 6000, capacity: 24 * Gb, bank: "P0 CHANNEL B")],
+            4, "AMD Ryzen 7 9800X3D", Board(PcMaker.Msi, "MAG X870 TOMAHAWK WIFI", new DateTime(2025, 6, 1), "AMD Ryzen 7 9800X3D"), null, DateTimeOffset.Now);
+        Assert.Equal(DramIc.HynixDdr5Gen24, facts.Modules[0].Ic.Ic);
+        var plan = RamPlanBuilder.Build(facts, Now.Date);
+        Assert.DoesNotContain(plan.Steps, s => s.Id == "find-ic");
+        var step = plan.Steps.Single(s => s.Id == "no-easy-timings");
+        Assert.Contains("SK hynix", step.Title, StringComparison.Ordinal);
+        Assert.True(step.Advanced);
+    }
+}
+
+public class MemoryWheaFilterTests
+{
+    private static readonly DateTimeOffset Change = new(2026, 10, 20, 12, 0, 0, TimeSpan.Zero);
+
+    [Fact]
+    public void Only_memory_related_whea_errors_count()
+    {
+        var report = new CrashReport
+        {
+            SystemEvents =
+            [
+                // PCI Express (NVMe, GPU link) errors have nothing to do with memory settings.
+                new CrashSystemEvent(Change.AddHours(1), CrashSystemEventKind.WheaCorrected) { EventId = 17, Whea = new WheaErrorInfo { Components = ["PCI Express"] } },
+                // A cache error inside the processor.
+                new CrashSystemEvent(Change.AddHours(2), CrashSystemEventKind.WheaCorrected) { EventId = 19, Whea = new WheaErrorInfo { Components = ["Processor"], MciStatus = 0x9C20000000010135 } },
+                // A bus/interconnect error (Infinity Fabric on Ryzen).
+                new CrashSystemEvent(Change.AddHours(3), CrashSystemEventKind.WheaCorrected) { EventId = 19, Whea = new WheaErrorInfo { Components = ["Processor"], MciStatus = 0x9C00000000000E0B } },
+                // A memory error.
+                new CrashSystemEvent(Change.AddHours(4), CrashSystemEventKind.WheaCorrected) { EventId = 47, Whea = new WheaErrorInfo { Components = ["Memory"] } },
+                // An unreadable record still counts.
+                new CrashSystemEvent(Change.AddHours(5), CrashSystemEventKind.WheaFatal) { EventId = 18 },
+            ],
+        };
+
+        var summary = MemoryCrashRules.Since(report, Change);
+        Assert.Equal(3, summary.WheaErrors);
+        Assert.Equal(Change.AddHours(5), summary.Latest);
     }
 }

@@ -89,8 +89,18 @@ public sealed record RamTuningPlan
 
     public RamTarget? Target { get; init; }
 
-    /// <summary>The speed Windows should report once stage 2 (and 3) are done; null when unknown.</summary>
+    /// <summary>
+    /// The lowest speed Windows should report once stage 2 (and 3) are done: the kit's rating, capped at the platform's
+    /// safe target; null when unknown.
+    /// </summary>
     public int? ExpectedMts { get; init; }
+
+    /// <summary>The highest speed the plan still calls safe ("if stable"); at least <see cref="ExpectedMts"/>.</summary>
+    public int? ExpectedMaxMts { get; init; }
+
+    /// <summary>True when <paramref name="mts"/> lies inside the plan's range (with <see cref="RamVerifier.Tolerance"/>).</summary>
+    public bool IsInPlanRange(int? mts) =>
+        mts is { } m && ExpectedMts is { } low && m >= low * (1 - RamVerifier.Tolerance) && m <= (ExpectedMaxMts ?? low) * (1 + RamVerifier.Tolerance);
 
     /// <summary>The profile's name on this platform ("EXPO", "XMP", "DOCP / XMP").</summary>
     public string ProfileName { get; init; } = "XMP";

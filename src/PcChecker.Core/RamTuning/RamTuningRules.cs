@@ -91,13 +91,23 @@ public static class RamTuningRules
             {
                 // Intel 13th/14th gen support DDR5-5600 with one module per channel and less with two (Intel ARK and the
                 // 14th gen quick reference guide); 12th gen DDR5-4800. Gear 2 is the normal DDR5 mode. Two-module boards
-                // reach 6400–7200 with a good memory controller; four-slot boards usually 6000–6800; four modules
-                // 5200–5600 (board vendors' QVLs, reviewers).
+                // reach 6400–7200 with a good memory controller; four-slot boards usually 6000–6800 (board vendors'
+                // QVLs, reviewers).
+                // Four modules (two per channel): Intel's datasheets specify only DDR5-4000 single rank / 3600 dual rank on
+                // 12th gen and 4400 / 4000 on 13th/14th gen (12th and 13th Gen Intel Core desktop processor datasheets,
+                // vol. 1, memory section). XMP speeds usually do not train with four sticks, so the safe start is 4800 on
+                // 12th gen (4400 dual rank) and 5200 on 13th/14th gen (4800 dual rank); 5200–5600 is "if stable" only.
                 bool gen12 = platform.IntelGeneration == 12;
-                int official = gen12 ? 4800 : 5600;
-                int safe = four ? 5200 : gen12 ? 5600 : 6000;
-                int stretch = four ? 5600 : gen12 ? 6400 : slotCount == 2 ? 7200 : 6800;
-                return new RamTarget(safe, stretch, "Gear 2", null, null, 5600, official);
+                int official = four
+                    ? gen12 ? (dualRank ? 3600 : 4000) : (dualRank ? 4000 : 4400)
+                    : gen12 ? 4800 : 5600;
+                int safe = four
+                    ? gen12 ? (dualRank ? 4400 : 4800) : (dualRank ? 4800 : 5200)
+                    : gen12 ? 5600 : 6000;
+                int stretch = four
+                    ? gen12 ? (dualRank ? 5200 : 5600) : 5600
+                    : gen12 ? 6400 : slotCount == 2 ? 7200 : 6800;
+                return new RamTarget(safe, stretch, "Gear 2", null, null, four ? safe : 5600, official);
             }
 
             case RamPlatformKind.IntelLga1700Ddr4:

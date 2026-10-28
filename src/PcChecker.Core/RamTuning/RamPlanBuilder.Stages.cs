@@ -98,7 +98,8 @@ public static partial class RamPlanBuilder
             {
                 bool legacy = p.Kind == RamPlatformKind.Am4Legacy;
                 int safe = target.SafeMts;
-                var state = configured is { } c && Math.Abs(c - safe) <= 70 ? RamStepState.Done
+                int top = Math.Max(safe, target.StretchMts ?? safe);
+                var state = configured is { } c && c >= safe - 70 && c <= top + 70 ? RamStepState.Done
                     : rated is { } r && r >= safe ? RamStepState.ToDo : RamStepState.Optional;
                 steps.Add(new RamPlanStep(RamStage.PlatformTuning, "am4-ratio",
                     legacy ? tr.F("Aim for DDR4-{0}", safe) : tr.F("Run DDR4-{0} with FCLK {1} MHz (1:1)", safe, safe / 2),
@@ -124,7 +125,7 @@ public static partial class RamPlanBuilder
             case RamPlatformKind.IntelLga1700Ddr5:
                 steps.Add(new RamPlanStep(RamStage.PlatformTuning, "intel-speed", tr.F("Aim for about {0} MT/s in Gear 2", target.SafeMts),
                     four
-                        ? tr.T("Four DDR5 modules are hard on the memory controller; 5200–5600 MT/s usually works.")
+                        ? tr.F("Four DDR5 modules are hard on the memory controller. Intel's own limit with two modules per channel is lower still; about {0} MT/s is the safe start and {1} MT/s often works.", target.SafeMts, target.StretchMts ?? target.SafeMts)
                         : tr.T("DDR5 runs in Gear 2 on these chips. Two modules usually manage 6000–6800 MT/s; two-slot boards go higher."),
                     tr.F("{0} MT/s; up to {1} MT/s if stable.", target.SafeMts, target.StretchMts ?? target.SafeMts),
                     tr.T("Higher speeds depend on your processor's memory controller: step back 200 MT/s if it is unstable."),
@@ -181,7 +182,17 @@ public static partial class RamPlanBuilder
             : RamPlanBuilder.ExpectedMts(facts, target) ?? target.SafeMts;
         bool ddr5 = p.Kind is RamPlatformKind.Am5 or RamPlatformKind.IntelLga1700Ddr5 or RamPlatformKind.IntelArrowLake;
 
-        if (!ic.IsKnownEnough || RamIcCatalog.TrfcNs(ic.Ic) is null)
+        if (ic.IsKnownEnough && RamIcCatalog.TrfcNs(ic.Ic) is null)
+        {
+            // The chip is known (for example SK hynix 24 Gbit) but PC Checker has no tested easy values for it.
+            steps.Add(new RamPlanStep(RamStage.ManualTimings, "no-easy-timings", tr.F("No tested easy timings for {0} yet", ic.Name),
+                tr.F("{0} PC Checker has no well-documented safe timing values for these chips yet.", ic.Reason),
+                tr.T("Keep the profile's timings."), tr.T("Values meant for other chips may not boot or may corrupt data."), RamStepState.NotApplicable)
+            {
+                Advanced = true,
+            });
+        }
+        else if (!ic.IsKnownEnough)
         {
             steps.Add(new RamPlanStep(RamStage.ManualTimings, "find-ic", tr.T("Manual timings: find out your memory chips first"),
                 tr.F("Safe timing values depend on the chips. {0}", ic.Reason),

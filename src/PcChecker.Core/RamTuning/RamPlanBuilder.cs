@@ -33,7 +33,8 @@ public static partial class RamPlanBuilder
         var mainIc = MainIc(facts);
         bool dualRank = facts.MaxRanks is >= 2;
         var target = RamTuningRules.TargetFor(platform, facts.Modules.Count, dualRank, facts.SlotCount);
-        int? expected = ExpectedMts(facts, target);
+        var (expected, expectedMax) = ExpectedRange(facts, target);
+        bool onPlan = BelowRatingOnPlan(facts, expected, expectedMax);
 
         var steps = new List<RamPlanStep>();
         if (platform.Kind == RamPlatformKind.Mobile)
@@ -45,12 +46,12 @@ public static partial class RamPlanBuilder
         else
         {
             AddStage1(steps, facts, today, tr);
-            AddStage2(steps, facts, profile, tr);
+            AddStage2(steps, facts, profile, onPlan, tr);
             AddStage3(steps, facts, target, tr);
             AddStage4(steps, facts, mainIc, target, tr);
         }
 
-        var (headline, detail, tone) = Headline(facts, profile, expected, tr);
+        var (headline, detail, tone) = Headline(facts, profile, expected, expectedMax, onPlan, tr);
         return new RamTuningPlan
         {
             Headline = headline,
@@ -60,6 +61,7 @@ public static partial class RamPlanBuilder
             VoltageLimits = RamTuningRules.VoltageLimits(platform, mainIc.Ic, tr),
             Target = target,
             ExpectedMts = expected,
+            ExpectedMaxMts = expectedMax,
             ProfileName = profile,
             IfItDoesNotBoot = IfItDoesNotBoot(facts, tr),
             Notes = Notes(facts, target, tr),
@@ -80,28 +82,47 @@ public static partial class RamPlanBuilder
     };
 
     /// <summary>
-    /// The speed Windows should report once the plan's safe steps are done: the kit's rating, capped at the platform's
-    /// safe target with four modules, and on AM5 at 6000 for kits rated above 6400 (1:1 beats 1:2).
+    /// The speed Windows should report once the plan's safe steps are done (the low end of <see cref="ExpectedRange"/>).
     /// </summary>
-    public static int? ExpectedMts(RamFacts facts, RamTarget? target)
+    public static int? ExpectedMts(RamFacts facts, RamTarget? target) => ExpectedRange(facts, target).Low;
+
+    /// <summary>
+    /// The speeds the plan calls right for this PC: from the platform's safe target to its "if stable" target, both
+    /// capped at the kit's rating. A kit rated above the platform's targets (DDR4-4000 on AM4, DDR5-7200 on AM5, four
+    /// modules) is expected at the target, not at its rating. On AM5 kits rated above 6400 are brought back to 6000
+    /// (1:1 beats 1:2). Without platform rules the rating is the expectation.
+    /// </summary>
+    public static (int? Low, int? High) ExpectedRange(RamFacts facts, RamTarget? target)
     {
         ArgumentNullException.ThrowIfNull(facts);
         if (facts.RatedMts is not { } rated || rated <= 0)
         {
-            return null;
+            return (null, null);
         }
 
-        if (facts.Modules.Count >= 4 && target is not null)
+        if (target is null)
         {
-            return Math.Min(rated, target.FourModuleMts);
+            return (rated, rated);
         }
 
-        if (facts.Platform.Kind == RamPlatformKind.Am5 && rated > 6400)
+        int low = Math.Min(rated, target.SafeMts);
+        int high = Math.Max(low, Math.Min(rated, target.StretchMts ?? target.SafeMts));
+        return (low, high);
+    }
+
+    /// <summary>
+    /// True when the memory runs below the kit's rating (so the shared XMP verdict reads "off") but inside the plan's
+    /// range, for example four modules at 5200 or DDR4-4000 B-die run at 3600 for FCLK 1:1: that is what the plan asks for.
+    /// </summary>
+    public static bool BelowRatingOnPlan(RamFacts facts, int? low, int? high)
+    {
+        ArgumentNullException.ThrowIfNull(facts);
+        if (facts.Xmp.State != XmpEvaluation.Disabled || facts.ConfiguredMts is not { } c || low is not { } l || facts.RatedMts is not { } r || l >= r)
         {
-            return 6000;
+            return false;
         }
 
-        return rated;
+        return c >= l * (1 - RamVerifier.Tolerance) && c <= (high ?? l) * (1 + RamVerifier.Tolerance);
     }
 
     /// <summary>The chip of the kit (the first module with a known chip, or the first module).</summary>
@@ -113,7 +134,7 @@ public static partial class RamPlanBuilder
             ?? RamIcGuess.Unknown("No modules were reported.");
     }
 
-    private static (string Headline, string Detail, RamPlanTone Tone) Headline(RamFacts facts, string profile, int? expected, Translator tr)
+    private static (string Headline, string Detail, RamPlanTone Tone) Headline(RamFacts facts, string profile, int? expected, int? expectedMax, bool onPlan, Translator tr)
     {
         if (facts.Modules.Count == 0)
         {
@@ -132,14 +153,21 @@ public static partial class RamPlanBuilder
 
         int configured = facts.ConfiguredMts ?? 0;
         int rated = facts.RatedMts ?? 0;
+        if (onPlan)
+        {
+            return (tr.F("Your memory runs at {0} MT/s, a safe speed for your setup", configured),
+                tr.F("The kit is rated {0} MT/s, but with your processor and modules the plan aims for {1}–{2} MT/s. Stage 3 explains why.", rated, expected ?? configured, expectedMax ?? expected ?? configured),
+                RamPlanTone.Good);
+        }
+
         switch (facts.Xmp.State)
         {
             case XmpEvaluation.Disabled:
                 return (tr.F("{0} is off: your memory runs at {1} instead of {2} MT/s", profile, configured, rated),
                     tr.F("Turning on {0} in the BIOS is free speed you already paid for. Follow stages 1 and 2 below.", profile), RamPlanTone.Warning);
-            case XmpEvaluation.Enabled when expected is { } e && configured > e * 1.03:
+            case XmpEvaluation.Enabled when expected is { } e && configured > (expectedMax ?? e) * (1 + RamVerifier.Tolerance):
                 return (tr.F("{0} is on: {1} MT/s", profile, configured),
-                    tr.F("Your platform is usually fastest at about {0} MT/s; stage 3 explains why.", e), RamPlanTone.Info);
+                    tr.F("With your processor the plan aims for {0}–{1} MT/s; faster settings often run slower or less stable. Stage 3 explains why.", e, expectedMax ?? e), RamPlanTone.Info);
             case XmpEvaluation.Enabled:
                 return (tr.F("{0} is on: your memory runs at its rated {1} MT/s", profile, configured),
                     tr.T("The safe part is done. Stages 3 and 4 add a few percent more, if you want to tinker."), RamPlanTone.Good);
@@ -215,7 +243,7 @@ public static partial class RamPlanBuilder
         });
     }
 
-    private static void AddStage2(List<RamPlanStep> steps, RamFacts facts, string profile, Translator tr)
+    private static void AddStage2(List<RamPlanStep> steps, RamFacts facts, string profile, bool onPlan, Translator tr)
     {
         var platform = facts.Platform;
         if (!facts.Layout.RecommendedSlots && facts.Layout.SlotAdvice is { } advice)
@@ -239,6 +267,7 @@ public static partial class RamPlanBuilder
             : tr.T("the speed on the kit's label");
 
         var profileState = jedecKit ? RamStepState.NotApplicable
+            : onPlan ? RamStepState.Done
             : facts.Xmp.State switch
             {
                 XmpEvaluation.Enabled => RamStepState.Done,

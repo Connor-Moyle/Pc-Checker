@@ -57,7 +57,23 @@ public static class MemoryCrashRules
         return string.Equals(whea.ProcessorErrorType, "Bus error", StringComparison.Ordinal);
     }
 
-    /// <summary>What happened since <paramref name="since"/>: memory blue screens and WHEA hardware errors (corrected or fatal).</summary>
+    /// <summary>
+    /// True for a WHEA hardware error event that can come from a memory setting: a record that names memory, the memory
+    /// controller or the bus to it (<see cref="IsMemoryWhea"/>). PCI Express errors (event 17) never count; a WHEA event
+    /// whose record could not be read counts unless it is event 17.
+    /// </summary>
+    public static bool IsMemoryWheaEvent(CrashSystemEvent e)
+    {
+        ArgumentNullException.ThrowIfNull(e);
+        if (e.Kind is not (CrashSystemEventKind.WheaCorrected or CrashSystemEventKind.WheaFatal) || e.EventId == 17)
+        {
+            return false;
+        }
+
+        return e.Whea is not { } whea || IsMemoryWhea(whea);
+    }
+
+    /// <summary>What happened since <paramref name="since"/>: memory blue screens and memory-related WHEA hardware errors (corrected or fatal).</summary>
     public static MemoryCrashSummary Since(CrashReport? report, DateTimeOffset since)
     {
         if (report is null)
@@ -70,7 +86,7 @@ public static class MemoryCrashRules
             .GroupBy(e => (e.BugCheckCode, Minute: e.Time.ToUnixTimeSeconds() / 300))
             .Select(g => g.First())
             .ToList();
-        var whea = report.SystemEvents.Where(e => e.Time >= since && e.Kind is CrashSystemEventKind.WheaCorrected or CrashSystemEventKind.WheaFatal).ToList();
+        var whea = report.SystemEvents.Where(e => e.Time >= since && IsMemoryWheaEvent(e)).ToList();
         DateTimeOffset? latest = crashes.Select(c => (DateTimeOffset?)c.Time).Concat(whea.Select(w => (DateTimeOffset?)w.Time)).Max();
         var codes = crashes.Select(c => $"0x{c.BugCheckCode!.Value:X}").Distinct(StringComparer.Ordinal).ToList();
         return new MemoryCrashSummary(crashes.Count, whea.Count, latest, codes);

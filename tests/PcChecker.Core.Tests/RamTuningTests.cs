@@ -107,6 +107,12 @@ public class RamIcCatalogTests
     [InlineData("F4-3200C14D-16GTZ", "G.Skill", "DDR4", 8, DramIc.SamsungBDie, IcConfidence.Likely)]
     [InlineData("F4-3600C14D-16GTZN", "G.Skill", "DDR4", 8, DramIc.SamsungBDie, IcConfidence.Likely)]
     [InlineData("F4-3600C16D-16GVKC", "G.Skill", "DDR4", 8, DramIc.Unknown, IcConfidence.Unknown)]
+    [InlineData("F4-4000C15D-16GTZR", "G.Skill", "DDR4", 8, DramIc.SamsungBDie, IcConfidence.Likely)]
+    [InlineData("F4-4000C16D-16GTZR", "G.Skill", "DDR4", 8, DramIc.SamsungBDie, IcConfidence.Likely)]
+    [InlineData("F4-4000C17D-16GTZR", "G.Skill", "DDR4", 8, DramIc.Unknown, IcConfidence.Unknown)]
+    [InlineData("F4-4400C19D-16GTZR", "G.Skill", "DDR4", 8, DramIc.Unknown, IcConfidence.Unknown)]
+    [InlineData("F4-4600C19D-16GTZR", "G.Skill", "DDR4", 8, DramIc.Unknown, IcConfidence.Unknown)]
+    [InlineData("F4-5000C20D-16GTZR", "G.Skill", "DDR4", 8, DramIc.Unknown, IcConfidence.Unknown)]
     [InlineData("BL2K8G32C16U4B", "Crucial", "DDR4", 8, DramIc.MicronDdr4, IcConfidence.Known)]
     [InlineData("", null, "DDR5", 16, DramIc.Unknown, IcConfidence.Unknown)]
     public void Part_numbers_map_to_the_likely_chip(string part, string? maker, string type, int gb, DramIc ic, IcConfidence confidence)
@@ -266,6 +272,17 @@ public class RamTuningRulesTests
         Assert.Equal(6800, RamTuningRules.TargetFor(raptor, 2, false, 4)!.StretchMts);
         Assert.Equal(7200, RamTuningRules.TargetFor(raptor, 2, false, 2)!.StretchMts);
         Assert.Equal(5200, RamTuningRules.TargetFor(raptor, 4, false, 4)!.SafeMts);
+        Assert.Equal(4800, RamTuningRules.TargetFor(raptor, 4, true, 4)!.SafeMts);
+        Assert.Equal(4400, RamTuningRules.TargetFor(raptor, 4, false, 4)!.OfficialMts);
+
+        // Alder Lake with four DDR5 modules: Intel specifies 4000 (single rank) / 3600 (dual rank); 4800 is the safe start.
+        var alder = RamPlatformDetector.Detect("Intel Core i5-12600K", "DDR5");
+        var alderFour = RamTuningRules.TargetFor(alder, 4, false, 4)!;
+        Assert.Equal(4800, alderFour.SafeMts);
+        Assert.Equal(5600, alderFour.StretchMts);
+        Assert.Equal(4000, alderFour.OfficialMts);
+        Assert.Equal(4400, RamTuningRules.TargetFor(alder, 4, true, 4)!.SafeMts);
+        Assert.Equal(3600, RamTuningRules.TargetFor(alder, 4, true, 4)!.OfficialMts);
         Assert.Equal(5600, RamTuningRules.TargetFor(RamPlatformDetector.Detect("Intel Core i5-12600K", "DDR5"), 2, false, 4)!.SafeMts);
         Assert.Equal("Gear 1", RamTuningRules.TargetFor(RamPlatformDetector.Detect("Intel Core i7-13700K", "DDR4"), 2, false, 4)!.RatioText);
         Assert.Equal(8000, RamTuningRules.TargetFor(RamPlatformDetector.Detect("Intel(R) Core(TM) Ultra 9 285K", "DDR5"), 2, false, 4)!.StretchMts);

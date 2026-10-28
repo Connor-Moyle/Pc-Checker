@@ -44,6 +44,8 @@ public sealed partial class RamTuningViewModel
     private string? _quickSummary;
 
     [ObservableProperty] private bool _quickHasErrors;
+    [ObservableProperty] private Wpf.Ui.Controls.InfoBarSeverity _quickSeverity = Wpf.Ui.Controls.InfoBarSeverity.Informational;
+    [ObservableProperty] private string _quickTitle = string.Empty;
 
     public bool HasCheck => !string.IsNullOrWhiteSpace(CheckSummary);
     public bool HasHistory => HistoryCount > 0;
@@ -200,6 +202,7 @@ public sealed partial class RamTuningViewModel
         try
         {
             var result = await _ram.RunQuickCheckAsync(QuickPercent, duration, progress, Loc.Current, _quickCts.Token);
+            (QuickSeverity, QuickTitle) = QuickResultBanner(result.Errors, result.Stop);
             QuickSummary = result.Summary;
             QuickHasErrors = result.Errors > 0;
             QuickErrorsText = result.Errors.ToString("N0", CultureInfo.CurrentCulture);
@@ -211,6 +214,7 @@ public sealed partial class RamTuningViewModel
         catch (Exception ex)
         {
             _logger.LogError(ex, "Quick memory check failed");
+            (QuickSeverity, QuickTitle) = (Wpf.Ui.Controls.InfoBarSeverity.Error, Loc.T("The check could not run"));
             QuickSummary = Loc.F("The check could not run: {0}", ex.Message);
         }
         finally
@@ -220,6 +224,16 @@ public sealed partial class RamTuningViewModel
             UpdateQuickPlan();
         }
     }
+
+    /// <summary>The result banner: green only for a run that finished without errors.</summary>
+    private static (Wpf.Ui.Controls.InfoBarSeverity Severity, string Title) QuickResultBanner(long errors, QuickCheckStop stop) => (errors, stop) switch
+    {
+        ( > 0, _) => (Wpf.Ui.Controls.InfoBarSeverity.Error, Loc.T("Errors found")),
+        (_, QuickCheckStop.Finished) => (Wpf.Ui.Controls.InfoBarSeverity.Success, Loc.T("No errors")),
+        (_, QuickCheckStop.Cancelled) => (Wpf.Ui.Controls.InfoBarSeverity.Informational, Loc.T("Stopped early: no errors so far")),
+        (_, QuickCheckStop.LowMemory) => (Wpf.Ui.Controls.InfoBarSeverity.Warning, Loc.T("Stopped: Windows ran low on memory")),
+        _ => (Wpf.Ui.Controls.InfoBarSeverity.Warning, Loc.T("The check could not start")),
+    };
 
     private bool CanStopQuickCheck() => IsQuickRunning;
 
