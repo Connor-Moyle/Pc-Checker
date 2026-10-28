@@ -13,7 +13,7 @@ Home            Dashboard · Check-up
 Monitor         Temperatures · Power · History
 Task manager    Processes · Live usage · App history · Services · Users
 Hardware        Overview · Health · Storage · Memory · Battery
-Devices         Displays · Audio · Keyboard & Mouse
+Devices         Displays · Audio · Keyboard & Mouse · Device tests
 Cooling & RGB   Fans · Lighting
 Apps & Drivers  Apps · Leftovers · Drivers · Old drivers · Windows Update ·
                 Startup · Scheduled tasks · Windows Features
@@ -899,6 +899,64 @@ properties in Windows; the page links to them rather than duplicating them.
 
 Limitations: DPI, button mapping and onboard profiles live in the vendor's
 software; the app cannot change them.
+
+### Device tests
+
+One place to check that your devices work. Every test only reads the device;
+nothing on the PC is changed. Each test is a card: the controller, speaker and
+microphone tests run on the page, the keyboard and mouse tests open their own
+window, and the screen test fills the screen you pick.
+
+- **Controller**: every connected controller through Windows.Gaming.Input
+  (Xbox-style gamepads, plus PlayStation, Switch Pro and other controllers as
+  generic controllers), with XInput as a fallback. Both sticks are drawn as
+  circles with the recent readings as a trail and the dead zone marked; the
+  triggers are bars and every button lights up while held and keeps a green
+  edge once it has worked. *Check drift* reads both sticks for 2 seconds while
+  you leave them alone and says whether each one rests in the middle, drifts
+  slightly (inside a normal 10 % dead zone) or drifts enough that games may
+  move by themselves. *Check roundness* asks you to turn each stick round its
+  edge and reports the average distance from a perfect circle in percent.
+  *Vibration* runs the left or right motor (and the trigger motors on Xbox One
+  and later controllers) for a second; vibration stops when you leave the
+  page. Battery level shows where the controller reports it.
+- **Keyboard**: a window with a full-size keyboard (function row, navigation
+  block and number pad). Keys light up while held and turn green once tested,
+  with a count of keys tested, keys held now and the most keys held at once
+  (rollover), plus a plain verdict and a ghosting hint. Keys are read as
+  physical keys, so the layout works with any keyboard language, and the
+  letter keys are relabelled for yours. The Windows key, Alt+Tab,
+  Ctrl+Alt+Del and the Fn key are handled by Windows or the keyboard itself
+  and cannot be captured; the window says so.
+- **Mouse**: a window with a test box for the left, right, middle and both side
+  buttons, wheel up and down and wheel tilt, each counted. The time between
+  clicks shows whether Windows would see a double-click, and two clicks
+  closer than 60 ms (a worn switch that double-clicks by itself) are flagged.
+  *Measure* reads the polling rate with the same meter as the Keyboard & Mouse
+  page and says whether the reports came at an even rate. DPI is stored in the
+  mouse and cannot be read by Windows; the window explains this.
+- **Screen**: full screen on the screen you choose: black, white, red, green,
+  blue and grey for dead or stuck pixels and dust, colour ramps for banding, a
+  dark grey for backlight bleed and clouding, and a moving block with frames
+  per second, the screen's refresh rate and skipped frames. Left and Right
+  arrows (or a click) switch tests, H hides the hint and Esc closes.
+- **Speakers or headphones**: a tone on the left speaker, the right speaker or
+  both, and a sweep from a low hum to a high whistle, played on the default
+  output. The first play asks you to turn the volume down.
+- **Microphone**: a live level meter for the default microphone with plain
+  hints for no signal, too quiet and clipping, and a 5-second recording you can
+  play back. The recording stays in memory and is never saved. When Windows
+  blocks microphone access for desktop apps, the card says so and opens the
+  privacy setting.
+
+Demo mode shows an Xbox Wireless Controller at 72 % battery whose left stick
+rests slightly off centre, so the drift check reports slight drift, and a
+microphone meter moving like speech.
+
+Limitations: DPI, the Fn key and keys the keyboard handles itself cannot be
+read. Generic controllers report their sticks as numbered axes, so the stick
+and trigger mapping may differ from the controller's labels. The motion
+test's frame rate depends on the PC as well as the screen.
 
 ---
 
