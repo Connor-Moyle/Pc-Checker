@@ -105,9 +105,10 @@ public sealed partial class DashboardViewModel : ViewModelBase
         IDisplayService displays, IAudioService audio, IOverclockService overclock, IWindowsUpdateService windowsUpdate, IHistoryService history,
         IDiskSpaceService diskSpace, ICheckupService checkup, QuickActionRunner quickActions, INavigationService navigation, IDialogService dialogs,
         INotificationService notifications, ILogger<DashboardViewModel> logger, Core.Startup.IStartupService startup, PawnIoInstallFlow pawnIo,
-        SimpleModeHintViewModel simpleModeHint)
+        SimpleModeHintViewModel simpleModeHint, Core.Crashes.ICrashService crashes)
         : base(settings)
     {
+        _crashes = crashes;
         _startup = startup;
         _pawnIo = pawnIo;
         SimpleModeHint = simpleModeHint;

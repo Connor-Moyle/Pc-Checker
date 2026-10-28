@@ -8,7 +8,8 @@ screen-reader names and help text (AutomationProperties.Name and HelpText), sect
 NavigationCatalog.cs, C# string literals passed to Loc.T(...) or Loc.F(...), plain string literal arguments of the
 dialog and notification calls that translate at run time (IDialogService.ConfirmAsync/ShowMessageAsync/ChooseAsync,
 INotificationService.Show/Info/Success/Warning/Error, TrayIconService.Notify), and the quick search catalogs in
-src/PcChecker.Core/Shell, where interface text is marked with T("...").
+src/PcChecker.Core/Shell and the Crashes catalogs and rules in src/PcChecker.Core/Crashes, where interface text is marked
+with T("...") or passed to a Translator as tr.T("...")/tr.F("...").
 
 Usage: python3 build/extract-strings.py [--check]   (--check fails when strings.txt is out of date)
 """
@@ -18,6 +19,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 APP = ROOT / "src" / "PcChecker.App"
 OUT = APP / "Localization" / "strings.txt"
 CORE_SHELL = ROOT / "src" / "PcChecker.Core" / "Shell"
+CORE_MARKED = (CORE_SHELL, ROOT / "src" / "PcChecker.Core" / "Crashes")
 TEXT_ATTRS = ("Text", "ToolTip", "Content", "Title", "Header", "Message", "Subtitle", "PlaceholderText",
               "Description", "Label", "Unit", "Caption", "Reason", "ActionText")
 ATTR = re.compile(r'\b(?:[a-zA-Z]+:)?(?:[A-Z][A-Za-z]*\.)?(' + "|".join(TEXT_ATTRS) + r')="([^"]*)"')
@@ -30,6 +32,8 @@ CODE = re.compile(r'\bLoc\.[TF]\(\s*"((?:[^"\\]|\\.)*)"')
 DESCRIPTION = re.compile(r'\bDescription\(\s*"((?:[^"\\]|\\.)*)"\s*\)')
 CATALOG = re.compile(r'\b(?:Section|Footer|Page)\("([^"]+)"')
 MARKED = re.compile(r'(?<![\w.])T\(\s*"((?:[^"\\]|\\.)*)"')
+# Core code that is handed a Translator (named tr): tr.T("...") and tr.F("...").
+TRANSLATOR_CALL = re.compile(r'\btr\.[TF]\(\s*"((?:[^"\\]|\\.)*)"')
 # Dialog and notification calls whose text arguments are translated when shown. The receiver is checked so that
 # logger calls (_logger.Warning) and message boxes are left out.
 RUNTIME_CALL = re.compile(r'\b(ConfirmAsync|ShowMessageAsync|ChooseAsync|Show|Info|Success|Warning|Error|Notify)\(')
@@ -183,9 +187,13 @@ def collect():
             continue
         for match in DESCRIPTION.finditer(path.read_text(encoding="utf-8")):
             found.add(unescape_csharp(match.group(1)))
-    for path in CORE_SHELL.glob("*.cs"):
-        for match in MARKED.finditer(path.read_text(encoding="utf-8")):
-            found.add(unescape_csharp(match.group(1)))
+    for folder in CORE_MARKED:
+        for path in folder.rglob("*.cs"):
+            if "obj" in path.parts or "bin" in path.parts:
+                continue
+            source = path.read_text(encoding="utf-8")
+            for match in list(MARKED.finditer(source)) + list(TRANSLATOR_CALL.finditer(source)):
+                found.add(unescape_csharp(match.group(1)))
     for extra in ("Cancel", "OK", "Continue"):
         found.add(extra)
     return sorted(found, key=lambda s: (s.casefold(), s))

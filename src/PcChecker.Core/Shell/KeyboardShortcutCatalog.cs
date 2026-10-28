@@ -45,6 +45,10 @@ public static class KeyboardShortcutCatalog
             new("Delete", T("Delete the selected restore point (asks first)")),
             new("Ctrl+C", T("Copy the selected restore point's details")),
         ],
+        ["crashes"] =
+        [
+            new("Ctrl+C", T("Copy the details of the selected crash")),
+        ],
         ["overlay-settings"] =
         [
             new("Ctrl+Shift+O", T("Show or hide the in-game overlay (the default key; you can change it here)")),

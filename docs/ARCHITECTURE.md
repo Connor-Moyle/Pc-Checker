@@ -46,6 +46,7 @@ Every project targets `net8.0-windows10.0.19041.0`. `EnableWindowsTargeting` is 
 | `Overclocking` | `IOverclockService`, profiles and plans, `OverclockSafetyValidator`, `OverclockPlanParser` |
 | `Power` | `IPowerService`, power snapshots and plans |
 | `History` | `IHistoryService` (background recorder), `HistoryFileStore` (one JSON Lines file per day), `HistoryLineCodec`, `HistoryRollup`, `HistoryRetention`, `HistoryEventDetector`, `HistoryCsvExporter`, `DemoHistoryGenerator` |
+| `Crashes` | `ICrashService` (blue screens, sudden shutdowns, graphics driver resets and app crashes from the event logs and dump folders, read-only), `EventXmlRecord` (language-neutral event XML), `CrashEventMapper`, `BugCheckFormat`, `StopCodeCatalog`, `ExceptionCodeCatalog`, `CrashBlameRules`, `CrashRules` (merge, timeline, counts, most crashing apps), `CrashAdvice`; `Crashes/Dumps`: `KernelDumpReader` (PAGEDU64/PAGEDUMP headers and the triage driver list), `MinidumpReader` (MDMP streams), `DumpFileReader` |
 | `Updates` | `IAppUpdateService` (single-exe self-update from GitHub Releases, SHA-256 verified) |
 | `Assistant` | `IPcAssistantService`, `AssistantContextBuilder` |
 | `Reports` | `IReportService`, `ReportBundle` |

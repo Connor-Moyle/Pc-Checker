@@ -32,6 +32,13 @@ All notable changes to PC Checker are recorded here. The format follows
   folder* and *Delete old ones* to the Recycle Bin; hints for protection off,
   no restore point in 30 days and less than 1 GB of space, and a Dashboard
   item when System Protection is off on the Windows drive.
+- **Crashes** (Monitor): blue screens, sudden shutdowns, graphics driver
+  resets and app crashes from the last 90 days on one timeline, from the
+  event logs and the memory dumps (read on any Windows language). Each crash
+  explains its stop code or error, guesses the driver that probably caused it
+  from the dump, lists first steps and links to the page that helps, with
+  *Ask Claude about this crash*. The Dashboard mentions blue screens and
+  sudden shutdowns from the last week.
 ## [0.7.0] - 2026-10-27
 
 A Missing DLLs tab that installs the official runtime packages old games need, an install-in-Program-Files option, and a final pass over the whole app: about 70 bugs found by review and fixed (fans, Task manager, drives, lighting, startup apps, cleanup, overclocking, updates, translations) plus layout fixes.

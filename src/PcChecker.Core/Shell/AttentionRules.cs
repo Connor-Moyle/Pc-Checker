@@ -67,6 +67,12 @@ public sealed record AttentionFacts
 
     /// <summary>Whether System Protection (restore points) covers the Windows drive; null when unknown.</summary>
     public bool? SystemProtectionOn { get; init; }
+
+    /// <summary>Blue screens in the last <see cref="AttentionRules.CrashDays"/> days (Crashes page); null when unknown.</summary>
+    public int? RecentBlueScreens { get; init; }
+
+    /// <summary>Sudden shutdowns or restarts in the last <see cref="AttentionRules.CrashDays"/> days; null when unknown.</summary>
+    public int? RecentSuddenShutdowns { get; init; }
 }
 
 /// <summary>
@@ -110,6 +116,9 @@ public static class AttentionRules
 
     public const int ManyHeavyStartupApps = 5;
 
+    /// <summary>Blue screens and sudden shutdowns from this many days back get an item.</summary>
+    public const int CrashDays = 7;
+
     /// <summary>All items that apply, most urgent first, at most <paramref name="max"/>.</summary>
     public static IReadOnlyList<AttentionItem> Build(AttentionFacts facts, int max = MaxItems)
     {
@@ -118,6 +127,7 @@ public static class AttentionRules
         AddUpdates(facts, items);
         AddDrive(facts, items);
         AddDeviceProblems(facts, items);
+        AddCrashes(facts, items);
         AddPawnIo(facts, items);
         AddStartup(facts, items);
         AddCheckup(facts, items);
@@ -223,6 +233,26 @@ public static class AttentionRules
         items.Add(Item("drivers.problems", AttentionLevel.Warning, 2,
             count == 1 ? T("1 device has a driver problem") : T("{0} devices have a driver problem"), [count],
             T("A device with a driver problem may not work properly."), [], T("Check drivers"), AttentionAction.OpenPage, "drivers"));
+    }
+
+    private static void AddCrashes(AttentionFacts facts, List<AttentionItem> items)
+    {
+        int blue = facts.RecentBlueScreens ?? 0;
+        int sudden = facts.RecentSuddenShutdowns ?? 0;
+        if (blue <= 0 && sudden <= 0)
+        {
+            return;
+        }
+
+        string title = blue > 0
+            ? (blue == 1 ? T("Windows had a blue screen in the last 7 days") : T("Windows had {0} blue screens in the last 7 days"))
+            : (sudden == 1 ? T("The PC shut down suddenly in the last 7 days") : T("The PC shut down suddenly {0} times in the last 7 days"));
+        string detail = blue > 0 && sudden > 0
+            ? T("There were sudden shutdowns too. The Crashes page explains each one and what to try first.")
+            : T("The Crashes page explains what happened and what to try first.");
+        items.Add(Item("crashes.recent", blue > 0 ? AttentionLevel.Critical : AttentionLevel.Warning, 2,
+            title, blue > 1 ? [blue] : blue == 0 && sudden > 1 ? [sudden] : [],
+            detail, [], T("See crashes"), AttentionAction.OpenPage, "crashes"));
     }
 
     private static void AddPawnIo(AttentionFacts facts, List<AttentionItem> items)

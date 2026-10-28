@@ -51,6 +51,10 @@ public static class HelpCatalog
             T("History shows what the PC did over the last hour, day, week or month: temperatures, load, power and free space."),
             T("Pick a time range at the top. Recording runs while PC Checker is open or in the tray; turn it off in Settings."),
             Features, "History"),
+        new("crashes",
+            T("Crashes lists blue screens, sudden shutdowns, graphics driver resets and app crashes from the last 90 days, with what each one means."),
+            T("Click a crash to read the likely cause and the first steps. This page only reads; it never changes anything."),
+            Features, "Crashes"),
 
         // Task manager
         new("processes",

@@ -16,6 +16,7 @@ public static class PageSearchKeywords
         ["power"] = T("watts energy battery power plan"),
         ["hardware"] = T("devices specs system information cpu gpu motherboard"),
         ["health"] = T("smart errors problems crashes score"),
+        ["crashes"] = T("blue screen bsod stop code bugcheck minidump crash dump freeze sudden shutdown restart app crash hang driver reset tdr"),
         ["storage"] = T("disk drive ssd hdd benchmark chkdsk trim"),
         ["memory"] = T("ram xmp expo page file"),
         ["battery"] = T("laptop wear cycles capacity battery report charge"),
