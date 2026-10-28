@@ -20,6 +20,30 @@ public interface ICrashService
     /// <summary>Reads the last <see cref="CrashRules.WindowDays"/> days, newest first. Runs off the UI thread.</summary>
     Task<CrashReport> ScanAsync(IProgress<ProgressUpdate>? progress, CancellationToken cancellationToken);
 
-    /// <summary>A quick count of blue screens and sudden shutdowns in the last <see cref="CrashRules.AttentionDays"/> days, for the Dashboard.</summary>
+    /// <summary>
+    /// A quick count of blue screens and sudden shutdowns in the last <see cref="CrashRules.AttentionDays"/> days, for the
+    /// Dashboard. Crashes marked as solved on the Crashes page are left out.
+    /// </summary>
     Task<CrashGlance> GetGlanceAsync(CancellationToken cancellationToken);
+
+    /// <summary>
+    /// What happened around the crashes: PC Checker's History samples in the minutes before each one, the Action
+    /// Journal and the Windows Update history. Read-only, off the UI thread; a source that cannot be read is left empty.
+    /// </summary>
+    Task<CrashContextData> LoadContextAsync(IReadOnlyList<CrashEvent> crashes, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Looks up a driver a crash is blamed on (for example nvlddmkm.sys): its file, maker, signer, version, date and the
+    /// device it runs. Null when the file cannot be found. Read-only.
+    /// </summary>
+    Task<CrashDriverDetails?> InspectDriverAsync(string module, CancellationToken cancellationToken);
+}
+
+/// <summary>The data <see cref="ICrashService.LoadContextAsync"/> returns.</summary>
+public sealed record CrashContextData(
+    IReadOnlyList<History.HistorySample> Samples,
+    IReadOnlyList<Logging.ActionRecord> Journal,
+    IReadOnlyList<UpdateInstallRecord> Updates)
+{
+    public static CrashContextData Empty { get; } = new([], [], []);
 }

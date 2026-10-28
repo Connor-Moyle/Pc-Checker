@@ -39,6 +39,20 @@ All notable changes to PC Checker are recorded here. The format follows
   from the dump, lists first steps and links to the page that helps, with
   *Ask Claude about this crash*. The Dashboard mentions blue screens and
   sudden shutdowns from the last week.
+- **Crashes** deep-dive: a crash summary card with the most likely cause and
+  the fix to try first; 140 stop codes with likely causes and ordered fixes;
+  stop-code parameters decoded in plain words (0x0A/0xD1, 0x50, 48 sub-codes
+  of 0x1A, 0x124 machine checks with the WHEA-Logger record and CPU core,
+  0x9F, 0x133, 0x119, 0x139, 0x3B and more) and Kernel-Power 41 details; the
+  blamed driver's maker, version, device and newer version; about 120 faulting
+  files of app crashes (graphics drivers, runtimes, overlays, anti-cheats,
+  mods) and 34 exception codes; per-app history; patterns across crashes
+  (same driver, after a driver install, a Windows update or a PC Checker
+  overclock, under load, at wake); temperatures, load, WHEA and disk errors
+  before each crash; ranked fix buttons (update or roll back the driver, reset
+  the overclock, Windows Memory Diagnostic, *Repair Windows files* with live
+  DISM and sfc progress, disk check, runtimes, .NET, verify game files,
+  overlays); a full copyable report for Ask Claude; and *Mark as solved*.
 - **App history** (Task manager): processor time, network and metered data,
   and disk read and written per app for today, the last 7 or 30 days or since
   a date, like Task Manager's App history. Reads Windows' own usage records

@@ -60,6 +60,7 @@ public sealed partial class DriversViewModel
         var progress = new Progress<ProgressUpdate>(p => BusyText = p.Stage + (p.Detail is null ? string.Empty : " — " + p.Detail));
         var result = await _sources.SearchAsync(_allDrivers.Select(r => r.Driver).ToList(), progress, ct);
         ApplySearchResult(result);
+        _searchCache?.Set(result);
 
         // The chipset and catalog sources asked the makers during the search; the card shows the same answers.
         await LoadPlatformAsync(online: true, force: false, ct);

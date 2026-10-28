@@ -14,15 +14,38 @@ using PcChecker.App.Views.Pages;
 using PcChecker.Core.Assistant;
 using PcChecker.Core.Common;
 using PcChecker.Core.Crashes;
+using PcChecker.Core.Drivers;
+using PcChecker.Core.Drivers.Sources;
+using PcChecker.Core.GameRuntimes;
+using PcChecker.Core.Games;
+using PcChecker.Core.Logging;
+using PcChecker.Core.Optimization;
+using PcChecker.Core.Overclocking;
 using PcChecker.Core.Settings;
+using PcChecker.Core.Storage;
 using Wpf.Ui;
 
 namespace PcChecker.App.ViewModels;
 
+/// <summary>The services the Crashes page's fix buttons use (grouped to keep the constructor readable).</summary>
+public sealed record CrashFixServices(
+    IDialogService Dialogs,
+    IOverclockService Overclock,
+    IOptimizationService Optimization,
+    IStorageToolsService Storage,
+    IDriverService Drivers,
+    IGameLibraryService Games,
+    IActionJournal Journal,
+    GameFolderScanHandOff GameScans,
+    RuntimeFamilyHandOff Runtimes,
+    DriverFocusHandOff DriverFocus,
+    DriverSearchCache DriverSearch);
+
 /// <summary>
 /// Crashes page: blue screens, sudden shutdowns, graphics driver resets and app crashes from the last 90 days as a
-/// timeline grouped by day, with a details pane (what it means, probably caused by, first steps, related pages) and the
-/// most crashing apps. Read-only: it opens Windows tools and other pages but never changes the PC.
+/// timeline grouped by day, a crash summary card, and a details pane that explains each crash (what happened, what the
+/// stop-code details say, what probably caused it, patterns across crashes, what happened before it) with ranked fix
+/// buttons. Reading is automatic; every fix that changes the PC asks first and is journaled.
 /// </summary>
 public sealed partial class CrashesViewModel : ViewModelBase
 {
@@ -30,6 +53,7 @@ public sealed partial class CrashesViewModel : ViewModelBase
     private readonly IPcAssistantService _assistant;
     private readonly INavigationService _navigation;
     private readonly INotificationService _notifications;
+    private readonly CrashFixServices _fix;
     private readonly ILogger<CrashesViewModel> _logger;
     private readonly List<CrashRow> _allRows = [];
     private CrashReport? _report;
@@ -59,12 +83,15 @@ public sealed partial class CrashesViewModel : ViewModelBase
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasSelection))]
     [NotifyPropertyChangedFor(nameof(HasNoSelection))]
-    [NotifyPropertyChangedFor(nameof(Details))]
     [NotifyCanExecuteChangedFor(nameof(CopyDetailsCommand))]
     [NotifyCanExecuteChangedFor(nameof(AskClaudeCommand))]
     [NotifyCanExecuteChangedFor(nameof(OpenEventViewerCommand))]
     [NotifyCanExecuteChangedFor(nameof(SearchOnlineCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ToggleSolvedCommand))]
     private CrashRow? _selectedRow;
+
+    [ObservableProperty]
+    private CrashDetails? _details;
 
     [ObservableProperty] private CrashFilterOption _selectedKind;
     [ObservableProperty] private CrashFilterOption _selectedRange;
@@ -83,13 +110,14 @@ public sealed partial class CrashesViewModel : ViewModelBase
     private string? _wheaText;
 
     public CrashesViewModel(ISettingsService settings, ICrashService crashes, IPcAssistantService assistant, INavigationService navigation,
-        INotificationService notifications, ILogger<CrashesViewModel> logger)
+        INotificationService notifications, CrashFixServices fix, ILogger<CrashesViewModel> logger)
         : base(settings)
     {
         _crashes = crashes;
         _assistant = assistant;
         _navigation = navigation;
         _notifications = notifications;
+        _fix = fix;
         _logger = logger;
         KindOptions =
         [
@@ -109,6 +137,7 @@ public sealed partial class CrashesViewModel : ViewModelBase
         _selectedRange = RangeOptions[^1];
         RowsView = CollectionViewSource.GetDefaultView(Rows);
         RowsView.GroupDescriptions.Add(new PropertyGroupDescription(nameof(CrashRow.DayText)));
+        _fix.DriverSearch.Changed += (_, _) => DispatcherHelper.PostToUi(RefreshDriverOffers);
     }
 
     public ObservableCollection<CrashRow> Rows { get; } = [];
@@ -142,9 +171,6 @@ public sealed partial class CrashesViewModel : ViewModelBase
 
     public string AppFilterText => HasAppFilter ? Loc.F("Showing only {0}", AppFilter!) : string.Empty;
 
-    /// <summary>The details pane for the selected crash.</summary>
-    public CrashDetails? Details => SelectedRow is { } row ? new CrashDetails(row) : null;
-
     /// <summary>Scans straight away in both modes: it only reads the event logs and dump headers.</summary>
     public override Task InitializeAsync(CancellationToken cancellationToken) => RunScanAsync(cancellationToken);
 
@@ -160,15 +186,25 @@ public sealed partial class CrashesViewModel : ViewModelBase
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(busyToken, outer);
         var progress = new Progress<ProgressUpdate>(p => BusyText = Loc.T(p.Stage));
         var report = await _crashes.ScanAsync(progress, linked.Token);
-        Apply(report);
+        var tr = Loc.Current;
+        var built = await Task.Run(() => report.Events
+            .Select(e => (Crash: e, Advice: CrashAdvice.For(e, report.OverclockApplied, tr), Insight: CrashInsightBuilder.Build(e, report.OverclockApplied, allEvents: report.Events, tr: tr)))
+            .ToList(), linked.Token);
+        Apply(report, built);
+        _ = LoadInsightsAsync(report);
     }, Loc.T("Reading crash reports…"));
 
-    private void Apply(CrashReport report)
+    private void Apply(CrashReport report, IReadOnlyList<(CrashEvent Crash, CrashAdviceText Advice, CrashInsight Insight)> built)
     {
         _report = report;
         var selectedId = SelectedRow?.Crash.Id;
+        var solved = SolvedIds();
         _allRows.Clear();
-        _allRows.AddRange(report.Events.Select(e => new CrashRow(e, CrashAdvice.For(e, report.OverclockApplied, Loc.Current))));
+        _driverDetails.Clear();
+        foreach (var (e, advice, insight) in built)
+        {
+            _allRows.Add(new CrashRow(e, advice, insight) { IsSolved = solved.Contains(e.Id) });
+        }
 
         var summary = CrashRules.Summarize(report.Events, DateTimeOffset.Now);
         BlueScreensText = summary.BlueScreens.ToString(CultureInfo.CurrentCulture);
@@ -192,6 +228,7 @@ public sealed partial class CrashesViewModel : ViewModelBase
         Subtitle = TotalCount == 0
             ? Loc.T("No crashes in the last 90 days.")
             : Loc.F("Checked {0}. Newest first; click one to see what it means.", report.Captured.ToLocalTime().ToString("t", CultureInfo.CurrentCulture));
+        UpdateSummaryCard();
         ApplyFilter(selectedId);
     }
 
@@ -200,6 +237,15 @@ public sealed partial class CrashesViewModel : ViewModelBase
     partial void OnSelectedRangeChanged(CrashFilterOption value) => ApplyFilter(SelectedRow?.Crash.Id);
 
     partial void OnAppFilterChanged(string? value) => ApplyFilter(SelectedRow?.Crash.Id);
+
+    partial void OnSelectedRowChanged(CrashRow? value)
+    {
+        RefreshDetails();
+        if (value is not null)
+        {
+            _ = InspectDriverAsync(value);
+        }
+    }
 
     private void ApplyFilter(string? keepSelectedId)
     {
@@ -215,6 +261,19 @@ public sealed partial class CrashesViewModel : ViewModelBase
 
         VisibleCount = Rows.Count;
         SelectedRow = Rows.FirstOrDefault(r => r.Crash.Id == keepSelectedId) ?? Rows.FirstOrDefault();
+    }
+
+    /// <summary>Rebuilds the details pane for the selected crash (after its insight changed).</summary>
+    private void RefreshDetails()
+    {
+        if (SelectedRow is not { } row)
+        {
+            Details = null;
+            return;
+        }
+
+        var fixes = row.Insight.Fixes.Select((f, i) => new CrashFixRow(f, row, i + 1)).ToList();
+        Details = new CrashDetails(row, fixes);
     }
 
     [RelayCommand]
@@ -310,8 +369,8 @@ public sealed partial class CrashesViewModel : ViewModelBase
 
         try
         {
-            Clipboard.SetText(CrashAdvice.DetailsText(row.Crash, row.Advice));
-            _notifications.Success(Loc.T("Copied"), Loc.T("The crash details were copied. Paste them into a support request or forum post."));
+            Clipboard.SetText(CrashReportText.Build(row.Insight));
+            _notifications.Success(Loc.T("Copied"), Loc.T("The full crash report was copied. Paste it into a support request or forum post."));
         }
         catch (Exception ex)
         {
@@ -328,7 +387,7 @@ public sealed partial class CrashesViewModel : ViewModelBase
             return;
         }
 
-        AssistantPrompt.Set(CrashAdvice.AskPrompt(row.Crash, row.Advice));
+        AssistantPrompt.Set(CrashReportText.AskPrompt(row.Insight));
         bool configured;
         try
         {
@@ -364,21 +423,23 @@ public sealed partial class CrashesViewModel : ViewModelBase
             CrashKind.AppCrash or CrashKind.AppHang => $"{crash.AppName} crash {(crash.ExceptionCode is { } ex ? BugCheckFormat.Exception(ex) : string.Empty)} {crash.ModuleName}".Trim(),
             _ => "Kernel-Power 41 unexpected shutdown",
         };
-        var result = ShellLauncher.Open("https://www.bing.com/search?q=" + Uri.EscapeDataString(query));
-        if (!result.Success)
-        {
-            _notifications.Warning(Loc.T("Could not open"), result.Message);
-        }
+        OpenUrl("https://www.bing.com/search?q=" + Uri.EscapeDataString(query));
     }
 
     [RelayCommand]
     private void OpenDocs()
     {
-        if (Details?.DocsUrl is not { } url)
+        if (Details?.DocsUrl is { } url)
         {
-            return;
+            OpenUrl(url);
         }
+    }
 
+    [RelayCommand]
+    private void OpenMemTest() => OpenUrl("https://www.memtest86.com/");
+
+    private void OpenUrl(string url)
+    {
         var result = ShellLauncher.Open(url);
         if (!result.Success)
         {
@@ -403,105 +464,4 @@ public sealed partial class CrashesViewModel : ViewModelBase
             _notifications.Warning(Loc.T("Could not open"), Loc.F("{0} could not be opened: {1}", what, ex.Message));
         }
     }
-}
-
-/// <summary>What the details pane shows for one crash.</summary>
-public sealed class CrashDetails
-{
-    public CrashDetails(CrashRow row)
-    {
-        var crash = row.Crash;
-        var advice = row.Advice;
-        Title = advice.Title;
-        WhenText = crash.Time.ToLocalTime().ToString("F", CultureInfo.CurrentCulture);
-        Source = Loc.T(crash.Source);
-        Explanation = advice.Explanation;
-        LikelyCause = advice.LikelyCause;
-        Steps = advice.Steps;
-        Pages = advice.Pages;
-        DocsUrl = advice.DocsUrl;
-        HasDump = crash.DumpPath is not null;
-        IsBestGuess = crash.Blame is not null;
-
-        var facts = new List<string>();
-        if (crash.BugCheckCode is { } code)
-        {
-            facts.Add(Loc.F("Stop code: {0}", BugCheckFormat.WithParameters(code, crash.Parameters)));
-        }
-
-        if (crash.Blame is { } blame)
-        {
-            facts.Add(Loc.F("Probably caused by: {0}", blame.Module));
-        }
-
-        if (crash.Driver is { Length: > 0 } driver)
-        {
-            facts.Add(Loc.F("Driver: {0}", driver));
-        }
-
-        if (crash.AppName is { Length: > 0 })
-        {
-            facts.Add(Loc.F("Program: {0} {1}", crash.AppName, crash.AppVersion ?? string.Empty).TrimEnd());
-        }
-
-        if (crash.AppPath is { Length: > 0 } path)
-        {
-            facts.Add(Loc.F("Path: {0}", path));
-        }
-
-        if (crash.ModuleName is { Length: > 0 } module)
-        {
-            facts.Add(Loc.F("Faulting file: {0} {1}", module, crash.ModuleVersion ?? string.Empty).TrimEnd());
-        }
-
-        if (crash.ExceptionCode is { } ex)
-        {
-            facts.Add(Loc.F("Exception: {0}", ExceptionCodeCatalog.Describe(ex, Loc.Current)));
-        }
-
-        if (crash.OsBuild is { } build)
-        {
-            facts.Add(Loc.F("Windows build: {0}", build));
-        }
-
-        if (crash.DumpPath is { Length: > 0 } dump)
-        {
-            facts.Add(Loc.F("Dump file: {0}", dump));
-        }
-
-        if (crash.Modules.Count > 0)
-        {
-            facts.Add(Loc.F("Drivers loaded at the time: {0}", crash.Modules.Count));
-        }
-
-        Facts = facts;
-    }
-
-    public string Title { get; }
-
-    public string WhenText { get; }
-
-    public string Source { get; }
-
-    public string Explanation { get; }
-
-    public string? LikelyCause { get; }
-
-    public bool HasLikelyCause => !string.IsNullOrWhiteSpace(LikelyCause);
-
-    public bool IsBestGuess { get; }
-
-    public IReadOnlyList<string> Steps { get; }
-
-    public IReadOnlyList<CrashLink> Pages { get; }
-
-    public bool HasPages => Pages.Count > 0;
-
-    public string? DocsUrl { get; }
-
-    public bool HasDocs => DocsUrl is not null;
-
-    public bool HasDump { get; }
-
-    public IReadOnlyList<string> Facts { get; }
 }

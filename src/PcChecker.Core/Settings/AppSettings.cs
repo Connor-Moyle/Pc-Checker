@@ -38,6 +38,7 @@ public sealed class AppSettings
     public HistorySettings History { get; set; } = new();
     public DriverSourceSettings DriverSources { get; set; } = new();
     public global::PcChecker.Core.Processes.ProcessesSettings Processes { get; set; } = new();
+    public global::PcChecker.Core.Crashes.CrashSettings Crashes { get; set; } = new();
 
     /// <summary>Returns a fresh instance with every value at its default.</summary>
     public static AppSettings CreateDefault() => new();

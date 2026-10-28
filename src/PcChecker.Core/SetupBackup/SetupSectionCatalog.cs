@@ -20,7 +20,7 @@ public static class SetupSectionCatalog
                 nameof(AppSettings.Monitoring), nameof(AppSettings.Logging), nameof(AppSettings.Claude),
                 nameof(AppSettings.Cleanup), nameof(AppSettings.Network), nameof(AppSettings.Latency),
                 nameof(AppSettings.Startup), nameof(AppSettings.History), nameof(AppSettings.DriverSources),
-                nameof(AppSettings.Processes),
+                nameof(AppSettings.Processes), nameof(AppSettings.Crashes),
             ]),
         new(SetupSectionIds.Fans, "Fans", "Fan profiles and curves, the lowest speed and start-up options.", [nameof(AppSettings.Fans)]),
         new(SetupSectionIds.Lighting, "Lighting", "Lighting profiles and the OpenRGB connection.", [nameof(AppSettings.Lighting)]),
@@ -75,6 +75,9 @@ public static class SetupMachineFields
 
         // Commands typed into "Run new task" can hold passwords, tokens or private paths typed as options.
         "Processes.RecentRunCommands",
+
+        // Solved crashes are named by this PC's event record ids.
+        "Crashes.SolvedIds",
     ];
 
     /// <summary>The machine-only field names inside the settings property <paramref name="property"/>.</summary>

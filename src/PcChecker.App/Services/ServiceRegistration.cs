@@ -153,6 +153,8 @@ public static class ServiceRegistration
         Add<IGameRuntimeService, WindowsGameRuntimeService, DemoGameRuntimeService>(services, demo);
         Add<IGameLibraryService, WindowsGameLibraryService, DemoGameLibraryService>(services, demo);
         services.AddSingleton<GameFolderScanHandOff>().AddSingleton<GameProfileHandOff>();
+        services.AddSingleton<DriverFocusHandOff>().AddSingleton<PcChecker.Core.GameRuntimes.RuntimeFamilyHandOff>().AddSingleton<DriverSearchCache>();
+        services.AddTransient<CrashFixServices>();
         Add<INetworkTuningService, WindowsNetworkTuningService, DemoNetworkTuningService>(services, demo);
         Add<INetworkService, WindowsNetworkService, DemoNetworkService>(services, demo);
         Add<IStartupService, WindowsStartupService, DemoStartupService>(services, demo);

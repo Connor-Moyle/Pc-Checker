@@ -92,6 +92,7 @@ public static class CrashEventMapper
 
         bool held = BugCheckFormat.ParseNumber(r.Get("PowerButtonTimestamp"), decimalWithoutPrefix: true) is > 0
             || string.Equals(r.Get("LongPowerButtonPressDetected"), "true", StringComparison.OrdinalIgnoreCase);
+        var details = KernelPowerRules.Parse(r);
         return new CrashEvent
         {
             Id = MakeId("kp41", r),
@@ -103,6 +104,7 @@ public static class CrashEventMapper
             BugCheckCode = code != 0 ? (uint)(code & 0xFFFFFFFF) : null,
             Parameters = parameters,
             PowerButtonHeld = held,
+            Power = details,
         };
     }
 
@@ -161,6 +163,7 @@ public static class CrashEventMapper
             ExceptionCode = BugCheckFormat.ParseNumber(r.Field("ExceptionCode", 6)) is { } ex ? (uint)(ex & 0xFFFFFFFF) : null,
             FaultOffset = r.Field("FaultingOffset", 7),
             AppPath = r.Field("AppPath", 10),
+            ModulePath = r.Field("ModulePath", 11),
             ReportId = r.Field("IntegratorReportId", 12) ?? r.Get("ReportId"),
         };
     }
@@ -187,6 +190,93 @@ public static class CrashEventMapper
             AppPath = r.Field("AppPath", 5),
             ReportId = r.Field("ReportID", 6),
         };
+    }
+
+    public const string WheaProvider = "Microsoft-Windows-WHEA-Logger";
+    public const string KernelGeneralProvider = "Microsoft-Windows-Kernel-General";
+    public const string PowerTroubleshooterProvider = "Microsoft-Windows-Power-Troubleshooter";
+    public const string ServiceControlManagerProvider = "Service Control Manager";
+
+    private static readonly string[] DiskProviders = ["disk", "Ntfs", "Microsoft-Windows-Ntfs", "storahci", "stornvme", "storport"];
+
+    /// <summary>
+    /// The System-log filter for the events around crashes: WHEA errors, disk and file-system errors, sleep and wake,
+    /// Windows starts and new kernel driver services, <paramref name="days"/> back from now.
+    /// </summary>
+    /// <summary>
+    /// The context events except corrected WHEA errors (fatal WHEA, disk, wake, boot, driver installs). Corrected WHEA
+    /// errors can number thousands on an unstable PC, so they are read by <see cref="CorrectedWheaQuery"/> with their own
+    /// limit and cannot crowd the rest out.
+    /// </summary>
+    public static string ContextQuery(int days) =>
+        $"*[System[(" +
+        $"(Provider[@Name='{WheaProvider}'] and (EventID=18 or EventID=20)) or " +
+        $"(Provider[@Name='disk'] and (EventID=7 or EventID=11 or EventID=51 or EventID=153)) or " +
+        $"(Provider[@Name='Ntfs' or @Name='Microsoft-Windows-Ntfs'] and EventID=55) or " +
+        $"(Provider[@Name='{KernelPowerProvider}'] and (EventID=42 or EventID=107)) or " +
+        $"(Provider[@Name='{PowerTroubleshooterProvider}'] and EventID=1) or " +
+        $"(Provider[@Name='{KernelGeneralProvider}'] and EventID=12) or " +
+        $"(Provider[@Name='{ServiceControlManagerProvider}'] and EventID=7045)" +
+        $") and TimeCreated[timediff(@SystemTime) <= {WindowMs(days)}]]]";
+
+    /// <summary>Corrected WHEA errors (17 PCI Express, 19 processor, 47 memory), read separately from <see cref="ContextQuery"/>.</summary>
+    public static string CorrectedWheaQuery(int days) =>
+        $"*[System[Provider[@Name='{WheaProvider}'] and (EventID=17 or EventID=19 or EventID=47) and TimeCreated[timediff(@SystemTime) <= {WindowMs(days)}]]]";
+
+    /// <summary>The context event this record is, or null for anything else (including 7045 for a non-driver service).</summary>
+    public static CrashSystemEvent? MapSystemEvent(EventXmlRecord r)
+    {
+        ArgumentNullException.ThrowIfNull(r);
+        if (r.Provider == WheaProvider)
+        {
+            var whea = WheaRecord.FromEvent(r);
+            if (whea is null)
+            {
+                return null;
+            }
+
+            return new CrashSystemEvent(r.Time, whea.Fatal ? CrashSystemEventKind.WheaFatal : CrashSystemEventKind.WheaCorrected) { Whea = whea, EventId = r.EventId };
+        }
+
+        if (DiskProviders.Contains(r.Provider, StringComparer.OrdinalIgnoreCase) && r.EventId is 7 or 11 or 51 or 55 or 153)
+        {
+            // The first value is the device ("\Device\Harddisk1\DR1") or the volume for Ntfs; never the message.
+            var device = r.Get("DeviceName", "DriveName") ?? r.At(0);
+            return new CrashSystemEvent(r.Time, CrashSystemEventKind.DiskError, device) { EventId = r.EventId };
+        }
+
+        return (r.Provider, r.EventId) switch
+        {
+            (KernelPowerProvider, 42) => new CrashSystemEvent(r.Time, CrashSystemEventKind.Sleep) { EventId = 42 },
+            (KernelPowerProvider, 107) => new CrashSystemEvent(r.Time, CrashSystemEventKind.Wake) { EventId = 107 },
+            (PowerTroubleshooterProvider, 1) => new CrashSystemEvent(r.Time, CrashSystemEventKind.Wake) { EventId = 1 },
+            (KernelGeneralProvider, 12) => new CrashSystemEvent(r.Time, CrashSystemEventKind.Boot) { EventId = 12 },
+            (ServiceControlManagerProvider, 7045) => FromServiceInstall(r),
+            _ => null,
+        };
+    }
+
+    /// <summary>System 7045: a new service; kept only when its file is a driver (.sys). Detail = the file name.</summary>
+    private static CrashSystemEvent? FromServiceInstall(EventXmlRecord r)
+    {
+        var image = r.Get("ImagePath") ?? r.At(1);
+        if (string.IsNullOrWhiteSpace(image))
+        {
+            return null;
+        }
+
+        var file = image.Trim().Trim('"');
+        int slash = file.LastIndexOfAny(['\\', '/']);
+        file = slash >= 0 ? file[(slash + 1)..] : file;
+        int space = file.IndexOf(' ');
+        if (space > 0)
+        {
+            file = file[..space];
+        }
+
+        return file.EndsWith(".sys", StringComparison.OrdinalIgnoreCase)
+            ? new CrashSystemEvent(r.Time, CrashSystemEventKind.DriverInstalled, file) { EventId = 7045 }
+            : null;
     }
 
     private static string MakeId(string prefix, EventXmlRecord r) =>
