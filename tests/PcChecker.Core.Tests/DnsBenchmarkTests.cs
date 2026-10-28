@@ -285,6 +285,8 @@ public class DnsRecommendationTests
         var advice = DnsRecommendationRules.Recommend([R("192.168.1.1", 12, 40, current: true, router: true), R("1.1.1.1", 10, 36)]);
         Assert.Equal(DnsAdviceKind.KeepCurrent, advice.Kind);
         Assert.True(advice.SavingMs < DnsRecommendationRules.MinSavingMs);
+        Assert.Equal("1.1.1.1", advice.Best!.Target.Address); // the fastest tested is still shown
+        Assert.True(advice.Current!.Target.IsCurrent);
 
         var same = DnsRecommendationRules.Recommend([R("1.1.1.1", 10, current: true), R("1.0.0.1", 9)]);
         Assert.Equal(DnsAdviceKind.KeepCurrent, same.Kind);
@@ -446,7 +448,7 @@ public class DnsSettingsCaptureTests
     [Fact]
     public void Captures_survive_a_save_and_bad_files_are_ignored()
     {
-        var adapter = DnsSettingsCapture.FromAdapter(Adapter("{A}", "1.1.1.1,1.0.0.1", "")) with { DohFlags = new Dictionary<string, long?> { ["1.1.1.1"] = 1 } };
+        var adapter = DnsSettingsCapture.FromAdapter(Adapter("{6F1A2B3C-4D5E-4F60-8A9B-0C1D2E3F4A5B}", "1.1.1.1,1.0.0.1", "")) with { DohFlags = new Dictionary<string, long?> { ["1.1.1.1"] = 1 } };
         var previous = new DnsPreviousSettings(new DateTimeOffset(2026, 10, 28, 9, 30, 0, TimeSpan.Zero), "Google Public DNS", [adapter], [new DohServerCapture("8.8.8.8", false, null, false, true)]);
 
         var back = DnsSettingsCapture.Deserialize(DnsSettingsCapture.Serialize(previous));
@@ -462,6 +464,14 @@ public class DnsSettingsCaptureTests
         Assert.Null(DnsSettingsCapture.Deserialize("{ not json"));
         Assert.Null(DnsSettingsCapture.Deserialize("{\"Adapters\":[]}"));
         Assert.Null(DnsSettingsCapture.Deserialize("[1,2]"));
+
+        // A tampered file must not reach the elevated PowerShell: every value is checked for its shape.
+        Assert.Null(DnsSettingsCapture.Deserialize(DnsSettingsCapture.Serialize(previous with { Adapters = [adapter with { InterfaceId = "{A}" }] })));
+        Assert.Null(DnsSettingsCapture.Deserialize(DnsSettingsCapture.Serialize(previous with { Adapters = [adapter with { NameServer = "1.1.1.1,\u2019; Remove-Item C:\\ -Recurse; \u2019" }] })));
+        Assert.Null(DnsSettingsCapture.Deserialize(DnsSettingsCapture.Serialize(previous with { Adapters = [adapter with { NameServer6 = "evil" }] })));
+        Assert.Null(DnsSettingsCapture.Deserialize(DnsSettingsCapture.Serialize(previous with { DohServers = [new DohServerCapture("1.1.1.1", true, "http://example.com/dns-query", true, true)] })));
+        Assert.Null(DnsSettingsCapture.Deserialize(DnsSettingsCapture.Serialize(previous with { DohServers = [new DohServerCapture("1.1.1.1", true, "https://a.example/\u2018x", true, true)] })));
+        Assert.NotNull(DnsSettingsCapture.Deserialize(DnsSettingsCapture.Serialize(previous with { DohServers = [new DohServerCapture("1.1.1.1", true, "https://cloudflare-dns.com/dns-query", true, true)] })));
 
         string path = Path.Combine(Path.GetTempPath(), "pcc-dns-" + Guid.NewGuid().ToString("N"), DnsSettingsCapture.FileName);
         DnsSettingsCapture.Write(path, previous);

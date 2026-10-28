@@ -118,7 +118,11 @@ public static class DnsSettingsCapture
 
     public static string Serialize(DnsPreviousSettings previous) => JsonSerializer.Serialize(previous, JsonOptions);
 
-    /// <summary>Reads a saved capture; null for empty, malformed or unusable text (never throws).</summary>
+    /// <summary>
+    /// Reads a saved capture; null for empty, malformed or unusable text (never throws). The file lives in a folder the
+    /// user can write to and its values reach an elevated PowerShell and registry paths, so a capture is only accepted
+    /// when every adapter id is a GUID, every server is an IP address and every template is a plain https URL.
+    /// </summary>
     public static DnsPreviousSettings? Deserialize(string? json)
     {
         if (string.IsNullOrWhiteSpace(json))
@@ -134,7 +138,7 @@ public static class DnsSettingsCapture
                 return null;
             }
 
-            return value with
+            var result = value with
             {
                 ChangeLabel = value.ChangeLabel ?? string.Empty,
                 DohServers = value.DohServers ?? [],
@@ -145,6 +149,7 @@ public static class DnsSettingsCapture
                     DohFlags = a.DohFlags ?? new Dictionary<string, long?>(),
                 }).ToList(),
             };
+            return IsSafe(result) ? result : null;
         }
         catch (JsonException)
         {
@@ -190,6 +195,41 @@ public static class DnsSettingsCapture
         File.WriteAllText(temp, Serialize(previous));
         File.Move(temp, path, overwrite: true);
     }
+
+    /// <summary>True when every value that reaches PowerShell or a registry path has the expected shape.</summary>
+    public static bool IsSafe(DnsPreviousSettings previous)
+    {
+        ArgumentNullException.ThrowIfNull(previous);
+        foreach (var adapter in previous.Adapters)
+        {
+            if (adapter is null || !Guid.TryParse(adapter.InterfaceId?.Trim(), out _)
+                || !AllServers(adapter.NameServer) || (adapter.NameServer6 is not null && !AllServers(adapter.NameServer6))
+                || adapter.DohFlags.Keys.Any(k => !DnsResolverCatalog.IsServerAddress(k)))
+            {
+                return false;
+            }
+        }
+
+        foreach (var server in previous.DohServers)
+        {
+            if (server is null || !DnsResolverCatalog.IsServerAddress(server.Server) || (server.Template is not null && !IsTemplate(server.Template)))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>An https URL without spaces, quotes or other characters PowerShell could read as the end of a string.</summary>
+    public static bool IsTemplate(string? template) =>
+        !string.IsNullOrEmpty(template)
+        && template.All(c => c > ' ' && c < 0x7F && c is not ('\'' or '"' or '`' or '$' or ';'))
+        && Uri.TryCreate(template, UriKind.Absolute, out var uri)
+        && uri.Scheme == Uri.UriSchemeHttps;
+
+    private static bool AllServers(string? nameServer) =>
+        DnsCommands.Split(nameServer).All(DnsResolverCatalog.IsServerAddress);
 
     private static string Bool(bool value) => value ? "$true" : "$false";
 }

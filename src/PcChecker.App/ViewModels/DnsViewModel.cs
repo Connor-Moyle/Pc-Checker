@@ -248,14 +248,15 @@ public sealed partial class DnsViewModel : ViewModelBase
 
             case DnsAdviceKind.KeepCurrent:
                 RecommendationTitle = Loc.T("Your DNS is already fast");
-                RecommendationText = advice.SavingMs is { } small && small > 0
-                    ? Loc.F("Your DNS answers in {0}. The fastest server tested would save only {1} per lookup, which you would not notice. No change needed.", DnsText.Ms(current!.Cached.MedianMs), DnsText.Ms(small))
-                    : Loc.F("{0} was the fastest reliable server tested, at {1} per lookup. No change needed.", NameOf(best!), DnsText.Ms(best!.Cached.MedianMs));
+                RecommendationText = current is not null && best is not null && !DnsRecommendationRules.IsSameService(best, current)
+                    ? Loc.F("Your DNS typically answers in {0} ({1} for new sites). The fastest server tested, {2}, took {3} ({4} for new sites). You would not notice the difference, so no change is needed.",
+                        DnsText.Ms(current.Cached.MedianMs), DnsText.Ms(current.Uncached.MedianMs), NameOf(best), DnsText.Ms(best.Cached.MedianMs), DnsText.Ms(best.Uncached.MedianMs))
+                    : Loc.F("{0} was the fastest reliable server tested, typically {1} per lookup. No change needed.", NameOf(best!), DnsText.Ms(best!.Cached.MedianMs));
                 break;
 
             case DnsAdviceKind.UseAutomatic:
                 RecommendationTitle = Loc.T("Go back to automatic DNS");
-                RecommendationText = Loc.F("Your router's DNS answered in {0}, faster than the servers set by hand ({1}). Going back to automatic uses it.",
+                RecommendationText = Loc.F("Your router's DNS typically answered in {0}, faster than the servers set by hand ({1}). Going back to automatic uses it.",
                     DnsText.Ms(best!.Cached.MedianMs), DnsText.Ms(current?.Cached.MedianMs));
                 ApplyRecommendationText = Loc.T("Reset to automatic");
                 break;
@@ -263,12 +264,12 @@ public sealed partial class DnsViewModel : ViewModelBase
             default:
                 RecommendationTitle = Loc.F("Switch to {0}", NameOf(best!));
                 RecommendationText = advice.CurrentUnreliable && current is not null
-                    ? Loc.F("Your DNS missed {0} % of lookups, which shows up as pages that sometimes do not load. {1} answered every one in {2} on average.",
-                        Math.Round((1 - current.Reliability) * 100), NameOf(best!), DnsText.Ms(best!.Cached.MedianMs))
+                    ? Loc.F("Your DNS missed {0} % of lookups, which shows up as pages that sometimes do not load. {1} answered {2} % of them, typically in {3}.",
+                        Math.Round((1 - current.Reliability) * 100), NameOf(best!), Math.Round(best!.Reliability * 100), DnsText.Ms(best.Cached.MedianMs))
                     : current is null
-                        ? Loc.F("{0} was the fastest reliable server tested, at {1} per lookup.", NameOf(best!), DnsText.Ms(best!.Cached.MedianMs))
-                        : Loc.F("{0} answered in {1} on average, {2} faster than your DNS ({3}). Websites and games start connecting a little sooner.",
-                            NameOf(best!), DnsText.Ms(best!.Cached.MedianMs), DnsText.Ms(advice.SavingMs), DnsText.Ms(current.Cached.MedianMs));
+                        ? Loc.F("{0} was the fastest reliable server tested, typically {1} per lookup.", NameOf(best!), DnsText.Ms(best!.Cached.MedianMs))
+                        : Loc.F("{0} typically answered in {1} ({2} for new sites), against {3} ({4} for new sites) for your DNS. Websites and games start connecting a little sooner.",
+                            NameOf(best!), DnsText.Ms(best!.Cached.MedianMs), DnsText.Ms(best.Uncached.MedianMs), DnsText.Ms(current.Cached.MedianMs), DnsText.Ms(current.Uncached.MedianMs));
                 ApplyRecommendationText = Loc.F("Use {0}", NameOf(best!));
                 break;
         }

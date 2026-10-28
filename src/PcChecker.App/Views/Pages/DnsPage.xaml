@@ -278,7 +278,7 @@
                       ToolTip="Recommended: otherwise Windows keeps asking the IPv6 DNS your router hands out for some lookups." />
             <CheckBox Content="Encrypt lookups (DNS over HTTPS)" IsChecked="{Binding Encrypt}" IsEnabled="{Binding CanEncryptChoice}" Margin="0,6,0,0"
                       ToolTipService.ShowOnDisabled="True"
-                      ToolTip="Windows 11 only, for the services listed above. Stops others on the network (and your internet provider) from reading or changing your lookups. Falls back to normal DNS if it cannot connect." />
+                      ToolTip="Windows 11 only, for the services listed above. Stops others on the network (and your internet provider) from reading or changing your lookups. Windows is asked to fall back to normal DNS if it cannot connect; if websites stop loading, use Undo." />
 
             <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
               <ui:Button Appearance="Primary" Icon="{ui:SymbolIcon ArrowSwap24}" Command="{Binding SwitchCommand}" Margin="0,0,8,0"

@@ -18,7 +18,8 @@ public enum DnsAdviceKind
 
 /// <summary>
 /// The advice. <see cref="Best"/> is the fastest reliable server that filters the same as the current one (usually: not at all); <see cref="Current"/> the server in
-/// use now (null when it was not tested); <see cref="SavingMs"/> how much faster a typical lookup gets by switching;
+/// use now (null when it was not tested); <see cref="SavingMs"/> how much the score (<see cref="DnsRecommendationRules.Score"/>,
+/// cached plus a quarter of uncached) drops by switching;
 /// <see cref="FilteringAlternatives"/> the fastest reliable server of each service that blocks something.
 /// </summary>
 public sealed record DnsRecommendation(
@@ -99,7 +100,8 @@ public static class DnsRecommendationRules
             || (saving >= MinSavingMs && saving >= MinSavingShare * Score(current)!.Value);
         if (!worthIt)
         {
-            return new DnsRecommendation(DnsAdviceKind.KeepCurrent, current, current, saving, currentUnreliable, alternatives);
+            // Best stays the fastest server tested, so the page can still show it next to the current one.
+            return new DnsRecommendation(DnsAdviceKind.KeepCurrent, best, current, saving, currentUnreliable, alternatives);
         }
 
         var kind = best.Target.IsRouter && !best.Target.IsCurrent ? DnsAdviceKind.UseAutomatic : DnsAdviceKind.Switch;

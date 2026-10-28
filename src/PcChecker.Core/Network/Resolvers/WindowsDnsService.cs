@@ -126,8 +126,9 @@ public sealed class WindowsDnsService : IDnsService
         string names = string.Join(", ", adapters.Select(a => a.Name));
         var options = Options(names, capture);
 
-        return await RunWithCaptureAsync(capture, () => _guard.RunGuardedAsync($"Switch DNS to {request.Label} ({string.Join(", ", servers)})", options, async ct =>
+        return await RunWithCaptureAsync(capture, started => _guard.RunGuardedAsync($"Switch DNS to {request.Label} ({string.Join(", ", servers)})", options, async ct =>
         {
+            started();
             foreach (var adapter in adapters)
             {
                 foreach (var (server, _) in dohServers)
@@ -170,8 +171,9 @@ public sealed class WindowsDnsService : IDnsService
 
         var capture = await CaptureAsync(adapters, "Automatic", [], cancellationToken).ConfigureAwait(false);
         string names = string.Join(", ", adapters.Select(a => a.Name));
-        return await RunWithCaptureAsync(capture, () => _guard.RunGuardedAsync("Set DNS back to automatic (from the router)", Options(names, capture), async ct =>
+        return await RunWithCaptureAsync(capture, started => _guard.RunGuardedAsync("Set DNS back to automatic (from the router)", Options(names, capture), async ct =>
         {
+            started();
             var script = string.Join("; ", adapters.Select(a => DnsCommands.Reset(a.Index))) + "; Clear-DnsClientCache";
             var run = await PowerShellRunner.RunAsync(script, TimeSpan.FromSeconds(60), ct).ConfigureAwait(false);
             return run.Success
@@ -182,14 +184,31 @@ public sealed class WindowsDnsService : IDnsService
 
     public async Task<OperationResult> UndoLastChangeAsync(CancellationToken cancellationToken)
     {
-        var previous = LastChange;
-        if (previous is null)
+        // The capture file and the adapter list are read off the calling (often UI) thread.
+        var prepared = await Task.Run(() =>
+        {
+            var last = LastChange;
+            if (last is null)
+            {
+                return null;
+            }
+
+            var indexes = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            foreach (var nic in ReadInterfaces(activeOnly: false))
+            {
+                indexes.TryAdd(nic.Id, nic.Index);
+            }
+
+            var (restore, gone) = DnsSettingsCapture.RestoreScript(last, id => indexes.TryGetValue(id, out var index) ? index : null);
+            return new { Previous = last, Script = restore, Missing = gone };
+        }, cancellationToken).ConfigureAwait(false);
+        if (prepared is null)
         {
             return OperationResult.Fail("There is no DNS change to undo.");
         }
 
-        var indexes = ReadInterfaces(activeOnly: false).ToDictionary(i => i.Id, i => i.Index, StringComparer.OrdinalIgnoreCase);
-        var (script, missing) = DnsSettingsCapture.RestoreScript(previous, id => indexes.TryGetValue(id, out var index) ? index : null);
+        var previous = prepared.Previous;
+        var (script, missing) = (prepared.Script, prepared.Missing);
         var options = ChangeOptions.For(Module, string.Join(", ", previous.Adapters.Select(a => a.Name)), reversible: false,
             "Switch or reset the DNS servers again on the DNS page.");
         var result = await _guard.RunGuardedAsync($"Undo the DNS change ({previous.ChangeLabel})", options, async ct =>
@@ -245,28 +264,43 @@ public sealed class WindowsDnsService : IDnsService
         return ChangeOptions.For(Module, adapterNames, reversible: true, $"Use Undo on the DNS page, or set the DNS servers back to: {before}.");
     }
 
-    /// <summary>Saves the capture before the change and puts the previous one back when the change did not happen.</summary>
-    private async Task<OperationResult> RunWithCaptureAsync(DnsPreviousSettings capture, Func<Task<OperationResult>> change)
+    /// <summary>
+    /// Saves the capture before the change. The change calls the action it is given right before its first write; if it
+    /// fails before that, the previous capture is put back. If it fails after that, some settings may already have
+    /// changed, so the capture is kept (Undo can still put everything back) and the message says so.
+    /// </summary>
+    private async Task<OperationResult> RunWithCaptureAsync(DnsPreviousSettings capture, Func<Action, Task<OperationResult>> change)
     {
-        var before = LastChange;
+        var before = await Task.Run(() => LastChange).ConfigureAwait(false);
         Save(capture);
+        bool started = false;
         OperationResult result;
         try
         {
-            result = await change().ConfigureAwait(false);
+            result = await change(() => started = true).ConfigureAwait(false);
         }
         catch
         {
-            Save(before);
+            if (!started)
+            {
+                Save(before);
+            }
+
             throw;
         }
 
-        if (!result.Success)
+        if (result.Success)
         {
-            Save(before);
+            return result;
         }
 
-        return result;
+        if (!started)
+        {
+            Save(before);
+            return result;
+        }
+
+        return result with { Message = result.Message + " Some settings may already have changed: use Undo on the DNS page to put the previous ones back." };
     }
 
     private void Save(DnsPreviousSettings? capture)

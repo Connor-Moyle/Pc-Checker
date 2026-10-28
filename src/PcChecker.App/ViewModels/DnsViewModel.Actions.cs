@@ -50,7 +50,7 @@ public sealed partial class DnsViewModel
         message.Append("\n\n").Append(Loc.T("Now:")).Append('\n').Append(string.Join("\n", adapters.Select(a => $"{a.Name}: {a.ModeText} ({a.ServersText})")));
         if (request.EncryptWithDoh)
         {
-            message.Append("\n\n").Append(Loc.T("Lookups will be encrypted with DNS over HTTPS. If the encrypted service cannot be reached, Windows falls back to normal DNS so nothing breaks."));
+            message.Append("\n\n").Append(Loc.T("Lookups will be encrypted with DNS over HTTPS. Windows is asked to fall back to normal DNS if the encrypted service cannot be reached; if websites stop loading anyway, use Undo."));
         }
 
         message.Append("\n\n").Append(Loc.T("A restore point is created first (per your settings) and the DNS cache is cleared afterwards. Undo puts the current settings back exactly, including \"automatic\"."));
@@ -111,7 +111,7 @@ public sealed partial class DnsViewModel
         }
 
         if (!await _dialogs.ConfirmAsync(Loc.T("Undo the last DNS change?"),
-                Loc.T("These settings come back:") + "\n" + DnsText.Previous(last) + "\n\n" + Loc.T("The DNS cache is cleared afterwards."), Loc.T("Undo")))
+                Loc.T("These settings come back:") + "\n" + DnsText.Previous(last) + "\n\n" + Loc.T("The DNS cache is cleared afterwards. This only undoes changes made on this page; a DNS change made on the Network page has its own Undo there."), Loc.T("Undo")))
         {
             return;
         }

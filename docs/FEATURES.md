@@ -2286,14 +2286,18 @@ safe way to switch (Network → DNS).
   ads or adult sites are listed as alternatives with their times.
 - **Switch DNS** to any listed service or to servers you type in, on the
   ticked adapters, optionally with its IPv6 pair and, on Windows 11,
-  encrypted with DNS over HTTPS (the service's template, falling back to
-  normal DNS if it cannot connect). **Reset to automatic** lets the router
+  encrypted with DNS over HTTPS (the service's template; Windows is asked to
+  fall back to normal DNS if it cannot connect, and Undo turns encryption off
+  again if websites stop loading). **Reset to automatic** lets the router
   hand out the servers again. Every change asks first, goes through the
   change guard (restore point per your settings, Action Journal with the
   previous servers), clears the DNS cache and saves what it replaced to
   `%LOCALAPPDATA%\PcChecker\dns-switch.json`, so **Undo** (in the
   notification, on the page and after a restart) puts back exactly what was
-  there, including *automatic* and the DNS-over-HTTPS settings.
+  there, including *automatic* and the DNS-over-HTTPS settings. If a change
+  fails partway, the saved settings are kept so Undo can still put everything
+  back. This Undo covers changes made on the DNS page only; the Network page's
+  fast/encrypted DNS action keeps its own.
 
 ---
 
