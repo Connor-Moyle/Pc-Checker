@@ -8,6 +8,7 @@ using PcChecker.App.Views.Windows;
 using PcChecker.Claude;
 using PcChecker.Core.Assistant;
 using PcChecker.Core.Audio;
+using PcChecker.Core.Backups;
 using PcChecker.Core.Battery;
 using PcChecker.Core.Benchmark;
 using PcChecker.Core.Checkup;
@@ -162,6 +163,7 @@ public static class ServiceRegistration
         Add<IHostsFileService, WindowsHostsFileService, DemoHostsFileService>(services, demo);
         Add<ISecurityStatusService, WindowsSecurityStatusService, DemoSecurityStatusService>(services, demo);
         Add<IPrivacyService, WindowsPrivacyService, DemoPrivacyService>(services, demo);
+        Add<IBackupsService, WindowsBackupsService, DemoBackupsService>(services, demo);
         Add<IForegroundAppTracker, WindowsForegroundAppTracker, DemoForegroundAppTracker>(services, demo);
         Add<IFrameRateMonitor, WindowsFrameRateMonitor, DemoFrameRateMonitor>(services, demo);
         Add<IGameProfileService, WindowsGameProfileService, DemoGameProfileService>(services, demo);
@@ -249,6 +251,7 @@ public static class ServiceRegistration
         services.AddSingleton<RegistryViewModel>().AddSingleton<RegistryPage>();
         services.AddSingleton<SecurityViewModel>().AddSingleton<SecurityPage>();
         services.AddSingleton<PrivacyViewModel>().AddSingleton<PrivacyPage>();
+        services.AddSingleton<BackupsViewModel>().AddSingleton<BackupsPage>();
         services.AddSingleton<PerformanceViewModel>().AddSingleton<PerformancePage>();
         services.AddSingleton<OptimizeViewModel>().AddSingleton<OptimizePage>();
         services.AddSingleton<BenchmarkViewModel>().AddSingleton<BenchmarkPage>();

@@ -207,6 +207,7 @@ limitations, is in [docs/FEATURES.md](docs/FEATURES.md).
 | **Security** | A traffic light for each protection in plain words: Microsoft Defender (or your other antivirus), firewall, Windows version and its end of support, paused updates, User Account Control, SmartScreen, SMB 1.0, drive encryption, Secure Boot, TPM, memory integrity, activation, Remote Desktop and the Guest account, with a score out of 100 and the three things to fix first. Quick and full Defender scans, definition updates and recent threats; safe fixes (firewall on, SMB 1.0 off) ask first, everything else opens the Windows setting. |
 | **Privacy** | Which apps used the camera, microphone and location, when, for how long and which are using them right now; turn one Store app's access off with Undo, and see activity history, advertising ID and diagnostic data with a link to the Debloat tweak that changes them. |
 
+| **Backups** | Restore points with type and maker, create and delete (the newest only after a second warning), System Protection and its space per drive with Turn on and a size limit, File History, OneDrive folder backup and system image status, and PC Checker's own backup folders with count, size, *Open folder* and *Delete old ones* (to the Recycle Bin). Hints when protection is off, the newest point is over 30 days old or the space is under 1 GB. |
 ### Performance
 
 | Page | What it does |

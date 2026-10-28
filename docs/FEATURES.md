@@ -1547,6 +1547,44 @@ are.
 
 ---
 
+### Backups
+Every backup on the PC in one place (Security → Backups). The page only reads
+until you press a button, and every change asks first and goes through the
+change guard (Action Journal entry with how to undo it).
+- **Hints** at the top, most urgent first: *System Protection is off on C:*,
+  *No restore point in the last 30 days*, *Restore points use less than 1 GB
+  — older ones will be deleted quickly* and *Your personal files are not
+  backed up* (no File History and no OneDrive folder backup), each with the
+  button that fixes it. The Dashboard's *What needs attention* card also says
+  when System Protection is off on the Windows drive.
+- **Restore points**: every System Restore point with its date, description,
+  type in words (Windows Update, Device driver install, Checkpoint…) and who
+  made it (Windows, Windows Update, an installer, PC Checker). *Create restore
+  point* uses the same restore point service as the rest of the app, including
+  *Allow more than one restore point a day* (also under Options here). Delete
+  one point (Del or right-click; deleting the newest one asks a second time),
+  or *Delete all restore points except the newest* from **More** (the same
+  work as Cleanup's *Older restore points*). Only System Restore points are
+  ever deleted; other shadow copies, such as those of backup software, are
+  never touched.
+- **System Protection** per fixed NTFS drive: on or off (read from Windows'
+  own list of protected volumes, so it works in every language), the space
+  restore points use and their limit, *Turn on* (with Undo for a few seconds)
+  and *Up to N % of the drive* (vssadmin resize shadowstorage, with Undo; a
+  limit below what is used now warns that Windows deletes the oldest points).
+  *Turn off* is only shown in Advanced mode and says that the drive's restore
+  points are deleted.
+- **Windows backups**, read only with a button to open each: File History (set
+  up or not), OneDrive folder backup (which of Desktop, Documents, Pictures,
+  Music and Videos OneDrive keeps), Windows Backup, and *System image → Check
+  now*, which asks wbadmin for system image backups only when you press it.
+- **PC Checker's backups**: setup backups, registry backups, driver backups,
+  scheduled task backups, hosts file backups and removed startup entries,
+  each with its folder, count, size and newest date, *Open folder* and *Delete
+  N old* (keeps the newest N, 5 by default, at least 1; moved to the Recycle
+  Bin, never deleted for good). The debloat undo values and the Send to
+  entries you turned off are shown too but never offered for deletion: they
+  are needed to undo tweaks and to turn the entries back on.
 ## Performance
 
 ### Performance

@@ -50,6 +50,7 @@ public sealed partial class DashboardViewModel
         _liveStartupItems = null;
         await Guard(async () => _liveStartupItems = await _startup.GetStartupItemsAsync(ct).WaitAsync(GlanceTimeout, ct), "startup list");
         await Guard(async () => _pawnIoState = await Task.Run(() => _pawnIo.GetStatus().State, ct).WaitAsync(GlanceTimeout, ct), "PawnIO status");
+        await RefreshSystemProtectionAsync(ct);
         _attentionReadAt = DateTimeOffset.Now;
         RebuildAttention();
     }
@@ -106,6 +107,7 @@ public sealed partial class DashboardViewModel
             Updates = _updateStatus is null && pending is null ? null : DashboardGlance.Updates(_updateStatus, pending),
             PawnIo = _pawnIoState,
             DeviceProblems = report?.Results.Drivers?.Drivers.Count(d => d.HasProblem),
+            SystemProtectionOn = _systemProtectionOn,
         };
 
         AttentionItems.Clear();

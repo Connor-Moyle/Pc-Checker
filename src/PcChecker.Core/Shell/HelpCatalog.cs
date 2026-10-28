@@ -177,6 +177,10 @@ public static class HelpCatalog
             T("Privacy shows which apps recently used your camera, microphone and location, and how Windows' main privacy settings are set."),
             T("Look for apps marked In use now. Turn off asks first and Undo puts it back."),
             Features, "Privacy"),
+        new("backups",
+            T("Backups shows your restore points, whether System Protection is on for each drive, Windows' own backups and the copies PC Checker keeps."),
+            T("Make sure System Protection is on for the Windows drive and create a restore point. Deleting asks first, and old copies go to the Recycle Bin."),
+            Features, "Backups"),
 
         // Performance
         new("performance",
