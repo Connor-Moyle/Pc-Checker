@@ -4,12 +4,14 @@
  selected
  used of 
  · OpenRGB:
+"{0}" from {1} is deleted for good. You can no longer go back to it with System Restore.
 "{0}" is a built-in profile; choose another name.
 "{0}" is no longer in the list.
 "{0}" now holds the current lighting of {1} device(s).
 "{0}" remembers the mode, speed and curve of every controllable fan.
 "{0}" was removed.
 "{0}" will be removed. Fans keep running as they are now.
+% of the drive
 % Utilization over 60 seconds
 'Many' means more than this number of startup items
 (+{0} without a letter)
@@ -20,18 +22,23 @@
 , ±{0} %
 -50 mV: the same performance with less power and heat on most RX 7000/9000 cards.
 -80 mV and 90 % power: cooler and quieter. Run the stress test afterwards.
+.NET exception
 0 % loss is normal. If your router already loses packets, the cause is in your home (often Wi-Fi). If only the internet targets lose packets, it is your provider.
 0 for Windows services, 1 and up for people signed in.
 0.0.0.0: the names stop working on this PC (for ads, trackers or distracting sites).
+1 app used it
 1 automatic backup, made {0}.
+1 backup
 1 change
 1 connection
+1 crash
 1 day left
 1 device has a driver problem
 1 empty header (0 RPM, usually nothing plugged in) is hidden.
 1 entry looks like something malware adds. Select it to see why, then turn it off or remove it and Save.
 1 fan
 1 fan is controlled by PC Checker.
+1 hang
 1 item
 1 needs caution
 1 oldest run on this PC removed (limit {0})
@@ -77,12 +84,30 @@ A copy of the file is kept here before every save.
 A core Windows service: PC Checker will not stop or disable it
 A device that is not connected
 A device with a driver problem may not work properly.
+A driver asked for memory in a way that is not allowed.
+A driver damaged memory that Windows manages.
+A driver damaged Windows' memory bookkeeping.
+A driver did not respond in time while the PC was going to sleep, waking up or shutting down.
+A driver failed while answering a device's signal.
+A driver kept the processor busy for too long. Storage (SSD firmware, SATA/NVMe drivers) and network drivers are common causes.
+A driver left the system in a state it should have cleaned up. This is almost always a driver bug.
+A driver or part of Windows hit an error it could not handle.
+A driver or part of Windows hit an error it could not handle. Faulty RAM can also cause this.
+A driver running in the background hit an error it could not handle.
+A driver touched memory it was not allowed to at that moment. Usually a faulty or outdated driver, sometimes bad RAM.
+A driver tried to change memory that is read-only.
+A driver tried to run code from memory that is only meant for data.
 A driver update caused the problem?
+A driver used memory after giving it back.
+A driver used memory it should not have. Network, Wi-Fi, graphics and antivirus drivers are common causes.
 A fan profile from the Fans page
 A few are normal; repeats from one source are worth a look.
+A file the program loads at start-up failed to start, often a damaged runtime or a blocked add-on.
+A file the program needs to start is missing.
 A file-system repair cannot be cancelled once it has started; stopping chkdsk half-way leaves the volume dirty.
 A floor for every fan the app controls, so nothing stops by mistake.
 A free, signed driver, installed when you close this window. Remove it any time from Windows Settings → Apps.
+A full scan checks every file and can take an hour or more. The PC may feel slower meanwhile. You can cancel it at any time.
 A full scan of a large hard disk takes hours
 A metered connection makes Windows hold back big downloads such as updates.
 A Microsoft task: you can turn it off, but it cannot be deleted here.
@@ -90,15 +115,19 @@ A network change you made finishes after Windows restarts. Save your work and re
 A new Windows version takes a long time to install and several restarts to finish.
 A newer version is installed
 A page is still working on something (a scan, install or test).
+A part of Windows that handles sign-in stopped. Damaged system files or a bad update are common causes.
+A part of Windows that must always run stopped. Damaged system files, a failing drive or security software can cause this.
 A per-user Windows 11 setting. Asks first, and can be switched back at any time.
 A plain-text hardware summary is on the clipboard.
 A power plan tells Windows how to balance speed against power use. Switching is safe and can be undone at any time. If restore points before changes are on in Settings, one is created first, which can take a few seconds.
 A preset only ticks boxes; nothing changes until you apply.
 A preset remembers which metrics are shown, their order, the corner, opacity, size and layout. Colours, font and the hotkey stay as they are.
+A process Windows needs stopped unexpectedly, often because the drive could not be read.
 A profile called "{0}" already exists. Replace it with the current fan settings?
 A profile called "{0}" already exists. Replace it with the current lighting?
 A profile remembers an effect, colour, speed and brightness for every device so you can switch setups in one click.
 A profile remembers the mode, speed or curve of every fan. Silent, Balanced and Performance are built in; save your own from the current settings.
+A program built with .NET hit an error it did not handle.
 A program is not responding
 A RAID volume. Its member drives sit behind the RAID driver.
 A restart is already counting down
@@ -111,6 +140,7 @@ A restore point is created first (per your settings). Installing accepts Microso
 A restore point is created first, per your settings, and the change is recorded in the Action Journal. Restart File Explorer afterwards to see it.
 A restore point is created first.
 A restore point is created first. Each item is checked again right before it is removed, and anything that changed is kept. Registry keys and tasks can be put back from the restore list.
+A restore point was made in the last 24 hours, and Windows normally allows only one a day. Turn on "Allow more than one restore point a day" under Options if Windows skips it.
 A restore point will be created first so you can undo the change.
 A sample every {0}, kept for {1} days. Nothing leaves this PC.
 A scan only reads the registry. Choose the categories under What to check below; nothing changes until you confirm a fix.
@@ -142,11 +172,14 @@ About the right-click menu
 About the same as the reference PC
 About the score
 About these actions
+About these figures
 About these numbers
+About these records
 About this drive's health data
 About this file
 About this history
 About this list
+About this page
 About this result
 About {0}
 about {0}
@@ -158,6 +191,9 @@ Above the reference PC
 Accept connections from outside
 Accepts connections from other devices
 Accepts connections from other devices: other PCs and phones on your network can connect to this program
+Access
+Access turned off
+Access violation
 Accessibility keys
 Across every category shown
 Action
@@ -182,12 +218,14 @@ Add an entry…
 Add entry
 Add running game
 Add to startup
+Add up everything from this day until now
 Add your API key to start
 Add your Claude API key in Settings, then ask a question. Claude can suggest changes but never makes them itself.
 Added to startup
 Added to the GPU core clock in every boost state. Too high = crashes or artifacts.
 Added to the video memory clock. Memory usually takes larger offsets than the core.
 Adding startup entry…
+Adding up the figures…
 Address
 Addressable (ARGB) zones start at 0 LEDs. Open the device's Zones and enter how many LEDs are connected.
 Adds a sign-in task to Task Scheduler with administrator rights, so PC Checker starts without a UAC prompt.
@@ -216,30 +254,38 @@ After a week the samples are combined into 15-minute points, and after 30 days i
 Age
 Alerts
 All
+All apps, sent and received
 All can be fixed from here
 All categories
 All changes share restore point {0}.
+All checks
 All connections
 All devices are working
+All drives
 All entries
 All fans are under automatic (firmware) control.
 All files
 All hardware
+All launchers
 All one-click tweaks in one place.
 All packages
 All processors
 All programs
 All programs together
 All RGB devices
+All security checks
 All sensors
 All services
 All tasks
 All tests
+All types
 All {0} fixes were applied.
 All {0} processes of {1} close straight away. Anything unsaved in them is lost.
 All-core ratio (×100 MHz)
+Allow more than one restore point a day
 Allow more than one restore point per day
 Allow this once
+Allowed
 Almost certainly left behind by a removed program. Ticked for you.
 Already downloaded
 Also create one after changes succeed
@@ -252,6 +298,7 @@ AMD
 AMD's newest: {0} ({1})
 An advanced change. Turn on Advanced mode to fix it from here, or open its page.
 An IPv4 address such as 192.168.1.20 or an IPv6 address such as ::1.
+an unknown error
 Analyze
 Analyze again
 Analyzes Wi-Fi, then runs the packet loss test and the speed test, one after another.
@@ -261,12 +308,22 @@ Another optimization is still running. Try again when it has finished.
 Another program is set to open in place of Task Manager now: {0}. PC Checker will replace it, keep a copy and put it back when you turn this option off.
 Another program opens in place of Task Manager now ({0}). Turning this on replaces it and puts it back when turned off.
 Answers questions about your scans in plain English. Needs an Anthropic API key.
+antivirus defender virus malware firewall bitlocker encryption tpm secure boot uac smartscreen activation scan threats
 Antivirus, firewall and drive encryption.
 Any as the local address means every network adapter. A program that listens there on a port Windows does not use itself accepts connections from other devices on your network. That is expected for game servers, media sharing and remote tools; for anything you do not recognise, end the program or turn the feature off in its settings.
 API key
 API key, model, effort and what is shared
+App crash
+App crashes
+App crashes and hangs
+App history
+App history shows how much processor time, network data and disk each app used over the last days.
 App settings
+App stopped responding
 Appearance
+Application hang
+Application log, event 1000 (Application Error)
+Application log, event 1002 (Application Hang)
 Applied
 Applies every ticked safe tweak that is not already on, one after another.
 Applies the keyboard settings to Windows after a confirmation.
@@ -305,6 +362,7 @@ Apps
 Apps & Drivers
 Apps at sign-in
 Apps have a window on the taskbar; the helpers they started are listed under them. Background processes run without a window. Windows processes are part of Windows itself.
+Apps in the last 7 days
 Apps lists every installed program and Store app, with size, maker and install date, and uninstalls them.
 Apps playing sound
 Apps that can block lighting control
@@ -321,6 +379,7 @@ As Windows Reliability Monitor records them.
 Ask about this PC… (Enter sends, Shift+Enter adds a line)
 Ask anything about this PC
 Ask Claude
+Ask Claude about this crash
 Ask Claude answers questions about this PC in plain words, using the results PC Checker has already read.
 Ask Claude is not set up yet
 Ask Claude page
@@ -334,11 +393,16 @@ Asking winget for available upgrades…
 Asking {0} to close…
 Asks before every change, makes a restore point and keeps a journal so you can undo.
 Asks Claude for a plan. Needs an Anthropic API key (Ask Claude page).
+Asks first
+Asks first, then Windows saves a snapshot of system files, drivers and settings you can go back to.
+Asks first, then Windows starts keeping restore points for this drive.
 Asks first. Ends the app and stops its services until the next restart; nothing is uninstalled.
+Asks first. Less space than is used now makes Windows delete the oldest restore points.
 Asks NVIDIA's driver service for your GeForce, RTX or Quadro card. Sends the card's device id only.
 Asks once when the driver is missing. Not now waits a week; Don't ask again turns this off.
 Asks the makers again instead of using the answers saved in the last 12 hours.
 Asks the router for a fresh address. The connection drops for a few seconds.
+Asks Windows Backup and Restore (wbadmin) which full system backups exist. Only reads.
 Asks Windows Update for updates that are not installed yet. This can take a minute. Nothing is installed by a check.
 Asleep
 Asleep from full
@@ -383,10 +447,12 @@ Background processes
 Backing up drivers…
 Backs up and removes the ticked items after you confirm. A restore point is created first, per your settings.
 Backs up the ticked entries, creates a restore point, then removes them. You can undo it under Backups.
+Backup hints
 Backup not restored
 Backup restored
 Backups
 Backups are never deleted automatically.
+Backups shows your restore points, whether System Protection is on for each drive, Windows' own backups and the copies PC Checker keeps.
 Balanced
 Band
 Band and channel
@@ -419,6 +485,8 @@ Benchmark this PC
 Benchmark — how fast is the drive?
 Benefit:
 Best
+Best available
+Best available uses Windows' records when PC Checker can read them, and its own recording otherwise
 Beta releases may have rough edges.
 beta stable
 better
@@ -437,6 +505,12 @@ Block a site or point a name at an address (Ctrl+N).
 Block size
 Blocked sites
 Blocks
+Blue screen
+blue screen bsod stop code bugcheck minidump crash dump freeze sudden shutdown restart app crash hang driver reset tdr
+Blue screen: unknown stop code
+Blue screen: {0}
+Blue screens
+Blue screens, sudden shutdowns, driver resets and app crashes from the last 90 days.
 Board revision {0}
 Board {0}
 Board · {0}
@@ -448,6 +522,7 @@ Boot menu wait changed
 Boot menu wait was not changed
 Boot options
 Both ask first and give you 10 seconds to cancel.
+Breakpoint
 Brief disconnect
 Brightness
 Bring the program's window to the front
@@ -478,6 +553,10 @@ Cached / standby
 Calculate sizes
 Calls
 Calls and chat apps (Teams, Discord, Zoom) use this device.
+Camera
+camera
+camera webcam microphone mic location tracking spying permissions activity history advertising id
+Camera, microphone and location use
 Can be fixed here
 Can freeze the whole PC while the program is busy
 Can lower ping in a few older games. It lives on the Latency page.
@@ -500,11 +579,15 @@ Categories
 Categories selected
 Change
 Change active hours?
+Change on the Debloat page
 Change scheduled tasks?
 Change setting
 Change the boot menu wait?
 Change the page file
+Change the space for restore points on {0}
+Change the space for restore points on {0}?
 Change the speed automatically as a temperature rises and falls.
+Change these on the Debloat page, which saves the old value so you can revert.
 Change this in Settings → Restore points
 Change undone
 Changed: {0}.
@@ -520,6 +603,7 @@ Changing one restarts the adapter for a few seconds.
 Changing the affinity…
 Changing the menu style…
 Changing the priority…
+Changing the space for restore points…
 Channel
 CHARGE
 Charge cycles
@@ -533,6 +617,7 @@ Check again which tweaks are applied on this PC.
 Check disk (chkdsk)
 Check disk, repair and optimize
 Check drivers
+Check drives
 Check everything at once
 check everything hardware health performance drivers apps
 Check for driver updates
@@ -542,8 +627,16 @@ Check for updates and install the recommended ones. Uninstalling an update asks 
 Check for updates automatically
 Check for upgrades
 Check health now
+Check now
 Check results for errors
+Check runtimes
+Check that the CPU meets the program's requirements and reset any overclock.
+Check that the drive's cables are firmly connected.
+Check that the power cable and the power strip are fine, and that nothing else trips the power.
+Check the drive the program is installed on on the Storage page.
+Check the drive's health on the Storage page and run a disk check.
 Check the entry
+Check the files of {0}?
 Check the maker's tool for firmware updates.
 Check the refresh rate first: many screens can run faster than Windows picked. A change you do not keep goes back on its own.
 Check the settings
@@ -555,15 +648,21 @@ Check-up
 Check-up finished
 Check-up fixes applied
 Check-up runs every check in one go and turns the results into one to-do list, most important first.
+Checked at {0}
 Checked with the makers at {0}
+Checked {0:t}. Launchers are never started to find games.
 Checked {0:t}. {1} DLLs from {2} official packages.
 Checked {0}
 Checked {0}.
 Checked {0}. How worn your battery is and how long a charge lasts.
+Checked {0}. Newest first; click one to see what it means.
 Checked {0}. Nothing changes until you choose to fix it.
 Checked {0}. Right-click a line for actions.
 Checked {0}. Traces that removed programs left behind.
+Checked {0}. {1}
 Checking again…
+Checking how well this PC is protected…
+Checking only reads. The fixes here only switch protection on (firewall, newer definitions, SMB 1.0 off); they ask first and are written to the Action Journal. Everything else opens the Windows setting.
 Checking System Protection…
 Checking that the PC is idle…
 Checking the current state of each tweak…
@@ -575,6 +674,7 @@ Checking your board, BIOS and chipset driver…
 Checking…
 Checks every byte of RAM before Windows loads. Runs at the next restart, 5–20 minutes.
 Checks every DLL in the list again
+Checks every file. It can take an hour or more; you can cancel it.
 Checks health, temperatures, drivers and what slows it down.
 Checks health, temporary files, drivers, Windows Update, startup apps, speed, recommended settings and old drivers. Nothing is changed by a check-up.
 Checks run when the app opens and every 6 hours while it runs, also from the tray.
@@ -586,6 +686,7 @@ Chipset maker
 chkdsk X: /f /r — on the Windows drive it runs before Windows starts; a data volume is repaired now if nothing is using it, otherwise at the next restart. Can take hours.
 chkdsk X: /scan — online, read-only, no restart.
 chkdsk X: /spotfix — a few seconds offline, fixes logged problems.
+Choose "Best available" or "PC Checker's recording" above to see PC Checker's own figures, or press Refresh to try again.
 Choose a fixed size or hand control back to Windows. Takes effect after a restart.
 Choose a folder for the driver backup
 Choose a folder to measure
@@ -594,6 +695,7 @@ Choose a setup backup
 Choose a source
 Choose folder…
 Choose from the programs that are open right now (start the game first)
+Choose PC Checker's recording to see what PC Checker added up itself.
 Choose the game's folder
 Choose the game's program
 Choose the temperatures that count as warm or too hot.
@@ -613,6 +715,9 @@ Claude overclock advisor
 clean junk temp cache free space disk cleanup
 Clean now
 Clean selected
+Clean shader cache
+Clean shader cache ({0})
+Clean the shader cache of {0}?
 Clean up
 Clean up now?
 Cleans up junk and tunes Windows, fans, lighting and games.
@@ -624,6 +729,7 @@ Clear
 Clear chat
 Clear filters
 Clear search
+Clear search and filters
 Clear selection
 Clear standby list
 Clear the DNS cache
@@ -632,6 +738,8 @@ Clear view
 Clearing the DNS cache…
 Clears the list of recently looked-up web addresses. Fixes sites that moved or fail to load after a network change.
 Click a column to sort, right-click a program for actions, right-click a column title to pick columns.
+Click a crash in the timeline to see what it means, what probably caused it and what to try first.
+Click a crash to read the likely cause and the first steps. This page only reads; it never changes anything.
 Click to select this drive. The details and tools below work on the selected drive. Right-click for more.
 Click to show only errors from this source; click again to clear.
 Click twice. The result tells you whether the gap fit inside the slider value above.
@@ -676,6 +784,7 @@ Comes with
 Command
 Command line
 Committed
+Common causes: a power cut or loose cable, an overloaded or failing power supply, overheating, or an unstable overclock.
 Compact view
 Compare against your plan's speed at a quiet time.
 Compare on the vendor's page
@@ -733,17 +842,20 @@ Copy path
 Copy report
 Copy results
 Copy summary
+Copy the details of the selected crash
 Copy the details of the selected process
 Copy the facts and the SMART table as text (Ctrl+C).
 Copy the key path
 Copy the line
 Copy the selected drive's facts and SMART table as text
 Copy the selected resource's details as text
+Copy the selected restore point's details
 Copy these details as text (Ctrl+C)
 Copy this folder's path
 Copy this message
 Copy what PC Checker found about the fans to the clipboard, to paste into a support request. No personal data.
 Copy where it is registered
+Copying Windows' app usage records…
 Core Windows service
 Core Windows services (sign-in, networking, security, Plug and Play and the like) are locked here, because stopping or disabling them can crash the PC or leave you without network or protection.
 Core Windows services are marked Protected and cannot be stopped from starting; 'Careful' ones can, with a note about what you lose.
@@ -753,8 +865,10 @@ Corners follow the monitor your mouse is on when the overlay is shown. Custom pi
 Cost per day
 Cost per hour
 Costs are now calculated at {0}{1:0.###} per kWh.
+Could be safer
 Could not add the entry
 Could not apply
+Could not be read
 Could not cancel the restart
 Could not change efficiency mode for {0}
 Could not change the affinity of {0}
@@ -772,16 +886,20 @@ Could not open
 Could not open folder
 Could not open Installed apps
 Could not open link
+Could not open Protection history
 Could not open Registry Editor
 Could not open Settings
 Could not open System Restore
 Could not open the backup folder
 Could not open the browser
+Could not open the file location
 Could not open the file picker
 Could not open the folder
 Could not open the journal
 Could not open the log file
 Could not open the log folder
+Could not open the setting
+Could not open Windows Security
 Could not open Windows Settings
 Could not remove {0}
 Could not restart {0}
@@ -796,9 +914,14 @@ Could not suspend {0}
 Could not switch to the program
 Could not switch user
 Could not tell
+Could not turn off access
+Could not turn off SMB 1.0
+Could not turn on the firewall
 Could not undo
 Could not uninstall {0}
+Could not update
 Count only; no fixed limit
+Counting hardware error reports…
 Counts the frames the game in front hands to Windows, the same way PresentMon does. More in “About the overlay” below.
 CPU
 CPU and motherboard sensors need PawnIO
@@ -811,6 +934,8 @@ CPU package temperature
 CPU temperature
 CPU temperature (peak)
 CPU temperature, last 60 s
+CPU time
+CPU time is processor time added up over every core. Windows counts processor cycles, which PC Checker divides by the processor's base speed, as Task Manager does, so it is a close estimate. Metered counts data over mobile broadband.
 CPU tuning
 CPU use was sampled for two seconds during the scan.
 CPU {0}
@@ -818,15 +943,23 @@ CPU · no readings
 CPU · peak {0} °C
 CPU: the processor only. GPU: the graphics card only. Both: processor and graphics card together.
 Crash reporter
+Crash timeline
+Crashes
+Crashes and hangs
+Crashes lists blue screens, sudden shutdowns, graphics driver resets and app crashes from the last 90 days, with what each one means.
 Crashes, shutdowns, updates and installs from the last 30 days.
+Create
 Create a memory dump of {0}?
 Create a restore point before making changes
+Create a restore point?
 Create dump file
 Create memory dump file
+Create restore point
 Create restore point now
 Create schedule
 Create this task with administrative privileges
 Creates a restore point, backs up keys and tasks, then removes the ticked items after you confirm.
+Creating a restore point… this can take a minute
 Creating the battery report…
 Critical
 Critical (°C)
@@ -852,9 +985,11 @@ CYCLES
 dark mode light mode colours colors
 Dashboard
 Data
+Data from {0} on.
 Data written
 Date
 Date installed (newest first)
+Date range
 Day of the week
 Days to keep the option to go back
 Days:hours:minutes:seconds since Windows started. Fast startup keeps counting across shutdowns.
@@ -875,28 +1010,50 @@ Default microphone
 Default output
 Defaults
 defaults fans overlay lighting profiles section
+Definitions updated
 Delete
+Delete all restore points except the newest…
+Delete anyway
 Delete backup
 Delete backups older than 90 days
 Delete diagnostic data
 Delete files
 Delete old backups
+Delete old ones…
+Delete old {0}?
+Delete older points
+Delete older restore points?
 Delete preset
 Delete profile
 Delete profile?
+Delete selected…
 Delete task?
 Delete the lighting profile "{0}"? Your devices keep their current colours.
+Delete the newest restore point?
+Delete the selected restore point (asks first)
 Delete these files?
 Delete this backup
 Delete this backup?
 Delete this custom profile.
 Delete this profile?
+Delete this restore point?
+Delete this restore point…
+Delete usage history (in More) removes PC Checker's own recording. Only Windows can clear its own records; Settings → Privacy & security → Activity history controls what it keeps.
+Delete usage history?
+Delete usage history…
 delete {0} (only if still stopped and their program is still missing)
+Delete {0} old
 Delete {0}? PC Checker saves a copy first, so you can put it back under Deleted tasks. If you only want it to stop running, Turn off is enough.
 Deleted tasks
 Deleted {0}
+Deletes the app use PC Checker added up itself (you confirm first). Windows' own records stay.
+Deletes the selected restore point after you confirm (Del). It cannot be brought back.
 Deletes the selected saved profile.
+Deletes this drive's restore points and stops new ones. Advanced mode only.
 Delete…
+Deleting older restore points…
+Deleting the restore point…
+Deleting usage history…
 Deliberately not offered
 Dell, HP, Lenovo, ASUS, MSI and GIGABYTE update tools and support pages for your model.
 Demo data
@@ -911,6 +1068,9 @@ Design capacity not reported
 Design capacity: {0}
 Desktop
 Desktop and drives
+Desktop app
+Desktop apps (programs you installed yourself) share one switch in Windows, so they are turned off together in Windows Settings.
+Desktop apps share one switch in Windows Settings; use Open settings to change it.
 Desktop PCs run from the mains, so there is no battery to check.
 Detail per area
 Detailed drive facts are not available; the health Windows reports is shown.
@@ -970,6 +1130,7 @@ Disk space shows what fills each drive: the biggest folders, file types, large a
 Disk space Windows uses when RAM is full, and for crash reports.
 Disk transfer rate
 Disk write
+Disk written
 Disk {0}
 Disk {0} ({1})
 Dismiss
@@ -980,7 +1141,9 @@ Display updated
 Displays
 Displays shows every screen with its resolution and refresh rate, and lets you change them or save a layout.
 DLL
+DLL initialization failed
 dll missing dll d3dx9 msvcp140 vcruntime xinput directx runtime redistributable visual c++ physx openal xna dotnet
+DLL not found
 DLLs games ask for
 DLLs missing
 DLLs the game needs
@@ -1002,6 +1165,7 @@ Download only
 Download OpenRGB
 Download page
 Download page opened
+Download the newest virus definitions from Microsoft now? This only adds protection and takes a minute or two.
 Downloaded
 Downloading driver updates…
 Downloading update
@@ -1036,19 +1200,24 @@ Driver backup
 Driver changes cannot be stopped part-way, so this run cannot be cancelled once it starts.
 Driver date
 Driver ranges, your safety limits and the watchdog file.
+Driver reset
+Driver resets
 Driver store (third-party packages)
 Driver store not read yet
 Driver store packages
 Driver updates
 driver updates device manager
 Driver updates leave the previous versions behind, and Windows keeps the drivers of devices you unplugged long ago. A scan lists them by how safe they are to remove. Nothing is removed until you choose to.
+Driver Verifier (a Windows testing tool) caught a driver breaking the rules. Turn Driver Verifier off when you are done testing.
 Driver version
 Driver-reported ranges
+Driver: {0}
 Drivers
 Drivers and BIOS for your model
 Drivers are on the Drivers page. Optional updates are only installed when you tick them.
 Drivers are rolled back on the Drivers page: select the device, then use Device Manager's Roll Back Driver.
 Drivers checks every device's driver, finds problems and looks for newer drivers from Windows Update and the makers.
+Drivers loaded at the time: {0}
 drivers windows update outdated
 Drivers without a valid digital signature.
 Drives
@@ -1057,6 +1226,7 @@ Dry run (only count, delete nothing)
 Dry run is off: cleaning really deletes files.
 Dry run is on: nothing will be deleted, you only get a report.
 Dump file saved
+Dump file: {0}
 Duplicates
 Duplicates: files of at least (MB)
 Dynamic disks are an old Windows format. They work, but most tools expect basic disks.
@@ -1065,6 +1235,7 @@ Each action asks first and is written to the action journal.
 Each app that played sound recently gets its own volume.
 Each change asks first, is recorded, and can be reverted.
 Each change is recorded in the Action Journal (Logs page).
+Each check has a weight: antivirus and firewall count most, Credential Guard least. A red item costs its full weight, a yellow one half, and grey items (could not be checked) cost nothing.
 Each fix asks before applying. Safe fixes can be undone from the Optimize page.
 Each hardware control with its identifier, mode and software value.
 Each name needs its own entry: Windows does not support wildcards such as *.example.com.
@@ -1137,6 +1308,7 @@ Estimated energy use over the last two minutes.
 Estimated energy use right now, from processor, graphics and disk use.
 Estimated from component sensors
 Estimated power draw of the whole PC
+Event Viewer
 Every 15 minutes
 Every 2 minutes
 Every 30 seconds
@@ -1157,7 +1329,9 @@ Every fan goes back to the speed the motherboard or graphics driver chooses. You
 Every fan PC Checker controls returns to automatic control first, then the hardware monitor restarts and the fans are detected again.
 Every fan returns to automatic control while the sensors reload. The install is recorded in the Action Journal; remove PawnIO any time from Settings → Apps → Installed apps.
 Every fix is saved to a .reg file first. Restore puts the entries back.
+Every important protection is on. Check again after big Windows updates or new software.
 Every installed driver, the ones that need attention, and updates from every source.
+Every installed game from your launchers, in one place.
 Every keyboard shortcut (press ? anywhere)
 Every minute
 Every part of the check-up came back fine. Run it again now and then, or after installing something new.
@@ -1184,6 +1358,7 @@ Everywhere
 Exactly what the overlay shows right now, over a sample game scene.
 example.com www.example.com
 Exception
+Exception: {0}
 exit background
 Exit PC Checker
 Expand all
@@ -1216,6 +1391,7 @@ extra sensor
 Extra sensor on the drive. It runs hotter than the drive, so its limits are {0} °C higher.
 Extras you did not ask for can be removed. Runtime dependencies are best kept, because other programs need them.
 factory reset restore defaults
+Fail fast exception
 Failed
 Failed only
 Failed:
@@ -1245,6 +1421,7 @@ Fast startup off
 Fast startup on
 Fast startup was not changed
 Fast startup, boot menu, Safe Mode and restarting into the firmware.
+Faulting file: {0} {1}
 Fetches the ticked Windows Update drivers now so they install faster later.
 File
 File Explorer
@@ -1282,11 +1459,15 @@ Find leftovers
 Find old and unused drivers
 Find temporary files to clean
 Find what removed programs left behind
+Find {0} in the list and choose Uninstall. It asks before removing anything.
 Findings
 Finds driver versions left behind by updates and drivers of devices that are no longer connected.
 Finds faulty modules and unstable XMP settings in minutes. Tests free memory only.
+Firewall on
 Firmware
 Firmware updates, detailed health and secure erase from the drive maker.
+First seen
+First steps
 Fits more in RAM by squeezing idle pages
 Fix
 Fix applied
@@ -1296,18 +1477,22 @@ Fix failed
 Fix selected
 Fix sound problems
 Fix tasks
+Fix these first
+Fix this
 Fix this item?
 Fix uses the tools of the page the item comes from, with the same checks. Startup apps and personal settings are never ticked for you, Moderate fixes are never ticked automatically, and Advanced ones need Advanced mode.
 Fix {0} items?
 Fixed
 Fixed fan speed (%)
 Fixes just this item, after you confirm.
+Fixes this after you confirm. The change is written to the Action Journal.
 Fixing…
 FL is the highest feature level the driver offers; games check it.
 Flip the switch to stop a program launching at sign-in. Nothing is uninstalled; you can turn it back on any time.
 Flush DNS
 Flush the DNS cache?
 Folder
+Folder not known
 Folder not opened
 Folders
 Folders and shortcuts
@@ -1331,6 +1516,8 @@ Forget
 Forget network
 Form factor
 Formatted
+Found
+Found: {0}.
 FPS counter
 fps counter in game osd
 fps counter in game overlay toggle
@@ -1342,13 +1529,16 @@ Free up space
 Free, open-source software (MIT licence) that checks, monitors and tunes a Windows PC.
 Free: empty memory, ready straight away
 Frees cached file data immediately. Useful when a game stutters because the cache will not let go. Harmless.
+Frees space. Asks first; the newest restore point always stays.
 From
+From 1 launcher
 From power on to desktop
 From programs
 From the Microsoft Store
 From the repair tool that is running or just finished.
 From the Temperatures page's sensors.
 From {0}
+From {0} launchers
 Full = PC Checker applies it · Partial = some limits · Experimental = works, less tested · Monitor only = readouts · Unsupported = use the vendor's software or the BIOS
 Full charge
 Full charge capacity
@@ -1357,18 +1547,23 @@ Full charge capacity over {0}. The dashed line is the design capacity.
 Full charge lasts
 FULL CHARGE NOW
 Full path of the program, for example C:\Tools\tool.exe
+Full scan
 Full scan complete
 Full scan finished with gaps
 Full scan of {0} ({1}): {2} at typical speed.
+Full scan running…
 Fullest drive
 Game launchers
+game library steam epic gog ea origin ubisoft uplay battle.net blizzard riot xbox game pass installed games play verify shader cache
 Game profile
 Game profiles
+Game profile…
 Game Ready
 Game Ready comes first for new games; Studio is tested with creative apps.
 Game scan
 Gamers usually turn this off.
 Games
+Games lists every installed game from Steam, Epic, GOG, the EA app, Ubisoft, Battle.net, Riot and Xbox, with size, drive and last played.
 Gaming
 gateway, 1.1.1.1, 8.8.8.8
 General
@@ -1385,11 +1580,13 @@ Go back to the previous version of Windows?
 Go back…
 Go to Lighting
 Go to process
+Go to Processes
 Go to the process
 Going back is possible for 1 more day.
 Going back is possible for {0} more days.
 Going back stays possible for {0} days after the upgrade.
 Going back stays possible until {0}.
+Good
 Good: no problems. Caution: early warning signs, keep backups current. Bad: back up now and replace the drive.
 Good: router under 5 ms (15 ms on Wi-Fi), public DNS under 40 ms, jitter under 5 ms, no loss.
 GPU
@@ -1420,10 +1617,14 @@ Graphics card core temperature
 Graphics card to load
 Graphics compute
 Graphics control panel
+Graphics driver report (LiveKernelReports)
 Graphics driver reset
+Graphics driver reset ({0})
+Graphics driver restarted
 Graphics drivers (AMD, NVIDIA, Intel)
 Graphics engine graphs
 Graphics helper
+Green is good, yellow is worth a look, red needs fixing and grey could not be checked. Right-click an item to copy it.
 Group
 Hand every fan back to the motherboard or graphics driver.
 Hand fans back to the motherboard when the app closes
@@ -1446,6 +1647,7 @@ Health as reported by Windows from the drive's own self-check (SMART).
 Health score
 Health scores drives, battery, devices and recent errors, and explains anything that needs attention.
 Healthy
+Heap corruption
 Heat ages a battery fastest. Avoid gaming on a soft surface and leaving the laptop in a hot car.
 Heavy at startup
 Help
@@ -1496,6 +1698,7 @@ History ({0} failed)
 History kept (minutes)
 History page
 History recording is off (Settings → History), so there is no temperature trend.
+History recording settings
 History shows what the PC did over the last hour, day, week or month: temperatures, load, power and free space.
 History: {0}
 Hold a key here to feel the delay and rate
@@ -1547,6 +1750,7 @@ How many times per second the mouse reports its position. 1000 Hz = a report eve
 How many times per second the mouse reports its position. Higher is smoother and lower-latency. The rate is set in the mouse's own software, not in Windows.
 How many times per second the picture updates (Hz). Higher feels smoother, especially in games.
 How much charge the battery holds now compared with its design capacity. Batteries lose capacity as they age and are charged.
+How much each app used the processor, the network and the disk.
 How much history the graphs and averages cover.
 How much is read in one go. Bigger blocks are faster; smaller blocks pinpoint bad areas more precisely.
 How much of the drive's rated write endurance has been used (SSDs only).
@@ -1563,7 +1767,9 @@ How often the sensors are read. 1000 ms is a good default.
 How often the system timer ticks. Games ask Windows for 0.5–1 ms while they run; a coarser value at idle is normal.
 How quickly the text cursor blinks. Windows default is 530 ms.
 How quickly your PC reacts, and one-click fixes for what slows it down.
+How restore points are made.
 How the memory is used right now, from left to right
+How the score works
 How the scores work
 How to tune the CPU in the BIOS (plain English)
 How to undo
@@ -1585,12 +1791,20 @@ Identify
 Identify display
 Idle
 If a device is missing
+If anything is overclocked (CPU, graphics card, or memory with XMP/EXPO), go back to default settings and see whether the crashes stop.
+If anything is overclocked or undervolted (including XMP/EXPO memory profiles), go back to default settings.
+If Hardware-accelerated GPU scheduling is on, try turning it off (Settings → Display → Graphics).
+If it hangs while saving or loading, check that the drive is not nearly full and is healthy.
+If it happens under heavy load (games), the power supply may be too weak or failing.
+If it only happens on sleep, try turning off Fast startup.
 If it ran like this for 24 h
 If the app crashes, graphics card fans go back to automatic at the next start. Motherboard fans keep the speed they were left at until the PC restarts, so PC Checker keeps driving them, with its overheating protection on, until then.
+If the PC had frozen, the freeze is the real problem: look for blue screens or driver resets just before this.
 Ignore
 Ignore the game in a smaller window.
 Ignore the game while it runs in a smaller window, for example in its launcher or while you tweak settings.
 Ignores brief or repeated key presses.
+Illegal instruction
 Images
 Impact
 Impact: 
@@ -1599,6 +1813,7 @@ import restore load profiles settings new pc reinstall
 Import selected
 Import selection…
 Important
+Important protection is missing
 Important: Windows keeps starting in Safe Mode until you turn this off. To get back to normal, open PC Checker (or Settings → Recovery) in Safe Mode and switch this off, or run:
 Imported at {0}: {1}
 Importing "Schedules and tray" changes PC Checker's tasks in Windows Task Scheduler:
@@ -1606,16 +1821,20 @@ Importing your setup…
 In a storage pool
 In every group, ticks all copies except the most recently changed one.
 In every group, ticks all copies except the oldest one.
+In normal mode this opens {0}.
 In OpenRGB: SDK Server → Start Server. Or use More → Start OpenRGB server on this page.
 In this folder and below
 In typical use, from full
 In use
 In use (Compressed)
+In use now
 In use {0} · Modified {1} · Standby {2} · Free {3}
 In use: memory programs, drivers and Windows are using
 in {0} folder
 in {0} folders
+In {0}, {1}
 In-game overlay
+In-page error
 Include in 'Install selected' (Windows Update choices only).
 Include in Apply selected / Revert selected.
 Include in “Apply all safe recommendations”.
@@ -1640,6 +1859,7 @@ Install
 Install .inf
 Install .inf…
 Install all
+Install all waiting Windows updates.
 Install and restart
 Install driver updates?
 Install every missing runtime?
@@ -1657,6 +1877,7 @@ Install PawnIO…
 Install puts the whole official package on the PC, for the 32-bit and 64-bit versions that are missing.
 Install selected
 Install the free, signed driver needed for the motherboard fan headers and CPU temperatures.
+Install the latest graphics driver from NVIDIA, AMD or Intel. If the crashes started after an update, go back one version.
 Install the package that contains {0}?
 Install the PawnIO driver?
 Install the update once it has finished.
@@ -1681,6 +1902,7 @@ Installed drivers
 Installed for this user only
 Installed from the maker
 Installed from Windows Update
+Installed games
 Installed games in Steam, Epic, Xbox and other libraries, and game data files.
 Installed programs
 Installed programs and Store apps, and a safe way to remove them.
@@ -1709,6 +1931,7 @@ Installs the free, signed PawnIO driver so the CPU and the motherboard sensor ch
 Installs the official signed PawnIO driver with winget, or from its GitHub releases after checking the signature.
 Installs the tool with winget after you confirm.
 Installs {0} from {1}. No single DLL file is downloaded.
+Integer divide by zero
 Intel
 Intensity
 Internet speed test
@@ -1716,6 +1939,7 @@ Interrupt (ISR) time
 Interrupts
 introduction tour first start getting started
 introduction tour getting started
+Invalid parameter
 IP address
 IPv4 address
 IPv6 address
@@ -1733,6 +1957,7 @@ It is installed for all users with the Windows Package Manager (winget install {
 It is installed with the Windows Package Manager (winget install namazso.PawnIO).
 It is not suspended.
 It is now {0}. The change is recorded in the Action Journal on the Logs page with the previous type, so you can set it back here.
+It is part of Windows, so the real cause is often a driver that called it.
 It is recorded in the Action Journal (Logs page). No restore point is needed because nothing in Windows' settings changes.
 It may be waiting for you to save something. Switch to it to check, or end it now; anything unsaved is lost.
 It no longer exists.
@@ -1811,13 +2036,17 @@ Last checked
 Last checked {0}.
 Last hour
 Last installed
+Last played
+Last played {0:f}
 Last reading
 Last result
 Last run
 Last scan
+Last seen
 Last started
 Last startup
 Last successful install
+Last used
 Last used 1 month ago
 Last used 1 year ago
 Last used today
@@ -1825,6 +2054,7 @@ Last used yesterday
 Last used {0} days ago
 Last used {0} months ago
 Last used {0} years ago
+last {0}
 last {0} min
 Latency
 Latency checks
@@ -1862,6 +2092,7 @@ Lighting (OpenRGB)
 Lighting controls RGB on motherboards, memory, graphics cards and accessories through the free OpenRGB program.
 Lighting profiles and the OpenRGB connection.
 Like the Windows volume mixer. Apps that are closed disappear from the list.
+Likely cause
 Limits raised
 Line
 Lines appear here as the app works. If a filter is active, clear it to see everything in the buffer.
@@ -1894,6 +2125,7 @@ Loads Windows with basic drivers and no startup apps, for removing a bad driver 
 Loads, clocks, fans, voltages, power and data counters.
 Local
 Location
+location
 Lock this PC and show the sign-in screen so someone else can sign in
 Lock this user's desktop; their programs keep running
 Log
@@ -1913,35 +2145,46 @@ Logs
 logs location
 Logs shows what PC Checker did, with errors and the Action Journal: every change it made and how to undo it.
 Look around first
+Look for apps marked In use now. Turn off asks first and Undo puts it back.
 Look for entries marked as possibly unwanted. Every save keeps a backup, and Undo last save puts the previous file back.
 Look for fans again. Nothing is changed.
 Look for new devices
+Look for the selected app among the running programs
+Look for this app among the running programs
 Look up the name of each remote address (asks your DNS server). Off by default.
 Look up who owns the remote address
 Looking at the running programs…
 Looking for disks, adapters and graphics cards…
 Looking for duplicate files…
+Looking for games…
 Looking for hidden driver updates…
 Looking for leftovers…
 Looking for old and unused drivers…
 Looking for RGB hardware…
+Looking for system image backups… this can take a minute
 Looking for what {0} left behind…
+Looks at every launcher again
 Looks fine
 Looks for driver versions that newer ones replaced, drivers nothing uses, and devices that are no longer connected. Nothing is removed by a scan.
 Looks for RGB hardware again and reloads OpenRGB's devices (F5). Changes nothing.
 Loss
 Lost packets cause rubber-banding in games, robotic voices in calls and stalls in video.
+Lost power or froze
 Low
 Low is fastest and cheapest; High thinks longer.
 Low memory means less than this % free
 Low priority means the program only gets the processor when nothing else wants it, so it may run much slower.
 Low-memory warning. The memory profiles themselves are built in.
 Lower how much space restore points may use.
+Made
+Made by
 Made from
 made on {0}
 Main display
 Make a program of your choice start when you sign in
 Make main
+Make sure System Protection is on for the Windows drive and create a restore point. Deleting asks first, and old copies go to the Recycle Bin.
+Make sure the graphics card's power cables are firmly connected.
 Make Task Manager open this copy of PC Checker instead of the other one (you confirm first)
 Make the battery last longer
 Make this the main display?
@@ -1982,6 +2225,8 @@ Measures driver load, timers, power saving, mouse polling and, if chosen in Opti
 Measures every category again. Nothing is deleted by a scan.
 Measures the drive or folder again. Nothing is changed by a scan.
 Measuring install folders…
+Measuring the folders of {0} games…
+Measuring…
 Medium
 Megabits per second
 Memory
@@ -1991,6 +2236,7 @@ Memory clock offset (MHz)
 Memory composition
 Memory compression
 Memory compression squeezes idle memory pages so more programs stay in RAM. On is the Windows default.
+Memory dump file
 Memory errors found
 Memory in use
 Memory latency
@@ -2017,10 +2263,18 @@ Message from this PC
 Metered
 Metrics
 MHz
+Microphone
+microphone
 Microsoft
 Microsoft app
+Microsoft Defender
+Microsoft Defender checks the places malware usually hides. Takes a few minutes.
+Microsoft Defender has not found any threats recently.
+Microsoft Defender is not running, so it cannot scan. Open Windows Security to turn it on.
 Microsoft Store
 Microsoft's article about this update
+Microsoft's bug check reference for this stop code (technical).
+Microsoft's explanation
 Might still be used (recently changed, or shared by a maker's other programs). Only remove it if you recognise it.
 Mild
 Min
@@ -2050,13 +2304,19 @@ Monitoring
 Monitoring, alerts and the overlay keep running.
 Monitoring, alerts and the overlay keep working. Click the tray icon for temperatures, or right-click it to exit.
 More
+More actions
 More graphs
 More maker links
 More pings take longer but catch occasional loss. 500 is good for an intermittent problem.
 More pointer options
 Most batteries are rated for 300 to 1,000
+Most crashing apps
+Most network data
+Most processor time
 Most serious first, each with what to do.
+Most space for restore points on {0}, in percent
 Mostly for experienced users. The page works in Simple mode too; read what each action does before you use it.
+Mostly in {0}
 Motherboard
 Motherboard fans cannot be read without PawnIO
 Motherboard headers, memory, graphics card, coolers, fans and strips.
@@ -2071,7 +2331,12 @@ Move to the Recycle Bin?
 Move up
 move {0} to the Recycle Bin
 Moved to the Recycle Bin
+Moves all but the newest backups (see Keep the newest) to the Recycle Bin after you confirm.
 Moves the ticked items to the Recycle Bin after you confirm. You can restore them from there.
+Moves this Steam game's saved shaders to the Recycle Bin. Steam builds them again; helps with stutter after a driver update.
+Moves {0} of saved shaders to the Recycle Bin:
+Moving old backups to the Recycle Bin…
+Moving the shader cache to the Recycle Bin…
 Moving to the Recycle Bin…
 ms
 Mute
@@ -2079,6 +2344,7 @@ Nagle's algorithm (for some online games)
 Name
 Name (for example My Tool)
 Name and program needed
+Name for a new one
 Name for a new profile, e.g. Quiet night
 Name for the current editor values
 Name for the current layout, e.g. Gaming
@@ -2108,19 +2374,31 @@ Newer
 Newer driver available
 Newer from AMD: {0} ({1})
 Newest
+Newest first. Right-click a crash for more actions.
+Newest restore point
+Newest {0}
 Next run
 Next tab in this section (Ctrl+Shift+Tab goes back)
+Next time it freezes, wait a minute: Windows may recover or write a crash report.
 Night light
 No
 No adapter settings could be read (they need Windows' NetAdapter tools and administrator rights).
 No alerts. Every temperature has stayed within its limits.
+No app has used the {0} yet.
+No app history yet
+No app is using the camera, microphone or location
+No app use in this range
+No app use in this range yet
 No apps are playing sound right now. Start some music or a video and press Refresh apps.
 No automatic services found
+No backups yet
 No backups yet. One is created automatically the first time you fix something.
 No backups yet. One is made the first time you save here.
 No battery
 No battery detected — this looks like a desktop PC.
 No big files have gone unused that long.
+No blue screen was recorded
+No blue screens, sudden shutdowns, graphics driver resets or app crashes were recorded. If the PC still freezes or restarts, run a check-up to look at everything in one go.
 No built-in apps match
 No capabilities match
 No changes made yet. Everything the app changes is listed here with a way back.
@@ -2130,6 +2408,8 @@ No component reports its power on this PC.
 No connections to show
 No crash dump folder
 No crash dumps
+No crashes in the last 90 days
+No crashes in the last 90 days.
 No device in this category matches the search.
 No DirectX 11 graphics card was found for the built-in load. Tick the box below and use your own game or benchmark instead.
 No displays reported
@@ -2140,6 +2420,7 @@ No driver updates found
 No drivers scanned yet
 No drives found
 No drives reported
+No dump folder yet
 No entries to show
 No errors and temperatures stayed under the limits.
 No errors found
@@ -2148,7 +2429,11 @@ No errors match the filter.
 No fans to show
 No files were found.
 No fixed drives were listed, or the check could not run. Try running PC Checker as administrator.
+No fixed NTFS drives were found.
+No game launcher was found on this PC.
 No game profiles yet. Start a game, come back here and choose “Add running game”.
+No games found
+No games match
 No hidden driver updates
 No hidden updates
 No history yet
@@ -2162,11 +2447,14 @@ No keyboards or mice listed yet. Press Detect again, or run a scan on the Hardwa
 No latency check yet
 No layouts saved yet.
 No leftovers found
+no limit
 No log lines to show
 No logon tasks to show
+No matching apps
 No matching programs
 No matching services
 No memory dump for this process
+No memory dump was found, so PC Checker cannot guess which driver was involved. Turn on small memory dumps in System Properties → Advanced → Startup and Recovery.
 No message
 No metrics selected
 No microphones
@@ -2195,6 +2483,10 @@ No restart pending
 No restore point will be created (per your settings).
 No restore point will be created (turned off in Settings → Restore points).
 No restore point will be created before this change (turn it on in Settings if you want one).
+No restore point yet
+No restore points are kept on this drive.
+No restore points yet. Press Create restore point to make the first one.
+No restore points: System Protection is off for the Windows drive. Turn it on below, then create one.
 No result was saved.
 No RGB devices found
 No RGB hardware was found and OpenRGB lists no devices. Start OpenRGB with its SDK server on, then press Rescan.
@@ -2228,12 +2520,14 @@ None of the parts in this file can be used by this version of PC Checker.
 None of the selected tweaks is applied, or they cannot be undone here.
 None of the selected updates finished downloading, so nothing was installed.
 None of the sources has anything for your devices. Graphics and peripheral makers also publish drivers on their own sites: see the links on the right.
+None yet
 Normal
 Not a full security audit, just the essentials.
 Not allowed
 Not analysed yet
 Not available
 Not changed
+Not checked
 Not checked yet
 not compared
 Not counted by this battery
@@ -2258,6 +2552,7 @@ Not now
 Not part of Windows
 Not paused
 Not read yet
+Not recorded
 Not removed
 Not reported
 Not responding
@@ -2274,6 +2569,7 @@ Note
 Note (optional)
 Note for the next run
 Notes from the scan
+Nothing
 nothing
 Nothing deleted yet.
 Nothing found. Try another word, or fewer letters.
@@ -2287,13 +2583,16 @@ Nothing is sent until you ask, and the key stays encrypted on this PC.
 Nothing is written until you Save. Discard puts the page back to the file as it is.
 Nothing logged. Good news.
 Nothing matches the filter, the search or the chosen program. Show everything to see all connections, including this-PC-only ones.
+Nothing matches the search and filters. Clear them to see every game.
 Nothing matches the search and filters. With Missing only on, an empty list means every DLL is there.
 Nothing matches the search or filter, or the file only has comments. Use Add entry to block a site or point a name at an address.
+Nothing matches this filter
 Nothing matches this filter or search. Show all tasks to see Windows' own tasks too.
 Nothing matches your filter
 Nothing matches your search or filter.
 Nothing matches your search or filter. Clear the search, pick Everything, or tick Show Windows entries.
 Nothing matches your search.
+Nothing matches your search. Clear it to see every app.
 Nothing needs your attention right now.
 Nothing PC Checker can install would help. Verify the game files in its launcher, or reinstall the game.
 Nothing recorded in this period
@@ -2311,11 +2610,13 @@ Nothing to check
 Nothing to clean up
 Nothing to compare with
 Nothing to copy
+Nothing to delete
 Nothing to do
 Nothing to do right now.
 Nothing to export
 Nothing to export yet
 Nothing to fix here
+Nothing to fix, unless you did not cause it; then check for keyboard or debugging tools set up to do this.
 Nothing to fix. All measured values and settings look good for low latency.
 Nothing to go back to
 Nothing to import
@@ -2326,8 +2627,10 @@ Nothing to show
 Nothing to undo
 Nothing unusual happened in this period.
 Nothing unusual in this period
+Nothing urgent
 Nothing was changed
 Nothing was moved
+Nothing was recorded for this period. Pick a longer range to see more.
 Nothing was removed
 notification area system tray
 notifications quiet
@@ -2372,8 +2675,10 @@ Old files: not used for (months)
 Old or unused driver packages
 Older
 Older days are deleted automatically, a day after you lower this. 90 days use a few megabytes.
+Older restore points deleted
 Older than 3 years
 On
+On 1 drive
 On battery
 on battery
 On battery, using {0} W.
@@ -2382,6 +2687,7 @@ On battery.
 On the monitor under your mouse, or Custom.
 On this page ({0})
 On this PC
+On {0} drives
 On: fast flicks move the pointer further than slow movements. Off: the same hand movement always moves the same distance. Fine to keep on for desktop work.
 On: only a health score drop or new critical problem, driver updates, cleanup errors or a failed run.
 On: right-clicking shows every entry straight away.
@@ -2395,6 +2701,7 @@ One graph for the whole processor
 One of the changes you applied finishes after Windows restarts. Save your work and restart when convenient.
 One of Windows' own tasks. Advanced mode lets you turn it off or on; it cannot be deleted.
 One or more names separated by spaces. Pasted web addresses are cut down to the name.
+One processor core stopped responding. Unstable overclocks and undervolts (PBO, Curve Optimizer) are the most common cause.
 One restore point is created first and covers every change, so you can go back.
 One screen per notch
 One small file per day. Nothing is sent anywhere.
@@ -2413,8 +2720,10 @@ Only install packages from sources you trust. A restore point is created first (
 Only matters with more than one operating system. 3 is plenty.
 Only reported: it cannot be removed safely right now.
 Only shows when you hold Shift while right-clicking.
+Only Steam records this
 Only the first {0} files were read.
 Only when the game fills the screen
+Only Windows' records have this
 Only your graphics card's device id is sent (to NVIDIA), and your Lenovo machine type (to Lenovo). Support pages open in your browser with your PC's model in the address. Maker answers are kept for 12 hours. Changes apply to the next search.
 Only your session is active right now.
 Only your session's File Explorer restarts, as you (not as administrator). The taskbar disappears for a second.
@@ -2422,6 +2731,8 @@ Opacity
 Open
 Open a program, folder, document or web address, with or without administrator rights
 Open a small always-on-top window with just the graphs (also in the tray menu)
+Open Apps
+Open Backup and Restore (Windows 7)
 Open backup folder
 Open backups folder
 Open chipset page
@@ -2429,17 +2740,21 @@ Open connections
 Open Device Manager
 Open download page
 Open Drivers
+Open dump folder
 Open Event Viewer
+Open File History
 Open file location
 Open files, registry keys and other Windows objects.
 Open folder
 Open full view
 Open history folder
+Open in Event Viewer
 Open in the taskbar instead of on top of your work.
 Open install folder
 Open journal file
 Open journal folder
 Open Latency page
+Open launcher
 Open Location settings
 Open log folder
 Open Memory page
@@ -2452,6 +2767,7 @@ Open PC Checker instead of Task Manager?
 Open PC Checker instead of Windows Task Manager
 Open PC Checker on the Live usage page
 Open PC Checker on the Processes tab instead of Windows Task Manager (Ctrl+Shift+Esc and every other way).
+Open Protection history
 Open protection settings
 Open publisher page
 Open Registry Editor
@@ -2460,9 +2776,11 @@ Open report
 Open reports folder
 Open Services console
 Open Settings
+Open settings
 Open Settings → Updates, or press Update now on the Dashboard.
 Open Storage settings
 Open support page
+Open System Protection
 Open System Restore
 Open Task Scheduler
 Open Task Scheduler. PC Checker's tasks are in the "PC Checker" folder.
@@ -2473,22 +2791,28 @@ Open the folder that contains this program
 Open the full report
 Open the hosts folder
 Open the installer
+Open the page
 Open the Recycle Bin
 Open the reports folder
 Open the right-click menu of the selected item
+Open the selected app's file location
 Open the Send to folder
 Open the Services console
 Open the vendor page
 Open the vendor page?
 Open the vendor's page
 Open the vendor's page about this package
+Open the Windows setting
 Open the Windows tool
 Open this copy
 Open this folder
 Open this folder in File Explorer
+Open to check
 Open to other devices
 Open Wi-Fi settings
+Open Windows Backup
 Open Windows Features
+Open Windows Security
 Open Windows Task Manager
 Open Windows Task Manager again?
 Open Windows Task Manager?
@@ -2505,6 +2829,7 @@ OpenRGB must run with its SDK server on. For products it does not support, the m
 openrgb port rgb
 openrgb rgb auto connect
 OpenRGB uses 6742 unless you changed it.
+Opens Ask Claude with the crash details filled in.
 Opens in the taskbar instead of on top of your work (in the tray when Minimize to the tray is on).
 Opens Leftovers and looks for the folders, settings, tasks and shortcuts this program left. Nothing is removed until you choose to.
 Opens PC Checker and checks everything at once. Nothing is changed by a check-up.
@@ -2521,12 +2846,19 @@ Opens the classic Disk Cleanup tool (cleanmgr).
 Opens the classic System Protection dialog where you can choose drives and disk space.
 Opens the Drivers page. A current Wi-Fi driver fixes many drop-outs and slow link rates.
 Opens the folder that holds the log files in File Explorer.
+Opens the game's folder in File Explorer
 Opens the maker's page in your browser.
+Opens the Missing DLLs page and checks which DLLs this game needs. Nothing is run or changed.
 Opens the NVIDIA, AMD or Intel graphics app for colour, scaling and G-Sync / FreeSync options.
+Opens the Overlay page with a game profile for this game: overlay, fans and power plan while it runs
+Opens the place in Windows (or in PC Checker) where this is changed.
 Opens the Windows Disk Management console (partitions, drive letters, formatting).
 Opens the Windows Sound control panel: enhancements, exclusive mode, spatial sound and the default format live there.
 Opens the Windows System Restore wizard (rstrui.exe) to go back to a restore point.
 Opens the Windows Update page in Settings that lists optional driver updates.
+Opens this folder in File Explorer.
+Opens this privacy page in Windows Settings, where you can turn access on or off for every app.
+Opens this setting on the Debloat page.
 Opens Windows display settings, where you drag displays into a different order.
 Opens Windows Settings at Battery: battery saver and which apps use the most battery.
 Opens Windows Settings at Power: screen and sleep times and the power mode.
@@ -2534,6 +2866,7 @@ Opens Windows Settings → Apps → Installed apps, where PawnIO is uninstalled 
 Opens Windows Settings → System → Sound (spatial audio, mono audio, app defaults).
 Opens Windows System Restore so you can go back to a restore point listed here.
 Opens Windows Update in the Settings app.
+Opens Windows' Event Viewer on the log this came from.
 Opens Windows' own Registry Editor (regedit). Copy a key path below and paste it into its address bar.
 Opens Windows' own Turn Windows features on or off window (.NET Framework 3.5, DirectPlay)
 Opens your board's or PC's support page in the browser with the exact model filled in. Drivers and BIOS made for your model are there.
@@ -2583,6 +2916,7 @@ overclocking clock safety
 overclocking heat safety
 overclocking vram safety
 overclocking watts safety
+Overclocks set in the BIOS or other tools (XMP, EXPO, PBO, undervolts) cannot be seen here. If you use one, try default settings first when the stop code points at hardware.
 Overlay
 Overlay hidden
 Overlay hotkey
@@ -2610,6 +2944,7 @@ Pages in this section
 Paired
 Part
 Part number
+Part of the graphics card stopped responding and Windows restarted it. The screen may have gone black for a moment.
 Part of the list is missing
 Part of the storage pool {0}. Windows hides it as a disk of its own.
 Part of Windows
@@ -2623,6 +2958,7 @@ Passes
 passes/s
 Paste a key above and press Save key.
 Paste your key (starts with sk-ant-…)
+Path: {0}
 Pause
 Pause & active hours
 Pause service?
@@ -2653,12 +2989,17 @@ PawnIO was not installed
 PawnIO, the sensor chip ({0}) and {1} fan sensor(s) checked: no problems found.
 PC Checker
 PC Checker adds a setting that hides it from the menu. The entry itself stays, so it can come back.
+PC Checker adds up app use once a minute while it runs. Leave it open or in the tray and come back in a little while.
 PC Checker adjusts this fan every second from the temperature you chose.
 PC Checker asks for administrator rights, so accounts without them see a Windows sign-in prompt instead of Task Manager while this is on.
 PC Checker asks your DNS server for the name of each remote address. Names appear as the answers come in.
 PC Checker can read your CPU and motherboard sensors, including the CPU and case fans plugged into the motherboard, with the free, signed PawnIO driver. Without it only graphics card fans and a few temperatures appear.
 PC Checker could not get a tuning interface for this graphics card. The vendor's own program offers the same controls.
 PC Checker does not wake sleeping drives for routine checks.
+PC Checker guesses from the stop code and the memory dump without debugging symbols. Treat it as a hint, not proof.
+PC Checker has a graphics overclock applied. Reset it to stock on the Overclock page first.
+PC Checker has an overclock applied. Reset it to stock on the Overclock page and see whether the shutdowns stop.
+PC Checker has an overclock applied. Reset it to stock on the Overclock page first.
 PC Checker has not written any history on this PC yet.
 PC Checker holds this fan at a fixed speed.
 PC Checker is already downloading the update.
@@ -2668,15 +3009,21 @@ PC Checker keeps trying to connect in the background, so starting OpenRGB yourse
 PC Checker lists what programs added to File Explorer's right-click menu. Nothing is changed until you choose to.
 PC Checker logo
 PC Checker looks after this PC in one place:
+PC Checker looks in Steam, Epic Games, GOG Galaxy, the EA app, Ubisoft Connect, Battle.net, the Riot Client and the Xbox app. If your games are on a drive that is unplugged, plug it in and scan again.
 PC Checker moves the shortcut back into your Send to folder.
 PC Checker moves the shortcut to a hidden backup folder.
 PC Checker never downloads single DLL files from DLL websites; they are unsafe and often the wrong version. Each DLL comes from the official package that contains it.
+PC Checker never turns off Defender, the firewall, SmartScreen or User Account Control.
 PC Checker never updates the BIOS. If you do: use your maker's file for this exact model, keep the PC plugged in and do not turn it off until it restarts by itself.
+PC Checker now adds up app use while it is open or in the tray.
 PC Checker now records history while it is open or in the tray.
+PC Checker only adds up app use while History recording is on. Turn it on, leave PC Checker open or in the tray, and come back later.
 PC Checker overlay
 PC Checker puts it on your list of blocked menu add-ons, so File Explorer stops loading it. The program itself is not changed.
 PC Checker puts this back the way it was a moment ago. The undo is recorded in the Action Journal too.
 PC Checker puts this network's position in the list, auto-connect and metered settings back to what they were before it first changed them.
+PC Checker reads the System and Application event logs and the memory dumps Windows saves after a blue screen (the Minidump folder, MEMORY.DMP and graphics driver reports). It only reads; nothing is changed or deleted.
+PC Checker reads your antivirus, firewall, Windows version and other protections and shows what to fix first. Nothing is changed by a check.
 PC Checker recognises {0} USB lighting controllers and {1} graphics cards by their IDs (the list OpenRGB supports).
 PC Checker records temperatures, loads, power and free space in the background while it is open or in the tray. Check back in a few minutes, or pick a longer period.
 PC Checker removes the setting that hides it. The entry itself was never deleted.
@@ -2710,6 +3057,10 @@ PC Checker {0} is available. Click to update.
 PC Checker {0} is available. You have {1}.
 PC Checker {0} is downloading. You can keep working; it restarts when you say so.
 PC Checker {0} is not offered because you chose Skip this version.
+PC Checker's backups
+PC Checker's own recording adds up processor time and disk use once a minute while PC Checker runs (also from the tray) and History recording is on. It keeps as many days as the History setting says. It cannot see network use per app.
+PC Checker's own recording is shown instead.
+PC Checker's recording
 PC maker
 PC maker tools
 PC: {0}
@@ -2722,6 +3073,8 @@ Physical location
 Pick .exe file
 Pick a colour
 Pick a colour for this zone
+Pick a crash
+Pick a date range and sort by a column. This page only reads; Delete usage history in More removes PC Checker's own recording.
 Pick a drive above, or choose a folder. The scan lists the biggest folders and files, old files you have not opened for a long time, and duplicates. Nothing is changed until you choose to.
 Pick a drive and press Scan; it only reads. Anything you delete goes to the Recycle Bin.
 Pick a game's folder or .exe. PC Checker reads which DLLs its programs load and what is missing. Nothing is run.
@@ -2764,6 +3117,7 @@ Pings your router and two public servers to find lost packets.
 Pixels from the top-left corner of the screen.
 Placeholders: {Timestamp}, {Level}, {Category}, {Message}, {NewLine}, {Exception}.
 Plan ready
+Play
 Plays a sound when Caps Lock, Num Lock or Scroll Lock is pressed.
 Please wait
 Plug in first
@@ -2789,6 +3143,7 @@ Position in the list Windows tries first.
 Possibly unwanted
 Possibly unwanted (malware does this)
 Power
+Power button held down
 Power cycles
 Power draw
 Power limit (%)
@@ -2813,6 +3168,7 @@ Press ? again or Esc to close. F1 opens the help of the page you are on.
 Press Analyze to check drives, devices, logs and security.
 Press Check for updates and install the recommended ones. A restore point is made first.
 Press Install and restart when you are ready.
+Press Play on a card, or right-click it to verify files or find missing DLLs. Uninstalling is always done by the game's own launcher.
 Press Refresh to list the third-party driver packages Windows has staged. This takes a few seconds.
 Press Run check-up, read the list, then tick only what you understand and press Fix selected. Nothing changes until you confirm.
 Press Run health check and read the items marked orange or red. Each one says what to do next.
@@ -2833,6 +3189,9 @@ Priority decides which program gets the processor first when the PC is busy. {0}
 Privacy
 Privacy and logs
 privacy redact logging
+Privacy shows which apps recently used your camera, microphone and location, and how Windows' main privacy settings are set.
+Probably caused by is a best guess: a driver whose memory a stop code points into, or the first driver from outside Windows on the crashing thread. Tools like WinDbg can confirm it with debugging symbols.
+Probably caused by: {0}
 Probably left behind. Check the name before you tick it.
 Problems only
 Process
@@ -2842,6 +3201,7 @@ Processes
 Processes lists every running program with its processor, memory, disk and network use, like Task Manager.
 Processor
 Processor graph
+Processor time
 Processor use across all {0} logical processors
 Processor, multi-core
 Processor, single-core
@@ -2859,6 +3219,7 @@ Program closed
 Program ended
 Program file
 Program, folder, document or web address
+Program: {0} {1}
 Programs
 Programs add lines to the menu you get when you right-click a file, a folder, a drive or the desktop. Too many make the menu long and slow to open, and some stay behind after the program is gone.
 Programs and background services running.
@@ -2867,6 +3228,7 @@ Programs listed in the Run keys of the registry and in the Startup folders.
 Programs running without a window: helpers, updaters and services from other companies.
 Programs that arrived together
 Programs that arrived together. Extras can go; runtimes are best kept.
+Programs that crashed or stopped responding most often in the last 90 days.
 Programs that need it will not be able to start it either.
 Programs that start with Windows and how much each slows start-up (Apps & Drivers › Startup).
 programs uninstall installed apps
@@ -2908,7 +3270,9 @@ Quick clean
 Quick improve Wi-Fi
 Quick memory test
 Quick picks
+Quick scan
 Quick scan of {0}: {1}.
+Quick scan running…
 Quick search
 Quick wins
 Quiet
@@ -2944,6 +3308,7 @@ Re-run tests and compare
 Re-runs every check. Takes a few seconds.
 Read all your fans and sensors?
 Read at {0}. Edits are kept here until you Save.
+Read backups
 Read every (ms)
 Read from Get-HotFix, the Windows Update history and DISM. Select an update to see how it would be removed.
 Read from this PC. 'Check for updates' also asks the makers.
@@ -2954,6 +3319,8 @@ Read speed
 Read the adapters, the Wi-Fi connection and the tuning settings again.
 Read the connections now (F5)
 Read the drive's health again. A sleeping drive is only woken after you agree.
+Read the event logs and crash dumps again (F5). Nothing is changed.
+Read the figures again (Windows' records are copied again)
 Read the file
 Read the file again
 Read the full guide
@@ -2970,15 +3337,23 @@ Read {0} · Write {1} (dashed)
 Read-only
 Readable
 Reading and writing files, per second.
+Reading app history…
 Reading connections…
+Reading crash dump files…
+Reading crash reports…
 Reading drives…
 Reading files, per second.
+Reading network use…
+Reading PC Checker's own recording…
 Reading power information…
+Reading processor and disk use…
+Reading restore points and backups…
 Reading running programs…
 Reading scheduled tasks…
 Reading services…
 Reading signed-in users…
 Reading startup apps, tasks, services and boot options…
+Reading the Application log…
 Reading the battery…
 Reading the driver store…
 Reading the file again throws away the edits you have not saved.
@@ -2986,21 +3361,32 @@ Reading the file…
 Reading the game's files…
 Reading the hosts file
 Reading the hosts file…
+Reading the list of apps…
 Reading the right-click menu
 Reading the right-click menu…
+Reading the System log…
 Reading updates, temperature history and drives…
+Reading which apps used the camera, microphone and location…
 Reading Windows features…
 Reading Windows Update status…
+Reading Windows' app usage records needs administrator rights.
+Reading Windows' app usage records took too long.
+Reading Windows' app usage records was cancelled.
+Reading Windows' app usage records…
 Reading your hardware…
 Reading {0}…
 Readings appear here as soon as the hardware monitor reports them. If nothing shows after a minute, reload the sensors; CPU and motherboard sensors also need PawnIO.
 Reads every block without writing. Unreadable blocks mean the drive is failing.
+Reads every check again. Nothing is changed.
 Reads every installed driver from Windows and flags problems, old or unsigned drivers.
+Reads every launcher's list of installed games again. No launcher is started and nothing is changed.
 Reads the current Adrenalin release from AMD's driver page.
 Reads the files that share a size to confirm which are identical. Nothing is changed.
 Reads the installed updates, the hidden updates and the window to go back again.
+Reads the restore points and backups again (F5).
 Reads the right-click menu again (F5). Nothing is changed.
 Reads the status and the history again. Does not check for new updates.
+Reads Windows' records again. Nothing is changed.
 Reads your PC maker's public driver and BIOS list for your model (Lenovo). The machine type is part of the address.
 Ready
 Ready to download
@@ -3018,6 +3404,7 @@ Recent changes
 Recent events
 Recent lines the Live log holds in memory (100 – 50,000).
 Recent runs
+Recent threats
 Recent use
 Recently used data kept in memory to start things faster.
 Recently used file data kept in RAM so it opens faster next time. Windows gives it up instantly when a program needs the space.
@@ -3029,6 +3416,7 @@ Reconnect
 Record a sample
 Record history
 Record more or less from one part of the app without changing the rest.
+Recording app use
 Recording history
 Recording is off
 Recording settings
@@ -3052,12 +3440,14 @@ Registry leftovers removed
 Registry removes leftover entries that point at programs and files that no longer exist. It rarely makes a PC faster.
 Reinstall from the Store
 Reinstalling and then uninstalling it properly, or the vendor's own removal tool, cleans these up the right way.
+Related pages
 Release date
 Release notes
 Released {0}
 Releases
 Releases most of the cache files File Explorer keeps open. Clean again afterwards.
 Releases page
+Reliability Monitor
 Reload
 Reload sensors
 Reload sensors?
@@ -3079,6 +3469,7 @@ Remove saved key
 Remove selected
 Remove Store apps for all users
 Remove temporary files from the Safe cleanup categories (asks first)
+Remove the game from its launcher.
 Remove these drivers?
 Remove these leftovers?
 Remove these registry leftovers?
@@ -3110,8 +3501,11 @@ Renew IP address
 Renew the IP address?
 Repair
 Repair (now or at next restart)
+Repair or reinstall the program, and check the Missing DLLs page for runtime packages.
 Repair PawnIO
+Repair the program and its runtimes (Missing DLLs page) and restart the PC.
 Repair volume
+Repair Windows files: run "sfc /scannow" and then "DISM /Online /Cleanup-Image /RestoreHealth" in an administrator terminal.
 Repeat delay
 Repeat rate
 Replace
@@ -3127,6 +3521,7 @@ Reports
 reports
 Reports per second; 1000 Hz is the gaming standard.
 Rescan
+Reseat or replace the drive's data cable (SATA) or reseat the SSD.
 Reset
 Reset a part…
 Reset all settings?
@@ -3136,11 +3531,13 @@ Reset min/max
 Reset network stack
 Reset network stack is available in Advanced mode (Settings), because it clears any IP or DNS settings you typed in by hand.
 Reset one part
+Reset overclock
 Reset overlay settings
 Reset overlay to defaults
 Reset parts of your setup
 Reset session
 Reset settings
+Reset the BIOS to its default settings.
 Reset the hosts file to the Windows default
 Reset the hosts file to the Windows default?
 Reset the network stack?
@@ -3194,9 +3591,18 @@ Restore
 Restore from a backup file
 Restore list
 Restore point created
+Restore point deleted
 Restore point first
+Restore point space changed
+Restore point space on the Windows drive
+restore point system restore system protection shadow copies vss file history onedrive backup system image
+Restore point {0}, made {1}
 Restore points
+Restore points are only kept for drives where System Protection is on. When the space is full, Windows deletes the oldest point.
 Restore points are turned off in Settings, so none is created before these changes.
+Restore points do not keep your documents and photos. These Windows features do; PC Checker only shows them.
+Restore points on {0} may use up to {1} % of the drive (about {2}).
+Restore points on {0} may use up to {1} % of the drive.
 Restore the hosts file from the backup of {0}
 Restore this backup?
 Restore this?
@@ -3243,6 +3649,7 @@ RGB control talks to the OpenRGB SDK server.
 rgb leds openrgb colours colors
 RGB lighting for your PC and peripherals, through OpenRGB.
 Right now
+Right-click a game for more. Uninstall and Verify files are done by the game's own launcher; PC Checker never deletes game folders.
 Right-click a service for actions. Core Windows services are locked so they cannot be broken.
 Right-click menu
 Right-click menu entries
@@ -3263,6 +3670,7 @@ Run a disk benchmark
 Run a full scan
 Run a full scan first so the report has something to say.
 Run a full scan to see what is inside this PC.
+Run a full scan?
 Run a full surface scan?
 Run a hardware scan first so the links match your exact parts.
 Run a latency check
@@ -3383,6 +3791,7 @@ Saved with the run so you can find it in the history, for example "Before overcl
 Saves a zip with the log files, the action journal, the in-app log buffer and your settings (API key removed). Attach it to a bug report.
 Saves every recorded value in this period as a spreadsheet file.
 Saves everything the app knows as an HTML, JSON or Markdown file.
+Saves kept only in the game's folder can be lost. Back them up first if you are not sure.
 Saves the complete inventory, including every raw property, as a JSON file.
 Saves the current slider values under this name.
 Saves the effect, colour, speed and brightness shown on every card below as a profile.
@@ -3397,13 +3806,17 @@ Scales the whole panel.
 Scan
 Scan a game
 Scan a game…
+Scan again
 Scan again after closing browsers or games
 Scan and clean again to remove the icon and thumbnail caches. Anything still in use is cleared after you sign out and back in.
 Scan drivers
 Scan drivers first.
 Scan finds file system problems without changing anything; the fixes repair them.
+Scan finished
+Scan finished with a warning
 Scan first; it only reads. Remove only the packages marked safe; a restore point is made first.
 Scan for installed programs first.
+Scan for missing DLLs
 Scan for slowdowns
 Scan now
 Scan result
@@ -3412,6 +3825,7 @@ Scan, then fix only the categories marked Safe. A backup is saved first and can 
 Scanned
 Scanning installed drivers…
 Scanning installed programs…
+Scans run in the background; you can keep using the PC.
 Schedule
 Schedule at next restart
 Schedule created
@@ -3438,6 +3852,7 @@ Screen corner
 SDK server:
 Search
 Search address online
+Search apps
 Search apps, tasks, services
 Search by name, publisher, version or folder
 Search connections
@@ -3446,6 +3861,7 @@ Search DLLs
 Search entries
 Search features, capabilities and apps
 Search for any page, setting or action
+Search games
 Search messages…
 Search name or address
 Search name or description
@@ -3475,10 +3891,18 @@ Security
 Security basics
 Security checks did not run
 Security helper
+Security score
+Security score: {0} ({1})
+Security shows how well this PC is protected: antivirus, firewall, Windows version, encryption and more, each with a traffic light and a score.
+See crashes
+See hardware errors
+See how well this PC is protected
 See the list
 See the message at the top of the page.
 See what fills your drive
 See what fills your drives, find duplicates, and clear out what you no longer need.
+See which apps used your camera, microphone and location
+See your restore points, whether System Protection is on, Windows' own backups and the copies PC Checker keeps. Reading changes nothing.
 Select a drive to see how long a scan would take.
 Select a line, then Turn off (Del) or Turn on (Ctrl+E). Right-click for more. Nothing is ever deleted.
 Select all
@@ -3505,6 +3929,7 @@ Sensors cannot be reloaded here.
 sensors heat cpu gpu temp hot thermal
 Sensors reloaded
 Sent
+Sent and received
 Sent to 0.0.0.0 or this PC
 Sent to the monitor over DDC/CI (the same channel as its on-screen menu), or to Windows for a built-in panel.
 Separate lighting areas on this device (for example each RGB header or key block) that can have their own colour.
@@ -3561,6 +3986,7 @@ Settings reset
 Settings sets the theme, language, Advanced mode, restore points, tray, schedules, updates and more.
 Settings that affect latency
 Settings that belong to one page each. Most can also be changed on that page.
+Settings → Privacy & security → Activity history: what Windows keeps about your app use
 Settings → Updates shows what is new, the channel and how updates are offered.
 Settings, profiles and schedules in one .pcchecker file. Your API key is never included.
 Setup files and installer packages you may no longer need.
@@ -3568,6 +3994,8 @@ Setup imported
 Setup saved
 Severity
 Shade the part of the processor time spent inside Windows itself (on the overall graph)
+Shader cache cleaned
+Shader cache not cleaned
 Shader maths on the graphics card through DirectX 11. Skipped when there is no DirectX 11 card.
 Shadowing
 Share of the whole processor.
@@ -3594,6 +4022,7 @@ Show dependencies
 Show empty headers
 Show every metric
 Show everything
+Show hardware errors
 Show host names
 Show in File Explorer
 Show kernel times
@@ -3603,6 +4032,8 @@ Show one group of categories. Scans always cover every group.
 Show only one area of the app, for example Sensors or Drivers.
 Show only one Device Manager class.
 Show only the processes marked as worth a closer look
+Show only this program's crashes in the timeline
+Show only {0}
 Show or hide processes
 Show or hide the always-on-top overlay (also on its hotkey)
 Show or hide the in-game overlay (the default key; you can change it here)
@@ -3611,11 +4042,17 @@ Show or hide the processes of this program (Right and Left arrow keys)
 Show overlay
 Show the DLLs of one package
 Show the full (classic) right-click menu
+Show the games of one launcher
+Show the games on one drive
+Show the last 30 days
 Show the overlay
 Show the PC Checker icon in the tray
+Show the program file in File Explorer
+Show the selected app's program file in File Explorer
 Show the temperature as the tray icon
 Show the welcome again
 Show them
+Show these
 Show this folder in File Explorer
 Show this list of keyboard shortcuts
 Show this update again?
@@ -3625,20 +4062,26 @@ Show Windows services
 Show Windows tasks
 Show {0} more group
 Show {0} more groups
+Showing only {0}
+Showing PC Checker's own recording, made once a minute while PC Checker runs. It has no network figures.
 Showing the first {0} of {1} entries. Search or filter to find the others.
 Showing the run from {0}. Reference PC = 1,000 per test.
+Showing Windows' own records (the System Resource Usage Monitor), the same data Task Manager's App history uses. Windows writes them about once an hour.
 Shown below
+Shown in System Restore so you can tell this point apart later.
 Shown read-only when ticked
 Shown, never changed
 Shows a big number on each display for a few seconds so you know which card is which.
 Shows advanced sections and riskier actions inside pages. Every page stays visible either way.
 Shows after File Explorer restarts (offered when the change is done).
+Shows every game again
 Shows exactly what will change, then creates a restore point and applies the selected tweaks.
 Shows on
 Shows or hides the BIOS, chipset driver and maker links.
 Shows riskier actions inside pages.
 Shows the extra options. Every change still asks first.
 Shows the history saved while recording was on.
+Shows the memory dump file, for a support technician or a debugging tool.
 Shows the overlay with a dashed frame you can drag. Turn it off when it sits where you want it.
 Shows this display's number on its screen for a few seconds.
 Shows this run on the result cards.
@@ -3662,8 +4105,11 @@ Silent
 Silent clean install
 Silent uses NVIDIA's own switches. A clean install resets NVIDIA settings. AMD's installer always opens.
 Simulate an overheating CPU (demo)
+Since a date
 since the app started
+Since this date
 Since Windows last started
+Since {0}
 since {0}
 Since {0} ({1})
 Sitting at 100 % wears a battery faster. Most makers' apps (Lenovo Vantage, MyASUS, Dell Optimizer, HP, Surface) can stop charging at about 80 %.
@@ -3692,7 +4138,10 @@ smart errors problems score
 SMART is the drive's own built-in self-check.
 SMART self-check, temperature, age and wear for every disk.
 SMART: 
+SMB 1.0 is an old, unsafe way of sharing files. Turning it off can stop very old network drives or printers from working; you can turn it back on from Windows Features. A restore point is made first and Windows needs a restart to finish.
+SMB 1.0 turned off
 Snap the pointer to the default button in dialogs
+Snapshots of system files, drivers and settings that System Restore can go back to. Personal files are not included.
 Sockets
 Software %
 Solid line: received. Dashed line: sent.
@@ -3700,6 +4149,7 @@ Some advanced fixes are hidden
 Some advanced options are hidden to keep things safe. Menu items marked Advanced are mostly for experienced users. Turn on Advanced mode at the bottom of the menu when you need more.
 Some advanced options are hidden to keep things safe. Switch on Advanced mode when you need more; every action still asks first.
 Some changes failed
+Some checks could not be read
 Some checks could not run
 Some details could not be read
 Some drivers were kept
@@ -3712,11 +4162,13 @@ Some items are in OneDrive. Removing them here also removes them from OneDrive o
 Some items belong to an installed game. Uninstalling it from its launcher (Steam, Xbox, Epic…) is cleaner.
 Some items were kept
 Some keyboards only show their lighting while their own software is closed.
+Some launchers could not be read
 Some leftovers were kept
 Some lines were skipped
 Some of the changes you made finish after Windows restarts or you sign out. Save your work and restart when convenient.
 Some of these need a restart to finish. PC Checker does not restart on its own.
 Some parts could not be checked
+Some records could not be read
 Some routers and networks block ping, so a single 'No reply' is not always a fault.
 Some sensors are missing
 Some settings are set by policy
@@ -3726,17 +4178,23 @@ Some updates did not install
 Some updates may ask for a restart afterwards.
 Some values could not be measured
 Some Wi-Fi details could not be read
+Someone started this crash on purpose (a keyboard shortcut or a debugging tool). Nothing is broken.
 Something other than the Windows default runs at sign-in. This is often left by malware.
 Something went wrong
+Something went wrong while Windows was doing work for a program. Often a graphics, antivirus or anti-cheat driver.
 Sort by
 Sort by a column to find what is busy. Ending a task can lose unsaved work, so close the program normally first.
 Sort by size or date to find what you no longer use. Uninstall asks first and uses the program's own uninstaller.
+Sort games by
+Sort games by name, size or when they were last played
 Sound control panel
 Sound settings
 sound speakers microphone volume
 Source
 Space in leftovers
 Space inside drive letters on this disk.
+Space used
+Space used per drive
 Space you can free
 Sparklines
 Speed
@@ -3751,6 +4209,8 @@ ssd hdd drive speed test read write
 SSID
 SSID = the network's name.
 Stable gets tested releases; Beta gets new features early.
+Stack buffer overrun
+Stack overflow
 Standard
 Standard DirectX 11 compute that works on NVIDIA, AMD and Intel graphics; not yet verified across many cards.
 Standby: cached data that is dropped as soon as something needs the memory
@@ -3775,6 +4235,7 @@ Start the minimum, maximum and average again from now.
 Start the stress test?
 Start this program with Windows?
 Start time, 24-hour (for example 09:30 or 18:00)
+Start with "Fix these first". Checking only reads; each fix asks first, and other items open the Windows setting.
 Start with a preset, apply, run the stress test, then raise in small steps.
 Start with a Quick scan. Run a Full scan when a drive makes noises, Windows reports disk errors, or SMART shows reallocated sectors.
 Start with the "What needs attention" card. Each item has one button that takes you to the right place.
@@ -3792,11 +4253,13 @@ Starting OpenRGB with its SDK server (this can take a few seconds)…
 Starting soon
 Starting the benchmark…
 Starting the check-up…
+Starting {0}
 Starting {0}…
 Starting…
 Starts at 100 and loses 8 points per warning and 30 per critical finding. A quick guide, not a verdict.
 Starts at sign-in, without a UAC prompt.
 Starts it as administrator, so it can change Windows settings. Leave this off unless the program needs it.
+Starts the game.
 Starts the installed tool.
 Starts with only the tray icon (the --tray switch). Click the icon to open the window.
 Startup
@@ -3820,12 +4283,15 @@ Status reported by Windows for this device.
 Status, speed, data and error counters per adapter.
 Stays on until you switch it off again.
 Stays while Minimize or Close to the tray is on, so you can always get back.
+Steam builds them again the next time the game starts, so the first minutes may stutter. Clean it when a game stutters after a driver update or shows graphics glitches. Close the game first.
 Steps other debloat tools take that weaken security or break Windows.
 Sticky Keys
 Sticky Keys, Filter Keys and Toggle Keys.
 Still busy
 Stop
 Stop a program launching at sign-in. Nothing is uninstalled.
+Stop code parameter {0} points inside this file.
+Stop code: {0}
 Stop if CPU reaches (°C)
 Stop if GPU reaches (°C)
 Stop or restart the graphs. They keep the last minute while paused.
@@ -3834,11 +4300,14 @@ Stop or restart the live updates. The list keeps its last values while paused.
 Stop or resume updating this page. Readings keep being recorded in the background.
 Stop service?
 Stop the task from running until you turn it on again
+Stop this app from using it. You confirm first, and Undo puts it back.
+Stop {0} from using the {1}? The app asks again or shows an error the next time it needs it. You can turn it back on with Undo or in Windows Settings.
 Stop {0}? Anything that relies on it stops working until it runs again.
 Stop {0}? The program it started is closed, and unsaved work in it may be lost.
 Stopped
 Stopped early
 stopped early
+Stopped responding
 Stopped: {0} of {1} done.
 Stopping…
 Stops and starts the Windows Audio service (Audiosrv). Fixes most 'no sound' problems without a reboot. Sound cuts out for a few seconds; you confirm first.
@@ -3852,11 +4321,15 @@ Storage Sense & temporary files
 Storage Sense can clean temporary files on a schedule.
 Storage space
 Storage tools
+Store app
 Store apps
 Stress test aborted
 Stress test passed
 Stress test with temperature watchdog
 Studio
+Sudden shutdown
+Sudden shutdown or restart
+Sudden shutdowns
 Suggested fix
 Supported hardware on this PC
 Surface scan
@@ -3893,17 +4366,26 @@ System Configuration (msconfig)
 System disk
 System drive
 System entries
+System image
+System log, event 1001 (BugCheck)
+System log, event 41 (Kernel-Power)
+System log, event 4101 (Display)
+System log, event 6008 (EventLog)
 System memory
 System memory the graphics card borrows when its own is full.
 System Protection
 System Protection is off
+System Protection is off on the Windows drive
 System Protection is on
+System Protection on {0}
+System Protection per drive
 System Protection settings
 System repair, service changes, deeper latency tweaks and overclocking. Every action still explains itself and asks before it changes anything.
 system restore backup
 system restore backup snapshot safety
 system restore frequency limit
 System Restore point created before this change
+System Restore points
 Tab or extension
 Table
 Take control
@@ -3915,6 +4397,7 @@ Task
 Task ended
 Task Manager
 Task manager
+task manager app history cpu time data usage network metered bandwidth srum per app
 Task Manager is set to open another copy of PC Checker: {0}.
 Task Manager is set to open another copy of PC Checker: {0}. Open this copy instead, or turn the option off?
 Task Manager opens another copy of PC Checker: {0}. Choose "Open this copy" to fix it.
@@ -3934,6 +4417,7 @@ Tasks
 Tasks that start a program that is gone. Exported to XML first.
 Tasks you delete here are saved first. Put one back if something stops working.
 tcpview netstat ports open ports listening tcp udp ip address firewall
+Technical details
 Tells OpenRGB how many LEDs this addressable header drives.
 Tells Windows Update to stop offering and installing the ticked Windows Update drivers. Use it for display or chipset drivers that AMD Software or the NVIDIA app installs.
 TEMPERATURE
@@ -3956,6 +4440,8 @@ Temperatures, loads, power and free space, kept in small files on this PC only.
 Test
 Test connection
 Test file size
+Test memory
+Test the memory: run the quick memory test on the Memory page, or Windows Memory Diagnostic for a full pass.
 Test your drives, benchmark them and repair file system problems.
 Test your Wi-Fi, speed and packet loss, and tune Wi-Fi settings safely.
 Tests to run
@@ -3966,6 +4452,7 @@ Text line layout (output template)
 That did not fully work
 That did not work
 That is as long as Windows allows.
+That is less than they use now, so Windows deletes the oldest restore points until they fit.
 The account the program runs as.
 The adapter restarts to apply this, so the connection drops for a few seconds.
 The adapter this PC uses to reach the internet right now.
@@ -3982,6 +4469,7 @@ The batch was stopped. {0} tweak(s) had already been changed and stay changed; t
 The battery does not report its capacity
 The benchmark was cancelled.
 The biggest single files, wherever they are.
+The BIOS gave Windows power settings it cannot use.
 The busiest engine, as Task Manager counts it.
 The busiest processes are listed further down this page.
 The capacity the battery had when new.
@@ -4000,6 +4488,11 @@ The clipboard is busy; try again in a moment.
 The clipboard is busy; try again.
 The comparison was copied as text.
 The connection is on the clipboard.
+The copies PC Checker saves before it changes something. Old ones go to the Recycle Bin, never deleted for good.
+The copy of Windows' app usage records was damaged or incomplete.
+The crash details were copied. Paste them into a support request or forum post.
+The crash happened inside this file.
+The Crashes page explains what happened and what to try first.
 The CSV file could not be written:
 The current clock speed; it rises above the base speed under load (turbo).
 The current file is backed up first, so this can be undone too.
@@ -4023,10 +4516,15 @@ The drive is no longer connected.
 The drive test writes a temporary {0} MB file to {1} and deletes it afterwards.
 The drive's own temperature (NVMe composite or SMART). This is the value PC Checker reports for the drive.
 The Drivers page removes old driver packages with a backup, instead of Disk Cleanup's Device Driver Packages.
+the dump folder
 The electricity price cannot be negative.
 The energy a full battery holds today, in watt-hours.
+The error happened in the program's own code.
+The error happened in {0}, a file the program loaded (an add-on, overlay, driver or runtime).
+The error happened in {0}, a part of Windows. The cause is usually the program itself or an add-on it loaded.
 The fan diagnostic report is on the clipboard. It contains no personal data.
 The file can be as large as the program's memory (about {0}) and can contain anything that was open in it, such as documents or passwords. Only share it with people you trust.
+The file system on a drive ran into a problem. The drive may have errors, or a disk tool or antivirus driver misbehaved.
 The files add up to {0} more than Windows reports in use: files that share their data (hard links in the Windows folder) are counted once per path, and compressed or sparse files at their full size.
 The fix was applied.
 The format Windows uses for this device (bit depth, sample rate, channels). Change it under Properties → Advanced.
@@ -4035,7 +4533,14 @@ the game
 The game the FPS metrics are measured for: the last game that was in front.
 The GPU is not stable at these settings.
 The GPU is not stable at these settings; the overclock was reset to defaults.
+The graphics card stopped responding and Windows could not restart its driver. Driver problems, an unstable graphics overclock, heat or power delivery are the usual causes.
+The graphics card stopped responding for a few seconds and Windows restarted its driver. The screen may have gone black or a game may have closed. A few a month can be normal; many point at a driver, overclock, heat or power problem.
+The graphics card stopped responding for a moment and Windows restarted its driver. The screen goes black briefly.
+The graphics driver lost track of the graphics card's memory.
+The graphics driver stopped responding.
 The green bars show the real sound level while this page is open; polling stops as soon as you leave the page.
+The hardware itself reported the error, so no driver is to blame. An unstable overclock or undervolt, heat, memory settings or a failing part are the usual causes.
+The hardware reported an error it could not fix. Unstable overclocks or undervolts, memory settings (XMP/EXPO), heat or a failing part are the usual causes.
 The health report was copied as text. Paste it into an email or support ticket.
 The highlighted display is the main one.
 The hosts file goes back to the copy from {0}.
@@ -4051,6 +4556,8 @@ The language of PC Checker's menus and pages. Changes after a restart.
 The largest of them are listed under Largest files.
 The last 100 installs, newest first. Select a failed one to see what went wrong.
 The last 20 times a part crossed its warning or critical temperature in this session.
+The last 30 days
+The last 7 days
 The last check-up found 1 thing to do
 The last check-up found {0} things to do
 The last things PC Checker changed on this PC, from the action journal.
@@ -4067,6 +4574,7 @@ The main display holds the taskbar and Start menu, and new windows open on it.
 The marker in the middle is the reference PC (1,000 points). A full bar is 2,000 or more.
 The menu only appears when more than one operating system (or a recovery entry) is installed. 0 skips the menu entirely.
 The message was copied to the clipboard.
+The most important things to change, the biggest risk first.
 The most the speed may change each second. Smaller steps sound smoother.
 The motherboard or graphics driver decides the speed.
 The multiplier applied to every core, e.g. 53 = 5.3 GHz.
@@ -4085,16 +4593,36 @@ The Overclock page never goes past these. Lower them to stay safer.
 The overlay hotkey and the Overlay page do the same.
 The overlay is click-through: it never takes the mouse away from the game.
 The overlay preset to load while the game runs
+The part of Windows that talks to the graphics driver hit a fatal error.
 The PC hands its address back to the router and asks for a new one. Your connection drops for a few seconds (downloads and calls are interrupted). Adapters with a fixed address are skipped.
+The PC shut down suddenly in the last 7 days
+The PC shut down suddenly {0} times in the last 7 days
+The PC turned off or restarted without shutting down properly and without a blue screen. It lost power, the power supply switched off, or it froze hard.
+The PC was turned off by holding the power button, so Windows could not shut down properly.
 The period the charts and events cover.
 The popup shows temperatures, load, power, the fan profile, the overlay and quick clean.
 The previous version is kept in the Windows.old folder. Storage Sense, Disk Cleanup or deleting Windows.old ends the option to go back.
 The previous version stays in the Windows.old folder until then and keeps using that disk space. Storage Sense, Disk Cleanup or removing Windows.old ends the option sooner.
 The price could not be saved:
 The process list could not be refreshed. It will try again in a moment.
+The processor reported a hardware error.
+The processor reported an error Windows could not recover from. Unstable overclocks, overheating and faulty RAM are common causes.
 The program and what it is. Always shown.
+The program closed because of {0}.
+The program detected that its own memory was damaged and closed itself for safety. Often a program bug, sometimes a bad add-on or unstable hardware.
+The program divided a number by zero. This is a bug in the program.
 The program file and the options it was started with.
+The program found a serious internal problem and closed itself straight away.
 The program it runs is missing, so this entry does nothing.
+The program passed bad data to a Windows or C runtime function and was closed. A program bug.
+The program stopped itself on purpose because something unexpected happened (an assertion).
+The program stopped responding and was closed, by you or by Windows.
+The program stopped responding and was closed.
+The program tried to use memory it did not own. Usually a bug in the program or in an add-on, overlay or mod it loaded.
+The program used a processor instruction the CPU could not run. Old CPUs without newer instructions, or an unstable overclock, cause this.
+The program used up its stack memory, usually because of a bug that loops forever.
+The program's code could not be read from the drive, for example from a disconnected network or USB drive or a failing disk.
+The program's memory bookkeeping was damaged. Usually a program or add-on bug, sometimes faulty RAM.
 The radio standard both ends agreed on. Newer is faster: Wi-Fi 6/6E (802.11ax) and Wi-Fi 7 (802.11be) are current.
 The readings could not be refreshed. Trying again in a moment.
 The registry keys removed on {0} are put back from their .reg backup:\n\n{1}\n\nA restore point is created first.
@@ -4116,8 +4644,10 @@ The score starts at 100 and drops for each finding by how much it slows the PC. 
 The score starts at 100 and loses points for each finding: high-impact problems cost more than small tweaks.
 The score starts at 100 and loses points for every warning (−8) and critical finding (−30). It is a quick guide, not a verdict: read the items above.
 The screen may go black for a moment while a display driver changes; save your work first.
+The security summary is on the clipboard.
 The selected items need you: open their pages to deal with them.
 The selected tweaks are already applied or not available on this Windows.
+The setting could not be saved.
 The setting now opens another copy of PC Checker: {0}. It will open this copy instead.
 The settings could not be saved:
 The short introduction from the first start: what PC Checker does, the language and Advanced mode.
@@ -4140,19 +4670,25 @@ The text is on the clipboard.
 The time to go back has run out
 The top of the graph
 The update service is disabled, so no security fixes arrive.
+The USB 3 driver hit a fatal error, often because of a USB device or hub.
 The usual reasons RGB hardware does not show up, and what to do.
 The watchdog stops the test (and resets any overclock) when the graphics card gets this hot.
 The watchdog stops the test (and resets any overclock) when the processor gets this hot.
 The whole file as Windows reads it. Lines starting with # are comments. Edit here if you prefer; Save works the same way.
+The Windows dialog where System Protection is set up per drive.
 The Windows Display Color Calibration wizard (gamma, brightness, contrast, colour balance).
 the Windows drive
+The Windows drive was not found
 The Windows folder and program libraries.
 The Windows tools for the same jobs.
+The {0} event log could not be read ({1}).
 Their program is missing
 Theme
 Theme, language, alerts and limits, restore points, updates, logging, cleanup, network and latency tests, history recording.
 There are no log lines in the current view.
+There is at most one restore point, and the newest one always stays.
 There is no recorded history in this period.
+There were sudden shutdowns too. The Crashes page explains each one and what to try first.
 These apply whatever the driver allows.
 These apps keep their devices to themselves while they run. Close one for this session to let OpenRGB take over; it starts again with Windows.
 These change deeper Windows settings or run long repair tools. Keep restore points on and read each description first.
@@ -4168,6 +4704,7 @@ They have a warning sign in the list. This is only a hint: check the publisher a
 Things to do
 Things worth fixing
 Think about a new battery
+Think about what changed just before the crashes started (a new driver, program, update or device) and undo it.
 Third-party
 Third-party components
 Third-party only
@@ -4183,25 +4720,34 @@ This cannot be undone; start the program again to get it back.
 This card is monitor-only here; the readouts, stress test and advisor still work.
 This copy cannot update itself. Download the new PcChecker.exe from the releases page.
 This copy cannot update itself; PC Checker still checks for new versions and links you to the download.
+This deletes the app usage PC Checker added up itself, for every day. It cannot be undone.
 This deletes the registry entry so the program no longer starts with Windows. The program itself stays installed.
 This deletes the scheduled task so the program no longer starts with Windows. The program itself stays installed.
 This deletes the Startup folder shortcut so the program no longer starts with Windows. The program itself stays installed.
 This drive
+This driver was on the crashing thread's stack.
 This entry is locked
 This entry is registered for every user, so the change applies to everyone on this PC.
 This fan's speed can be read but not changed on this PC.
 This file holds the same setup as this PC.
 This folder is empty.
+This is a graphics stop code and this is the graphics driver.
 This is already running; you will be told when it finishes.
 This is for experienced users. Start with the stress test and the advisor; Reset to defaults always takes you back.
 This is part of Windows. Ending it can stop networking, sound or other features until you restart.
 This is part of Windows. Windows may start it again, or parts of the desktop may misbehave until you sign out and in again.
 This is the monthly cumulative update; the servicing stack update that came with it stays, because Windows cannot remove that part.
+This is the Windows drive: PC Checker and Windows can no longer make restore points before changes.
+This is your newest restore point, the one closest to how the PC is now. Older points take you further back.
+This is your only restore point. Without it, System Restore has nothing to go back to until Windows or you make a new one.
 This item is marked "not recommended". Only continue if you are sure.
 This job is already running.
+This launcher does not record when a game was last played.
+This launcher has no way to check the game's files.
 This line has an exception. Select it to read the details.
 This looks like a desktop PC, so there is nothing to wear out here.
 This one needs you: open its page to deal with it.
+This opens {0}.
 This option is not available right now.
 this page
 This page averages the Windows performance counters over a few seconds, which is enough to tell whether something is wrong. It cannot tell you which driver is responsible or catch rare long DPCs. For that, use a kernel tracing tool: LatencyMon shows the worst drivers by name, and Windows Performance Analyzer (part of the Windows Performance Toolkit) records a full timeline. Run them while the problem happens, for example during a game.
@@ -4218,13 +4764,16 @@ This run started in less than ideal conditions
 This run was stopped before every chosen test finished. Only the finished tests have scores.
 This service is not running, so it has no process to go to.
 This service is protected
+This setting is shared by every user on this PC, so it changes for all of them.
 This start type cannot be set.
 This takes away the security fixes in it, so only remove it if it causes a problem.
 This task has warnings. Only start it if you trust it:
 This task has warnings:
 This update asks questions while it installs, so install it from Windows Update in Settings.
 This update cannot be removed
+This version of Windows does not keep app usage records that PC Checker can read.
 Threads
+Threat
 Threshold
 Thresholds saved
 thresholds warn critical cpu gpu drive hot
@@ -4259,12 +4808,14 @@ Time left
 Time on battery and plugged in, and how long a full charge lasted, per day or week.
 Time remaining is not known yet.
 Time to turn a web address into an IP address. Every new connection waits for this first.
+Timeline
 Timer resolution
 Tip: Right-click for more choices, such as one graph per processor.
 Tips: press Ctrl+K to find any page, setting or action. Every page has a ? button (or press F1) that says what it does and the safest first step.
 to
 To exit, right-click the tray icon and choose Exit PC Checker.
 To extend this pause, use Settings → Windows Update.
+to finish a security change
 to finish installing runtimes
 to finish installing the new drivers
 to finish installing updates
@@ -4279,6 +4830,7 @@ to run the Windows Memory Diagnostic
 To sign yourself out, use Switch user or the Start menu, so you are not cut off part-way through something.
 To upgrade, run winget upgrade --id <Id> (or --all) in a terminal.
 toast warnings
+Today
 Today {0}
 Toggle hotkey
 Toggle Keys
@@ -4289,6 +4841,7 @@ Tools from your PC's maker update drivers, BIOS and firmware made for this model
 Top level
 Top-left corner in desktop pixels; the main display starts at 0, 0.
 Total CPU
+Total data used
 Total data written to the drive over its life.
 Total draw now
 Total draw over time
@@ -4304,11 +4857,13 @@ Try a different search term or pick another source.
 Try a different search, or turn on Advanced mode to see protected system apps.
 Try a different search, or turn on Advanced mode to see technical components.
 Try a different search, or turn on Advanced mode to see technical features.
+Try a longer date range or another type, or show everything again.
 Try these in order when websites will not load or the connection keeps dropping.
 Try this network earlier
 Try this network later
 Tune Wi-Fi and network
 Tune your GPU and CPU step by step, with safety limits and a built-in stress test.
+Turn Driver Verifier off with "verifier /reset" in an administrator terminal, then restart.
 Turn efficiency mode on or off for this program
 Turn entries off rather than removing anything; Turn on brings them back. Restart File Explorer to see the change.
 Turn everything off
@@ -4321,15 +4876,24 @@ Turn memory compression off
 Turn memory compression on
 Turn off
 Turn off "{0}"?
+Turn off access?
 Turn off ads, telemetry and AI features, and remove apps you don't use.
 Turn off and open
 Turn off apps marked High that you do not need straight away. You can turn them back on at any time.
+Turn off changes only that Store app's own switch, after you confirm. It is written to the Action Journal and Undo puts the previous setting back.
 Turn off efficiency mode for {0}?
 Turn off for text only.
+Turn off for this app
 Turn off if keys seem to be missed while gaming or typing fast.
 Turn off Minimize to the tray and Close button keeps PC Checker in the tray to remove the icon.
+Turn off overlays and mods (recording, FPS counters, RGB tools) and try again.
+Turn off SMB 1.0
+Turn off SMB 1.0?
+Turn off System Protection for {0}?
 Turn off task?
 Turn off to keep your profiles but stop switching. An active profile is undone straight away.
+Turn off {0} access for {1}
+Turn off…
 Turn on
 Turn on "Share scan context" in Settings to let Claude see your results.
 Turn on "{0}"?
@@ -4344,20 +4908,28 @@ Turn on battery saver
 Turn on efficiency mode for {0}?
 Turn on Location for desktop apps so Windows shows nearby networks. PC Checker does not use your location.
 Turn on or off
+Turn on recording
 Turn on System Protection
+Turn on System Protection for {0}
+Turn on System Protection for {0}?
 Turn on System Protection?
 Turn on task?
 Turn optional parts of Windows on or off and remove built-in apps you never use.
+Turn PC Checker's recording on or off and choose how many days it keeps
 Turn recording on or off, and choose how often to record and how long to keep it.
 Turn SysMain (Superfetch) off
 Turn SysMain (Superfetch) on
 Turn SysMain off
 Turn SysMain on
+Turn the firewall back on?
 Turn the overlay on and press its hotkey (Ctrl+Shift+O) in a game. It never changes the game.
 Turn this profile on or off without deleting it
 Turn Windows features on or off (classic)
+Turn Windows Firewall on for {0}? A restore point is made first (per your settings) and the change is written to the Action Journal. Programs you allowed through the firewall keep working.
 Turn {0} on again? It runs on its schedule from now on.
 Turned off
+Turned off by a policy
+Turned off with the power button
 Turned on
 Turning a task off is the safe choice: it stays where it is and you can turn it on again. Delete is for other companies' tasks only, and PC Checker saves the task first so it can be put back.
 Turning an entry off never deletes it. Commands get a LegacyDisable value, shell extensions and Windows 11 app entries go on the Shell Extensions Blocked list for your account, and Send to shortcuts move to a hidden backup folder. Turn on reverses exactly that.
@@ -4367,8 +4939,11 @@ Turning hibernation off (which deletes hiberfil.sys) is on the Optimize page.
 Turning it off…
 Turning it on…
 Turning off Nagle's algorithm can lower ping in a few older games. It lives on the Latency page with the other input-lag fixes, so it is not repeated here.
+Turning off SMB 1.0…
+Turning off System Protection…
 Turning off the ones you don't need straight away makes sign-in faster.
 Turning on System Protection…
+Turning on Windows Firewall…
 Turning one off does not uninstall it; it just stops starting by itself.
 Turns on each device's rainbow effect where it has one.
 Turns watts into money on the Power page. Find the rate on your energy bill.
@@ -4385,6 +4960,7 @@ Type a name and the full path of the program (use Browse… to pick it).
 Type a name for the preset first.
 Type a name for the profile first (for example "Quiet night").
 Type a short message
+Type of crash
 Type the name of a program, folder, document or web address, and Windows opens it for you.
 Typical safe limits are already filled in.
 UDP sends and receives without a fixed connection.
@@ -4399,6 +4975,7 @@ Undo
 Undo "{0}"?
 Undo an update
 Undo last save
+Undo recent BIOS changes to the storage mode (AHCI, RAID, VMD).
 Undo the last change?
 Undo the last import or reset
 Undo the last save?
@@ -4417,18 +4994,23 @@ Uninstall
 Uninstall extras
 uninstall leftovers traces remnants orphaned folders
 Uninstall the extras?
+Uninstall the most recent update from the Windows Update page.
 Uninstall {0}
 Uninstall {0}?
 Uninstalled
 Uninstallers often leave folders, settings, services, scheduled tasks and shortcuts. A scan compares them with what is installed and says how sure it is about each one. Nothing is removed until you choose to.
 Uninstalling bundled extras…
 Uninstalling {0}…
+Uninstall…
 Unit
 Unknown
+unknown
 Unknown part "{0}"
 unknown reason
 Unknown size
 unknown size
+Unknown stop code
+Unplug USB devices you do not need and see whether it stops.
 Unreadable (bad block)
 Unreadable blocks
 Unreadable blocks found
@@ -4441,6 +5023,7 @@ Unusual logon settings (advanced)
 Up and Down to choose · Enter to open · Esc to close
 Up one folder
 Up time
+Up to
 Up to date
 Up to date (AMD's newest is {0})
 Up to date: {0}'s newest is {1}.
@@ -4451,20 +5034,37 @@ Update
 Update available
 Update channel
 Update check
+Update chipset and storage drivers.
+Update chipset, network and graphics drivers; these are the usual suspects.
+Update definitions
 Update downloaded
 Update every (ms)
 Update history
 Update history in Settings
 Update in progress
+Update Microsoft Defender?
 Update not downloaded
 Update not installed
 Update now
 Update now downloads it from GitHub, checks it and restarts PC Checker. Your settings are kept.
+Update or reinstall the program and remove add-ons; test the memory if it keeps happening.
+Update or repair the program. If several programs do this, reset any overclock and test the memory.
+Update or repair the program; for Windows apps, reset them in Settings → Apps.
+Update or repair the program; reinstall it if crashes continue.
 Update ready
 Update ready to install
 Update sources
 Update speed
+Update the BIOS (UEFI) from the motherboard or PC maker's website.
+Update the chipset and USB controller drivers.
+Update the driver named under Probably caused by, from the device maker's website or the Drivers page.
+Update the program and install the latest .NET runtime from the Missing DLLs page.
+Update the program or report the crash to its maker.
+Update the program, then turn off overlays and mods. If many programs crash this way, test the memory.
+Update the program.
+Update the program; if it keeps happening, report it to its maker with the details.
 Update the Wi-Fi driver
+Update your SSD's firmware with the maker's tool.
 Updated {0}
 Updated {0} · {1} sensors · {2} parts with temperatures
 Updaters and helpers
@@ -4485,11 +5085,14 @@ Updates not installed
 Updates twice a second · last at {0}
 Updates waiting
 Updating boot settings…
+Updating Microsoft Defender…
 Updating the boot menu timeout…
 Upgrades available via winget
 Upload
 Uptime
 Usage history
+Usage history deleted
+Usage history not deleted
 Use 'Check for updates' to search Windows Update, NVIDIA, AMD, Intel and your PC maker. Nothing is installed until you choose to.
 Use 'Scan drivers' to read every installed driver from Windows.
 Use a charge limit if you are often plugged in
@@ -4501,6 +5104,8 @@ Use my own game or benchmark instead
 Use of the busiest graphics engine.
 Use recommended
 Use recommended size
+Use Startup Repair from the Windows recovery screen.
+Use System Restore to go back to a restore point.
 Use the compact menu
 Use the full menu
 Use the full right-click menu?
@@ -4512,13 +5117,18 @@ Use this source for this device.
 Used
 Used by the Power page; 0.30 means 30 cents per kWh.
 Used for the cost figures. Session so far: 
+Used in this range
+used of up to {0}
+Used the camera, microphone or location
 Used {0} % an hour
+used, no limit
 Useful before a deadline or a long game session. Security fixes wait too, so resume as soon as you can.
 User
 User name
 Users
 Users shows everyone signed in to this PC and how much each person is running.
 Uses the values Windows has now, not unapplied edits.
+Uses {0} of up to {1}
 Using the fixes safely
 Using the network
 Usually a program that was deleted instead of uninstalled.
@@ -4531,9 +5141,12 @@ Vendor downloads
 Vendor tool
 Vendor tools
 Verdict
+Verify files
+Verify files, missing DLLs, game profile, shader cache, uninstall
 Version
 Version in the maker's own numbering.
 Version skipped
+Version {0}
 Very high
 Very low
 Video
@@ -4541,6 +5154,7 @@ Virtualization
 Voltage
 Voltage offset (mV)
 Volume
+Wait longer before closing it next time, update the program and check that the drive is not full.
 Waiting
 Waiting for connections
 Waiting for readings
@@ -4557,6 +5171,9 @@ Warnings
 Warnings on the Memory and Startup pages
 warnings overheating notify
 Watch
+Watch temperatures
+Watch temperatures under load on the Temperatures page; clean dust out of the case if they run hot.
+Watch temperatures under load; a PC that overheats can switch itself off.
 watts energy battery power plan
 WEAR
 Wear
@@ -4570,8 +5187,10 @@ What 1,000 means, and why two runs can differ a little.
 What a service is, and what PC Checker will not change.
 What changes while each game runs, and automatic switching.
 What counts as an old file, and the smallest file the duplicate search looks at. Used by the next scan.
+What counts, and what PC Checker never changes.
 What debloating does
 What DPC, ISR and timers mean, and tools that go deeper.
+What happened
 What happened to each item, and where its backup copy is.
 What happened to each item, and where its backup is.
 What happened to each item. Every change is also in the Action Journal.
@@ -4613,6 +5232,7 @@ What to record
 What to test
 What went wrong
 What's new:
+WHEA hardware error reports are explained on the Health page.
 Wheel scrolling
 When
 When a new version is available
@@ -4630,12 +5250,19 @@ When your line is full, many routers queue packets in large buffers instead of s
 Where
 Where removed startup entries and shortcuts are kept
 Where the entry is registered is on the clipboard.
+Where the figures come from
 Where the full battery reports are saved.
+Where the information comes from and how sure the guesses are.
 Where the Latency page sends its pings.
+Where the list comes from and what Turn off does.
 Where the problem is
 Where the program file is.
+Where they come from, how exact they are and how to clear them.
+Where Windows makes and restores system image backups.
+Where Windows saves small memory dumps after a blue screen.
 Whether the app can undo this change
 Whether Windows currently has this turned on.
+Which days to add up
 Which graphics engine it uses most (3D, video decode…).
 Which names Windows looks up here first, before asking the internet.
 Which program gets the processor first when the PC is busy.
@@ -4649,6 +5276,7 @@ While PC Checker replaces Task Manager, this turns that option off first and the
 While the window is hidden. At most one per part every 10 minutes.
 Who signed the program file.
 whole folder
+Whose records these are
 Whose settings change
 Why a fan cannot be controlled
 Why each of them was not moved to the Recycle Bin.
@@ -4672,12 +5300,22 @@ Windows 11 apps
 Windows 11 only lets apps see nearby Wi-Fi networks (and sometimes your own network's name) when Location is on for desktop apps.
 Windows 11 shows its short menu again, with the rest under "Show more options".\n\nFile Explorer needs a restart to show it.
 Windows 11 then shows every entry straight away, as in Windows 10, without "Show more options". It changes only your account's setting and can be switched back here at any time.\n\nFile Explorer needs a restart to show it.
+Windows activity settings
 Windows and driver memory that can move to the page file.
 Windows and driver memory that must stay in RAM. A value that keeps growing points to a faulty driver.
 Windows and programs
 Windows and programs slow down when a drive is nearly full.
+Windows backups
+Windows build: {0}
 Windows can dim the screen and limit background activity when the charge is low. Choose when in Battery settings.
+Windows could not make the snapshot of drive C: needed to copy its app usage records.
+Windows could not read part of itself back from the drive. Check the drive, its cable and the page file.
+Windows creates it the first time it saves a small memory dump after a blue screen.
+Windows deletes every restore point on {0} and stops making new ones. This cannot be undone.
+Windows did not allow PC Checker to read its app usage records.
+Windows did not list them
 Windows did not report any attached display. Remote desktop sessions and some virtual machines hide them; try again on the PC itself.
+Windows did not report the space used.
 Windows display scaling. 150 % makes text and apps 1.5× larger.
 Windows display settings
 Windows does not always record when a file was opened, so the date it last changed counts too.
@@ -4688,10 +5326,18 @@ Windows drive · {0}
 Windows Features
 Windows Features turns optional parts of Windows on or off, such as Hyper-V, the Linux subsystem or old .NET versions.
 Windows forgets the web addresses it has looked up recently and asks for them again. This fixes sites that moved or fail to load after a network change. Nothing else changes and there is nothing to undo.
+Windows found a protected part of itself changed, by a driver, faulty RAM or cheat or hacking tools.
+Windows found a serious problem in how memory is used. Faulty or unstable RAM is a common cause, followed by drivers.
+Windows found damaged data in a part of itself, usually caused by a driver, sometimes by faulty RAM.
+Windows found its memory bookkeeping damaged. A driver usually wrote where it should not.
+Windows found memory that changed by itself. This points at faulty RAM.
 Windows gives {0} less power and Low priority. That saves energy and keeps other programs smooth, but it may run slower.
 Windows goes back to the previous version when it restarts. Save your work, then restart.
+Windows had a blue screen in the last 7 days
+Windows had {0} blue screens in the last 7 days
 Windows has changes waiting for a restart. Restart, then try removing the update again.
 Windows has installed updates that complete after a restart.
+Windows has no network records on this PC.
 Windows has not recorded any recent use yet.
 Windows has not recorded enough history yet. The chart fills in as the battery is used over the coming days.
 Windows has not written a blue screen dump on this PC.
@@ -4702,8 +5348,12 @@ Windows hides drives inside a storage pool; the storage space made from them has
 Windows is adjusting active hours automatically from how you use the PC. To pick them yourself, turn that off in Settings.
 Windows is installed on this disk.
 Windows is installed on this drive.
+Windows is not keeping app usage records on this PC (the Diagnostic Policy Service may be off, or a policy turns them off).
+Windows keeps a record of when each app last used them. Reading it changes nothing.
 Windows language
+Windows logged {0} hardware error reports (WHEA) in the last 30 days. The Health page explains what they point at.
 Windows logs an event whenever a drive, cable or controller misbehaves. The same message repeating for one drive is the thing to watch for.
+Windows lost access to the drive it starts from, often after a storage driver or BIOS setting (AHCI/RAID) changed.
 Windows Memory Diagnostic
 Windows Memory Diagnostic checks your RAM before Windows loads. Schedule it, and run quicker in-Windows tests, on the Memory page.
 Windows Memory Diagnostic runs at the next restart. Save your work and restart when convenient.
@@ -4715,28 +5365,39 @@ Windows needs a restart to finish installing updates. Save your work first.
 Windows needs a restart to finish removing the old drivers. Save your work first.
 Windows needs a restart to finish removing the update. Save your work first.
 Windows needs a restart to finish some of the fixes. Save your work first.
+Windows needs a restart to finish the change. Save your work first.
 Windows needs Location permission to list Wi-Fi networks
+Windows normally skips a new restore point when one was made in the last 24 hours. PC Checker lifts that limit only while it makes its own. The same setting is in Settings.
 Windows normally skips new restore points for 24 hours after the last one.
 Windows normally starts explorer.exe as the shell and userinit.exe at sign-in. A different value here runs something before your desktop appears. PC Checker only reports it.
 Windows or PC Checker's safety list marks this app as essential, so it cannot be removed from here.
 Windows Performance Toolkit
 Windows plays or records through this device unless an app picks another one.
 Windows power plan
+Windows privacy settings
 Windows processes
 Windows processes among them are left running.
+Windows ran out of an internal memory resource, usually because a driver did not give it back.
+Windows records when each app last started and stopped using the camera, microphone or location. The list shows apps that used them at least once; an app marked In use now is using it at this moment.
 Windows refuses to remove a package that a device still uses; nothing is forced. A restore point is created first, per your settings.
 Windows replaces this version with the one it had before the last feature update. It takes a while and restarts the PC, possibly more than once.
 Windows reports {0} more in use than the files add up to: restore points, the file system's own records and unreadable folders.
+Windows restarted the graphics driver
 Windows runs it with less power and Low priority to save energy and keep other programs responsive.
+Windows saves a snapshot of system files, drivers, programs and settings named "{0}". Personal files are not included. It takes about a minute.
 Windows Security
 Windows Security Center could not be queried. Open Windows Security to check manually.
+Windows Security shows the full details and lets you restore or remove items.
 Windows services
 Windows sets it back to normal when the program restarts.
 Windows Settings → System → Display: arrange displays, scaling and multiple-display options.
 Windows Startup settings
+Windows stopped because something went badly wrong. This stop code is not in PC Checker's list; Microsoft's reference explains it.
 Windows Storage settings and Storage Sense.
 Windows Storage settings can remove the previous Windows installation safely.
 Windows suggests large or unused files, OneDrive files to keep online only and apps you do not use.
+Windows takes a snapshot of drive C: first; this can take a few seconds.
+Windows tried to read memory that should always be there and was not. Faulty RAM, a bad driver or antivirus are common causes.
 Windows tries these from the top down when several are in range. Turn off auto-connect for hotspots you only use now and then, and mark capped connections as metered.
 Windows typing settings
 Windows Update
@@ -4758,8 +5419,10 @@ Windows Update will stop offering and installing these {0} driver update(s):
 Windows uses these
 Windows uses this disk as extra memory when RAM runs low.
 Windows usually retries a failed update. If it keeps failing, restart and check for updates again.
+Windows was asked to start the game.
 Windows will compress memory pages it is not using so more programs fit in RAM. This is the Windows default and recommended for nearly every PC.\n\nTakes effect after a restart.
 Windows will download and install {0}. This needs an internet connection and can take a few minutes.
+Windows will keep restore points for {0}. They use a few percent of the drive (you can change how much below) and let you undo driver, program and settings changes.
 Windows will look for updates again and install them as usual. A restart may follow outside your active hours.
 Windows will need a restart to finish at least one of these updates.
 Windows will need a restart to finish. PC Checker does not restart on its own.
@@ -4771,20 +5434,36 @@ Windows will turn on {0}. It may download files and may ask for a restart.
 Windows will wait 1 second at the boot menu before starting {0}.
 Windows will wait {0} seconds at the boot menu before starting {1}.
 Windows writes its detailed battery report to your Documents folder (PC Checker Reports) and opens it in your browser.
+Windows' app usage records could not be read.
+Windows' app usage records were in use and could not be copied. Try again in a minute.
 Windows' estimate of how long a full charge lasts in use, based on how this PC has been used.
 Windows' estimate of time in use from a full charge, for how the PC was used in that period.
 Windows' file properties: version, signature, compatibility
+Windows' graphics scheduler found a serious problem, usually in the graphics driver.
+Windows' list of memory pages was damaged, by a driver or by faulty RAM.
+Windows' memory compression store hit an error, often because of a drive problem or antivirus.
+Windows' memory compression store was damaged, by a driver, the drive or RAM.
 Windows' own
 Windows' own button for deleting the diagnostic data it collected.
 Windows' own core processes (System, Registry, Memory Compression, smss, csrss, wininit, winlogon, services, lsass) and PC Checker itself cannot be ended, paused or changed here, because that would crash or restart the PC. Windows processes cannot be suspended or put in efficiency mode.
+Windows' own day-by-day view of crashes and installs.
 Windows' own entries are shown read-only and never changed. Entries from Microsoft apps such as OneDrive, Office or Visual Studio Code can be changed in Advanced mode.
 Windows' own file system tools with live output. Every repair asks first.
+Windows' own records are not touched: only Windows can clear them. To limit what Windows keeps, open Settings → Privacy & security → Activity history.
 Windows' own tasks keep Windows updated, backed up and secure, so they are read-only here. Advanced mode lets you turn them off or on, with a restore point first. PC Checker's own schedules are changed in Settings. Every change is recorded in the Action Journal on the Logs page.
+Windows' own tool for going back to a restore point.
 Windows' own tools clean these: {0}. DISM can take up to 30 minutes.
+Windows' power management hit a fatal error, often while going to sleep or hibernating.
+Windows' records
+Windows' records are not shown
+Windows' records come from the System Resource Usage Monitor, which Windows fills about once an hour. Reading them needs administrator rights: PC Checker copies the file from a snapshot of drive C:, reads the copy and deletes it straight away.
+Windows' records could not be read
+Windows' records were read.
 With fast startup off, every shutdown is a complete fresh start.
 With problems
 With the driver
 With warnings
+Without restore points, a bad driver or settings change is much harder to undo.
 Without the tick it starts with your normal rights, even though PC Checker runs as administrator.
 Working…
 Works everywhere while PC Checker is running, even from the tray. Use Ctrl, Alt, Shift or Win plus a key.
@@ -4805,6 +5484,7 @@ x64, x86 (32-bit) or ARM64.
 XMP (Intel) and EXPO (AMD) are one-click BIOS profiles that run the memory at its advertised speed instead of the slow, safe default.
 Yes
 Yes when it runs with administrator rights.
+Yesterday
 Yesterday {0}
 You
 You are looking at sample data. These settings are stored in a separate demo file and never touch your real settings.
@@ -4824,6 +5504,7 @@ You will be asked once more before anything starts.
 You're in Simple mode
 You're up to date
 Your API key is stored encrypted for this Windows account only.
+Your backups in one place
 Your Claude API key and this PC's own state (window size, active fan and overclock profiles, overclock consent) are never taken from a file.
 Your Claude API key stays out: Windows protects it for this account on this PC only, so enter it again on a new PC. The recorded History data and logs are not included either.
 Your current setup is backed up first, so you can undo the reset. Your Claude API key is kept.
@@ -4852,15 +5533,21 @@ Zones
 {0:0.0} Wh of {1:0.0} Wh stored.
 {0} % in use
 {0} % → {1} %
+{0} (best guess). {1} This is a best guess from the memory dump, not proof.
 {0} (for: {1})
 {0} (optional)
+{0} (Windows)
+{0} ({1} % of the drive)
 {0} ({1}) will be moved to the Recycle Bin:
 {0} added, {1} removed, {2} turned on or off.
 {0} apps start with Windows and slow it down
+{0} apps used it
 {0} apps · {1} in the background
 {0} are not responding. Wait a moment, or select one and press End task.
 {0} asleep (not woken).
 {0} automatic backups, the newest made {1}.
+{0} backups
+{0} backups ({1}) from {2} and older go to the Recycle Bin. The newest {3} stay.
 {0} cannot be restarted here
 {0} cannot be resumed
 {0} cannot be suspended
@@ -4871,13 +5558,20 @@ Zones
 {0} copies of {1}
 {0} could be freed
 {0} could be freed by keeping one copy of each.
+{0} could not be opened
+{0} could not be opened: {1}
 {0} CPU · {1}
+{0} crashed
+{0} crashes
 {0} damaged lines in the history files were skipped (for example after a crash or power cut).
+{0} Damaged or missing files are downloaded again, which can take a while. Nothing is deleted.
 {0} days
+{0} days ago
 {0} days left
 {0} days stored, {1} on disk.
 {0} depends on: {1}
 {0} devices have a driver problem
+{0} did not start
 {0} drivers written to {1}.
 {0} empty headers (0 RPM, usually nothing plugged in) are hidden.
 {0} entries look like something malware adds. Select them to see why, then turn them off or remove them and Save.
@@ -4899,12 +5593,16 @@ Zones
 {0} folders
 {0} folders could not be read (Windows keeps some folders private), so the totals may be a little low.
 {0} folders not readable
+{0} found recently, all dealt with.
+{0} found recently; {1} still need you.
 {0} free of {1}
 {0} gets its normal power and Normal priority back.
 {0} group of identical files
 {0} groups of identical files
 {0} h {1} min
+{0} hangs
 {0} has a newer BIOS: {1} ({2}).
+{0} has not saved anything yet, so its folder does not exist.
 {0} have no install folder to measure.
 {0} hidden
 {0} high
@@ -4928,29 +5626,37 @@ Zones
 {0} min {1} s
 {0} minutes
 {0} months
+{0} months ago
 {0} more programs now have a size.
 {0} need caution
 {0} need you on their page
+{0} needs administrator rights to read, so crash dumps there were skipped.
 {0} new
 {0} not available on this Windows
+{0} of it on a metered connection
+{0} of processor time
 {0} of the selected items are not marked High. Only remove them if you recognise them.
 {0} of the tasks ran with a saved password. The restore list cannot put them back; you would import the exported XML in Task Scheduler and type the password.
 {0} of them rated Safe
 {0} of these belong to {1}, which you just uninstalled. They are marked and ticked.
 {0} of {1}
+{0} of {1} apps
 {0} of {1} DLLs shown
 {0} of {1} done. See the results below for the rest.
 {0} of {1} files found
+{0} of {1} games shown
 {0} of {1} is in use · {2} free
 {0} of {1} tests
 {0} of {1} tweaks applied
 {0} of {1} update(s) installed.
+{0} older restore points are deleted for good. Only the newest, "{1}" from {2}, stays, so System Restore can only go back to that one.
 {0} oldest runs on this PC removed (limit {1})
 {0} online-only file (OneDrive and similar) takes no space here and is not counted.
 {0} online-only files (OneDrive and similar) take no space here and are not counted.
 {0} other drives are nearly full too.
 {0} packages installed.
 {0} partly applied
+{0} PC Checker does not delete game files itself; {1} does, after you confirm there.
 {0} people are signed in
 {0} physical drives
 {0} processes
@@ -4959,6 +5665,7 @@ Zones
 {0} processes may be worth a closer look
 {0} programs
 {0} programs have newer versions available.
+{0} protects this PC, so Microsoft Defender's scans are turned off here. Use {0} to scan.
 {0} reached a critical level
 {0} removed, {1} skipped or failed.
 {0} repeats in {1}
@@ -4973,7 +5680,11 @@ Zones
 {0} selected · one restore point first
 {0} selected · {1} to apply · {2} can be reverted
 {0} selected · {1} to download
+{0} sent and received
 {0} services
+{0} still being measured
+{0} stopped responding
+{0} stopped responding.
 {0} stops using the processor until you resume it. Its windows do not react meanwhile, and network connections or sound in it may drop.
 {0} tasks, {1} from other companies
 {0} tests
@@ -4987,8 +5698,10 @@ Zones
 {0} uses a driver that ships with Windows, so there is no third-party package to remove.
 {0} warnings
 {0} was removed. Programs often leave folders, settings and tasks behind.
+{0} was restarted
 {0} was taken back.
 {0} weeks
+{0} weeks ago
 {0} will be added to your user's Run key and start every time you sign in:\n\n{1}
 {0} will be removed from Windows. You can install it again from this page later.
 {0} will be uninstalled for every user account on this PC, and new accounts will not get it either. You can reinstall it from the Microsoft Store at any time.
@@ -4998,6 +5711,8 @@ Zones
 {0} will start automatically with Windows.
 {0} with a Bad verdict
 {0} year(s) old. Compare the version on {1}'s support page.
+{0} {1} (Windows)
+{0} {1} games, {2}
 {0} {1}?
 {0} {1}…
 {0} · released {1}
@@ -5005,9 +5720,11 @@ Zones
 {0} · {1} · {2}
 {0} — details and SMART health
 {0}'s newest BIOS is {1} ({2}).
+{0}, probably {1}
 {0}, {1} connections
 {0}, {1} connections, accepts connections from other devices
 {0}, {1} in total; {2}.
+{0}, {1}, {2} on {3}
 {0}. Other PCs and phones on your network can connect to these programs. That is normal for game servers, media sharing and remote tools; if you do not recognise one, end it or check its settings.
 {0}: added
 {0}: changed
@@ -5016,6 +5733,7 @@ Zones
 {0}: Windows needs a restart to finish this change.
 {0}: {1}
 {0}: {1} process(es) ended.
+{0}: {1}, {2}
 {0}: {1}, {2} files read, {3} DLLs needed, {4} problems.
 — close it while using fan control.
 • and {0} more
