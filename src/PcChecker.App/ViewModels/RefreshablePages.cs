@@ -151,3 +151,8 @@ public sealed partial class RamTuningViewModel : IRefreshablePage
 {
     ICommand IRefreshablePage.RefreshKeyCommand => RefreshCommand;
 }
+
+public sealed partial class GameReadyViewModel : IRefreshablePage
+{
+    ICommand IRefreshablePage.RefreshKeyCommand => CheckCommand;
+}

@@ -33,6 +33,7 @@ using PcChecker.Core.Hosts;
 using PcChecker.Core.Input;
 using PcChecker.Core.GameRuntimes;
 using PcChecker.Core.Games;
+using PcChecker.Core.GameReady;
 using PcChecker.Core.Latency;
 using PcChecker.Core.Leftovers;
 using PcChecker.Core.LiveUsage;
@@ -191,6 +192,23 @@ public static class ServiceRegistration
         // The check-up only calls the module services above, so the same class serves both modes.
         services.AddSingleton<ICheckupService, CheckupService>();
 
+        // Game ready reads through the module services above plus its own Windows/demo reader.
+        Add<IGameReadySystem, WindowsGameReadySystem, DemoGameReadySystem>(services, demo);
+        if (demo)
+        {
+            // Demo: Game ready gets its own copy of the sample desktop with the 240 Hz monitor left at 60 Hz (the slip it
+            // exists to catch), shared by the service and its page so a fix and its undo show up. The Displays page keeps
+            // the shared sample unchanged.
+            var gameReadyDisplays = DemoDisplayService.WithGamingMonitorAt(60);
+            services.AddSingleton<IGameReadyService>(sp => ActivatorUtilities.CreateInstance<GameReadyService>(sp, gameReadyDisplays));
+            services.AddSingleton(sp => ActivatorUtilities.CreateInstance<GameReadyViewModel>(sp, gameReadyDisplays));
+        }
+        else
+        {
+            services.AddSingleton<IGameReadyService, GameReadyService>();
+            services.AddSingleton<GameReadyViewModel>();
+        }
+
         // Optimization action providers (IOptimizationService aggregates every registration below).
         // providers: Latency (Windows: LatencyActionsProvider, Demo: DemoLatencyActionsProvider)
         Add<IOptimizationActionProvider, LatencyActionsProvider, DemoLatencyActionsProvider>(services, demo);
@@ -270,6 +288,7 @@ public static class ServiceRegistration
         services.AddSingleton<BenchmarkViewModel>().AddSingleton<BenchmarkPage>();
         services.AddSingleton<LatencyViewModel>().AddSingleton<LatencyPage>();
         services.AddSingleton<GamesViewModel>().AddSingleton<GamesPage>();
+        services.AddSingleton<GameReadyPage>(); // GameReadyViewModel is registered with the Game ready services above
         services.AddSingleton<MissingDllsViewModel>().AddSingleton<MissingDllsPage>();
         services.AddSingleton<NetworkViewModel>().AddSingleton<NetworkPage>();
         services.AddSingleton<ConnectionsViewModel>().AddSingleton<ConnectionsPage>();

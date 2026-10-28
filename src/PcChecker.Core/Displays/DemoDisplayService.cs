@@ -22,6 +22,18 @@ public sealed class DemoDisplayService : IDisplayService
             "HDMI", 24, DemoData.GpuName, SideModes, true, 55, 50, false),
     ];
 
+    /// <summary>
+    /// A separate demo desktop whose gaming monitor was left at <paramref name="refreshHz"/>. The Game ready page's demo
+    /// uses its own copy so the shared sample (Displays and Hardware pages) keeps its 240 Hz monitor at 240 Hz.
+    /// </summary>
+    public static DemoDisplayService WithGamingMonitorAt(int refreshHz)
+    {
+        var service = new DemoDisplayService();
+        var main = service._displays[0];
+        service._displays[0] = main with { Current = DisplayModeMath.Closest(main.Modes, main.Current with { RefreshHz = refreshHz }) ?? main.Current };
+        return service;
+    }
+
     public async Task<IReadOnlyList<DisplayInfo>> GetDisplaysAsync(CancellationToken cancellationToken)
     {
         await DemoData.DelayAsync(cancellationToken).ConfigureAwait(false);

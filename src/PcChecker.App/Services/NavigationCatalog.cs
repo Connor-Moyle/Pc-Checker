@@ -84,6 +84,7 @@ public static class NavigationCatalog
             Page("RAM tuning", "ram-tuning", typeof(RamTuningPage))),
         Section("Gaming", SymbolRegular.Games24,
             Page("Games", "games", typeof(GamesPage)),
+            Page("Game ready", "game-ready", typeof(GameReadyPage)),
             Page("Overlay", "overlay-settings", typeof(OverlayPage)),
             Page("Latency", "latency", typeof(LatencyPage)),
             Page("Missing DLLs", "missing-dlls", typeof(MissingDllsPage))),

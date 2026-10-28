@@ -21,6 +21,8 @@ OUT = APP / "Localization" / "strings.txt"
 CORE_SHELL = ROOT / "src" / "PcChecker.Core" / "Shell"
 CORE_MARKED = (CORE_SHELL, ROOT / "src" / "PcChecker.Core" / "Crashes", ROOT / "src" / "PcChecker.Core" / "AppHistory",
                ROOT / "src" / "PcChecker.Core" / "RamTuning")
+# The Game ready rules write their text through tr.T("...")/tr.F("...") and mark catalog names with T("...").
+CORE_MARKED += (ROOT / "src" / "PcChecker.Core" / "GameReady",)
 TEXT_ATTRS = ("Text", "ToolTip", "Content", "Title", "Header", "Message", "Subtitle", "PlaceholderText",
               "Description", "Label", "Unit", "Caption", "Reason", "ActionText")
 ATTR = re.compile(r'\b(?:[a-zA-Z]+:)?(?:[A-Z][A-Za-z]*\.)?(' + "|".join(TEXT_ATTRS) + r')="([^"]*)"')
