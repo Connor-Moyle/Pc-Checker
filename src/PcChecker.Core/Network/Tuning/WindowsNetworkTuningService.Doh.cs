@@ -211,7 +211,7 @@ public sealed partial class WindowsNetworkTuningService
         }
     }
 
-    private static long? ReadQword(string? subKey, string valueName)
+    internal static long? ReadQword(string? subKey, string valueName)
     {
         if (!PlatformGuard.IsWindows || subKey is null)
         {
@@ -234,7 +234,7 @@ public sealed partial class WindowsNetworkTuningService
         }
     }
 
-    private static OperationResult WriteQword(string? subKey, string valueName, long value)
+    internal static OperationResult WriteQword(string? subKey, string valueName, long value)
     {
         if (!PlatformGuard.IsWindows)
         {
