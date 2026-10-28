@@ -19,7 +19,8 @@ public static partial class UpgradeAdvisor
             return;
         }
 
-        if (layout.SameChannel)
+        // Laptops: the memory is often soldered or the slots cannot be swapped, so a "move the stick" fix is not offered.
+        if (layout.SameChannel && !ctx.IsLaptop)
         {
             ctx.Fixes.Add(new FixFirstItem("memory.same-channel", UpgradeArea.Memory, Severity.Medium,
                 tr.T("Both memory sticks are in the same channel"),

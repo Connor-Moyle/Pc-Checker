@@ -44,7 +44,8 @@ public static partial class CpuUpgradePaths
     /// <summary>The first 13th/14th gen microcode that fixes the Vmin Shift instability (0x12B).</summary>
     public const int RaptorLakeFixedMicrocode = 0x12B;
 
-    [GeneratedRegex(@"\bi([3579])-(\d{4,5})([A-Z]{0,3})\b", RegexOptions.IgnoreCase)]
+    // The suffix may end in a digit: "1165G7", "1035G1", "1065G4" (Ice Lake and Tiger Lake laptops).
+    [GeneratedRegex(@"\bi([3579])-(\d{4,5})([A-Z]{0,3}[0-9]?)\b", RegexOptions.IgnoreCase)]
     private static partial Regex IntelCore();
 
     [GeneratedRegex(@"\bCore\s+Ultra\s+([579])\s+(\d{3})([A-Z]{0,2})\b", RegexOptions.IgnoreCase)]
@@ -61,7 +62,7 @@ public static partial class CpuUpgradePaths
     private static readonly IReadOnlyDictionary<string, SocketPath> Paths = new Dictionary<string, SocketPath>(StringComparer.OrdinalIgnoreCase)
     {
         [Am4] = new(Am4, true,
-            T("Update the BIOS before you swap (Ryzen 5000 needs a 2021 or newer BIOS). Some 300-series boards never got support; check your board's CPU support list."),
+            T("Update to the newest BIOS before you swap (the 5700X3D and 5800X3D need a recent one). Some 300-series boards never got support; check your board's CPU support list."),
             [
                 new("Ryzen 7 5700X3D", 7, true, false),
                 new("Ryzen 7 5800X3D", 8, true, false),
@@ -167,7 +168,11 @@ public static partial class CpuUpgradePaths
 
         string digits = core.Groups[2].Value;
         string suffixCore = core.Groups[3].Value.ToUpperInvariant();
-        int generation = digits.Length == 5 ? int.Parse(digits[..2], CultureInfo.InvariantCulture) : int.Parse(digits[..1], CultureInfo.InvariantCulture);
+        // Five digits ("13700K") and four digits starting with 1 (laptop chips: "1065G7", "1165G7", "1235U", "1355U")
+        // carry a two-digit generation (10-14); other four-digit numbers ("8700K", "9900K") a one-digit one.
+        int generation = digits.Length == 5 || digits[0] == '1'
+            ? int.Parse(digits[..2], CultureInfo.InvariantCulture)
+            : int.Parse(digits[..1], CultureInfo.InvariantCulture);
         bool isLaptop = suffixCore.Length > 0 && (suffixCore.StartsWith('H') || suffixCore.StartsWith('U') || suffixCore.StartsWith('P')
             || suffixCore.StartsWith('Y') || suffixCore.StartsWith('M') || suffixCore == "G1" || suffixCore.StartsWith("G7") || suffixCore.StartsWith("G4"));
         string? coreSocket = isLaptop ? null : generation switch

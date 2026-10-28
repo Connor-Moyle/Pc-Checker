@@ -74,6 +74,26 @@ public class UpgradeMemoryRulesTests
     }
 
     [Fact]
+    public void Controller_numbers_keep_two_channel_a_modules_apart()
+    {
+        // Intel 11th gen and newer (most laptops, OEM desktops, some ASRock boards): one channel per controller.
+        var a = MemoryLayoutRules.ParseSlot("Controller0-ChannelA-DIMM0", "BANK 0");
+        var b = MemoryLayoutRules.ParseSlot("Controller1-ChannelA-DIMM0", "BANK 0");
+        Assert.Equal(0, a.Controller);
+        Assert.Equal(1, b.Controller);
+        Assert.NotEqual(a.ChannelKey, b.ChannelKey);
+
+        var layout = MemoryLayoutRules.Evaluate([Stick("Controller0-ChannelA-DIMM0"), Stick("Controller1-ChannelA-DIMM0")], 4, "ASRock", false);
+        Assert.False(layout.SameChannel);
+        Assert.False(layout.WrongSlots);
+        Assert.Equal(ChannelMode.DualChannel, layout.Mode);
+
+        // The same controller and channel is still single channel.
+        var same = MemoryLayoutRules.Evaluate([Stick("Controller0-ChannelA-DIMM0"), Stick("Controller0-ChannelA-DIMM1")], 4, "ASRock", false);
+        Assert.True(same.SameChannel);
+    }
+
+    [Fact]
     public void Recommended_slot_names_follow_the_board_makers_labels()
     {
         Assert.Equal("DIMM_A2 + DIMM_B2", MemoryLayoutRules.RecommendedSlotNames("ASUSTeK COMPUTER INC.", "DDR5"));
@@ -210,6 +230,24 @@ public class UpgradePlatformTests
         Assert.Equal(generation, cpu.IntelGeneration);
         Assert.Equal(model, cpu.Model);
         Assert.False(cpu.IsLaptop);
+    }
+
+    [Theory]
+    [InlineData("12th Gen Intel(R) Core(TM) i5-1235U", 12, "Core i5-1235U")]
+    [InlineData("13th Gen Intel(R) Core(TM) i7-1355U", 13, "Core i7-1355U")]
+    [InlineData("12th Gen Intel(R) Core(TM) i7-1260P", 12, "Core i7-1260P")]
+    [InlineData("11th Gen Intel(R) Core(TM) i7-1165G7 @ 2.80GHz", 11, "Core i7-1165G7")]
+    [InlineData("Intel(R) Core(TM) i7-1065G7 CPU @ 1.30GHz", 10, "Core i7-1065G7")]
+    [InlineData("Intel(R) Core(TM) i3-1005G1 CPU @ 1.20GHz", 10, "Core i3-1005G1")]
+    public void Four_digit_laptop_chips_get_a_two_digit_generation(string name, int generation, string model)
+    {
+        var cpu = CpuUpgradePaths.Identify(name);
+        Assert.True(cpu.IsIntel);
+        Assert.Equal(generation, cpu.IntelGeneration);
+        Assert.Equal(model, cpu.Model);
+        Assert.True(cpu.IsLaptop);
+        Assert.Null(cpu.Socket);
+        Assert.True(CpuUpgradePaths.IsWindows11Supported(cpu));
     }
 
     [Fact]
@@ -483,6 +521,25 @@ public class UpgradeAdvisorTests
         Assert.Null(report.Psu);
         Assert.All(report.Upgrades, u => Assert.True(u.Area is UpgradeArea.Memory or UpgradeArea.Storage, u.Id));
         Assert.Contains(report.Upgrades, u => u.Id == "memory.capacity" && u.Note!.Contains("soldered", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Laptops_get_no_slot_or_lane_fixes()
+    {
+        var hw = Desktop(UpgradeMemoryRulesTests.Stick("ChannelA-DIMM0", size: 8 * Gb), UpgradeMemoryRulesTests.Stick("ChannelA-DIMM1", size: 8 * Gb));
+        hw.System = hw.System! with { PcSystemType = "Mobile", ChassisType = "Notebook" };
+        hw.Processors.Clear();
+        hw.Processors.Add(new CpuInfo("13th Gen Intel(R) Core(TM) i7-1355U", "GenuineIntel", "CPU0", "OK", null, "x64", "U3E1", 10, 12, 1700, 1700, null, null,
+            null, null, null, true, 5, 64, new Dictionary<string, string>()));
+        var report = UpgradeAdvisor.Build(new UpgradeFacts
+        {
+            Now = Now,
+            Hardware = hw,
+            GpuLink = new PcieLinkInfo(4, 4, 8, 16),
+        }, Translator.English);
+
+        Assert.True(report.IsLaptop);
+        Assert.DoesNotContain(report.FixFirst, f => f.Id is "gpu.link" or "memory.same-channel" or "memory.slots");
     }
 
     [Fact]

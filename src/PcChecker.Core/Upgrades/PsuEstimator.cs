@@ -23,7 +23,7 @@ public static class PsuEstimator
         ("Core i9-12900K", 241), ("Core i7-12700K", 190), ("Core i5-14600K", 181), ("Core i5-13600K", 181), ("Core i5-12600K", 150),
         ("Core Ultra 9 285K", 250), ("Core Ultra 7 265K", 250), ("Core Ultra 5 245K", 159),
         ("Core i9-11900K", 251), ("Core i7-11700K", 251), ("Core i9-10900K", 250), ("Core i7-10700K", 229), ("Core i5-10600K", 182),
-        ("Ryzen 9 9950X3D", 200), ("Ryzen 9 9950X", 230), ("Ryzen 9 9900X", 162), ("Ryzen 9 7950X3D", 162), ("Ryzen 9 7950X", 230),
+        ("Ryzen 9 9950X3D", 230), ("Ryzen 9 9950X", 230), ("Ryzen 9 9900X", 162), ("Ryzen 9 7950X3D", 162), ("Ryzen 9 7950X", 230),
         ("Ryzen 9 7900X3D", 162), ("Ryzen 9 7900X", 230), ("Ryzen 7 9800X3D", 162), ("Ryzen 7 7800X3D", 162), ("Ryzen 7 9700X", 88),
         ("Ryzen 7 7700X", 142), ("Ryzen 5 9600X", 88), ("Ryzen 5 7600X", 142),
         ("Ryzen 9 5950X", 142), ("Ryzen 9 5900X", 142), ("Ryzen 7 5800X3D", 142), ("Ryzen 7 5700X3D", 142), ("Ryzen 7 5800X", 142),

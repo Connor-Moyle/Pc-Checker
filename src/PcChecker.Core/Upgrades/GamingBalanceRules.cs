@@ -21,7 +21,7 @@ public enum SampleBound
 public static class GamingBalanceRules
 {
     /// <summary>History metric for the busiest core's load, used when the recorder provides it.</summary>
-    public const string BusiestCoreMetric = "cpu.core.max";
+    public const string BusiestCoreMetric = "cpu.load.coremax";
 
     public const double GamingGpuMin = 50;
     public const double GpuLimitedMin = 90;

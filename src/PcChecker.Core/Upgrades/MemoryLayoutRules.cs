@@ -5,13 +5,24 @@ using PcChecker.Core.History;
 
 namespace PcChecker.Core.Upgrades;
 
-/// <summary>Where one memory module sits: its channel letter and its slot inside the channel (1 = nearest the CPU).</summary>
-public sealed record SlotPosition(char? Channel, int? IndexInChannel)
+/// <summary>
+/// Where one memory module sits: its memory controller (when the locator names one, as in "Controller1-ChannelA-DIMM0"),
+/// its channel letter and its slot inside the channel (1 = nearest the CPU).
+/// </summary>
+public sealed record SlotPosition(char? Channel, int? IndexInChannel, int? Controller = null)
 {
     public static SlotPosition Unknown { get; } = new(null, null);
 
-    /// <summary>"A2", "B1", or null when the position is not known.</summary>
-    public string? Label => Channel is { } c && IndexInChannel is { } i ? $"{c}{i}" : null;
+    /// <summary>"A2", "B1", or null when the position is not known. Prefixed with "C1-" when a controller is named.</summary>
+    public string? Label => Channel is { } c && IndexInChannel is { } i
+        ? Controller is { } ctl ? $"C{ctl}-{c}{i}" : $"{c}{i}"
+        : null;
+
+    /// <summary>
+    /// The channel as one key: controller plus letter. "Controller0-ChannelA" and "Controller1-ChannelA" are two different
+    /// channels (Intel 11th gen and newer, many laptops and OEM desktops, some ASRock boards report it this way).
+    /// </summary>
+    public string? ChannelKey => Channel is { } c ? $"{Controller?.ToString(CultureInfo.InvariantCulture) ?? "-"}{c}" : null;
 }
 
 /// <summary>How the installed modules are laid out.</summary>
@@ -63,6 +74,9 @@ public static partial class MemoryLayoutRules
     [GeneratedRegex(@"DIMM\s*[-_]?\s*(?<i>[0-3])\b", RegexOptions.IgnoreCase)]
     private static partial Regex DimmIndex();
 
+    [GeneratedRegex(@"CONTROLLER\s*[-_]?\s*(?<c>[0-9])", RegexOptions.IgnoreCase)]
+    private static partial Regex ControllerNumber();
+
     [GeneratedRegex(@"(?:^|[^A-Z0-9])(?:DIMM|DDR\d)?[-_\s]?(?<ch>[A-H])[-_]?(?<i>[1-4])\s*$", RegexOptions.IgnoreCase)]
     private static partial Regex LetterNumber();
 
@@ -90,7 +104,14 @@ public static partial class MemoryLayoutRules
         {
             char ch = char.ToUpperInvariant(channel.Groups["ch"].Value[0]);
             var dimm = DimmIndex().Match(locator);
-            return new SlotPosition(ch, dimm.Success ? int.Parse(dimm.Groups["i"].Value, CultureInfo.InvariantCulture) + 1 : null);
+            var controller = ControllerNumber().Match(locator);
+            if (!controller.Success)
+            {
+                controller = ControllerNumber().Match(bank);
+            }
+
+            return new SlotPosition(ch, dimm.Success ? int.Parse(dimm.Groups["i"].Value, CultureInfo.InvariantCulture) + 1 : null,
+                controller.Success ? int.Parse(controller.Groups["c"].Value, CultureInfo.InvariantCulture) : null);
         }
 
         return SlotPosition.Unknown;
@@ -144,12 +165,16 @@ public static partial class MemoryLayoutRules
         }
 
         bool allKnownChannels = positions.All(p => p.Channel is not null);
-        bool sameChannel = allKnownChannels && positions.Select(p => p.Channel).Distinct().Count() == 1;
-        bool wrongSlots = !isLaptop && present.Count == 2 && slots == 4 && !sameChannel
+        // Some modules name a controller and others do not: the channels cannot be compared safely.
+        bool mixedNaming = positions.Select(p => p.Controller is null).Distinct().Count() > 1;
+        bool sameChannel = allKnownChannels && !mixedNaming && positions.Select(p => p.ChannelKey).Distinct().Count() == 1;
+        // The A2/B2 rule is for letter-named slots; controller-style names number the slots differently per board.
+        bool controllerNaming = positions.Any(p => p.Controller is not null);
+        bool wrongSlots = !isLaptop && !controllerNaming && present.Count == 2 && slots == 4 && !sameChannel
             && positions.All(p => p.IndexInChannel == 1);
 
         ChannelMode mode = sameChannel ? ChannelMode.SingleChannel
-            : allKnownChannels ? ChannelMode.DualChannel
+            : allKnownChannels && !mixedNaming ? ChannelMode.DualChannel
             : Memory.MemoryRules.EvaluateChannels(present, slots ?? 0).DualChannelLikely ? ChannelMode.DualChannel : ChannelMode.Unknown;
         return new MemoryLayout(present.Count, mode, sameChannel, wrongSlots, mixed, labels, recommended);
     }

@@ -124,7 +124,8 @@ public static partial class UpgradeAdvisor
             return;
         }
 
-        if (GpuRules.IsLinkNarrowed(ctx.Facts.GpuLink) && ctx.Facts.GpuLink is { } link && !ctx.Gpu.IsIntegrated)
+        // Laptop graphics chips are often wired with fewer lanes than they support, and there is no slot to change.
+        if (!ctx.IsLaptop && GpuRules.IsLinkNarrowed(ctx.Facts.GpuLink) && ctx.Facts.GpuLink is { } link && !ctx.Gpu.IsIntegrated)
         {
             ctx.Fixes.Add(new FixFirstItem("gpu.link", UpgradeArea.Graphics, Severity.Medium,
                 tr.F("The graphics card runs with x{0} lanes instead of x{1}", link.CurrentWidth ?? 0, link.MaxWidth ?? 0),
