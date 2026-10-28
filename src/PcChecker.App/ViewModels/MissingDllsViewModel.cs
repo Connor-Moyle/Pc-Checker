@@ -8,6 +8,7 @@ using PcChecker.App.Services;
 using PcChecker.App.Views.Pages;
 using PcChecker.Core.Common;
 using PcChecker.Core.GameRuntimes;
+using PcChecker.Core.Games;
 using PcChecker.Core.Settings;
 using Wpf.Ui;
 
@@ -27,6 +28,7 @@ public sealed partial class MissingDllsViewModel : ViewModelBase, IRefreshablePa
     private readonly INotificationService _notifications;
     private readonly INavigationService _navigation;
     private readonly ILogger<MissingDllsViewModel> _logger;
+    private readonly GameFolderScanHandOff _gameScans;
     private readonly List<MissingDllRow> _allRows = [];
     private RuntimeScanResult _scan = RuntimeScanResult.Empty;
     private bool? _wingetAvailable;
@@ -101,9 +103,11 @@ public sealed partial class MissingDllsViewModel : ViewModelBase, IRefreshablePa
     private bool _rebootRequired;
 
     public MissingDllsViewModel(ISettingsService settings, IGameRuntimeService runtimes, IDialogService dialogs, INotificationService notifications,
-        INavigationService navigation, ILogger<MissingDllsViewModel> logger)
+        INavigationService navigation, ILogger<MissingDllsViewModel> logger, GameFolderScanHandOff gameScans)
         : base(settings)
     {
+        _gameScans = gameScans;
+        _gameScans.Queued += (_, _) => DispatcherHelper.PostToUi(OnGameScanQueued);
         _runtimes = runtimes;
         _dialogs = dialogs;
         _notifications = notifications;
@@ -139,11 +143,18 @@ public sealed partial class MissingDllsViewModel : ViewModelBase, IRefreshablePa
 
     public bool ShowFailureResult => !ResultSuccess && !string.IsNullOrWhiteSpace(ResultMessage);
 
-    /// <summary>Checks the PC right away (it only reads files and the registry); demo mode also shows a sample game scan.</summary>
+    /// <summary>
+    /// Checks the PC right away (it only reads files and the registry). A game sent from the Games page is scanned next;
+    /// otherwise demo mode shows a sample game scan.
+    /// </summary>
     public override async Task InitializeAsync(CancellationToken cancellationToken)
     {
         await RunScanAsync(cancellationToken);
-        if (AppOptions.Current.IsDemo && !cancellationToken.IsCancellationRequested)
+        if (_gameScans.Take() is { } request && !cancellationToken.IsCancellationRequested)
+        {
+            await ScanGameFolderAsync(request.Folder, cancellationToken);
+        }
+        else if (AppOptions.Current.IsDemo && !cancellationToken.IsCancellationRequested)
         {
             await RunBusyAsync(async ct =>
             {
@@ -236,6 +247,33 @@ public sealed partial class MissingDllsViewModel : ViewModelBase, IRefreshablePa
 
         ListSummary = Loc.F("{0} of {1} DLLs shown", Dlls.Count, _allRows.Count);
         OnPropertyChanged(nameof(HasNoDlls));
+    }
+
+    /// <summary>Scans one game's folder (the Games page sends it here). Reading only; nothing in the folder is run.</summary>
+    public Task ScanGameFolderAsync(string folder, CancellationToken cancellationToken = default) =>
+        RunBusyAsync(async busyToken =>
+        {
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(busyToken, cancellationToken);
+            await ScanGameCoreAsync(folder, linked.Token);
+        }, Loc.T("Reading the game's files…"));
+
+    /// <summary>The Games page sent a game while this page was already loaded: scan it now.</summary>
+    private async void OnGameScanQueued()
+    {
+        if (!IsInitialized || IsBusy || _gameScans.Take() is not { } request)
+        {
+            // InitializeAsync takes the request when the page is first shown.
+            return;
+        }
+
+        try
+        {
+            await ScanGameFolderAsync(request.Folder);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Game scan sent from the Games page failed.");
+        }
     }
 
     [RelayCommand]

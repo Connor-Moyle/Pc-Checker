@@ -507,7 +507,7 @@
             </Border>
 
             <!-- Editor -->
-            <Border CornerRadius="8" Padding="12" Margin="0,0,0,8" BorderThickness="1" BorderBrush="{DynamicResource AccentCyanBrush}"
+            <Border x:Name="GameProfileEditor" CornerRadius="8" Padding="12" Margin="0,0,0,8" BorderThickness="1" BorderBrush="{DynamicResource AccentCyanBrush}"
                     Visibility="{Binding IsEditorOpen, Converter={StaticResource BoolToVisibility}}">
               <StackPanel>
                 <ui:TextBlock Text="{Binding EditorTitle}" FontWeight="SemiBold" Margin="0,0,0,6" />

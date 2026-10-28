@@ -143,9 +143,12 @@ public sealed partial class OverlayViewModel : ViewModelBase
     private int _enabledMetricCount;
 
     public OverlayViewModel(ISettingsService settings, IOverlayService overlay, INotificationService notifications, IDialogService dialogs, ILogger<OverlayViewModel> logger,
-        GameProfileSwitcher switcher, IGameProfileService gameProfiles, IForegroundAppTracker tracker, IFrameRateMonitor frames, IFanControlService fans)
+        GameProfileSwitcher switcher, IGameProfileService gameProfiles, IForegroundAppTracker tracker, IFrameRateMonitor frames, IFanControlService fans,
+        PcChecker.Core.Games.GameProfileHandOff profileRequests)
         : base(settings)
     {
+        _profileRequests = profileRequests;
+        _profileRequests.Queued += (_, _) => DispatcherHelper.PostToUi(OnProfileRequestQueued);
         _overlay = overlay;
         _notifications = notifications;
         _dialogs = dialogs;
@@ -214,6 +217,10 @@ public sealed partial class OverlayViewModel : ViewModelBase
         }
 
         await LoadGamingAsync(cancellationToken);
+        if (_profileRequests.Take() is { } request)
+        {
+            OpenProfileFor(request);
+        }
     }
 
     /// <summary>Page Loaded: the live preview polls sensors only while this page is on screen.</summary>

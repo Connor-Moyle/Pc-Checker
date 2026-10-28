@@ -29,6 +29,7 @@ public sealed partial class OverlayViewModel
     private PcChecker.Core.Fans.IFanControlService? _fans;
     private DispatcherTimer? _frameStatusTimer;
     private string? _editingOriginalName;
+    private readonly PcChecker.Core.Games.GameProfileHandOff _profileRequests;
     private bool _loadingProfiles;
 
     // ----- FPS counter status -----
@@ -336,6 +337,43 @@ public sealed partial class OverlayViewModel
             IsLoadingApps = false;
         }
     }
+
+    /// <summary>The Games page sent a game while this page was already loaded: open its profile now.</summary>
+    private void OnProfileRequestQueued()
+    {
+        if (IsInitialized && _profileRequests.Take() is { } request)
+        {
+            OpenProfileFor(request);
+        }
+    }
+
+    /// <summary>
+    /// Opens the editor for a game sent from the Games page: its existing profile when one already matches the
+    /// program, otherwise a new profile with the name and program filled in. Nothing is saved until the user saves.
+    /// </summary>
+    private void OpenProfileFor(PcChecker.Core.Games.GameProfileRequest request)
+    {
+        IsPickerOpen = false;
+        var existing = Settings.Current.Gaming.Profiles.FirstOrDefault(p => p is not null && GameProfileMatcher.Matches(p, request.ExePath));
+        if (existing is not null)
+        {
+            OpenEditor(existing.Name, existing.Clone());
+        }
+        else
+        {
+            OpenEditor(null, new GameProfile
+            {
+                Name = request.GameName,
+                ExeName = GameProfileRules.CanonicalExeName(request.ExePath),
+                ExePath = request.ExePath,
+            });
+        }
+
+        ProfileEditorRequested?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>Raised when another page asked for the profile editor, so the page can scroll to it.</summary>
+    public event EventHandler? ProfileEditorRequested;
 
     [RelayCommand]
     private void ClosePicker() => IsPickerOpen = false;

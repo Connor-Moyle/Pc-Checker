@@ -213,6 +213,10 @@ public static class HelpCatalog
             Features, "Overclock"),
 
         // Gaming
+        new("games",
+            T("Games lists every installed game from Steam, Epic, GOG, the EA app, Ubisoft, Battle.net, Riot and Xbox, with size, drive and last played."),
+            T("Press Play on a card, or right-click it to verify files or find missing DLLs. Uninstalling is always done by the game's own launcher."),
+            Features, "Game library"),
         new("overlay-settings",
             T("Overlay sets up the small in-game display of temperatures, load and frame rate."),
             T("Turn the overlay on and press its hotkey (Ctrl+Shift+O) in a game. It never changes the game."),

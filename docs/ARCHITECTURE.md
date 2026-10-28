@@ -64,6 +64,7 @@ Every project targets `net8.0-windows10.0.19041.0`. `EnableWindowsTargeting` is 
 | `LiveUsage` | `ILiveUsageService` (Task Manager's Performance tab: PDH counters added by English name through `PdhQuery`, `GetPerformanceInfo`, DXGI), `SampleRing`, `LiveUsageFormat`, `LiveUsageMath`, `CounterInstanceParser`, `CpuTopologyParser`, `LiveUsageText`, `LiveUsagePreferencesStore` |
 | `AppHistory` | `IAppHistoryService` (Task Manager's App history: Windows' SRUM records copied with `esentutl /vss` into a protected ProgramData folder and read with ManagedEsent in `SrumDatabaseReader`, falling back to PC Checker's own once-a-minute recording), `SrumIdMapDecoder`, `SrumConvert` (cycles to CPU time, OLE dates, interface types), `SrumRecordBuilder`, `SrumErrorClassifier`, `AppNames`, `AppUsageAccumulator`, `AppUsageFileStore` (with `AppUsageLineCodec` and `AppUsageRollup`), `AppUsageAggregator`, `AppHistoryText`, `DemoAppHistoryData` |
 | `GameRuntimes` | `IGameRuntimeService` (Missing DLLs page: DLL detection, game scans, official runtime installs), `RuntimeCatalog` (every DLL and the package, source, switches and signer behind it), `PeImportReader` (PE32/PE32+ import and delay-import tables), `RuntimeStatusRules`, `GameScanRules`, `RuntimeInstallRules` |
+| `Games` | `IGameLibraryService` (Games page: installed games from Steam, Epic, GOG, EA, Ubisoft, Battle.net, Riot and Xbox; launching without administrator rights; shader cache clean-up), `VdfParser` (Valve KeyValues), `SteamLibraryRules`, `EpicManifestParser`, `XboxGameRules` (MicrosoftGame.config, publisher id, .GamingRoot), `LauncherRules`, `GameLaunchUris`, `GameEntryFactory`, `GameExeGuesser`, `GameLibraryMath`, `GameHandOff` (Games → Missing DLLs and Overlay hand-offs) |
 | `Startup` | `IStartupService`, `BootConfig`, `StartupEnumerator` (shared with Performance) |
 | `Accessibility` | `ThemeColor` and `ContrastMath` (WCAG contrast), `AccentPalette` (the dark and light status colours, checked against AA by the tests), `AccessibleText` (screen-reader names, access keys) |
 | `Shell` | Quick search (`FuzzyMatcher`, `QuickSearchIndex`, `QuickSearchRanker`, `RecentItems`, the settings, quick action and page keyword catalogs) and `WelcomeRules` for the first-start welcome |
@@ -119,7 +120,7 @@ Apps & Drivers  Apps · Leftovers · Drivers · Startup · Windows Features
 Clean up        Cleanup
 Security        Security · Privacy
 Performance     Speed check · Optimize · Benchmark · Overclock
-Gaming          Overlay · Latency · Missing DLLs
+Gaming          Games · Overlay · Latency · Missing DLLs
 Ask Claude      Ask Claude
 Footer          Logs · Settings · Advanced mode toggle
 ```
