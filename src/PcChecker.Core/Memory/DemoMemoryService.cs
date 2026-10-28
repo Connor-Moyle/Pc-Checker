@@ -4,7 +4,7 @@ using PcChecker.Core.Hardware;
 namespace PcChecker.Core.Memory;
 
 /// <summary>
-/// Demo memory service for the sample gaming desktop: a 32 GB DDR5-6000 kit running at 4800 (XMP off) so the page
+/// Demo memory service for the sample gaming desktop: a 32 GB DDR5-6000 CL30 kit running at 4800 (XMP off) so the page
 /// has something to advise. Pure .NET; remembers the changes it is asked to make so the page reacts realistically.
 /// </summary>
 public sealed class DemoMemoryService : IMemoryService, IMemoryTuning
@@ -30,8 +30,8 @@ public sealed class DemoMemoryService : IMemoryService, IMemoryTuning
         long available = (long)(total * DemoData.Jitter(random, 0.58, 0.03));
         var modules = new List<MemoryModuleInfo>
         {
-            Module("DIMM_A2", "F5-6000J3636F16GX2-TZ5RK", "F5A2"),
-            Module("DIMM_B2", "F5-6000J3636F16GX2-TZ5RK", "F5B2"),
+            Module("DIMM_A2", "F5-6000J3038F16GX2-TZ5RK", "F5A2"),
+            Module("DIMM_B2", "F5-6000J3038F16GX2-TZ5RK", "F5B2"),
         };
 
         var xmp = MemoryRules.EvaluateXmp(modules, "Intel");

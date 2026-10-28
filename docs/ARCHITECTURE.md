@@ -55,6 +55,7 @@ Every project targets `net8.0-windows10.0.19041.0`. `EnableWindowsTargeting` is 
 | `Storage` | `IStorageToolsService` (surface scan, benchmark, chkdsk, repair, optimize), `BlockMapBuilder`, `BenchmarkMath`, `StorageVendorRules` |
 | `Benchmark` | `IBenchmarkService`, `IBenchmarkHistoryStore`, the CPU and memory workloads, `BenchmarkScoring`, `BenchmarkStatistics`, `BenchmarkComparer`, `BenchmarkFormatter` |
 | `Memory` | `IMemoryService`, `MemoryOverview`, profiles, `MemoryTestPatterns`, `PageFileRules` |
+| `RamTuning` | `IRamTuningService` (RAM tuning page: read-only detection, quick memory check, check history), `RamPlatformDetector`, `RamIcCatalog` (part number to likely DRAM chip), `RamLayoutRules` (slots, channels, mixed kits), `RamTuningRules` (speed targets and voltage ceilings per platform, with sources), `BiosMenuPaths`, `RamPlanBuilder`, `RamVerifier`, `MemoryCrashRules`, `QuickMemoryCheck` and `QuickMemoryPatterns`, `RamStabilityTools` |
 | `Battery` | `IBatteryService`, `BatteryReportParser` (`powercfg /batteryreport /xml`), `IsoDuration`, `BatteryMath`, `BatteryChartBuilder`, `BatteryPageRules`, `BatterySources` |
 | `Displays` | `IDisplayService`, `DisplayInfo`/`DisplayMode`, profiles, `DisplayModeMath` |
 | `Audio` | `IAudioService` (NAudio.Wasapi Core Audio wrappers), devices and sessions |
@@ -119,7 +120,7 @@ Cooling & RGB   Fans · Lighting
 Apps & Drivers  Apps · Leftovers · Drivers · Startup · Windows Features
 Clean up        Cleanup
 Security        Security · Privacy
-Performance     Speed check · Optimize · Benchmark · Overclock
+Performance     Speed check · Optimize · Benchmark · Overclock · RAM tuning
 Gaming          Games · Overlay · Latency · Missing DLLs
 Ask Claude      Ask Claude
 Footer          Logs · Settings · Advanced mode toggle

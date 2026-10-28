@@ -188,9 +188,9 @@ public sealed class DemoHardwareInventoryService : IHardwareInventoryService
     }
 
     private static MemoryModuleInfo DemoModule(string locator, string bank, string tag, string serial) =>
-        new($"{locator} 16 GB DDR5", "G.Skill", tag, "OK", bank, locator, DemoData.MemoryModuleBytes, 6000, 6000, "DDR5", "DIMM", "F5-6000J3636F16G", serial, 1100, 64, 64,
+        new($"{locator} 16 GB DDR5", "G.Skill", tag, "OK", bank, locator, DemoData.MemoryModuleBytes, 6000, 6000, "DDR5", "DIMM", "F5-6000J3038F16G", serial, 1100, 64, 64,
             Props(("Tag", tag), ("DeviceLocator", locator), ("BankLabel", bank), ("Capacity", DemoData.MemoryModuleBytes.ToString()), ("Speed", "6000"), ("ConfiguredClockSpeed", "6000"),
-                ("Manufacturer", "04CD"), ("PartNumber", "F5-6000J3636F16G"), ("SerialNumber", serial), ("SMBIOSMemoryType", "34"), ("MemoryType", "0"), ("FormFactor", "8"),
+                ("Manufacturer", "04CD"), ("PartNumber", "F5-6000J3038F16G"), ("SerialNumber", serial), ("SMBIOSMemoryType", "34"), ("MemoryType", "0"), ("FormFactor", "8"),
                 ("ConfiguredVoltage", "1100"), ("MinVoltage", "1100"), ("MaxVoltage", "1100"), ("DataWidth", "64"), ("TotalWidth", "64"), ("TypeDetail", "128"), ("Status", "OK")));
 
     private static PnpDeviceInfo Pnp(string name, string? manufacturer, string deviceId, string pnpClass, string? service, int problem) =>

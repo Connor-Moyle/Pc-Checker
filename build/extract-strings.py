@@ -19,7 +19,8 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 APP = ROOT / "src" / "PcChecker.App"
 OUT = APP / "Localization" / "strings.txt"
 CORE_SHELL = ROOT / "src" / "PcChecker.Core" / "Shell"
-CORE_MARKED = (CORE_SHELL, ROOT / "src" / "PcChecker.Core" / "Crashes", ROOT / "src" / "PcChecker.Core" / "AppHistory")
+CORE_MARKED = (CORE_SHELL, ROOT / "src" / "PcChecker.Core" / "Crashes", ROOT / "src" / "PcChecker.Core" / "AppHistory",
+               ROOT / "src" / "PcChecker.Core" / "RamTuning")
 TEXT_ATTRS = ("Text", "ToolTip", "Content", "Title", "Header", "Message", "Subtitle", "PlaceholderText",
               "Description", "Label", "Unit", "Caption", "Reason", "ActionText")
 ATTR = re.compile(r'\b(?:[a-zA-Z]+:)?(?:[A-Z][A-Za-z]*\.)?(' + "|".join(TEXT_ATTRS) + r')="([^"]*)"')
