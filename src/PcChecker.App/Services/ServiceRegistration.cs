@@ -14,6 +14,7 @@ using PcChecker.Core.Checkup;
 using PcChecker.Core.Cleanup;
 using PcChecker.Core.Common;
 using PcChecker.Core.Connections;
+using PcChecker.Core.Crashes;
 using PcChecker.Core.ContextMenus;
 using PcChecker.Core.Debloat;
 using PcChecker.Core.DiskSpace;
@@ -128,6 +129,7 @@ public static class ServiceRegistration
         Add<IOverclockService, WindowsOverclockService, DemoOverclockService>(services, demo);
         Add<IPowerService, WindowsPowerService, DemoPowerService>(services, demo);
         Add<IHistoryService, WindowsHistoryService, DemoHistoryService>(services, demo);
+        Add<ICrashService, WindowsCrashService, DemoCrashService>(services, demo);
         Add<IAppUpdateService, GitHubExeUpdateService, DemoAppUpdateService>(services, demo);
         Add<IAppInstallService, WindowsAppInstallService, DemoAppInstallService>(services, demo);
         Add<IPcAssistantService, ClaudeAssistantService, DemoPcAssistantService>(services, demo);
@@ -219,6 +221,7 @@ public static class ServiceRegistration
         services.AddSingleton<ServicesViewModel>().AddSingleton<ServicesPage>();
         services.AddSingleton<UsersViewModel>().AddSingleton<UsersPage>();
         services.AddSingleton<HistoryViewModel>().AddSingleton<HistoryPage>();
+        services.AddSingleton<CrashesViewModel>().AddSingleton<CrashesPage>();
         services.AddSingleton<OverlayViewModel>().AddSingleton<OverlayPage>();
         services.AddSingleton<HardwareViewModel>().AddSingleton<HardwarePage>();
         services.AddSingleton<HealthViewModel>().AddSingleton<HealthPage>();

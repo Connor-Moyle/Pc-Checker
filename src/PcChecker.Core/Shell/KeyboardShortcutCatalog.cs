@@ -40,6 +40,10 @@ public static class KeyboardShortcutCatalog
         [
             new("Up / Down", T("Pick the part to show")),
         ],
+        ["crashes"] =
+        [
+            new("Ctrl+C", T("Copy the details of the selected crash")),
+        ],
         ["overlay-settings"] =
         [
             new("Ctrl+Shift+O", T("Show or hide the in-game overlay (the default key; you can change it here)")),
