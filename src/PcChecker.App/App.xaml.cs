@@ -12,6 +12,7 @@ using PcChecker.App.Views.Windows;
 using PcChecker.Core.Common;
 using PcChecker.Core.Logging;
 using PcChecker.Core.Scheduling;
+using PcChecker.Core.AppHistory;
 using PcChecker.Core.History;
 using PcChecker.Core.Sensors;
 using PcChecker.Core.Settings;
@@ -387,6 +388,16 @@ public partial class App : Application
         {
             _logger?.LogWarning(ex, "The history recorder could not be started.");
         }
+
+        try
+        {
+            // App history's own recording follows the same History setting.
+            _services!.GetRequiredService<IAppHistoryService>().Start();
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "The app usage recorder could not be started.");
+        }
     }
 
     private static void WaitForPreviousInstance(int processId)
@@ -429,6 +440,16 @@ public partial class App : Application
         catch (Exception ex)
         {
             _logger?.LogWarning(ex, "The history recorder did not stop cleanly.");
+        }
+
+        try
+        {
+            // Writes the app usage added up so far.
+            _services?.GetService<IAppHistoryService>()?.Stop();
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "The app usage recorder did not stop cleanly.");
         }
 
         try

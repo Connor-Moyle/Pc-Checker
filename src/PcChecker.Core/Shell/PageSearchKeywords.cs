@@ -37,6 +37,7 @@ public static class PageSearchKeywords
         ["registry"] = T("leftover entries regedit"),
         ["performance"] = T("slow slowdown speed scan processes"),
         ["live-usage"] = T("task manager performance graphs cpu usage ram disk activity network gpu utilization"),
+        ["app-history"] = T("task manager app history cpu time data usage network metered bandwidth srum per app"),
         ["optimize"] = T("tweaks faster game mode visual effects"),
         ["overclock"] = T("oc gpu cpu clocks stress test"),
         ["overlay-settings"] = T("fps counter in game osd"),

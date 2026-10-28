@@ -40,6 +40,7 @@ public static class NavigationCatalog
         Section("Task manager", SymbolRegular.TaskListLtr24,
             Page("Processes", "processes", typeof(ProcessesPage)),
             Page("Live usage", "live-usage", typeof(LiveUsagePage)),
+            Page("App history", "app-history", typeof(AppHistoryPage)),
             Page("Services", "services", typeof(ServicesPage)),
             Page("Users", "users", typeof(UsersPage))),
         Section("Hardware", SymbolRegular.DeveloperBoard24,

@@ -40,6 +40,10 @@ public static class KeyboardShortcutCatalog
         [
             new("Up / Down", T("Pick the part to show")),
         ],
+        ["app-history"] =
+        [
+            new("Enter", T("Open the selected app's file location")),
+        ],
         ["overlay-settings"] =
         [
             new("Ctrl+Shift+O", T("Show or hide the in-game overlay (the default key; you can change it here)")),

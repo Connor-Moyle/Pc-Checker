@@ -136,3 +136,8 @@ public sealed partial class StorageViewModel : IRefreshablePage
 {
     ICommand IRefreshablePage.RefreshKeyCommand => RefreshCommand;
 }
+
+public sealed partial class AppHistoryViewModel : IRefreshablePage
+{
+    ICommand IRefreshablePage.RefreshKeyCommand => RefreshNowCommand;
+}
