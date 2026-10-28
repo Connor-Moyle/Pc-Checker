@@ -82,6 +82,29 @@ public static class AudioLevelMath
     }
 
     /// <summary>
+    /// Peak, RMS and clipping of a captured buffer, measured on every channel before they are mixed down, so one
+    /// clipping channel is not hidden by averaging it with a quieter one.
+    /// </summary>
+    public static MicrophoneLevel MeasureCapture(ReadOnlySpan<byte> data, PcmFormat format)
+    {
+        int bytesPerSample = format.BitsPerSample / 8;
+        int channels = Math.Max(1, format.Channels);
+        if (bytesPerSample is not (2 or 3 or 4) || (format.IsFloat && bytesPerSample != 4))
+        {
+            return Measure([]);
+        }
+
+        int count = data.Length / (bytesPerSample * channels) * channels;
+        var samples = new float[count];
+        for (int i = 0; i < count; i++)
+        {
+            samples[i] = (float)ReadSample(data.Slice(i * bytesPerSample, bytesPerSample), format.IsFloat);
+        }
+
+        return Measure(samples);
+    }
+
+    /// <summary>
     /// Converts a captured buffer to mono floats by averaging the channels. Handles 32-bit float and 16, 24 and 32-bit
     /// integer PCM; a partial frame at the end is dropped.
     /// </summary>

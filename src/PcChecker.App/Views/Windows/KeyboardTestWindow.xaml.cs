@@ -20,6 +20,10 @@ public partial class KeyboardTestWindow
     private const int WmSysKeyDown = 0x0104;
     private const int WmSysKeyUp = 0x0105;
     private const int VkF4 = 0x73;
+    private const int VkLeftShift = 0xA0;
+    private const int VkRightShift = 0xA1;
+    private const int LeftShiftCode = 0x2A;
+    private const int RightShiftCode = 0x36;
 
     private IntPtr _handle;
 
@@ -76,7 +80,30 @@ public partial class KeyboardTestWindow
             }
         }
 
+        ReleaseStaleShift();
         handled = true;
+    }
+
+    /// <summary>
+    /// With both Shift keys held, Windows sends no key-up when the first one is released. Check the real state of
+    /// each Shift key on every key message so a released Shift does not stay counted as held.
+    /// </summary>
+    private void ReleaseStaleShift()
+    {
+        foreach (var (vk, code) in new[] { (VkLeftShift, LeftShiftCode), (VkRightShift, RightShiftCode) })
+        {
+            try
+            {
+                if (ViewModel.IsHeld(code) && (GetKeyState(vk) & 0x8000) == 0)
+                {
+                    ViewModel.KeyUp(code, null);
+                }
+            }
+            catch
+            {
+                // Leave it; the held count is corrected when the window loses focus.
+            }
+        }
     }
 
     /// <summary>Windows' own name for a physical key in the current keyboard language, or null.</summary>
@@ -96,6 +123,9 @@ public partial class KeyboardTestWindow
     }
 
     private void OnClose(object sender, RoutedEventArgs e) => Close();
+
+    [DllImport("user32.dll")]
+    private static extern short GetKeyState(int virtualKey);
 
     [DllImport("user32.dll", CharSet = CharSet.Unicode, EntryPoint = "GetKeyNameTextW")]
     private static extern int GetKeyNameText(int lParam, StringBuilder buffer, int size);

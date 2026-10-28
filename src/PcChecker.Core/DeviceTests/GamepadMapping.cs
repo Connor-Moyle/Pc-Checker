@@ -32,6 +32,19 @@ public static class GamepadMapping
         GamepadButtons.DPadUp, GamepadButtons.DPadDown, GamepadButtons.DPadLeft, GamepadButtons.DPadRight,
     ];
 
+    private const GamepadButtons DPadButtons =
+        GamepadButtons.DPadUp | GamepadButtons.DPadDown | GamepadButtons.DPadLeft | GamepadButtons.DPadRight;
+
+    /// <summary>
+    /// The named buttons to show for a controller. A generic controller (Windows.Gaming.Input RawGameController)
+    /// only reports numbered buttons and a hat switch, which is read as the D-pad, so it gets only the D-pad here and
+    /// its numbered buttons are shown separately.
+    /// </summary>
+    public static IReadOnlyList<GamepadButtons> NamedButtonsFor(GamepadSource source) =>
+        source == GamepadSource.RawController
+            ? StandardButtons.Where(b => (b & DPadButtons) != 0).ToArray()
+            : StandardButtons;
+
     public static GamepadButtons FromXInputButtons(ushort mask)
     {
         var buttons = GamepadButtons.None;

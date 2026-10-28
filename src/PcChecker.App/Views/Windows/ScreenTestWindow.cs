@@ -230,7 +230,9 @@ public sealed class ScreenTestWindow : Window
             _readoutText.Text = Loc.F("Frames per second: {0}", _frames.FramesPerSecond) + "\n" +
                                 Loc.F("Screen refresh rate: {0:0} Hz", _frames.RefreshHz) + "\n" +
                                 Loc.F("Skipped frames: {0}", _frames.SkippedFrames) + "\n" +
-                                Loc.T("A frame rate below the refresh rate can mean the PC is busy, not that the screen is slow.");
+                                (_frames.DrawsSlowerThanScreen && _frames.DrawingHz is { } drawingHz
+                                    ? Loc.F("Windows draws this test at about {0:0} Hz (usually the main screen's rate), so skipped frames are counted at that rate. Make this screen the main display to test its full refresh rate.", drawingHz)
+                                    : Loc.T("A frame rate below the refresh rate can mean the PC is busy, not that the screen is slow."));
         }
     }
 

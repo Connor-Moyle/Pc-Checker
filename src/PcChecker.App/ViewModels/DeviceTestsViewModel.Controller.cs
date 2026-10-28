@@ -31,6 +31,7 @@ public sealed partial class DeviceTestsViewModel
     private bool _collectingDrift;
     private bool _collectingRoundness;
     private bool _reloadQueued;
+    private bool _reloadAgain;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasControllers), nameof(HasNoControllers))]
@@ -136,15 +137,22 @@ public sealed partial class DeviceTestsViewModel
         {
             if (_reloadQueued)
             {
+                // A reload is running; read the list once more when it finishes so this change is not missed.
+                _reloadAgain = true;
                 return;
             }
 
             _reloadQueued = true;
             try
             {
-                await Task.Delay(300);
-                var list = await _gamepads.GetGamepadsAsync(CancellationToken.None);
-                ShowControllers(list);
+                do
+                {
+                    _reloadAgain = false;
+                    await Task.Delay(300);
+                    var list = await _gamepads.GetGamepadsAsync(CancellationToken.None);
+                    ShowControllers(list);
+                }
+                while (_reloadAgain);
             }
             catch (Exception ex)
             {
@@ -153,6 +161,7 @@ public sealed partial class DeviceTestsViewModel
             finally
             {
                 _reloadQueued = false;
+                _reloadAgain = false;
             }
         });
     }
@@ -261,7 +270,7 @@ public sealed partial class DeviceTestsViewModel
             return;
         }
 
-        foreach (var button in GamepadMapping.StandardButtons)
+        foreach (var button in GamepadMapping.NamedButtonsFor(info.Source))
         {
             ButtonLights.Add(ButtonLight.ForButton(button));
         }

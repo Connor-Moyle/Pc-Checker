@@ -109,7 +109,7 @@
       <ui:TextBlock Text="{Binding OtherKeysText}" TextWrapping="Wrap" Margin="0,2,0,0"
                     Visibility="{Binding OtherKeysText, Converter={StaticResource NullToVisibility}}" />
       <ui:TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,6,0,0"
-                    Text="The Windows key, Alt+Tab, Ctrl+Alt+Del and the Fn key are handled by Windows or by the keyboard itself, so they cannot be captured here (the Windows key may open Start). Print Screen only shows when released. Close this window with the mouse or Alt+F4." />
+                    Text="The Windows key lights up but also opens Start when released. Alt+Tab, Ctrl+Alt+Del and the Fn key are handled by Windows or by the keyboard itself, so they cannot be captured here. Print Screen only shows when released. Close this window with the mouse or Alt+F4." />
     </StackPanel>
   </Grid>
 </ui:FluentWindow>

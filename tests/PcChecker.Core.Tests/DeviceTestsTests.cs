@@ -163,6 +163,15 @@ public class DeviceTestsTests
     }
 
     [Fact]
+    public void Generic_controllers_show_only_the_buttons_they_can_report()
+    {
+        var raw = GamepadMapping.NamedButtonsFor(GamepadSource.RawController);
+        Assert.Equal([GamepadButtons.DPadUp, GamepadButtons.DPadDown, GamepadButtons.DPadLeft, GamepadButtons.DPadRight], raw);
+        Assert.Equal(GamepadMapping.StandardButtons, GamepadMapping.NamedButtonsFor(GamepadSource.Gamepad));
+        Assert.Contains(GamepadButtons.A, GamepadMapping.NamedButtonsFor(GamepadSource.XInput));
+    }
+
+    [Fact]
     public void Battery_reports_become_percentages()
     {
         Assert.Equal(72, GamepadMapping.BatteryPercent(1800, 2500));
@@ -336,6 +345,43 @@ public class DeviceTestsTests
         Assert.Equal(0, analyzer.FramesPerSecond);
     }
 
+    [Fact]
+    public void Frame_timing_does_not_blame_a_fast_screen_for_a_slower_drawing_clock()
+    {
+        // A 144 Hz screen while Windows composes at 60 Hz (the main screen's rate): every gap is about 16.7 ms.
+        var analyzer = new FrameTimingAnalyzer(144);
+        double t = 0;
+        for (int i = 0; i <= 120; i++)
+        {
+            analyzer.AddFrame(t);
+            t += 1000.0 / 60;
+        }
+
+        Assert.True(analyzer.DrawsSlowerThanScreen);
+        Assert.Equal(0, analyzer.SkippedFrames);
+        Assert.InRange(analyzer.DrawingHz!.Value, 59, 61);
+
+        // A real hitch (one 60 Hz frame missed) is still counted, against the 60 Hz clock.
+        t += 1000.0 / 60;
+        analyzer.AddFrame(t);
+        Assert.Equal(1, analyzer.SkippedFrames);
+    }
+
+    [Fact]
+    public void Frame_timing_matches_the_screen_when_the_clock_keeps_up()
+    {
+        var analyzer = new FrameTimingAnalyzer(144);
+        for (int i = 0; i <= 200; i++)
+        {
+            analyzer.AddFrame(i * 1000.0 / 144);
+        }
+
+        Assert.False(analyzer.DrawsSlowerThanScreen);
+        Assert.Equal(0, analyzer.SkippedFrames);
+        Assert.True(analyzer.AddFrame(200 * 1000.0 / 144 + 3 * 1000.0 / 144));
+        Assert.Equal(2, analyzer.SkippedFrames);
+    }
+
     [Theory]
     [InlineData(16.7, 16.67, 0)]
     [InlineData(24, 16.67, 0)]
@@ -469,6 +515,28 @@ public class DeviceTestsTests
         Assert.Equal(MicrophoneHint.Good, AudioLevelMath.Hint([L(-50), L(-18)]));
         Assert.Equal(MicrophoneHint.Good, AudioLevelMath.Hint([L(-1, 1), L(-18)]));
         Assert.Equal(MicrophoneHint.Clipping, AudioLevelMath.Hint([L(0, 4), L(-3), L(0, 2)]));
+    }
+
+    [Fact]
+    public void Clipping_on_one_channel_is_not_hidden_by_mixing_down()
+    {
+        // 16-bit stereo: the left channel is at full scale, the right one is silent.
+        var pcm16 = new byte[4 * 4];
+        for (int frame = 0; frame < 4; frame++)
+        {
+            BinaryPrimitives.WriteInt16LittleEndian(pcm16.AsSpan(frame * 4), frame % 2 == 0 ? short.MaxValue : short.MinValue);
+            BinaryPrimitives.WriteInt16LittleEndian(pcm16.AsSpan(frame * 4 + 2), 0);
+        }
+
+        var format = new PcmFormat(48_000, 2, 16, false);
+        var mixed = AudioLevelMath.Measure(AudioLevelMath.ToMono(pcm16, format));
+        var perChannel = AudioLevelMath.MeasureCapture(pcm16, format);
+
+        Assert.False(mixed.Clipped);
+        Assert.True(perChannel.Clipped);
+        Assert.Equal(4, perChannel.ClippedSamples);
+        Assert.InRange(perChannel.PeakDb, -0.01, 0);
+        Assert.False(AudioLevelMath.MeasureCapture(pcm16, new PcmFormat(48_000, 2, 8, false)).Clipped);
     }
 
     [Fact]

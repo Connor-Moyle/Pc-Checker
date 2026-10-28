@@ -148,7 +148,8 @@ public sealed partial class DeviceTestsViewModel
 
     // ----- Microphone -----
 
-    [RelayCommand(CanExecute = nameof(IsNotRecording))]
+    // The same command stops the meter, so it must stay enabled while the listen task is still running.
+    [RelayCommand(CanExecute = nameof(IsNotRecording), AllowConcurrentExecutions = true)]
     private async Task ToggleListeningAsync()
     {
         if (IsListening)

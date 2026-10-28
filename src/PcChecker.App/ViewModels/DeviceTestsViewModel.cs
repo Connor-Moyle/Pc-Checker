@@ -150,11 +150,14 @@ public sealed partial class DeviceTestsViewModel : ViewModelBase
         ShowAudio(audioTask.Result);
         ShowDisplays(displaysTask.Result);
         ShowInputDevices(_hardware.Last);
-        if (_hardware.Last is null)
+        if (_hardware.Last is null && _inputDeviceScan is null)
         {
-            _ = DetectInputDevicesAsync();
+            // A full hardware scan is heavy, so it runs at most once; later refreshes reuse its result.
+            _inputDeviceScan = DetectInputDevicesAsync();
         }
     }
+
+    private Task? _inputDeviceScan;
 
     /// <summary>Reads the keyboard and mouse names in the background when no hardware scan has run yet.</summary>
     private async Task DetectInputDevicesAsync()

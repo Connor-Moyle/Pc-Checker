@@ -98,6 +98,9 @@ public sealed partial class KeyboardTestViewModel : ObservableObject
         UpdateTexts();
     }
 
+    /// <summary>True while the key is counted as held down.</summary>
+    public bool IsHeld(int code) => _tracker.IsHeld(code);
+
     public void KeyUp(int code, string? name)
     {
         bool wasHeld = _tracker.IsHeld(code);

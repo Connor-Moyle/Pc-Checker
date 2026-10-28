@@ -98,8 +98,9 @@ public sealed class WindowsSoundTestService : ISoundTestService
 
         capture.DataAvailable += (_, e) =>
         {
-            var mono = AudioLevelMath.ToMono(e.Buffer.AsSpan(0, e.BytesRecorded), format);
-            levels?.Report(AudioLevelMath.Measure(mono));
+            var data = e.Buffer.AsSpan(0, e.BytesRecorded);
+            var mono = AudioLevelMath.ToMono(data, format);
+            levels?.Report(AudioLevelMath.MeasureCapture(data, format));
             if (target <= 0)
             {
                 return;
