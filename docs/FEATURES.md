@@ -836,6 +836,72 @@ depend on the Windows display language. A missing source becomes a warning and
 the page shows what the others returned. Demo mode shows a two-year-old 57 Wh
 laptop battery at 86 % health after 318 cycles.
 
+### Upgrade advice
+
+Hardware → Upgrade advice answers "what should I upgrade next, and what is
+wrong with my current setup?" in plain words. It only reads: the buttons open
+other pages, copy a summary or hand a question to Ask Claude.
+
+- **Your PC at a glance**: processor (socket, cores), graphics card (video
+  memory, generation, PCIe link), memory (sticks, speed, single or dual
+  channel, slots), system drive, motherboard, a power supply estimate and the
+  main screen.
+- **Fix first (free)**: setup problems that cost performance and nothing to
+  fix: memory sticks in the same channel, two sticks in A1/B1 instead of the
+  board's recommended A2/B2 (named the way ASUS, Gigabyte and MSI print them),
+  mixed memory kits, XMP/EXPO off (opens RAM tuning when it is there, else
+  Memory), games on a hard drive while an SSD has room for them, nearly full
+  drives, a drive with warning signs to back up, a graphics card running with
+  fewer PCIe lanes than it supports, a 13th/14th gen Intel processor on
+  microcode older than 0x12B, and, on Windows 10, a TPM or Secure Boot setting
+  that blocks the free Windows 11 upgrade.
+- **Best next upgrade**: up to six upgrades ranked by how much difference they
+  make for this PC, each with why, the expected impact in words (big,
+  noticeable, small; never made-up frame rates), what to buy and what to check
+  first. Covered: Windows or games on a hard drive, a failing drive, a SATA
+  system SSD (with whether a free M.2 slot is likely: "check your manual"),
+  too little memory for what History recorded (over 85 % full for at least
+  10 % of the time), a single memory stick, the graphics card (from the gaming
+  balance, video memory against the screen resolution and the generation's
+  age), drop-in processors for the same socket and a new platform when the
+  socket is at its end. Laptops only get memory (if not soldered) and storage
+  advice. No prices.
+- **Graphics card or processor?**: from the last 30 days of History. Minutes
+  with the graphics card at 50 % or more count as gaming. GPU-limited: GPU at
+  90 % or more with the processor under 70 %. CPU-limited: GPU under 80 % with
+  one core near 100 % (when per-core load is recorded) or, from the total, the
+  processor at 55 % or more; that verdict is then at most "medium"
+  confidence. The verdict needs at least 15 minutes of gaming; without it the
+  page explains how to collect it. Recent sessions are listed with their own
+  verdict.
+- **Processor upgrade table**: AM4 (Ryzen 7 5700X3D / 5800X3D, Ryzen 9
+  5900X / 5950X, BIOS update first), AM5 (Ryzen 7 7800X3D / 9800X3D, Ryzen 9
+  9950X / 9950X3D), LGA1700 (Core i5-14600K, i7-14700K, i9-14900K, microcode
+  0x12B or newer first), LGA1851 (Core Ultra 200S) and end-of-platform notes
+  for LGA1200, LGA1151, LGA1150 and LGA1155. Only chips faster than the one
+  fitted are offered.
+- **Power supply estimate**: Windows cannot read the PSU, so the page adds the
+  processor's peak power and the graphics card's typical board power from
+  curated tables plus 75 W for the rest, and rounds up to a standard size with
+  about 25 % headroom. A suggested graphics card comes with the PSU size it
+  needs.
+- **Windows 11 readiness** (Windows 10 PCs): TPM 2.0, UEFI and Secure Boot,
+  a supported processor (Intel 8th gen or AMD Ryzen 2000 and newer), memory and
+  system drive size, from the Security page's readings.
+- **Ask Claude for a plan** opens Ask Claude with the full spec and usage
+  summary filled in; nothing is sent until you press Send. *More → Copy
+  summary* copies the same text.
+
+Sources: the hardware inventory, the drive inventory (health and drive type),
+the game library (install folders), History (load and memory use), the
+Security page (TPM, Secure Boot, Windows build), Displays (resolution) and the
+graphics card's PCIe link from `Get-PnpDeviceProperty` (plain numbers, the same
+in every Windows language). A source that cannot be read becomes a warning and
+the rest of the advice still appears. Demo mode shows the sample desktop: games
+on the 4 TB hard drive that has early warning signs, a graphics-card-limited
+month of gaming with one processor-limited competitive session yesterday, and a
+750 W power supply estimate.
+
 ---
 
 ## Devices

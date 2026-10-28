@@ -6,6 +6,19 @@ All notable changes to PC Checker are recorded here. The format follows
 
 ## [Unreleased]
 
+### Added
+- **Upgrade advice** (Hardware section): what to upgrade next and what to fix
+  first for free. Your PC at a glance with a power supply estimate; free fixes
+  for memory in the same channel or in A1/B1 instead of A2/B2, mixed kits,
+  XMP/EXPO off, games on a hard drive, nearly full drives, drives with warning
+  signs, a graphics card on fewer PCIe lanes than it supports, 13th/14th gen
+  Intel microcode older than 0x12B and Windows 11 blockers that are a BIOS
+  setting; up to six ranked upgrades with why and the impact in words (no
+  prices); whether games are limited by the graphics card or the processor,
+  from History; same-socket processor upgrades for AM4, AM5, LGA1700 and
+  LGA1851 with end-of-platform notes; Windows 11 readiness for Windows 10 PCs;
+  *Ask Claude for a plan* and *Copy summary*. Read only.
+
 ## [0.8.0] - 2026-10-28
 
 A Security section (Security status, Privacy, Backups and restore points), a Crashes page that explains blue screens and app crashes in depth with ranked fixes, App history in Task manager, and a Games library for every launcher.
