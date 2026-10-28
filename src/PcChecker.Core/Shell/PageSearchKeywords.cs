@@ -43,6 +43,7 @@ public static class PageSearchKeywords
         ["optimize"] = T("tweaks faster game mode visual effects"),
         ["overclock"] = T("oc gpu cpu clocks stress test"),
         ["games"] = T("game library steam epic gog ea origin ubisoft uplay battle.net blizzard riot xbox game pass installed games play verify shader cache"),
+        ["game-ready"] = T("game ready fps boost refresh rate 144hz 165hz 240hz xmp expo resizable bar rebar pcie x16 game mode game dvr hags gpu scheduling graphics preference stutter"),
         ["overlay-settings"] = T("fps counter in game osd"),
         ["latency"] = T("dpc input lag ping stutter"),
         ["missing-dlls"] = T("dll missing dll d3dx9 msvcp140 vcruntime xinput directx runtime redistributable visual c++ physx openal xna dotnet"),

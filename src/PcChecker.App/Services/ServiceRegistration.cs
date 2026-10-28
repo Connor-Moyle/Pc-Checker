@@ -33,6 +33,7 @@ using PcChecker.Core.Hosts;
 using PcChecker.Core.Input;
 using PcChecker.Core.GameRuntimes;
 using PcChecker.Core.Games;
+using PcChecker.Core.GameReady;
 using PcChecker.Core.Latency;
 using PcChecker.Core.Leftovers;
 using PcChecker.Core.LiveUsage;
@@ -189,6 +190,10 @@ public static class ServiceRegistration
         // The check-up only calls the module services above, so the same class serves both modes.
         services.AddSingleton<ICheckupService, CheckupService>();
 
+        // Game ready reads through the module services above plus its own Windows/demo reader.
+        Add<IGameReadySystem, WindowsGameReadySystem, DemoGameReadySystem>(services, demo);
+        services.AddSingleton<IGameReadyService, GameReadyService>();
+
         // Optimization action providers (IOptimizationService aggregates every registration below).
         // providers: Latency (Windows: LatencyActionsProvider, Demo: DemoLatencyActionsProvider)
         Add<IOptimizationActionProvider, LatencyActionsProvider, DemoLatencyActionsProvider>(services, demo);
@@ -268,6 +273,7 @@ public static class ServiceRegistration
         services.AddSingleton<BenchmarkViewModel>().AddSingleton<BenchmarkPage>();
         services.AddSingleton<LatencyViewModel>().AddSingleton<LatencyPage>();
         services.AddSingleton<GamesViewModel>().AddSingleton<GamesPage>();
+        services.AddSingleton<GameReadyViewModel>().AddSingleton<GameReadyPage>();
         services.AddSingleton<MissingDllsViewModel>().AddSingleton<MissingDllsPage>();
         services.AddSingleton<NetworkViewModel>().AddSingleton<NetworkPage>();
         services.AddSingleton<ConnectionsViewModel>().AddSingleton<ConnectionsPage>();
