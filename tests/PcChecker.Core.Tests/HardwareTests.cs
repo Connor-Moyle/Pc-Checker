@@ -208,7 +208,7 @@ public class HardwareFormattingTests
     {
         var gpu = HardwareFieldFormatter.Fields(Demo.Graphics[0]).ToDictionary(f => f.Key, f => f.Value);
         Assert.Equal("12.0 GB", gpu["Video memory"]);
-        Assert.Equal("2560 x 1440 @ 240 Hz", gpu["Current mode"]);
+        Assert.Equal("2560 x 1440 @ 60 Hz", gpu["Current mode"]);
         Assert.StartsWith("Dedicated", gpu["Type"]);
 
         var ram = HardwareFieldFormatter.Fields(Demo.MemoryModules[0]).ToDictionary(f => f.Key, f => f.Value);

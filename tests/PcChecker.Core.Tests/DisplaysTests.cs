@@ -235,7 +235,7 @@ public class DisplaysTests
 
         var profile = DisplayProfiles.Capture("Test", displays);
         Assert.True((await svc.ApplyProfileAsync(profile, CancellationToken.None)).Success);
-        Assert.Equal(240, (await svc.GetDisplaysAsync(CancellationToken.None)).Single(d => d.IsPrimary).Current.RefreshHz);
+        Assert.Equal(60, (await svc.GetDisplaysAsync(CancellationToken.None)).Single(d => d.IsPrimary).Current.RefreshHz);
         Assert.True(svc.OpenWindowsDisplaySettings().Success);
         Assert.True(svc.OpenGpuControlPanel().Success);
     }
