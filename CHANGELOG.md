@@ -6,6 +6,23 @@ All notable changes to PC Checker are recorded here. The format follows
 
 ## [Unreleased]
 
+### Added
+- **Security** (new Security section): a traffic light, plain-words
+  explanation and a link to the Windows setting for Microsoft Defender or
+  another antivirus, the firewall, the Windows version's end of support,
+  paused updates, User Account Control, SmartScreen, SMB 1.0, drive
+  encryption, Secure Boot, TPM, memory integrity, Credential Guard,
+  activation, Remote Desktop, the Guest account and a waiting restart; a
+  score out of 100 with the three things to fix first; Defender quick and
+  full scans with Cancel, definition updates and recent threats; *Turn on*
+  for a firewall profile and *Turn off SMB 1.0*, both confirmed, journaled
+  and behind a restore point.
+- **Privacy** (Security section): which apps recently used the camera,
+  microphone and location, for how long and which are using them now; turn
+  one Store app's access off (confirmed, journaled, Undo); activity history,
+  advertising ID and diagnostic data at a glance with a link to the Debloat
+  tweak that changes each.
+
 ## [0.7.0] - 2026-10-27
 
 A Missing DLLs tab that installs the official runtime packages old games need, an install-in-Program-Files option, and a final pass over the whole app: about 70 bugs found by review and fixed (fans, Task manager, drives, lighting, startup apps, cleanup, overclocking, updates, translations) plus layout fixes.

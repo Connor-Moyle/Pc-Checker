@@ -69,6 +69,8 @@ Every project targets `net8.0-windows10.0.19041.0`. `EnableWindowsTargeting` is 
 | `ScheduledTasks` | `ITaskSchedulerService` (every Task Scheduler task through the COM API, `schtasks /Query /XML ONE` as fallback; run, end, turn off or on, delete with a sealed copy, restore), `TaskDefinitionParser`, `TaskTriggerText`, `TaskResultText`, `TaskActionText`, `TaskSuspicionRules`, `TaskPublisherRules`, `TaskSafetyRules`, `TaskBackupNaming`, `TaskAnalysis` |
 | `Connections` | `IConnectionService` (GetExtendedTcpTable/GetExtendedUdpTable, reverse DNS, SetTcpEntry), `EndpointTableParser` (raw MIB_*_OWNER_PID rows), `ConnectionRules`, `ConnectionText`, `ConnectionGrouping`, `HostNameCache` |
 | `SetupBackup` | `ISetupBackupService` (export, import, reset, undo), `ISetupBackupStore` (`FileSetupBackupStore`, `DemoSetupBackupStore`), `SetupSectionCatalog`, `SetupExporter`, `SetupFileReader`, `SetupMigrations`, `SetupPreviewBuilder`, `SetupApplier`, `SetupScheduleSync` |
+| `Security` | `ISecurityStatusService` (Defender, Security Center, firewall, SmartScreen, UAC, Secure Boot, TPM, Device Guard, BitLocker, activation, Remote Desktop, Guest, SMB 1.0; Defender scans and updates through `MpCmdRun.exe`), `SecurityCheckBuilder`, `SecurityScoring`, `SecurityCenterState` (productState), `UacLevels`, `ActivationStatus`, `WindowsServicing`, `DefenderText`, `SecurityValueRules`, `SecurityLinks` |
+| `Privacy` | `IPrivacyService` (camera, microphone and location use from the capability consent store; one Store app's access off with undo), `ConsentStoreParser`, `PackagedAppNames`, `PrivacyQuickStatusRules` (reads the Debloat tweak states) |
 
 Inside each folder you will find the same shapes:
 
@@ -112,6 +114,7 @@ Devices         Displays · Audio · Keyboard & Mouse
 Cooling & RGB   Fans · Lighting
 Apps & Drivers  Apps · Leftovers · Drivers · Startup · Windows Features
 Clean up        Cleanup
+Security        Security · Privacy
 Performance     Speed check · Optimize · Benchmark · Overclock
 Gaming          Overlay · Latency · Missing DLLs
 Ask Claude      Ask Claude
