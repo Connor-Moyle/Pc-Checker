@@ -17,11 +17,14 @@ namespace PcChecker.App.Services;
 /// <summary>
 /// Walks every page in navigation order, waits for it to load, renders the window to PNG, captures the overlay over a
 /// dark gradient and the tray popup over a desktop backdrop, and writes <c>index.json</c>. Started by <c>App</c> when <c>--screenshots &lt;dir&gt;</c> is given.
+/// With the environment variable <c>PCCHECKER_FULL_PAGES=1</c> it also writes each page at its full length into <c>full\</c>
+/// (for reviewing whole pages; the README images stay window-sized).
 /// </summary>
 public sealed class ScreenshotRunner
 {
     public const int WindowWidth = 1440;
     public const int WindowHeight = 900;
+    private const int MaxFullPageHeight = 8000;
     private static readonly TimeSpan BusyTimeout = TimeSpan.FromSeconds(45);
 
     private readonly IServiceProvider _services;
@@ -68,6 +71,12 @@ public sealed class ScreenshotRunner
                 presenter.Visibility = Visibility.Collapsed;
             }
 
+            var fullDir = Environment.GetEnvironmentVariable("PCCHECKER_FULL_PAGES") == "1" ? Path.Combine(dir, "full") : null;
+            if (fullDir is not null)
+            {
+                Directory.CreateDirectory(fullDir);
+            }
+
             var index = new Dictionary<string, string>();
             foreach (var entry in NavigationCatalog.Pages)
             {
@@ -88,6 +97,19 @@ public sealed class ScreenshotRunner
                 RenderPage(window, Path.Combine(dir, fileName));
                 index[$"{entry.Section} / {entry.Title}"] = fileName;
                 _logger.LogInformation("Captured {Page} → {File}", entry.Title, fileName);
+
+                if (fullDir is not null && _services.GetService(entry.PageType) is FrameworkElement page)
+                {
+                    try
+                    {
+                        RenderFullPage(page, Path.Combine(fullDir, fileName));
+                    }
+                    catch (Exception ex) when (ex is not OperationCanceledException)
+                    {
+                        // Review images are a bonus; a page that cannot be measured keeps its window-sized image.
+                        _logger.LogWarning(ex, "Full-length capture of {Page} failed.", entry.Title);
+                    }
+                }
             }
 
             var overlayFile = "overlay.png";
@@ -189,6 +211,39 @@ public sealed class ScreenshotRunner
         }
 
         RenderToPng(visual, size.Width, size.Height, path);
+    }
+
+    /// <summary>
+    /// Renders the page at its natural height (its width as shown, unlimited height, capped at
+    /// <see cref="MaxFullPageHeight"/>), then hands it back to the normal layout.
+    /// </summary>
+    private static void RenderFullPage(FrameworkElement page, string path)
+    {
+        double width = Math.Max(1, page.ActualWidth);
+        page.Measure(new Size(width, double.PositiveInfinity));
+        double height = Math.Clamp(page.DesiredSize.Height, Math.Max(1, page.ActualHeight), MaxFullPageHeight);
+        page.Arrange(new Rect(0, 0, width, height));
+        page.UpdateLayout();
+        try
+        {
+            var background = Application.Current.TryFindResource("ApplicationBackgroundBrush") as Brush
+                ?? new SolidColorBrush(Color.FromRgb(0x20, 0x20, 0x20));
+            var visual = new DrawingVisual();
+            using (var dc = visual.RenderOpen())
+            {
+                dc.DrawRectangle(background, null, new Rect(0, 0, width, height));
+                dc.DrawRectangle(new VisualBrush(page) { Stretch = Stretch.None, AlignmentX = AlignmentX.Left, AlignmentY = AlignmentY.Top },
+                    null, new Rect(0, 0, width, height));
+            }
+
+            RenderToPng(visual, width, height, path);
+        }
+        finally
+        {
+            page.InvalidateMeasure();
+            page.InvalidateArrange();
+            (VisualTreeHelper.GetParent(page) as UIElement)?.InvalidateMeasure();
+        }
     }
 
     /// <summary>

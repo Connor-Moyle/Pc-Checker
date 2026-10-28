@@ -5,6 +5,11 @@ name: Screenshots
 
 on:
   workflow_dispatch:
+    inputs:
+      full_pages:
+        description: "Also capture every page at full length and push them to a ui-review/<run> branch (docs are not changed)"
+        type: boolean
+        default: false
   push:
     branches: [main]
     paths:
@@ -56,6 +61,7 @@ jobs:
         run: |
           $exe = Join-Path $PWD 'publish\win-x64\PcChecker.exe'
           $out = Join-Path $PWD 'screenshots'
+          if ('${{ inputs.full_pages }}' -eq 'true') { $env:PCCHECKER_FULL_PAGES = '1' }
           $p = Start-Process -FilePath $exe -ArgumentList @('--screenshots', $out, '--demo') -PassThru -Wait
           if ($p.ExitCode -ne 0) { throw "The screenshot runner failed with exit code $($p.ExitCode)." }
           Get-ChildItem $out | Format-Table Name, Length
@@ -68,7 +74,23 @@ jobs:
           path: screenshots/
           if-no-files-found: error
 
+      - name: Push full-length pages for review
+        if: ${{ inputs.full_pages }}
+        shell: pwsh
+        run: |
+          $branch = "ui-review/${{ github.run_id }}"
+          New-Item -ItemType Directory -Force -Path review | Out-Null
+          Copy-Item screenshots/full/*.png review/
+          Set-Location review
+          git init -q -b $branch
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .
+          git commit -q -m "Full-length page captures for review"
+          git push "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" "HEAD:refs/heads/$branch"
+
       - name: Copy into docs/screenshots
+        if: ${{ !inputs.full_pages }}
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path docs/screenshots | Out-Null
@@ -77,6 +99,7 @@ jobs:
           Copy-Item screenshots/index.json docs/screenshots/index.json -Force
 
       - name: Commit when changed
+        if: ${{ !inputs.full_pages }}
         shell: pwsh
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
