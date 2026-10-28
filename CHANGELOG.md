@@ -6,6 +6,20 @@ All notable changes to PC Checker are recorded here. The format follows
 
 ## [Unreleased]
 
+### Added
+- **Game ready** (Gaming section): one check of everything that commonly
+  costs gamers performance, biggest wins first, with a score: monitors below
+  their top refresh rate, Windows' variable refresh and windowed-game
+  optimizations, GPU scheduling, Game Mode, Game Bar background recording,
+  power plan, power mode and battery, the graphics card's PCIe lane count and
+  Resizable BAR, the graphics driver's age, games set to the built-in GPU,
+  XMP/EXPO, single-channel and mixed memory, overlays, RGB suites, busy
+  browsers and updaters, mouse acceleration and polling rate, games on a hard
+  disk or a full drive, a waiting restart and a memory integrity note. Each
+  item has a one-click fix through the page that owns it (refresh rate with a
+  15-second "Keep these settings?"), *Fix all safe items* applies only
+  reversible, low-risk changes after one confirmation, and every fix has Undo.
+
 ## [0.8.0] - 2026-10-28
 
 A Security section (Security status, Privacy, Backups and restore points), a Crashes page that explains blue screens and app crashes in depth with ranked fixes, App history in Task manager, and a Games library for every launcher.

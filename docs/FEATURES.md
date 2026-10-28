@@ -2023,6 +2023,78 @@ Limitations: only Steam records when a game was last played. Battle.net game
 pages open only for the major titles whose launcher code is known; others open
 the Battle.net app. Games on a drive that is unplugged are not listed.
 
+### Game ready
+
+The **Game ready** tab (Gaming section) runs one check of everything that
+commonly costs gamers performance and lists it **biggest wins first**, each
+item with its status (*Fix this*, *Worth doing*, *Not checked*, *Good to
+know*, *OK*), why it matters in plain words, what was found and a one-click
+fix. The check only reads; nothing changes until you press a button. A score
+starts at 100 and loses points per problem (more for big wins than for small
+ones). Demo mode runs it on its own and shows the sample desktop's classic
+mistakes: the 240 Hz monitor left at 60 Hz, XMP off, Game Bar recording on,
+GPU scheduling off, games on the hard disk, Discord and RGB software running.
+
+What it checks, and the fix it offers:
+
+- **Refresh rate** of every monitor (current and supported modes from the
+  Displays page). Fix: switch to the highest refresh rate at the *current*
+  resolution and colour depth (59/60 Hz pairs count as the same), then
+  "Keep these settings?" with a 15-second automatic switch back, like
+  Windows does.
+- **Variable refresh**: Windows' *Variable refresh rate* switch
+  (`VRROptimizeEnable`) and *Optimizations for windowed games*
+  (`SwapEffectUpgradeEnable`) in `HKCU\Software\Microsoft\DirectX\UserGpuPreferences`
+  → `DirectXUserGlobalSettings`; other values in that text are kept. G-SYNC
+  and FreeSync themselves are set in the graphics control panel and the
+  monitor's menu, which the item opens. HDR monitors get an Auto HDR note.
+- **Windows gaming settings**: hardware-accelerated GPU scheduling (needs a
+  restart; DLSS Frame Generation on RTX 40/50 needs it), Game Mode and Xbox
+  Game Bar background recording, through the Optimize and Latency pages'
+  own actions.
+- **Power**: on battery, energy saver, the Windows 11 power mode
+  (*Best power efficiency*) and, on desktops, the Balanced plan (fix: High
+  performance through the Optimize page).
+- **Graphics card**: the PCI Express link from
+  `DEVPKEY_PciDevice_CurrentLinkWidth/MaxLinkWidth/CurrentLinkSpeed/MaxLinkSpeed`.
+  Fewer lanes than the card supports (x4 of x16: wrong slot, lanes shared with
+  M.2 drives, card not fully seated) is a problem. A lower *speed* with all
+  lanes is only a note to check again while a game runs, because cards slow
+  the link down at the desktop. **Resizable BAR** is read from the memory
+  ranges Windows assigned to the card (Device Manager's Resources tab): a
+  range larger than 256 MB means it is on. When it cannot be read the item
+  says where to look in the BIOS (Above 4G Decoding and Re-Size BAR Support).
+  The graphics driver's age (over six months: link to the Drivers page).
+- **Hybrid graphics**: on PCs with built-in and dedicated graphics, Windows'
+  graphics preference of every detected game (`GpuPreference=1;` is the
+  built-in GPU). Fix: *High performance* (`GpuPreference=2;`) for those games,
+  keeping their other values.
+- **Memory**: XMP/EXPO off, a single stick (single channel), sticks that may
+  not run in dual channel, and mixed kits, with a link to the RAM tuning page.
+- **Background apps**: in-game overlays (two or more running), RGB and
+  motherboard suites, a browser with many tabs, and updaters that are
+  downloading. Link to the Processes page; nothing is closed for you.
+- **Mouse**: Enhance pointer precision (fix through the Latency action) and
+  the polling rate (*Test my mouse* measures it while you move the mouse).
+  Timers and driver delays link to the Latency page.
+- **Drives**: games on a hard disk and game drives with less than 20 GB or
+  10 % free.
+- **Updates and security**: a waiting Windows restart, and a note that
+  memory integrity can cost a few percent in some games. It is never
+  recommended to turn it off.
+
+**Fix all safe items** applies only reversible, low-risk changes (refresh
+rate, Game Mode, Game Bar recording, mouse acceleration, the desktop power
+plan, the DirectX switches and graphics preferences) after one confirmation
+that lists them, under one restore point when restore points are on. GPU
+scheduling needs a restart and stays a separate choice. Every change is
+guarded and journaled, and each fixed row gets an **Undo** button.
+
+Limitations: BIOS settings (XMP/EXPO, Resizable BAR, PCIe slot speed) cannot
+be changed from Windows. Whether G-SYNC or FreeSync is on is not readable
+without the vendor's own software. The PCIe speed is only meaningful while a
+game runs.
+
 ### Overlay
 
 Configures the in-game overlay; the overlay itself is a separate click-through
