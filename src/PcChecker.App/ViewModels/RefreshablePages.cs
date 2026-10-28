@@ -57,6 +57,11 @@ public sealed partial class BatteryViewModel : IRefreshablePage
     ICommand IRefreshablePage.RefreshKeyCommand => RefreshNowCommand;
 }
 
+public sealed partial class UpgradeAdviceViewModel : IRefreshablePage
+{
+    ICommand IRefreshablePage.RefreshKeyCommand => CheckAgainCommand;
+}
+
 public sealed partial class HistoryViewModel : IRefreshablePage
 {
     ICommand IRefreshablePage.RefreshKeyCommand => RefreshNowCommand;

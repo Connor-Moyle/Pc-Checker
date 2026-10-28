@@ -20,6 +20,7 @@ public static class PageSearchKeywords
         ["storage"] = T("disk drive ssd hdd benchmark chkdsk trim"),
         ["memory"] = T("ram xmp expo page file"),
         ["battery"] = T("laptop wear cycles capacity battery report charge"),
+        ["upgrade-advice"] = T("upgrade advisor buy new parts bottleneck cpu gpu bound psu power supply windows 11 ready dual channel ssd"),
         ["displays"] = T("monitor screen resolution refresh rate hdr brightness"),
         ["audio"] = T("sound speakers microphone volume"),
         ["input"] = T("mouse keyboard pointer polling rate dpi"),
