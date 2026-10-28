@@ -6,6 +6,10 @@ All notable changes to PC Checker are recorded here. The format follows
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-10-28
+
+A Security section (Security status, Privacy, Backups and restore points), a Crashes page that explains blue screens and app crashes in depth with ranked fixes, App history in Task manager, and a Games library for every launcher.
+
 ### Added
 - **Security** (new Security section): a traffic light, plain-words
   explanation and a link to the Windows setting for Microsoft Defender or
@@ -695,7 +699,8 @@ Initial release.
   itself from GitHub Releases with Stable and Beta channels and verifies every
   download against its published SHA-256.
 
-[Unreleased]: https://github.com/Connor-Moyle/Pc-Checker/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/Connor-Moyle/Pc-Checker/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/Connor-Moyle/Pc-Checker/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/Connor-Moyle/Pc-Checker/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/Connor-Moyle/Pc-Checker/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/Connor-Moyle/Pc-Checker/compare/v0.4.0...v0.5.0

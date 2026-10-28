@@ -797,7 +797,8 @@ public class CrashInsightTests
         var patterns = CrashPatternRules.Find(new CrashPatternInput { Crashes = report.Events, Journal = data.Journal, SystemEvents = report.SystemEvents });
         var insight = CrashInsightBuilder.Build(crash, true, context, patterns);
 
-        var text = CrashReportText.Build(insight);
+        // The report uses the platform's line breaks (\r\n on Windows); compare with plain \n.
+        var text = CrashReportText.Build(insight).Replace("\r\n", "\n");
 
         Assert.StartsWith("Blue screen: WHEA_UNCORRECTABLE_ERROR", text);
         foreach (var section in new[] { "What happened", "What the details say", "Probably caused by", "Patterns", "Before the crash", "Try these fixes", "More" })
