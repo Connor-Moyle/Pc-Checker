@@ -96,7 +96,7 @@ public sealed class GameReadyService : IGameReadyService
                 DirectXReadable = system?.DirectXReadable ?? false,
                 HagsOn = Applied(stateMap, GameReadyRules.HagsAction),
                 GameModeOn = Applied(stateMap, GameReadyRules.GameModeAction),
-                GameDvrOn = Applied(stateMap, GameReadyRules.GameBarAction) is { } barOff ? !barOff : null,
+                GameDvrOn = GameReadyRules.BackgroundRecordingOn(Applied(stateMap, GameReadyRules.GameBarAction), system?.BackgroundRecordingSetting),
                 PointerPrecisionOn = Applied(stateMap, GameReadyRules.PointerPrecisionAction) is { } accelOff ? !accelOff : null,
                 HighPerformancePlan = Applied(stateMap, GameReadyRules.HighPerformanceAction) is true || Applied(stateMap, "power.ultimate") is true
                     ? true

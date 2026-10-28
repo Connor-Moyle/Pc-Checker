@@ -251,6 +251,25 @@ public class GameReadyTests
         Assert.Equal(GameReadyStatus.Good, desktop.Items.Single(i => i.Id == "gpu-preference").Status);
     }
 
+    [Theory]
+    [InlineData(null, null, null)]
+    [InlineData(false, null, null)]
+    [InlineData(false, false, false)] // "Record what happened" is off by default
+    [InlineData(false, true, true)]
+    [InlineData(true, true, false)] // Game Bar captures turned off: nothing records in the background
+    [InlineData(true, null, false)]
+    public void Background_recording_needs_captures_allowed_and_record_what_happened_on(bool? capturesOff, bool? recordWhatHappened, bool? expected) =>
+        Assert.Equal(expected, GameReadyRules.BackgroundRecordingOn(capturesOff, recordWhatHappened));
+
+    [Fact]
+    public void Power_plan_item_does_not_assume_Balanced()
+    {
+        var item = GameReadyRules.Evaluate(Baseline() with { HighPerformancePlan = false, PowerPlanText = "Power saver" }, En).Items.Single(i => i.Id == "power-plan");
+
+        Assert.DoesNotContain("Balanced", item.Title);
+        Assert.Equal("Power saver", item.Detail);
+    }
+
     [Fact]
     public void Memory_integrity_is_only_ever_explained_never_turned_off()
     {
@@ -341,7 +360,7 @@ public class GameReadyTests
     public async Task The_demo_pc_shows_the_classic_mistakes_and_a_directx_fix_can_be_undone()
     {
         var system = new DemoGameReadySystem();
-        var service = new GameReadyService(new DemoDisplayService(), new DemoOptimizationService([new DemoLatencyActionsProvider()]), new DemoMemoryService(),
+        var service = new GameReadyService(DemoDisplayService.WithGamingMonitorAt(60), new DemoOptimizationService([new DemoLatencyActionsProvider()]), new DemoMemoryService(),
             new DemoHardwareInventoryService(), new DemoGameLibraryService(), new DemoDriveInventoryService(), new DemoProcessService(),
             new DemoSecurityStatusService(), system, NullLogger<GameReadyService>.Instance)
         { ProcessSampleGap = TimeSpan.Zero };

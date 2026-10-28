@@ -189,6 +189,7 @@ public sealed record GameReadyFacts
 
     public bool? HagsOn { get; init; }
     public bool? GameModeOn { get; init; }
+    /// <summary>Xbox Game Bar background recording ("Record what happened"): on only when captures are allowed and HistoricalCaptureEnabled is 1.</summary>
     public bool? GameDvrOn { get; init; }
     public bool? PointerPrecisionOn { get; init; }
 
@@ -226,7 +227,8 @@ public sealed record GameReadySystemFacts(
     bool? OnBattery,
     bool? BatterySaverOn,
     PowerModeOverlay PowerMode,
-    IReadOnlyList<string> Warnings);
+    IReadOnlyList<string> Warnings,
+    bool? BackgroundRecordingSetting = null);
 
 /// <summary>A change the service made, with the way to take it back (null when it cannot be undone).</summary>
 public sealed record GameReadyChange(Common.OperationResult Result, Func<CancellationToken, Task<Common.OperationResult>>? Undo);

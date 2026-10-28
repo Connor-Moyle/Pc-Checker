@@ -2,7 +2,7 @@ using PcChecker.Core.Common;
 
 namespace PcChecker.Core.Displays;
 
-/// <summary>Demo displays: a 240 Hz 1440p gaming monitor left at 60 Hz (a common slip the Game ready page catches) plus a 60 Hz 1080p side monitor.</summary>
+/// <summary>Demo displays: a 240 Hz 1440p gaming monitor plus a 60 Hz 1080p side monitor.</summary>
 public sealed class DemoDisplayService : IDisplayService
 {
     private static readonly DisplayMode[] MainModes =
@@ -16,11 +16,23 @@ public sealed class DemoDisplayService : IDisplayService
     private readonly object _gate = new();
     private readonly List<DisplayInfo> _displays =
     [
-        new(@"\\.\DISPLAY1", DemoData.MonitorName, "ASUS", "M9LMQS000001", true, new(2560, 1440, 60, 32), 100, 0, 0, 0, true, false,
+        new(@"\\.\DISPLAY1", DemoData.MonitorName, "ASUS", "M9LMQS000001", true, new(2560, 1440, 240, 32), 100, 0, 0, 0, true, false,
             "DisplayPort", 27, DemoData.GpuName, MainModes, true, 70, 50, false),
         new(@"\\.\DISPLAY2", "Dell U2415", "Dell", "7MT0189J0ABS", false, new(1920, 1080, 60, 32), 100, 2560, 180, 0, false, false,
             "HDMI", 24, DemoData.GpuName, SideModes, true, 55, 50, false),
     ];
+
+    /// <summary>
+    /// A separate demo desktop whose gaming monitor was left at <paramref name="refreshHz"/>. The Game ready page's demo
+    /// uses its own copy so the shared sample (Displays and Hardware pages) keeps its 240 Hz monitor at 240 Hz.
+    /// </summary>
+    public static DemoDisplayService WithGamingMonitorAt(int refreshHz)
+    {
+        var service = new DemoDisplayService();
+        var main = service._displays[0];
+        service._displays[0] = main with { Current = DisplayModeMath.Closest(main.Modes, main.Current with { RefreshHz = refreshHz }) ?? main.Current };
+        return service;
+    }
 
     public async Task<IReadOnlyList<DisplayInfo>> GetDisplaysAsync(CancellationToken cancellationToken)
     {

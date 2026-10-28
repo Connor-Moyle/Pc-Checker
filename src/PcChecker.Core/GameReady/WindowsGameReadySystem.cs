@@ -58,8 +58,30 @@ public sealed class WindowsGameReadySystem : IGameReadySystem
 
             var (hasBattery, onBattery, saver) = GameReadyNative.ReadPowerStatus();
             var mode = PowerModeRules.FromOverlay(GameReadyNative.ReadPowerOverlay());
-            return new GameReadySystemFacts(global, readable, preferences, links, bars, hasBattery, onBattery, saver, mode, warnings);
+            return new GameReadySystemFacts(global, readable, preferences, links, bars, hasBattery, onBattery, saver, mode, warnings, ReadBackgroundRecording());
         }, cancellationToken);
+
+    /// <summary>
+    /// "Record what happened" (HKCU\...\GameDVR\HistoricalCaptureEnabled). Windows leaves it off until the user turns it on,
+    /// so a missing value counts as off.
+    /// </summary>
+    private bool? ReadBackgroundRecording()
+    {
+        if (!PlatformGuard.IsWindows)
+        {
+            return null;
+        }
+
+        try
+        {
+            return Optimization.RegistryTweaks.GetDword(RegistryHive.CurrentUser, Performance.WindowsSystemProbe.GameDvr, "HistoricalCaptureEnabled") is { } value && value != 0;
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or System.Security.SecurityException or IOException)
+        {
+            _logger.LogDebug(ex, "The background recording setting could not be read.");
+            return null;
+        }
+    }
 
     public Task<string?> ReadGlobalSettingsAsync(CancellationToken cancellationToken) => Task.Run(ReadGlobal, cancellationToken);
 

@@ -4,7 +4,7 @@ namespace PcChecker.Core.GameReady;
 
 /// <summary>
 /// Demo graphics and power facts for the sample desktop: the RTX 4070 on all 16 lanes (slowed to PCIe 1.1 at the desktop,
-/// as real cards do), Resizable BAR on, mains power, Balanced power mode, and no DirectX graphics settings written yet.
+/// as real cards do), Resizable BAR on, mains power, Balanced power mode, Game Bar background recording switched on, and no DirectX graphics settings written yet.
 /// Writes are kept in memory, so a fix and its undo show up on the next check. Never touches the system.
 /// </summary>
 public sealed class DemoGameReadySystem : IGameReadySystem
@@ -21,7 +21,7 @@ public sealed class DemoGameReadySystem : IGameReadySystem
         lock (_gate)
         {
             var preferences = programPaths.Where(_preferences.ContainsKey).ToDictionary(p => p, p => _preferences[p], StringComparer.OrdinalIgnoreCase);
-            return new GameReadySystemFacts(_global, true, preferences, links, bar, false, false, false, PowerModeOverlay.Balanced, []);
+            return new GameReadySystemFacts(_global, true, preferences, links, bar, false, false, false, PowerModeOverlay.Balanced, [], BackgroundRecordingSetting: true);
         }
     }
 

@@ -406,9 +406,13 @@ public sealed partial class GameReadyViewModel
         }
         catch (Exception ex)
         {
-            // Without a dialog host fall back to a plain confirmation; switching back is the default answer.
+            // Without a dialog host fall back to a plain confirmation that still times out: if the monitor cannot show
+            // the new mode the prompt is invisible, so no answer within the countdown switches back, as Windows does.
             _logger.LogDebug(ex, "Keep-settings dialog unavailable; falling back to a plain confirmation.");
-            return await _dialogs.ConfirmAsync(title, detail + "\n\n" + Loc.T("Keep these settings?"), Loc.T("Keep"));
+            var answer = _dialogs.ConfirmAsync(title,
+                detail + "\n\n" + Loc.F("Keep these settings? If you do nothing, it switches back in {0} seconds.", KeepSettingsSeconds), Loc.T("Keep"));
+            var finished = await Task.WhenAny(answer, Task.Delay(TimeSpan.FromSeconds(KeepSettingsSeconds)));
+            return finished == answer && await answer;
         }
     }
 }

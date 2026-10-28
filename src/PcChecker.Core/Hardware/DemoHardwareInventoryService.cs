@@ -62,10 +62,10 @@ public sealed class DemoHardwareInventoryService : IHardwareInventoryService
                 ("Caption", "Intel64 Family 6 Model 183 Stepping 1"), ("ExtClock", "100"), ("Registry.MHz", "3400"), ("Registry.Microcode", "0x12B"), ("Registry.VendorIdentifier", "GenuineIntel"))));
 
         inventory.Graphics.Add(new GpuInfo(DemoData.GpuName, "NVIDIA", "VideoController1", "OK", DemoData.GpuMemoryBytes, "32.0.15.6094", new DateTime(2025, 2, 10), "NVIDIA GeForce RTX 4070",
-            "2560 x 1440 x 4294967296 colors", 2560, 1440, 60, @"PCI\VEN_10DE&DEV_2786&SUBSYS_88AB1043&REV_A1\4&2F3A5B6C&0&0008", "NVIDIA", false,
+            "2560 x 1440 x 4294967296 colors", 2560, 1440, 240, @"PCI\VEN_10DE&DEV_2786&SUBSYS_88AB1043&REV_A1\4&2F3A5B6C&0&0008", "NVIDIA", false,
             Props(("Name", DemoData.GpuName), ("AdapterCompatibility", "NVIDIA"), ("AdapterRAM", "4293918720"), ("Registry.qwMemorySize", DemoData.GpuMemoryBytes.ToString()),
                 ("DriverVersion", "32.0.15.6094"), ("DriverDate", "2025-02-10 00:00:00"), ("VideoProcessor", "NVIDIA GeForce RTX 4070"), ("VideoArchitecture", "5"),
-                ("CurrentHorizontalResolution", "2560"), ("CurrentVerticalResolution", "1440"), ("CurrentRefreshRate", "60"), ("CurrentBitsPerPixel", "32"),
+                ("CurrentHorizontalResolution", "2560"), ("CurrentVerticalResolution", "1440"), ("CurrentRefreshRate", "240"), ("CurrentBitsPerPixel", "32"),
                 ("PNPDeviceID", @"PCI\VEN_10DE&DEV_2786&SUBSYS_88AB1043&REV_A1\4&2F3A5B6C&0&0008"), ("InfSection", "Section150"), ("InstalledDisplayDrivers", @"C:\Windows\System32\DriverStore\FileRepository\nv_dispi.inf_amd64_demo\nvldumdx.dll"),
                 ("Status", "OK"), ("Availability", "3"), ("VideoModeDescription", "2560 x 1440 x 4294967296 colors"))));
 

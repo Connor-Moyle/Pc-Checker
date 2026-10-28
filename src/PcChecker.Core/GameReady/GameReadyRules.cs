@@ -220,17 +220,25 @@ public static partial class GameReadyRules
                 tr.T("See Settings → Gaming → Game Mode."), new GameReadyFix(GameReadyFixKind.OpenLink, tr.T("Open Game Mode settings"), "ms-settings:gaming-gamemode")),
         });
 
-        string dvrWhy = tr.T("Background recording keeps the last minutes of every game on disk so you can save a clip. That recording costs a few frames per second and some video memory all the time.");
+        string dvrWhy = tr.T("Background recording keeps the last minutes of every game so you can save a clip later. While a game runs it records all the time, which costs a few frames per second and some video memory.");
         items.Add(facts.GameDvrOn switch
         {
             false => new("game-dvr", GameReadyArea.Windows, GameReadyStatus.Good, GameReadyImpact.None, tr.T("Xbox Game Bar background recording is off"), dvrWhy, tr.T("Off")),
             true => new("game-dvr", GameReadyArea.Windows, GameReadyStatus.Suggestion, GameReadyImpact.Medium, tr.T("Xbox Game Bar background recording is on"), dvrWhy,
-                tr.T("Turning it off stops Game Bar captures; Win+Alt+R and other recording tools still work if you need them."),
+                tr.T("Turning it off turns off Game Bar captures, including Win+Alt+R. Recorders from NVIDIA, AMD or OBS still work."),
                 new GameReadyFix(GameReadyFixKind.OptimizationAction, tr.T("Turn off"), GameBarAction, Safe: true)),
             null => new("game-dvr", GameReadyArea.Windows, GameReadyStatus.NotChecked, GameReadyImpact.None, tr.T("Game Bar recording could not be checked"), dvrWhy,
                 tr.T("See Settings → Gaming → Captures."), new GameReadyFix(GameReadyFixKind.OpenLink, tr.T("Open capture settings"), "ms-settings:gaming-gamedvr")),
         });
     }
+
+    /// <summary>
+    /// Background recording is on only while Game Bar captures are allowed and "Record what happened" is switched on.
+    /// <paramref name="capturesOff"/> is the Optimize page's Game Bar action state (true when captures are turned off);
+    /// <paramref name="recordWhatHappened"/> is HistoricalCaptureEnabled (off by default).
+    /// </summary>
+    public static bool? BackgroundRecordingOn(bool? capturesOff, bool? recordWhatHappened) =>
+        capturesOff == true ? false : recordWhatHappened;
 
     /// <summary>True for cards whose frame generation needs GPU scheduling (GeForce RTX 40/50 series).</summary>
     public static bool SupportsFrameGeneration(string? gpuName) =>
@@ -270,9 +278,9 @@ public static partial class GameReadyRules
         if (!facts.HasBattery && facts.HighPerformancePlan == false)
         {
             items.Add(new("power-plan", GameReadyArea.Power, GameReadyStatus.Suggestion, GameReadyImpact.Low,
-                tr.T("The Balanced power plan is active"),
+                tr.T("The High performance power plan is not active"),
                 tr.T("High performance keeps the processor ready to boost instead of waking it from power saving between frames. On a desktop it costs only a little electricity."),
-                facts.PowerPlanText ?? tr.T("Balanced"),
+                facts.PowerPlanText ?? tr.T("Another power plan is active"),
                 new GameReadyFix(GameReadyFixKind.OptimizationAction, tr.T("Use High performance"), HighPerformanceAction, Safe: true)));
         }
 
