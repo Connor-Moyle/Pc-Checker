@@ -1,5 +1,6 @@
 using PcChecker.Core.Crashes;
 using PcChecker.Core.Crashes.Dumps;
+using PcChecker.Core.Localization;
 using PcChecker.Core.Settings;
 using PcChecker.Core.Shell;
 using Xunit;
@@ -323,6 +324,74 @@ public class CrashEventTests
     }
 
     [Fact]
+    public void A_memory_dmp_and_its_minidump_make_one_blue_screen_with_the_minidump_blame()
+    {
+        // "Automatic memory dump": one crash writes MEMORY.DMP (named by the event, no driver list) and a small dump.
+        var crash = Now.AddDays(-2);
+        var events = new[]
+        {
+            Bsod("e1001", crash.AddMinutes(3), 0x116, @"C:\WINDOWS\MEMORY.DMP") with { Parameters = [0xFFFFB10F2D5A4010, 0xFFFFF8061C2A1F30, 0, 0xD] },
+        };
+        var memory = new DumpFile(@"C:\Windows\MEMORY.DMP", crash.AddMinutes(2), 1L << 30, new CrashDumpInfo
+        {
+            Format = DumpFormat.Kernel64, DumpType = 1, BugCheckCode = 0x116, CrashTime = crash, OsBuild = 26100,
+        });
+        var dumps = new[] { memory, Dump(@"C:\Windows\Minidump\102626-9000-01.dmp", crash, 0x116) };
+
+        var merged = CrashRules.Merge(events, dumps, Now);
+
+        var only = Assert.Single(merged);
+        Assert.Equal("e1001", only.Id);
+        Assert.Equal(@"C:\Windows\MEMORY.DMP", only.DumpPath);
+        Assert.Equal("nvlddmkm.sys", only.Blame?.Module);
+        Assert.Equal(BlameConfidence.Medium, only.Blame?.Confidence);
+        Assert.NotEmpty(only.Modules);
+        Assert.Equal(1, CrashRules.Summarize(merged, Now).BlueScreens);
+    }
+
+    [Fact]
+    public void A_second_dump_of_a_listed_blue_screen_is_not_listed_again()
+    {
+        var crash = Now.AddDays(-4);
+        var events = new[] { Bsod("e1001", crash.AddMinutes(5), 0x124, @"C:\Windows\Minidump\a.dmp") };
+        var dumps = new[]
+        {
+            Dump(@"C:\Windows\Minidump\a.dmp", crash, 0x124),
+            Dump(@"C:\Windows\MEMORY.DMP", crash.AddMinutes(1), 0x124),
+            Dump(@"C:\Windows\Minidump\b.dmp", crash.AddDays(-2), 0x124),
+        };
+
+        var merged = CrashRules.Merge(events, dumps, Now);
+
+        Assert.Equal(["e1001", "dump-C:\\WINDOWS\\MINIDUMP\\B.DMP"], merged.Select(e => e.Id));
+    }
+
+    [Fact]
+    public void A_blue_screen_shows_at_the_crash_time_from_the_dump_not_when_the_event_was_logged()
+    {
+        // The PC stayed off overnight: Windows wrote the events at the next start, 10 hours after the crash.
+        var crash = Now.AddDays(-7).AddHours(-1);
+        var logged = crash.AddHours(10);
+        var events = new[]
+        {
+            Bsod("e1001", logged, 0x116, @"%SystemRoot%\Minidump\c.dmp"),
+            Bsod("k41", logged.AddMinutes(-1), 0x116, eventId: 41),
+            Shutdown("e6008", logged.AddMinutes(-1), 6008),
+        };
+        var dumps = new[] { Dump(@"C:\Windows\Minidump\c.dmp", crash, 0x116) };
+
+        var merged = CrashRules.Merge(events, dumps, Now);
+
+        var only = Assert.Single(merged);
+        Assert.Equal(crash, only.Time);
+        Assert.Equal(0, CrashRules.Glance(merged, Now).BlueScreens);
+
+        // A header time that cannot belong to this event (days after it, or far before) is ignored.
+        var odd = Dump(@"C:\Windows\Minidump\c.dmp", logged.AddDays(2), 0x116);
+        Assert.Equal(logged, CrashRules.WithDump(events[0], odd).Time);
+    }
+
+    [Fact]
     public void Watchdog_dumps_attach_to_driver_resets_and_old_entries_fall_out()
     {
         var t = Now.AddDays(-9);
@@ -511,5 +580,44 @@ public class CrashEventTests
         Assert.Equal(AttentionLevel.Warning, sudden.Level);
         Assert.Empty(sudden.TitleArgs);
         Assert.Equal(AttentionRules.CrashDays, CrashRules.AttentionDays);
+    }
+
+    [Fact]
+    public void Advice_text_is_looked_up_in_the_translation_by_its_English_text()
+    {
+        var info = StopCodeCatalog.Find(0x116)!;
+        var access = ExceptionCodeCatalog.Find(0xC0000005)!;
+        var de = new Translator("de", new Dictionary<string, string>
+        {
+            ["Blue screen: {0}"] = "Bluescreen: {0}",
+            [info.Meaning] = "Die Grafikkarte reagierte nicht mehr.",
+            [info.FirstSteps[0]] = "Neuesten Grafiktreiber installieren.",
+            ["Stop code parameter {0} points inside this file."] = "Parameter {0} zeigt in diese Datei.",
+            ["{0} (best guess). {1} This is a best guess from the memory dump, not proof."] = "{0} (Vermutung). {1}",
+            ["{0} crashed"] = "{0} ist abgestürzt",
+            [access.Name] = "Zugriffsverletzung",
+            ["{0} needs administrator rights to read, so crash dumps there were skipped."] = "{0} braucht Administratorrechte.",
+            ["Stop code {0}"] = "Stoppcode {0}",
+        });
+        var blamed = Bsod("b", Now, 0x116) with
+        {
+            Blame = CrashBlameRules.Guess(0x116, [1, 0xFFFFF8061C200010], null, [new CrashModule("nvlddmkm.sys", 0xFFFFF8061C200000, 0x5A40000)], []),
+        };
+
+        var advice = CrashAdvice.For(blamed, false, de);
+
+        Assert.Equal("Bluescreen: VIDEO_TDR_FAILURE", advice.Title);
+        Assert.EndsWith("Die Grafikkarte reagierte nicht mehr.", advice.Explanation);
+        Assert.Equal("Neuesten Grafiktreiber installieren.", advice.Steps[0]);
+        Assert.Equal("nvlddmkm.sys (Vermutung). Parameter 2 zeigt in diese Datei.", advice.LikelyCause);
+        Assert.Equal("game.exe ist abgestürzt", CrashAdvice.Title(AppCrash("a", Now, "game.exe"), de));
+        Assert.Equal("Zugriffsverletzung (0xc0000005)", ExceptionCodeCatalog.Describe(0xC0000005, de));
+        Assert.Equal("Stoppcode 0x000001E0", StopCodeCatalog.NameOf(0x1E0, de));
+        Assert.Equal(@"C:\Windows\Minidump braucht Administratorrechte.", new CrashWarning(
+            "{0} needs administrator rights to read, so crash dumps there were skipped.", @"C:\Windows\Minidump").Text(de));
+
+        // Without a translation everything stays English.
+        Assert.Equal("Blue screen: VIDEO_TDR_FAILURE", CrashAdvice.For(blamed, false).Title);
+        Assert.StartsWith("nvlddmkm.sys (best guess). Stop code parameter 2 points inside this file.", CrashAdvice.For(blamed, false).LikelyCause);
     }
 }

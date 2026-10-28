@@ -220,7 +220,10 @@ changes or deletes anything.
   every Windows language.
 - **One entry per incident**: a dump is matched to its BugCheck event, a
   Kernel-Power 41 that repeats a blue screen and an EventLog 6008 next to it
-  are folded in, and dumps whose event was cleared get their own entry.
+  are folded in, and dumps whose event was cleared get their own entry. When
+  Windows wrote both `MEMORY.DMP` and a small dump for the same crash, they
+  make one entry. A blue screen shows at the crash time from the dump, not
+  when Windows logged it at the next start.
 - **Tiles**: blue screens, sudden shutdowns, driver resets and app crashes in
   the last 30 days.
 - **Timeline**: newest first, grouped by day, with a filter by type and date
@@ -253,7 +256,8 @@ changes or deletes anything.
 Limitations: the guess uses no debugging symbols and does not walk the stack,
 so it can be wrong; WinDbg gives the definitive answer. Complete and kernel
 dumps (`MEMORY.DMP`) only give the stop code and parameters, not the driver
-list. Overclocks set in the BIOS or other tools cannot be seen. Demo mode
+list; the guess then comes from the small dump of the same crash when there is
+one. Overclocks set in the BIOS or other tools cannot be seen. Demo mode
 shows two blue screens, a sudden shutdown, three driver resets and crashes of
 two games.
 

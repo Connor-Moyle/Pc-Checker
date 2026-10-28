@@ -158,7 +158,7 @@ public sealed partial class CrashesViewModel : ViewModelBase
     private Task RunScanAsync(CancellationToken outer) => RunBusyAsync(async busyToken =>
     {
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(busyToken, outer);
-        var progress = new Progress<ProgressUpdate>(p => BusyText = p.Stage);
+        var progress = new Progress<ProgressUpdate>(p => BusyText = Loc.T(p.Stage));
         var report = await _crashes.ScanAsync(progress, linked.Token);
         Apply(report);
     }, Loc.T("Reading crash reports…"));
@@ -168,7 +168,7 @@ public sealed partial class CrashesViewModel : ViewModelBase
         _report = report;
         var selectedId = SelectedRow?.Crash.Id;
         _allRows.Clear();
-        _allRows.AddRange(report.Events.Select(e => new CrashRow(e, CrashAdvice.For(e, report.OverclockApplied))));
+        _allRows.AddRange(report.Events.Select(e => new CrashRow(e, CrashAdvice.For(e, report.OverclockApplied, Loc.Current))));
 
         var summary = CrashRules.Summarize(report.Events, DateTimeOffset.Now);
         BlueScreensText = summary.BlueScreens.ToString(CultureInfo.CurrentCulture);
@@ -186,7 +186,7 @@ public sealed partial class CrashesViewModel : ViewModelBase
         WheaText = report.WheaErrors is > 0 and var n
             ? Loc.F("Windows logged {0} hardware error reports (WHEA) in the last 30 days. The Health page explains what they point at.", n)
             : null;
-        Warnings = report.Warnings.Count == 0 ? null : string.Join(" ", report.Warnings);
+        Warnings = report.Warnings.Count == 0 ? null : string.Join(" ", report.Warnings.Select(w => w.Text(Loc.Current)));
         TotalCount = _allRows.Count;
         HasScanned = true;
         Subtitle = TotalCount == 0
@@ -414,7 +414,7 @@ public sealed class CrashDetails
         var advice = row.Advice;
         Title = advice.Title;
         WhenText = crash.Time.ToLocalTime().ToString("F", CultureInfo.CurrentCulture);
-        Source = crash.Source;
+        Source = Loc.T(crash.Source);
         Explanation = advice.Explanation;
         LikelyCause = advice.LikelyCause;
         Steps = advice.Steps;
@@ -456,7 +456,7 @@ public sealed class CrashDetails
 
         if (crash.ExceptionCode is { } ex)
         {
-            facts.Add(Loc.F("Exception: {0}", ExceptionCodeCatalog.Describe(ex)));
+            facts.Add(Loc.F("Exception: {0}", ExceptionCodeCatalog.Describe(ex, Loc.Current)));
         }
 
         if (crash.OsBuild is { } build)

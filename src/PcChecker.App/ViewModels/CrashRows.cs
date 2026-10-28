@@ -86,7 +86,7 @@ public sealed class AppCrashRow
 
         if (group.TopExceptionCode is { } code)
         {
-            detail.Add(ExceptionCodeCatalog.Describe(code));
+            detail.Add(ExceptionCodeCatalog.Describe(code, Loc.Current));
         }
 
         detail.Add(Loc.F("last {0}", group.Latest.ToLocalTime().ToString("g", CultureInfo.CurrentCulture)));

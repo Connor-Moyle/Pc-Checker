@@ -1,5 +1,7 @@
 using System.Globalization;
 
+using static PcChecker.Core.Crashes.CrashText;
+
 namespace PcChecker.Core.Crashes;
 
 /// <summary>
@@ -62,7 +64,7 @@ public static class CrashEventMapper
             Id = MakeId("bsod", r),
             Kind = CrashKind.BlueScreen,
             Time = r.Time,
-            Source = "System log, event 1001 (BugCheck)",
+            Source = T("System log, event 1001 (BugCheck)"),
             LogName = "System",
             EventId = 1001,
             BugCheckCode = parsed.Code,
@@ -95,7 +97,7 @@ public static class CrashEventMapper
             Id = MakeId("kp41", r),
             Kind = code != 0 ? CrashKind.BlueScreen : CrashKind.SuddenShutdown,
             Time = r.Time,
-            Source = "System log, event 41 (Kernel-Power)",
+            Source = T("System log, event 41 (Kernel-Power)"),
             LogName = "System",
             EventId = 41,
             BugCheckCode = code != 0 ? (uint)(code & 0xFFFFFFFF) : null,
@@ -110,7 +112,7 @@ public static class CrashEventMapper
         Id = MakeId("ev6008", r),
         Kind = CrashKind.SuddenShutdown,
         Time = r.Time,
-        Source = "System log, event 6008 (EventLog)",
+        Source = T("System log, event 6008 (EventLog)"),
         LogName = "System",
         EventId = 6008,
     };
@@ -124,7 +126,7 @@ public static class CrashEventMapper
             Id = MakeId("tdr", r),
             Kind = CrashKind.DriverReset,
             Time = r.Time,
-            Source = "System log, event 4101 (Display)",
+            Source = T("System log, event 4101 (Display)"),
             LogName = "System",
             EventId = 4101,
             Driver = driver,
@@ -149,7 +151,7 @@ public static class CrashEventMapper
             Id = MakeId("app", r),
             Kind = CrashKind.AppCrash,
             Time = r.Time,
-            Source = "Application log, event 1000 (Application Error)",
+            Source = T("Application log, event 1000 (Application Error)"),
             LogName = "Application",
             EventId = 1000,
             AppName = app,
@@ -177,7 +179,7 @@ public static class CrashEventMapper
             Id = MakeId("hang", r),
             Kind = CrashKind.AppHang,
             Time = r.Time,
-            Source = "Application log, event 1002 (Application Hang)",
+            Source = T("Application log, event 1002 (Application Hang)"),
             LogName = "Application",
             EventId = 1002,
             AppName = app,

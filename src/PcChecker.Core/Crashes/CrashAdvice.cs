@@ -1,4 +1,6 @@
 using System.Globalization;
+using PcChecker.Core.Localization;
+using static PcChecker.Core.Crashes.CrashText;
 
 namespace PcChecker.Core.Crashes;
 
@@ -21,57 +23,63 @@ public sealed record CrashAdviceText(
 /// </summary>
 public static class CrashAdvice
 {
-    public static readonly CrashLink Drivers = new("Check drivers", "drivers");
-    public static readonly CrashLink Memory = new("Test memory", "memory");
-    public static readonly CrashLink Storage = new("Check drives", "storage");
-    public static readonly CrashLink Overclock = new("Reset overclock", "overclock");
-    public static readonly CrashLink Health = new("See hardware errors", "health");
-    public static readonly CrashLink Temperatures = new("Watch temperatures", "temperatures");
-    public static readonly CrashLink Updates = new("Windows Update", "windows-update");
-    public static readonly CrashLink Apps = new("Open Apps", "software");
-    public static readonly CrashLink Runtimes = new("Check runtimes", "missing-dlls");
+    // Link texts are English keys; the page translates them when it shows the buttons.
+    public static readonly CrashLink Drivers = new(T("Check drivers"), "drivers");
+    public static readonly CrashLink Memory = new(T("Test memory"), "memory");
+    public static readonly CrashLink Storage = new(T("Check drives"), "storage");
+    public static readonly CrashLink Overclock = new(T("Reset overclock"), "overclock");
+    public static readonly CrashLink Health = new(T("See hardware errors"), "health");
+    public static readonly CrashLink Temperatures = new(T("Watch temperatures"), "temperatures");
+    public static readonly CrashLink Updates = new(T("Windows Update"), "windows-update");
+    public static readonly CrashLink Apps = new(T("Open Apps"), "software");
+    public static readonly CrashLink Runtimes = new(T("Check runtimes"), "missing-dlls");
 
-    private const string BestGuess = "This is a best guess from the memory dump, not proof.";
-
-    public static CrashAdviceText For(CrashEvent e, bool overclockApplied)
+    /// <summary>
+    /// The advice for <paramref name="e"/>, in the language of <paramref name="tr"/> (English when null). The catalog
+    /// texts are looked up by their English text, so a missing translation stays English.
+    /// </summary>
+    public static CrashAdviceText For(CrashEvent e, bool overclockApplied, Translator? tr = null)
     {
         ArgumentNullException.ThrowIfNull(e);
+        tr ??= Translator.English;
         return e.Kind switch
         {
-            CrashKind.BlueScreen => BlueScreen(e, overclockApplied),
-            CrashKind.SuddenShutdown => SuddenShutdown(e, overclockApplied),
-            CrashKind.DriverReset => DriverReset(e, overclockApplied),
-            _ => App(e),
+            CrashKind.BlueScreen => BlueScreen(e, overclockApplied, tr),
+            CrashKind.SuddenShutdown => SuddenShutdown(e, overclockApplied, tr),
+            CrashKind.DriverReset => DriverReset(e, overclockApplied, tr),
+            _ => App(e, tr),
         };
     }
 
     /// <summary>One line for the timeline row.</summary>
-    public static string Title(CrashEvent e)
+    public static string Title(CrashEvent e, Translator? tr = null)
     {
         ArgumentNullException.ThrowIfNull(e);
+        tr ??= Translator.English;
         return e.Kind switch
         {
-            CrashKind.BlueScreen => "Blue screen: " + (e.BugCheckCode is { } c ? StopCodeCatalog.NameOf(c) : "unknown stop code"),
-            CrashKind.SuddenShutdown => e.PowerButtonHeld ? "Turned off with the power button" : "Sudden shutdown or restart",
-            CrashKind.DriverReset => "Graphics driver reset" + (VendorOf(e) is { } v ? $" ({v})" : string.Empty),
-            CrashKind.AppHang => $"{e.AppName} stopped responding",
-            _ => $"{e.AppName} crashed",
+            CrashKind.BlueScreen => e.BugCheckCode is { } c ? tr.F("Blue screen: {0}", StopCodeCatalog.NameOf(c, tr)) : tr.T("Blue screen: unknown stop code"),
+            CrashKind.SuddenShutdown => e.PowerButtonHeld ? tr.T("Turned off with the power button") : tr.T("Sudden shutdown or restart"),
+            CrashKind.DriverReset => VendorOf(e) is { } v ? tr.F("Graphics driver reset ({0})", v) : tr.T("Graphics driver reset"),
+            CrashKind.AppHang => tr.F("{0} stopped responding", e.AppName),
+            _ => tr.F("{0} crashed", e.AppName),
         };
     }
 
-    private static CrashAdviceText BlueScreen(CrashEvent e, bool overclockApplied)
+    private static CrashAdviceText BlueScreen(CrashEvent e, bool overclockApplied, Translator tr)
     {
         var info = e.BugCheckCode is { } code ? StopCodeCatalog.Find(code) : null;
-        string codeText = e.BugCheckCode is { } c ? BugCheckFormat.Code(c) : "unknown";
-        string explanation = info?.Meaning
-            ?? "Windows stopped because something went badly wrong. This stop code is not in PC Checker's list; Microsoft's reference explains it.";
-        var steps = new List<string>(info?.FirstSteps ?? StopCodeCatalog.GeneralSteps);
+        string codeText = e.BugCheckCode is { } c ? BugCheckFormat.Code(c) : tr.T("unknown");
+        string explanation = info is not null
+            ? tr.T(info.Meaning)
+            : tr.T("Windows stopped because something went badly wrong. This stop code is not in PC Checker's list; Microsoft's reference explains it.");
+        var steps = new List<string>((info?.FirstSteps ?? StopCodeCatalog.GeneralSteps).Select(tr.T));
         var pages = new List<CrashLink>();
         bool hardware = info?.Area is StopCodeArea.Hardware || e.BugCheckCode is 0x124 or 0x101 or 0x9C;
         if (hardware && overclockApplied)
         {
             pages.Add(Overclock);
-            steps.Insert(0, "PC Checker has an overclock applied. Reset it to stock on the Overclock page first.");
+            steps.Insert(0, tr.T("PC Checker has an overclock applied. Reset it to stock on the Overclock page first."));
         }
 
         switch (info?.Area)
@@ -104,21 +112,23 @@ public static class CrashAdvice
             pages.Add(Drivers);
         }
 
-        string? cause = e.Blame is { } blame ? $"{blame.Module} (best guess). {blame.Reason} {BestGuess}" : null;
+        string? cause = e.Blame is { } blame
+            ? tr.F("{0} (best guess). {1} This is a best guess from the memory dump, not proof.", blame.Module, BlameReason(blame, tr))
+            : null;
         if (cause is null && info?.Area == StopCodeArea.Hardware)
         {
-            cause = "The hardware itself reported the error, so no driver is to blame. An unstable overclock or undervolt, heat, memory settings or a failing part are the usual causes.";
+            cause = tr.T("The hardware itself reported the error, so no driver is to blame. An unstable overclock or undervolt, heat, memory settings or a failing part are the usual causes.");
         }
 
         if (cause is null && e.DumpPath is null)
         {
-            cause = "No memory dump was found, so PC Checker cannot guess which driver was involved. Turn on small memory dumps in System Properties → Advanced → Startup and Recovery.";
+            cause = tr.T("No memory dump was found, so PC Checker cannot guess which driver was involved. Turn on small memory dumps in System Properties → Advanced → Startup and Recovery.");
         }
 
-        string name = e.BugCheckCode is { } k ? StopCodeCatalog.NameOf(k) : "Unknown stop code";
+        string name = e.BugCheckCode is { } k ? StopCodeCatalog.NameOf(k, tr) : tr.T("Unknown stop code");
         return new CrashAdviceText(
-            Title(e),
-            e.Blame is { IsWindowsModule: false } b ? $"{codeText}, probably {b.Module}" : codeText,
+            Title(e, tr),
+            e.Blame is { IsWindowsModule: false } b ? tr.F("{0}, probably {1}", codeText, b.Module) : codeText,
             $"{name} ({codeText}). {explanation}",
             cause,
             steps.Distinct().ToList(),
@@ -126,7 +136,7 @@ public static class CrashAdvice
             e.BugCheckCode is { } d ? StopCodeCatalog.DocsUrlFor(d) : StopCodeCatalog.ReferenceIndexUrl);
     }
 
-    private static CrashAdviceText SuddenShutdown(CrashEvent e, bool overclockApplied)
+    private static CrashAdviceText SuddenShutdown(CrashEvent e, bool overclockApplied, Translator tr)
     {
         var pages = new List<CrashLink>();
         var steps = new List<string>();
@@ -134,57 +144,57 @@ public static class CrashAdvice
         string? cause;
         if (e.PowerButtonHeld)
         {
-            explanation = "The PC was turned off by holding the power button, so Windows could not shut down properly.";
-            cause = "If the PC had frozen, the freeze is the real problem: look for blue screens or driver resets just before this.";
-            steps.Add("Next time it freezes, wait a minute: Windows may recover or write a crash report.");
+            explanation = tr.T("The PC was turned off by holding the power button, so Windows could not shut down properly.");
+            cause = tr.T("If the PC had frozen, the freeze is the real problem: look for blue screens or driver resets just before this.");
+            steps.Add(tr.T("Next time it freezes, wait a minute: Windows may recover or write a crash report."));
         }
         else
         {
-            explanation = "The PC turned off or restarted without shutting down properly and without a blue screen. It lost power, the power supply switched off, or it froze hard.";
-            cause = "Common causes: a power cut or loose cable, an overloaded or failing power supply, overheating, or an unstable overclock.";
-            steps.Add("Check that the power cable and the power strip are fine, and that nothing else trips the power.");
-            steps.Add("Watch temperatures under load; a PC that overheats can switch itself off.");
-            steps.Add("If it happens under heavy load (games), the power supply may be too weak or failing.");
+            explanation = tr.T("The PC turned off or restarted without shutting down properly and without a blue screen. It lost power, the power supply switched off, or it froze hard.");
+            cause = tr.T("Common causes: a power cut or loose cable, an overloaded or failing power supply, overheating, or an unstable overclock.");
+            steps.Add(tr.T("Check that the power cable and the power strip are fine, and that nothing else trips the power."));
+            steps.Add(tr.T("Watch temperatures under load; a PC that overheats can switch itself off."));
+            steps.Add(tr.T("If it happens under heavy load (games), the power supply may be too weak or failing."));
         }
 
         if (overclockApplied)
         {
             pages.Add(Overclock);
-            steps.Insert(0, "PC Checker has an overclock applied. Reset it to stock on the Overclock page and see whether the shutdowns stop.");
+            steps.Insert(0, tr.T("PC Checker has an overclock applied. Reset it to stock on the Overclock page and see whether the shutdowns stop."));
         }
         else
         {
-            steps.Add("If anything is overclocked or undervolted (including XMP/EXPO memory profiles), go back to default settings.");
+            steps.Add(tr.T("If anything is overclocked or undervolted (including XMP/EXPO memory profiles), go back to default settings."));
         }
 
         pages.Add(Temperatures);
         pages.Add(Health);
-        return new CrashAdviceText(Title(e), e.PowerButtonHeld ? "Power button held down" : "No blue screen was recorded", explanation, cause, steps, pages, null);
+        return new CrashAdviceText(Title(e, tr), e.PowerButtonHeld ? tr.T("Power button held down") : tr.T("No blue screen was recorded"), explanation, cause, steps, pages, null);
     }
 
-    private static CrashAdviceText DriverReset(CrashEvent e, bool overclockApplied)
+    private static CrashAdviceText DriverReset(CrashEvent e, bool overclockApplied, Translator tr)
     {
         var info = (e.BugCheckCode is { } code ? StopCodeCatalog.Find(code) : null) is { Area: StopCodeArea.Graphics } known ? known : StopCodeCatalog.Find(0x117)!;
-        var steps = new List<string>(info.FirstSteps);
+        var steps = new List<string>(info.FirstSteps.Select(tr.T));
         var pages = new List<CrashLink> { Drivers, Temperatures };
         if (overclockApplied)
         {
             pages.Insert(0, Overclock);
-            steps.Insert(0, "PC Checker has a graphics overclock applied. Reset it to stock on the Overclock page first.");
+            steps.Insert(0, tr.T("PC Checker has a graphics overclock applied. Reset it to stock on the Overclock page first."));
         }
 
-        string driver = e.Driver is { Length: > 0 } d ? d : "the graphics driver";
+        bool named = e.Driver is { Length: > 0 };
         return new CrashAdviceText(
-            Title(e),
-            e.Driver is { Length: > 0 } ? $"{e.Driver} was restarted" : "Windows restarted the graphics driver",
-            "The graphics card stopped responding for a few seconds and Windows restarted its driver. The screen may have gone black or a game may have closed. A few a month can be normal; many point at a driver, overclock, heat or power problem.",
-            $"{driver} stopped responding.",
+            Title(e, tr),
+            named ? tr.F("{0} was restarted", e.Driver) : tr.T("Windows restarted the graphics driver"),
+            tr.T("The graphics card stopped responding for a few seconds and Windows restarted its driver. The screen may have gone black or a game may have closed. A few a month can be normal; many point at a driver, overclock, heat or power problem."),
+            named ? tr.F("{0} stopped responding.", e.Driver) : tr.T("The graphics driver stopped responding."),
             steps,
             pages,
             info.DocsUrl);
     }
 
-    private static CrashAdviceText App(CrashEvent e)
+    private static CrashAdviceText App(CrashEvent e, Translator tr)
     {
         var steps = new List<string>();
         var pages = new List<CrashLink>();
@@ -193,35 +203,35 @@ public static class CrashAdvice
         string summary;
         if (e.Kind == CrashKind.AppHang)
         {
-            explanation = "The program stopped responding and was closed, by you or by Windows.";
-            summary = string.IsNullOrWhiteSpace(e.AppVersion) ? "Stopped responding" : "Version " + e.AppVersion;
-            steps.Add("Update the program.");
-            steps.Add("If it hangs while saving or loading, check that the drive is not nearly full and is healthy.");
+            explanation = tr.T("The program stopped responding and was closed, by you or by Windows.");
+            summary = string.IsNullOrWhiteSpace(e.AppVersion) ? tr.T("Stopped responding") : tr.F("Version {0}", e.AppVersion);
+            steps.Add(tr.T("Update the program."));
+            steps.Add(tr.T("If it hangs while saving or loading, check that the drive is not nearly full and is healthy."));
             pages.Add(Apps);
             pages.Add(Storage);
         }
         else
         {
             var ex = e.ExceptionCode is { } code ? ExceptionCodeCatalog.Find(code) : null;
-            string exText = e.ExceptionCode is { } c2 ? ExceptionCodeCatalog.Describe(c2) : "an unknown error";
-            explanation = ex is null ? $"The program closed because of {exText}." : $"The program closed because of {exText}. {ex.Meaning}";
-            summary = (e.ModuleName is { Length: > 0 } mod ? $"In {mod}, " : string.Empty) + exText;
+            string exText = e.ExceptionCode is { } c2 ? ExceptionCodeCatalog.Describe(c2, tr) : tr.T("an unknown error");
+            explanation = tr.F("The program closed because of {0}.", exText) + (ex is null ? string.Empty : " " + tr.T(ex.Meaning));
+            summary = e.ModuleName is { Length: > 0 } mod ? tr.F("In {0}, {1}", mod, exText) : exText;
             if (ex is not null)
             {
-                steps.Add(ex.FirstStep);
+                steps.Add(tr.T(ex.FirstStep));
             }
 
             if (e.ModuleName is { Length: > 0 } module)
             {
                 cause = CrashBlameRules.IsWindowsModule(module)
-                    ? $"The error happened in {module}, a part of Windows. The cause is usually the program itself or an add-on it loaded."
+                    ? tr.F("The error happened in {0}, a part of Windows. The cause is usually the program itself or an add-on it loaded.", module)
                     : string.Equals(module, e.AppName, StringComparison.OrdinalIgnoreCase)
-                        ? "The error happened in the program's own code."
-                        : $"The error happened in {module}, a file the program loaded (an add-on, overlay, driver or runtime).";
+                        ? tr.T("The error happened in the program's own code.")
+                        : tr.F("The error happened in {0}, a file the program loaded (an add-on, overlay, driver or runtime).", module);
             }
 
-            steps.Add("Update or repair the program; reinstall it if crashes continue.");
-            steps.Add("Turn off overlays and mods (recording, FPS counters, RGB tools) and try again.");
+            steps.Add(tr.T("Update or repair the program; reinstall it if crashes continue."));
+            steps.Add(tr.T("Turn off overlays and mods (recording, FPS counters, RGB tools) and try again."));
             pages.Add(Apps);
             if (e.ExceptionCode is 0xC0000135 or 0xC0000142 or 0xE0434352)
             {
@@ -237,7 +247,33 @@ public static class CrashAdvice
             }
         }
 
-        return new CrashAdviceText(Title(e), summary, explanation, cause, steps.Distinct().ToList(), pages.Distinct().ToList(), null);
+        return new CrashAdviceText(Title(e, tr), summary, explanation, cause, steps.Distinct().ToList(), pages.Distinct().ToList(), null);
+    }
+
+    /// <summary>
+    /// The blame reason in the page's language. <see cref="CrashBlameRules"/> writes English reasons; the parameter
+    /// number is the only part that varies.
+    /// </summary>
+    private static string BlameReason(CrashBlame blame, Translator tr)
+    {
+        const string ParameterPrefix = "Stop code parameter ";
+        const string ParameterSuffix = " points inside this file.";
+        const string WindowsSuffix = " It is part of Windows, so the real cause is often a driver that called it.";
+        string reason = blame.Reason;
+        string tail = string.Empty;
+        if (reason.EndsWith(WindowsSuffix, StringComparison.Ordinal))
+        {
+            reason = reason[..^WindowsSuffix.Length];
+            tail = " " + tr.T(WindowsSuffix.TrimStart());
+        }
+
+        if (reason.StartsWith(ParameterPrefix, StringComparison.Ordinal) && reason.EndsWith(ParameterSuffix, StringComparison.Ordinal)
+            && int.TryParse(reason.AsSpan(ParameterPrefix.Length, reason.Length - ParameterPrefix.Length - ParameterSuffix.Length), NumberStyles.None, CultureInfo.InvariantCulture, out int n))
+        {
+            return tr.F("Stop code parameter {0} points inside this file.", n) + tail;
+        }
+
+        return tr.T(reason) + tail;
     }
 
     private static string? VendorOf(CrashEvent e) => CrashRules.GraphicsVendor(e.Driver);

@@ -1,3 +1,6 @@
+using System.Globalization;
+using static PcChecker.Core.Crashes.CrashText;
+
 namespace PcChecker.Core.Crashes;
 
 /// <summary>
@@ -87,14 +90,14 @@ public static class CrashBlameRules
         var pointed = new List<(CrashModule Module, string Reason)>();
         if (exceptionAddress is { } ea && FindModule(modules, ea) is { } atCrash)
         {
-            pointed.Add((atCrash, "The crash happened inside this file."));
+            pointed.Add((atCrash, T("The crash happened inside this file.")));
         }
 
         for (int i = 0; i < parameters.Count; i++)
         {
             if (FindModule(modules, parameters[i]) is { } m)
             {
-                pointed.Add((m, $"Stop code parameter {i + 1} points inside this file."));
+                pointed.Add((m, string.Format(CultureInfo.InvariantCulture, T("Stop code parameter {0} points inside this file."), i + 1)));
             }
         }
 
@@ -108,21 +111,21 @@ public static class CrashBlameRules
         {
             if (FindModule(modules, value) is { } m && !IsWindowsModule(m.Name))
             {
-                return new CrashBlame(m.Name, BlameConfidence.Low, "This driver was on the crashing thread's stack.", false);
+                return new CrashBlame(m.Name, BlameConfidence.Low, T("This driver was on the crashing thread's stack."), false);
             }
         }
 
         // 3. A graphics stop code: the graphics driver that was loaded.
         if (bugCheckCode is { } code && GraphicsCodes.Contains(code) && modules.FirstOrDefault(m => IsGraphicsDriver(m.Name)) is { } gpu)
         {
-            return new CrashBlame(gpu.Name, BlameConfidence.Low, "This is a graphics stop code and this is the graphics driver.", false);
+            return new CrashBlame(gpu.Name, BlameConfidence.Low, T("This is a graphics stop code and this is the graphics driver."), false);
         }
 
         // 4. Only Windows was pointed at: say so, the real cause is usually a driver that called it.
         if (pointed.Count > 0)
         {
             var (module, reason) = pointed[0];
-            return new CrashBlame(module.Name, BlameConfidence.Low, reason + " It is part of Windows, so the real cause is often a driver that called it.", true);
+            return new CrashBlame(module.Name, BlameConfidence.Low, reason + " " + T("It is part of Windows, so the real cause is often a driver that called it."), true);
         }
 
         return null;

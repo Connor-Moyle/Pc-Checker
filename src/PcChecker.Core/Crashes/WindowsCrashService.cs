@@ -5,6 +5,8 @@ using PcChecker.Core.Crashes.Dumps;
 using PcChecker.Core.Health;
 using PcChecker.Core.Settings;
 
+using static PcChecker.Core.Crashes.CrashText;
+
 namespace PcChecker.Core.Crashes;
 
 /// <summary>
@@ -39,19 +41,19 @@ public sealed class WindowsCrashService : ICrashService
     public Task<CrashReport> ScanAsync(IProgress<ProgressUpdate>? progress, CancellationToken cancellationToken) =>
         Task.Run(() =>
         {
-            var warnings = new List<string>();
+            var warnings = new List<CrashWarning>();
             var now = DateTimeOffset.Now;
             var events = new List<CrashEvent>();
 
-            progress?.Report(new ProgressUpdate("Reading the System log…", 10));
+            progress?.Report(new ProgressUpdate(T("Reading the System log…"), 10));
             events.AddRange(ReadLog("System", CrashEventMapper.SystemQuery(CrashRules.WindowDays), warnings, cancellationToken));
-            progress?.Report(new ProgressUpdate("Reading the Application log…", 35));
+            progress?.Report(new ProgressUpdate(T("Reading the Application log…"), 35));
             events.AddRange(ReadLog("Application", CrashEventMapper.ApplicationQuery(CrashRules.WindowDays), warnings, cancellationToken));
 
-            progress?.Report(new ProgressUpdate("Reading crash dump files…", 60));
+            progress?.Report(new ProgressUpdate(T("Reading crash dump files…"), 60));
             var dumps = ReadDumps(now, warnings, cancellationToken);
 
-            progress?.Report(new ProgressUpdate("Counting hardware error reports…", 85));
+            progress?.Report(new ProgressUpdate(T("Counting hardware error reports…"), 85));
             int? whea = CountWhea(cancellationToken);
 
             var report = new CrashReport
@@ -80,7 +82,7 @@ public sealed class WindowsCrashService : ICrashService
             return CrashRules.Glance(CrashRules.Merge(events, [], now, CrashRules.AttentionDays), now);
         }, cancellationToken);
 
-    private List<CrashEvent> ReadLog(string log, string xpath, List<string> warnings, CancellationToken ct)
+    private List<CrashEvent> ReadLog(string log, string xpath, List<CrashWarning> warnings, CancellationToken ct)
     {
         var result = new List<CrashEvent>();
         try
@@ -122,13 +124,13 @@ public sealed class WindowsCrashService : ICrashService
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Could not read the {Log} event log for crashes.", log);
-            warnings.Add($"The {log} event log could not be read ({ex.Message}).");
+            warnings.Add(new CrashWarning(T("The {0} event log could not be read ({1})."), log, ex.Message));
         }
 
         return result;
     }
 
-    private List<DumpFile> ReadDumps(DateTimeOffset now, List<string> warnings, CancellationToken ct)
+    private List<DumpFile> ReadDumps(DateTimeOffset now, List<CrashWarning> warnings, CancellationToken ct)
     {
         var cutoff = now.AddDays(-CrashRules.WindowDays);
         var dumps = new List<DumpFile>();
@@ -156,7 +158,7 @@ public sealed class WindowsCrashService : ICrashService
             }
             catch (UnauthorizedAccessException)
             {
-                warnings.Add($"{folder} needs administrator rights to read, so crash dumps there were skipped.");
+                warnings.Add(new CrashWarning(T("{0} needs administrator rights to read, so crash dumps there were skipped."), folder));
             }
             catch (Exception ex)
             {

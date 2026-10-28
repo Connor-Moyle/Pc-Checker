@@ -127,7 +127,16 @@ public sealed record CrashReport
     public bool OverclockApplied { get; init; }
 
     /// <summary>Things that could not be read, in plain words (for example the dump folder needs administrator rights).</summary>
-    public IReadOnlyList<string> Warnings { get; init; } = [];
+    public IReadOnlyList<CrashWarning> Warnings { get; init; } = [];
+}
+
+/// <summary>Something the scan could not read: an English format ("{0} needs administrator rights…") and its values.</summary>
+public sealed record CrashWarning(string Format, params string[] Args)
+{
+    /// <summary>The warning in the language of <paramref name="tr"/> (English when null).</summary>
+    public string Text(Localization.Translator? tr = null) => (tr ?? Localization.Translator.English).F(Format, Args.Cast<object?>().ToArray());
+
+    public override string ToString() => Text();
 }
 
 /// <summary>A quick count for the Dashboard: blue screens and sudden shutdowns in a recent window.</summary>
