@@ -29,6 +29,7 @@ public sealed partial class MissingDllsViewModel : ViewModelBase, IRefreshablePa
     private readonly INavigationService _navigation;
     private readonly ILogger<MissingDllsViewModel> _logger;
     private readonly GameFolderScanHandOff _gameScans;
+    private readonly RuntimeFamilyHandOff? _families;
     private readonly List<MissingDllRow> _allRows = [];
     private RuntimeScanResult _scan = RuntimeScanResult.Empty;
     private bool? _wingetAvailable;
@@ -103,11 +104,17 @@ public sealed partial class MissingDllsViewModel : ViewModelBase, IRefreshablePa
     private bool _rebootRequired;
 
     public MissingDllsViewModel(ISettingsService settings, IGameRuntimeService runtimes, IDialogService dialogs, INotificationService notifications,
-        INavigationService navigation, ILogger<MissingDllsViewModel> logger, GameFolderScanHandOff gameScans)
+        INavigationService navigation, ILogger<MissingDllsViewModel> logger, GameFolderScanHandOff gameScans,
+        RuntimeFamilyHandOff? families = null)
         : base(settings)
     {
         _gameScans = gameScans;
         _gameScans.Queued += (_, _) => DispatcherHelper.PostToUi(OnGameScanQueued);
+        _families = families;
+        if (_families is not null)
+        {
+            _families.Queued += (_, _) => DispatcherHelper.PostToUi(TakeFamilyRequest);
+        }
         _runtimes = runtimes;
         _dialogs = dialogs;
         _notifications = notifications;
@@ -150,6 +157,7 @@ public sealed partial class MissingDllsViewModel : ViewModelBase, IRefreshablePa
     public override async Task InitializeAsync(CancellationToken cancellationToken)
     {
         await RunScanAsync(cancellationToken);
+        TakeFamilyRequest();
         if (_gameScans.Take() is { } request && !cancellationToken.IsCancellationRequested)
         {
             await ScanGameFolderAsync(request.Folder, cancellationToken);
@@ -173,6 +181,16 @@ public sealed partial class MissingDllsViewModel : ViewModelBase, IRefreshablePa
     partial void OnShowMissingOnlyChanged(bool value) => ApplyFilter();
 
     partial void OnSelectedFilterChanged(DllFilterOption? value) => ApplyFilter();
+
+    /// <summary>Shows the runtime family another page asked for (the Crashes page sends the runtime a crash points at).</summary>
+    private void TakeFamilyRequest()
+    {
+        if (_families?.Take() is { } request && Filters.FirstOrDefault(f => string.Equals(f.Key, request.FamilyId, StringComparison.OrdinalIgnoreCase)) is { } filter)
+        {
+            ShowMissingOnly = false;
+            SelectedFilter = filter;
+        }
+    }
 
     [RelayCommand]
     private Task RescanAsync() => RunScanAsync(CancellationToken.None);

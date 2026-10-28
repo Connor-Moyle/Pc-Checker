@@ -31,6 +31,8 @@ public sealed partial class DriversViewModel : ViewModelBase
     private readonly INotificationService _notifications;
     private readonly INavigationService _navigation;
     private readonly ILogger<DriversViewModel> _logger;
+    private readonly DriverSearchCache? _searchCache;
+    private readonly DriverFocusHandOff? _focus;
     private readonly List<DriverRow> _allDrivers = [];
     private readonly Dictionary<WarningSource, IReadOnlyList<string>> _warningsBySource = [];
 
@@ -101,9 +103,17 @@ public sealed partial class DriversViewModel : ViewModelBase
     private int _visibleDriverCount;
 
     public DriversViewModel(ISettingsService settings, IDriverService drivers, IDriverSourceService sources, IDialogService dialogs,
-        INotificationService notifications, INavigationService navigation, ILogger<DriversViewModel> logger, IPcPlatformService pcPlatform)
+        INotificationService notifications, INavigationService navigation, ILogger<DriversViewModel> logger, IPcPlatformService pcPlatform,
+        DriverSearchCache? searchCache = null, DriverFocusHandOff? focus = null)
         : base(settings)
     {
+        _searchCache = searchCache;
+        _focus = focus;
+        if (_focus is not null)
+        {
+            _focus.Queued += (_, _) => DispatcherHelper.PostToUi(TakeFocusRequest);
+        }
+
         _drivers = drivers;
         _sources = sources;
         _pcPlatform = pcPlatform;
@@ -147,6 +157,7 @@ public sealed partial class DriversViewModel : ViewModelBase
     {
         await RunScanAsync(cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
+        TakeFocusRequest();
 
         // The "Your PC" card reads the board, BIOS and chipset from this PC (and saved maker answers) without going online.
         await LoadPlatformAsync(online: false, force: false, cancellationToken);
@@ -160,6 +171,16 @@ public sealed partial class DriversViewModel : ViewModelBase
     public override Task RefreshAsync(CancellationToken cancellationToken) => RunScanAsync(cancellationToken);
 
     partial void OnSearchTextChanged(string? value) => ApplyFilters();
+
+    /// <summary>Shows the device another page asked for (the Crashes page sends the driver a crash is blamed on).</summary>
+    private void TakeFocusRequest()
+    {
+        if (_focus?.Take() is { } request)
+        {
+            SearchText = request.SearchText;
+            SelectedDriver = FilteredDrivers.FirstOrDefault();
+        }
+    }
     partial void OnThirdPartyOnlyChanged(bool value) => ApplyFilters();
     partial void OnProblemsOnlyChanged(bool value) => ApplyFilters();
     partial void OnOldOnlyChanged(bool value) => ApplyFilters();

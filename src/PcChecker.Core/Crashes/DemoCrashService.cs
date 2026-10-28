@@ -86,8 +86,8 @@ public sealed class DemoCrashService : ICrashService
                 FileDate = new DateTimeOffset(2024, 12, 5, 0, 0, 0, TimeSpan.Zero),
                 Signer = "Microsoft Windows Hardware Compatibility Publisher",
                 IsMicrosoft = false,
-                DeviceName = "NVIDIA GeForce RTX 4080 SUPER",
-                DeviceId = @"PCI\VEN_10DE&DEV_2702&SUBSYS_51911458&REV_A1\4&2B5F1A3C&0&0008",
+                DeviceName = DemoData.GpuName,
+                DeviceId = @"PCI\VEN_10DE&DEV_2786&SUBSYS_88AB1043",
                 DriverVersion = DemoDriverVersion,
                 DriverDate = new DateTime(2024, 12, 5),
                 NewerVersion = DemoNewerDriver,
@@ -227,7 +227,7 @@ public sealed class DemoCrashService : ICrashService
         var list = new List<CrashSystemEvent>
         {
             // The NVIDIA driver 566.36 was installed 27 days ago; no driver resets or blue screens before that.
-            new(At(now, 27, 18, 40), CrashSystemEventKind.DriverInstalled, @"PCI\VEN_10DE&DEV_2702&SUBSYS_51911458&REV_A1 (nv_dispi.inf 32.0.15.6636)"),
+            new(At(now, 27, 18, 40), CrashSystemEventKind.DriverInstalled, @"PCI\VEN_10DE&DEV_2786&SUBSYS_88AB1043 (nv_dispi.inf 32.0.15.6636)"),
             new(At(now, 3, 18, 2), CrashSystemEventKind.Boot) { EventId = 12 },
             new(At(now, 9, 20, 30), CrashSystemEventKind.Boot) { EventId = 12 },
             new(At(now, 12, 17, 55), CrashSystemEventKind.Boot) { EventId = 12 },
