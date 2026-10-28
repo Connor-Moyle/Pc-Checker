@@ -127,6 +127,7 @@ public sealed partial class SettingsViewModel : ViewModelBase
         new("H.NotifyIcon", "MIT"),
         new("System.Diagnostics.PerformanceCounter", "MIT"),
         new("System.Management", "MIT"),
+        new("ManagedEsent (Microsoft.Database.ManagedEsent)", "MIT"),
         new("System.Security.Cryptography.ProtectedData", "MIT"),
         new("Microsoft.Extensions.* (DependencyInjection, Hosting, Logging)", "MIT"),
     ];

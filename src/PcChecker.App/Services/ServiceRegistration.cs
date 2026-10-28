@@ -27,6 +27,7 @@ using PcChecker.Core.Fans;
 using PcChecker.Core.Gaming;
 using PcChecker.Core.Hardware;
 using PcChecker.Core.Health;
+using PcChecker.Core.AppHistory;
 using PcChecker.Core.History;
 using PcChecker.Core.Hosts;
 using PcChecker.Core.Input;
@@ -154,6 +155,7 @@ public static class ServiceRegistration
         Add<IStartupService, WindowsStartupService, DemoStartupService>(services, demo);
         Add<IProcessService, WindowsProcessService, DemoProcessService>(services, demo);
         Add<ILiveUsageService, WindowsLiveUsageService, DemoLiveUsageService>(services, demo);
+        Add<IAppHistoryService, WindowsAppHistoryService, DemoAppHistoryService>(services, demo);
         Add<IServiceManagementService, WindowsServiceManagementService, DemoServiceManagementService>(services, demo);
         Add<IUserSessionService, WindowsUserSessionService, DemoUserSessionService>(services, demo);
         Add<ITaskManagerReplacementService, WindowsTaskManagerReplacementService, DemoTaskManagerReplacementService>(services, demo);
@@ -224,6 +226,7 @@ public static class ServiceRegistration
         services.AddSingleton<ProcessesViewModel>().AddSingleton<ProcessesPage>();
         services.AddSingleton<LiveUsageViewModel>().AddSingleton<LiveUsagePage>();
         services.AddSingleton<CompactUsageWindowService>();
+        services.AddSingleton<AppHistoryViewModel>().AddSingleton<AppHistoryPage>();
         services.AddSingleton<ServicesViewModel>().AddSingleton<ServicesPage>();
         services.AddSingleton<UsersViewModel>().AddSingleton<UsersPage>();
         services.AddSingleton<HistoryViewModel>().AddSingleton<HistoryPage>();

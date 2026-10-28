@@ -8,8 +8,8 @@ screen-reader names and help text (AutomationProperties.Name and HelpText), sect
 NavigationCatalog.cs, C# string literals passed to Loc.T(...) or Loc.F(...), plain string literal arguments of the
 dialog and notification calls that translate at run time (IDialogService.ConfirmAsync/ShowMessageAsync/ChooseAsync,
 INotificationService.Show/Info/Success/Warning/Error, TrayIconService.Notify), and the quick search catalogs in
-src/PcChecker.Core/Shell and the Crashes catalogs and rules in src/PcChecker.Core/Crashes, where interface text is marked
-with T("...") or passed to a Translator as tr.T("...")/tr.F("...").
+src/PcChecker.Core/Shell, src/PcChecker.Core/AppHistory and the Crashes catalogs and rules in src/PcChecker.Core/Crashes, where
+interface text is marked with T("...") or passed to a Translator as tr.T("...")/tr.F("...").
 
 Usage: python3 build/extract-strings.py [--check]   (--check fails when strings.txt is out of date)
 """
@@ -19,7 +19,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 APP = ROOT / "src" / "PcChecker.App"
 OUT = APP / "Localization" / "strings.txt"
 CORE_SHELL = ROOT / "src" / "PcChecker.Core" / "Shell"
-CORE_MARKED = (CORE_SHELL, ROOT / "src" / "PcChecker.Core" / "Crashes")
+CORE_MARKED = (CORE_SHELL, ROOT / "src" / "PcChecker.Core" / "Crashes", ROOT / "src" / "PcChecker.Core" / "AppHistory")
 TEXT_ATTRS = ("Text", "ToolTip", "Content", "Title", "Header", "Message", "Subtitle", "PlaceholderText",
               "Description", "Label", "Unit", "Caption", "Reason", "ActionText")
 ATTR = re.compile(r'\b(?:[a-zA-Z]+:)?(?:[A-Z][A-Za-z]*\.)?(' + "|".join(TEXT_ATTRS) + r')="([^"]*)"')

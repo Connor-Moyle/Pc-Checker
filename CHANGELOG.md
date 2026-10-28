@@ -39,6 +39,14 @@ All notable changes to PC Checker are recorded here. The format follows
   from the dump, lists first steps and links to the page that helps, with
   *Ask Claude about this crash*. The Dashboard mentions blue screens and
   sudden shutdowns from the last week.
+- **App history** (Task manager): processor time, network and metered data,
+  and disk read and written per app for today, the last 7 or 30 days or since
+  a date, like Task Manager's App history. Reads Windows' own usage records
+  (copied with `esentutl /vss` into an admins-only folder and deleted after
+  reading) and falls back to PC Checker's own recording, a light once-a-minute
+  tally that follows the History recording setting and retention. Sorting,
+  search, *Open file location*, *Go to Processes* and *Delete usage history*
+  (PC Checker's own data only, confirmed).
 ## [0.7.0] - 2026-10-27
 
 A Missing DLLs tab that installs the official runtime packages old games need, an install-in-Program-Files option, and a final pass over the whole app: about 70 bugs found by review and fixed (fans, Task manager, drives, lighting, startup apps, cleanup, overclocking, updates, translations) plus layout fixes.

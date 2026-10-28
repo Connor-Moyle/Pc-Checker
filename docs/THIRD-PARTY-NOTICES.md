@@ -21,6 +21,7 @@ are also kept in this repository under [docs/licenses](licenses).
 | H.NotifyIcon (H.NotifyIcon.Wpf, with System.Drawing.Common) | The tray icon, its popup, the temperature icon and notifications | MIT | https://github.com/HavenDV/H.NotifyIcon |
 | System.Diagnostics.PerformanceCounter | DPC/interrupt time and other Windows performance counters | MIT | https://github.com/dotnet/runtime |
 | System.Management | WMI queries for hardware and system information | MIT | https://github.com/dotnet/runtime |
+| ManagedEsent (Microsoft.Database.ManagedEsent) | Reading Windows' app usage records (an ESE database) for App history | MIT | https://github.com/microsoft/ManagedEsent |
 | System.Security.Cryptography.ProtectedData | Protecting the saved API key with DPAPI | MIT | https://github.com/dotnet/runtime |
 | Microsoft.Extensions.* (DependencyInjection, Hosting, Logging) | Service container and logging abstractions | MIT | https://github.com/dotnet/runtime |
 | xunit, xunit.runner.visualstudio, Microsoft.NET.Test.Sdk | Unit tests (not shipped) | Apache-2.0 / MIT | https://xunit.net |

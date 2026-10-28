@@ -22,6 +22,8 @@
     <PackageReference Include="NAudio.Wasapi" />
     <PackageReference Include="System.Diagnostics.PerformanceCounter" />
     <PackageReference Include="Microsoft.Diagnostics.Tracing.TraceEvent" />
+    <!-- App history: reads Windows' System Resource Usage Monitor database (an ESE file) through esent.dll. -->
+    <PackageReference Include="Microsoft.Database.ManagedEsent" />
     <PackageReference Include="Vortice.Direct3D11" />
     <PackageReference Include="Vortice.D3DCompiler" />
   </ItemGroup>

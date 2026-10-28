@@ -49,6 +49,10 @@ public static class KeyboardShortcutCatalog
         [
             new("Ctrl+C", T("Copy the details of the selected crash")),
         ],
+        ["app-history"] =
+        [
+            new("Enter", T("Open the selected app's file location")),
+        ],
         ["overlay-settings"] =
         [
             new("Ctrl+Shift+O", T("Show or hide the in-game overlay (the default key; you can change it here)")),

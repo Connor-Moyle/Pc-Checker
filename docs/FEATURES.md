@@ -11,7 +11,7 @@ them as tabs above the content:
 ```
 Home            Dashboard · Check-up
 Monitor         Temperatures · Power · History
-Task manager    Processes · Live usage · Services · Users
+Task manager    Processes · Live usage · App history · Services · Users
 Hardware        Overview · Health · Storage · Memory · Battery
 Devices         Displays · Audio · Keyboard & Mouse
 Cooling & RGB   Fans · Lighting
@@ -422,6 +422,74 @@ graphs need a WDDM 2 driver with GPU Engine counters. The compressed amount
 needs the Memory Compression process to be readable and shows nothing
 otherwise. On a PC with more than 64 logical processors, the core count and
 cache sizes cover only the first processor group.
+
+### App history
+
+Task manager → App history is the equivalent of Task Manager's App history
+tab: how much each app used the processor, the network and the disk over a
+date range (**Today**, **Last 7 days**, **Last 30 days** or **Since a date**).
+
+- **Tiles**: the app with the most processor time, the app with the most
+  network data, the total data used by every app (with the metered part) and
+  how many apps were used.
+- **List**: name with icon and publisher, CPU time, network (sent and
+  received), metered network, disk read, disk written, first and last seen.
+  Click a column to sort; search by name or path. Right-click (or the buttons
+  below the list) for **Open file location** (Enter) and **Go to Processes**,
+  which looks the app up among the running programs.
+- **Source**: *Best available* (the default) shows Windows' own records when
+  PC Checker can read them and PC Checker's own recording otherwise; you can
+  pick either one. The page always says which one is shown and, when Windows'
+  records could not be read, why.
+- **Delete usage history** (*More*, confirmed, recorded in the Action
+  Journal) deletes PC Checker's own recording. Windows' records can only be
+  cleared by Windows; *More* → *Windows activity settings* opens Settings →
+  Privacy & security → Activity history.
+
+**Windows' records** come from the System Resource Usage Monitor (SRUM), the
+same data Task Manager uses. Windows keeps them in
+`C:\Windows\System32\sru\SRUDB.dat`, an ESE database the Diagnostic Policy
+Service holds open, so PC Checker never reads it in place: the built-in
+`esentutl /y … /vssrec` copies it from a Volume Shadow Copy snapshot and
+replays its logs so the copy is clean (if that fails, a plain `/vss` copy is
+made and `esentutl /p` repairs the copy), into a new folder under ProgramData
+that only Administrators and SYSTEM can open. The copy is
+opened read-only with recovery off through esent.dll (ManagedEsent), the
+application resource usage table, the network data usage table and the id map
+(`SruDbIdMapTable`: programs as UTF-16 paths, Store apps and services as
+names, accounts as binary SIDs) are read, and the folder is deleted straight
+away. The result is kept for ten minutes, so changing the range does not copy
+again; **Refresh** (F5) copies afresh. Reading needs administrator rights and
+takes a few seconds, with progress and Cancel.
+
+How the figures are worked out: SRUM counts processor *cycles* on all cores
+together; PC Checker divides them by the processor's base speed (the
+registry's `~MHz` value, 3 GHz when it is missing), as Task Manager does. Turbo,
+power saving and cores of different speeds make real clocks differ from the
+base speed, so CPU time is a close estimate rather than an exact count.
+Timestamps are OLE Automation dates in UTC. Foreground and background use are
+added together. *Metered* counts data over mobile broadband adapters (the
+interface type inside the adapter's LUID); Wi-Fi and Ethernet networks you
+set as metered are not told apart, because SRUM does not record that per row.
+
+**PC Checker's own recording** is the fallback for PCs where Windows' records
+are missing (the Diagnostic Policy Service is off or a policy turns SRUM off),
+locked, damaged or unreadable. While PC Checker runs (also from the tray) and
+*History recording* is on (Settings → History), it reads every process's
+processor time and disk bytes once a minute and adds up the difference per
+program; every ten minutes the totals go to
+`%LOCALAPPDATA%\PcChecker\history\apps`, one file per day. Days before today
+are rolled up to one line per app per hour, and the History retention setting
+deletes older days. A program that was already running when recording
+started only counts from then on, and one that ends between two readings loses
+its last minute at most. It cannot see network use per app, so those columns
+show a dash.
+
+Limitations: Windows writes SRUM about once an hour, so the last hour may be
+missing from Windows' records. SRUM keeps about 30 to 60 days. Reading it
+needs administrator rights and the Volume Shadow Copy service; without them
+the page shows PC Checker's own recording and says why. Apps are added up
+over every account on the PC.
 
 ### Services
 
