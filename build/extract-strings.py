@@ -8,7 +8,7 @@ screen-reader names and help text (AutomationProperties.Name and HelpText), sect
 NavigationCatalog.cs, C# string literals passed to Loc.T(...) or Loc.F(...), plain string literal arguments of the
 dialog and notification calls that translate at run time (IDialogService.ConfirmAsync/ShowMessageAsync/ChooseAsync,
 INotificationService.Show/Info/Success/Warning/Error, TrayIconService.Notify), and the quick search catalogs in
-src/PcChecker.Core/Shell, where interface text is marked with T("...").
+src/PcChecker.Core/Shell and src/PcChecker.Core/AppHistory, where interface text is marked with T("...").
 
 Usage: python3 build/extract-strings.py [--check]   (--check fails when strings.txt is out of date)
 """
@@ -18,6 +18,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 APP = ROOT / "src" / "PcChecker.App"
 OUT = APP / "Localization" / "strings.txt"
 CORE_SHELL = ROOT / "src" / "PcChecker.Core" / "Shell"
+CORE_MARKED = (CORE_SHELL, ROOT / "src" / "PcChecker.Core" / "AppHistory")
 TEXT_ATTRS = ("Text", "ToolTip", "Content", "Title", "Header", "Message", "Subtitle", "PlaceholderText",
               "Description", "Label", "Unit", "Caption", "Reason", "ActionText")
 ATTR = re.compile(r'\b(?:[a-zA-Z]+:)?(?:[A-Z][A-Za-z]*\.)?(' + "|".join(TEXT_ATTRS) + r')="([^"]*)"')
@@ -183,7 +184,7 @@ def collect():
             continue
         for match in DESCRIPTION.finditer(path.read_text(encoding="utf-8")):
             found.add(unescape_csharp(match.group(1)))
-    for path in CORE_SHELL.glob("*.cs"):
+    for path in (p for folder in CORE_MARKED for p in folder.glob("*.cs")):
         for match in MARKED.finditer(path.read_text(encoding="utf-8")):
             found.add(unescape_csharp(match.group(1)))
     for extra in ("Cancel", "OK", "Continue"):

@@ -148,6 +148,20 @@ public class AppHistoryTests
         Assert.Equal("Chrome", AppNames.Describe(new SrumIdEntry(3, SrumIdKind.Unknown, "!!chrome.exe!2026/01/01:10:00:00!0!"), Devices).Name);
     }
 
+    [Fact]
+    public void ProcessSearchTerm_FindsProgramsAndPackages_ButNotHostedServices()
+    {
+        Assert.Equal("steam", AppNames.ProcessSearchTerm(@"c:\program files\steam\steam.exe", @"C:\Program Files\Steam\steam.exe"));
+        Assert.Equal("discord", AppNames.ProcessSearchTerm("discord.exe", null));
+        Assert.Equal("spotifyab.spotifymusic", AppNames.ProcessSearchTerm("spotifyab.spotifymusic_zpdnekdrzrea0", null));
+        Assert.Equal("System", AppNames.ProcessSearchTerm("System", null));
+
+        // Services run inside a shared svchost.exe: searching their name or friendly name finds nothing.
+        Assert.Null(AppNames.ProcessSearchTerm("wuauserv", null));
+        Assert.Null(AppNames.ProcessSearchTerm("dosvc", null));
+        Assert.Null(AppNames.ProcessSearchTerm("  ", null));
+    }
+
     // ---- Turning SRUM rows into records ----
 
     [Fact]

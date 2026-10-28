@@ -1,4 +1,5 @@
 using PcChecker.Core.Common;
+using static PcChecker.Core.AppHistory.AppHistoryText;
 
 namespace PcChecker.Core.AppHistory;
 
@@ -21,7 +22,7 @@ public sealed class DemoAppHistoryService : IAppHistoryService
 
     public async Task<AppHistoryResult> LoadAsync(AppUsageSourceChoice choice, bool forceReload, IProgress<ProgressUpdate>? progress, CancellationToken cancellationToken)
     {
-        progress?.Report(new ProgressUpdate("Copying Windows' app usage records…", 20));
+        progress?.Report(new ProgressUpdate(T("Copying Windows' app usage records…"), 20));
         await DemoData.DelayAsync(cancellationToken, 300, 700).ConfigureAwait(false);
         var now = DateTimeOffset.Now;
         if (choice == AppUsageSourceChoice.OwnRecording)
@@ -34,7 +35,7 @@ public sealed class DemoAppHistoryService : IAppHistoryService
             };
         }
 
-        progress?.Report(new ProgressUpdate("Reading Windows' app usage records…", 60));
+        progress?.Report(new ProgressUpdate(T("Reading Windows' app usage records…"), 60));
         var records = DemoAppHistoryData.Generate(now, 30, withNetwork: true);
         return new AppHistoryResult(AppUsageSource.WindowsRecords, records, DemoAppHistoryData.Identities, now)
         {

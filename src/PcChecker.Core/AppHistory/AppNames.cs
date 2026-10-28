@@ -156,6 +156,43 @@ public static partial class AppNames
         return text.ToString();
     }
 
+    /// <summary>
+    /// What to search for on the Processes page to find an app's running copies, or null when a search cannot find it:
+    /// a program's file name without ".exe"; a Store package's name before the publisher id (its running program's
+    /// path contains it); null for a service such as wuauserv, which runs inside a shared svchost.exe and has no
+    /// process of its own.
+    /// </summary>
+    public static string? ProcessSearchTerm(string appKey, string? path)
+    {
+        var value = string.IsNullOrWhiteSpace(path) ? appKey?.Trim() : path.Trim();
+        if (string.IsNullOrEmpty(value))
+        {
+            return null;
+        }
+
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            if (KnownServices.ContainsKey(value) && !value.Equals("system", StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
+
+            if (PackageName().IsMatch(value))
+            {
+                return value[..value.IndexOf('_', StringComparison.Ordinal)];
+            }
+        }
+
+        int slash = value.LastIndexOfAny(['\\', '/']);
+        var file = slash >= 0 ? value[(slash + 1)..] : value;
+        if (file.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+        {
+            file = file[..^4];
+        }
+
+        return file.Length == 0 ? null : file;
+    }
+
     /// <summary>A package family or full name: "Name.Part_publisherid" or "Name_1.2.3.4_x64__publisherid".</summary>
     [GeneratedRegex(@"^[A-Za-z0-9][A-Za-z0-9.\-]*_[A-Za-z0-9._\-]*[a-z0-9]{13}$")]
     private static partial Regex PackageName();

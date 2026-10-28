@@ -62,13 +62,8 @@ public sealed partial class AppHistoryRow : ObservableObject
 
     public string LastSeenText => Summary.LastSeen.ToLocalTime().ToString("g", CultureInfo.CurrentCulture);
 
-    /// <summary>The name to search for on the Processes page: the program file's name without ".exe".</summary>
-    public string ProcessSearchText
-    {
-        get
-        {
-            var file = System.IO.Path.GetFileNameWithoutExtension(Summary.Path ?? string.Empty);
-            return string.IsNullOrWhiteSpace(file) ? Summary.Name : file;
-        }
-    }
+    /// <summary>What to search for on the Processes page, or null for a service that has no process of its own.</summary>
+    public string? ProcessSearchText => AppNames.ProcessSearchTerm(Summary.AppKey, Summary.Path);
+
+    public bool CanGoToProcesses => ProcessSearchText is not null;
 }

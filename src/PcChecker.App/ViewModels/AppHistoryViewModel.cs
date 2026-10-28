@@ -33,6 +33,10 @@ public sealed partial class AppHistoryViewModel : ViewModelBase
     private readonly ProcessIconCache _icons = new();
     private AppHistoryResult? _result;
 
+    // The summaries for the current range, so typing in the search box only filters them instead of adding up every
+    // loaded record again (Windows' records can be hundreds of thousands of hourly rows).
+    private (AppHistoryResult Result, AppHistoryRangeKind Kind, DateOnly? Since, DateTime Day, IReadOnlyList<AppUsageSummary> Summaries)? _summaryCache;
+
     [ObservableProperty]
     private string _subtitle = Loc.T("How much each app used the processor, the network and the disk.");
 
@@ -93,6 +97,9 @@ public sealed partial class AppHistoryViewModel : ViewModelBase
     private string? _fallbackMessage;
 
     [ObservableProperty]
+    private string? _noteMessage;
+
+    [ObservableProperty]
     private string _emptyTitle = Loc.T("No app use in this range yet");
 
     [ObservableProperty]
@@ -131,6 +138,8 @@ public sealed partial class AppHistoryViewModel : ViewModelBase
 
     public bool HasFallbackMessage => !string.IsNullOrWhiteSpace(FallbackMessage);
 
+    public bool HasNoteMessage => !string.IsNullOrWhiteSpace(NoteMessage);
+
     public bool ShowList => HasLoaded && RangeAppCount > 0;
 
     public bool ShowEmptyRange => HasLoaded && RangeAppCount == 0;
@@ -151,6 +160,8 @@ public sealed partial class AppHistoryViewModel : ViewModelBase
     partial void OnSinceDateChanged(DateTime? value) => ApplyRange();
 
     partial void OnSearchTextChanged(string? value) => ApplyRange();
+
+    partial void OnNoteMessageChanged(string? value) => OnPropertyChanged(nameof(HasNoteMessage));
 
     partial void OnSelectedSourceIndexChanged(int value)
     {
@@ -176,6 +187,7 @@ public sealed partial class AppHistoryViewModel : ViewModelBase
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(busyToken, outer);
         var progress = new Progress<ProgressUpdate>(p => BusyText = Loc.T(p.Stage) + (p.Detail is null ? string.Empty : "\n" + Loc.T(p.Detail)));
         _result = await _appHistory.LoadAsync(SourceChoice, force, progress, linked.Token);
+        _summaryCache = null;
         ShowSource(_result);
         HasLoaded = true;
         ApplyRange();
@@ -191,11 +203,25 @@ public sealed partial class AppHistoryViewModel : ViewModelBase
 
         var kind = (AppHistoryRangeKind)Math.Clamp(SelectedRangeIndex, 0, 3);
         DateOnly? since = SinceDate is { } date ? DateOnly.FromDateTime(date) : null;
-        var range = AppUsageAggregator.Resolve(kind, since, DateTimeOffset.Now, TimeZoneInfo.Local);
-        var summaries = AppUsageAggregator.Summarize(result.Records, result.Apps, range);
-        var totals = AppUsageAggregator.Totals(summaries);
-        RangeAppCount = summaries.Count;
-        FillTiles(totals);
+        if (kind != AppHistoryRangeKind.SinceDate)
+        {
+            since = null;
+        }
+
+        IReadOnlyList<AppUsageSummary> summaries;
+        if (_summaryCache is { } cache && ReferenceEquals(cache.Result, result) && cache.Kind == kind && cache.Since == since
+            && cache.Day == DateTime.Today)
+        {
+            summaries = cache.Summaries;
+        }
+        else
+        {
+            var range = AppUsageAggregator.Resolve(kind, since, DateTimeOffset.Now, TimeZoneInfo.Local);
+            summaries = AppUsageAggregator.Summarize(result.Records, result.Apps, range);
+            _summaryCache = (result, kind, since, DateTime.Today, summaries);
+            RangeAppCount = summaries.Count;
+            FillTiles(AppUsageAggregator.Totals(summaries));
+        }
 
         var selectedKey = SelectedRow?.Summary.AppKey;
         Rows.Clear();
@@ -210,9 +236,18 @@ public sealed partial class AppHistoryViewModel : ViewModelBase
         SelectedRow = Rows.FirstOrDefault(r => string.Equals(r.Summary.AppKey, selectedKey, StringComparison.OrdinalIgnoreCase));
         OnPropertyChanged(nameof(HasNoMatches));
         MatchText = string.IsNullOrWhiteSpace(SearchText) ? string.Empty : Loc.F("{0} of {1} apps", Rows.Count, summaries.Count);
-        Subtitle = AppHistoryText.RangeLabel(kind, since) + " · " + SourceName(result.Source);
+        Subtitle = RangeLabel(kind, since) + " · " + SourceName(result.Source);
         UpdateEmptyState(result);
     }
+
+    /// <summary>The page subtitle: what the numbers cover.</summary>
+    private static string RangeLabel(AppHistoryRangeKind kind, DateOnly? since) => kind switch
+    {
+        AppHistoryRangeKind.Today => Loc.T("Today"),
+        AppHistoryRangeKind.Last7Days => Loc.T("The last 7 days"),
+        AppHistoryRangeKind.Last30Days => Loc.T("The last 30 days"),
+        _ => since is { } date ? Loc.F("Since {0}", date.ToString("d", CultureInfo.CurrentCulture)) : Loc.T("Since a date"),
+    };
 
     private void FillTiles(AppUsageTotals totals)
     {
@@ -243,10 +278,10 @@ public sealed partial class AppHistoryViewModel : ViewModelBase
                 ? Loc.T("PC Checker's own recording is shown instead.")
                 : Loc.T("Choose PC Checker's recording to see what PC Checker added up itself."))
             : null;
-        if (result.Warnings.Count > 0)
-        {
-            FallbackMessage = string.Join(" ", new[] { FallbackMessage }.Concat(result.Warnings.Select(Loc.T)).Where(t => !string.IsNullOrWhiteSpace(t)));
-        }
+
+        // Notes about the source that is shown (for example no network records) go in their own informational bar,
+        // so they never sit under the "Windows' records are not shown" title while those records are shown.
+        NoteMessage = result.Warnings.Count > 0 ? string.Join(" ", result.Warnings.Select(Loc.T)) : null;
     }
 
     private void UpdateEmptyState(AppHistoryResult result)
@@ -311,6 +346,7 @@ public sealed partial class AppHistoryViewModel : ViewModelBase
             // Searches for the program on the Processes tab, so its running copies (if any) are listed.
             if (App.Services.GetService(typeof(ProcessesViewModel)) is ProcessesViewModel processes)
             {
+                processes.ShowFlaggedOnly = false;
                 processes.SearchText = row.ProcessSearchText;
             }
 
@@ -322,7 +358,7 @@ public sealed partial class AppHistoryViewModel : ViewModelBase
         }
     }
 
-    private bool CanGoToProcesses() => SelectedRow is not null;
+    private bool CanGoToProcesses() => SelectedRow?.CanGoToProcesses == true;
 
     [RelayCommand]
     private async Task DeleteUsageHistoryAsync()

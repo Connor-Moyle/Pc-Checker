@@ -2,6 +2,7 @@ using System.Runtime.Versioning;
 using Microsoft.Isam.Esent;
 using Microsoft.Isam.Esent.Interop;
 using PcChecker.Core.Common;
+using static PcChecker.Core.AppHistory.AppHistoryText;
 
 namespace PcChecker.Core.AppHistory;
 
@@ -89,7 +90,7 @@ internal static class SrumDatabaseReader
 
             var warnings = new List<string>();
             int skipped = 0;
-            progress?.Report(new ProgressUpdate("Reading the list of apps…", 55));
+            progress?.Report(new ProgressUpdate(T("Reading the list of apps…"), 55));
             var ids = new List<SrumIdEntry>();
             ForEachRow(session, dbid, IdMapTable, ct, row =>
             {
@@ -105,7 +106,7 @@ internal static class SrumDatabaseReader
                 }
             });
 
-            progress?.Report(new ProgressUpdate("Reading processor and disk use…", 65));
+            progress?.Report(new ProgressUpdate(T("Reading processor and disk use…"), 65));
             var resources = new List<SrumResourceRow>();
             ForEachRow(session, dbid, ResourceUsageTable, ct, row =>
             {
@@ -126,7 +127,7 @@ internal static class SrumDatabaseReader
             var network = new List<SrumNetworkRow>();
             if (tables.Contains(NetworkUsageTable))
             {
-                progress?.Report(new ProgressUpdate("Reading network use…", 80));
+                progress?.Report(new ProgressUpdate(T("Reading network use…"), 80));
                 ForEachRow(session, dbid, NetworkUsageTable, ct, row =>
                 {
                     var time = SrumConvert.ReadOleDate(row("TimeStamp"));
@@ -143,7 +144,7 @@ internal static class SrumDatabaseReader
             }
             else
             {
-                warnings.Add("Windows has no network records on this PC.");
+                warnings.Add(T("Windows has no network records on this PC."));
             }
 
             return new SrumRawData(ids, resources, network) { SkippedRows = skipped, Warnings = warnings };

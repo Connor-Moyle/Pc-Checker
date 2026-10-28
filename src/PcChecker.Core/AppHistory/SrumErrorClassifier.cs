@@ -1,3 +1,5 @@
+using static PcChecker.Core.AppHistory.AppHistoryText;
+
 namespace PcChecker.Core.AppHistory;
 
 /// <summary>
@@ -97,17 +99,17 @@ public static class SrumErrorClassifier
     /// <summary>One sentence saying why Windows' records are not shown.</summary>
     public static string Message(SrumFailureKind kind) => kind switch
     {
-        SrumFailureKind.None => "Windows' records were read.",
-        SrumFailureKind.Unsupported => "This version of Windows does not keep app usage records that PC Checker can read.",
-        SrumFailureKind.NotAdministrator => "Reading Windows' app usage records needs administrator rights.",
-        SrumFailureKind.Missing => "Windows is not keeping app usage records on this PC (the Diagnostic Policy Service may be off, or a policy turns them off).",
-        SrumFailureKind.Locked => "Windows' app usage records were in use and could not be copied. Try again in a minute.",
-        SrumFailureKind.AccessDenied => "Windows did not allow PC Checker to read its app usage records.",
-        SrumFailureKind.Corrupt => "The copy of Windows' app usage records was damaged or incomplete.",
-        SrumFailureKind.SnapshotFailed => "Windows could not make the snapshot of drive C: needed to copy its app usage records.",
-        SrumFailureKind.TimedOut => "Reading Windows' app usage records took too long.",
-        SrumFailureKind.Cancelled => "Reading Windows' app usage records was cancelled.",
-        _ => "Windows' app usage records could not be read.",
+        SrumFailureKind.None => T("Windows' records were read."),
+        SrumFailureKind.Unsupported => T("This version of Windows does not keep app usage records that PC Checker can read."),
+        SrumFailureKind.NotAdministrator => T("Reading Windows' app usage records needs administrator rights."),
+        SrumFailureKind.Missing => T("Windows is not keeping app usage records on this PC (the Diagnostic Policy Service may be off, or a policy turns them off)."),
+        SrumFailureKind.Locked => T("Windows' app usage records were in use and could not be copied. Try again in a minute."),
+        SrumFailureKind.AccessDenied => T("Windows did not allow PC Checker to read its app usage records."),
+        SrumFailureKind.Corrupt => T("The copy of Windows' app usage records was damaged or incomplete."),
+        SrumFailureKind.SnapshotFailed => T("Windows could not make the snapshot of drive C: needed to copy its app usage records."),
+        SrumFailureKind.TimedOut => T("Reading Windows' app usage records took too long."),
+        SrumFailureKind.Cancelled => T("Reading Windows' app usage records was cancelled."),
+        _ => T("Windows' app usage records could not be read."),
     };
 
     /// <summary>True when trying again later may work (the file was busy, a snapshot failed or it took too long).</summary>

@@ -10,7 +10,8 @@ namespace PcChecker.Core.AppHistory;
 /// PC Checker's own recording: while PC Checker runs (also from the tray) and History recording is on, a timer reads
 /// every process's processor time and disk bytes once a minute (the same light Win32 calls as the Processes page),
 /// <see cref="AppUsageAccumulator"/> adds up the difference per app, and every ten minutes the totals are appended to
-/// <see cref="AppUsageFileStore"/>. Older days are rolled up and the History retention setting applies. Every failure
+/// <see cref="AppUsageFileStore"/>. Older days are rolled up and the History retention setting applies (checked every
+/// six hours on its own timer, whether or not recording is on). Every failure
 /// is logged and swallowed; recording never disturbs the app.
 /// </summary>
 public sealed partial class WindowsAppHistoryService
@@ -23,11 +24,11 @@ public sealed partial class WindowsAppHistoryService
     private readonly AppUsageAccumulator _accumulator = new();
     private readonly Dictionary<string, string> _pathCache = new(StringComparer.Ordinal);
     private Timer? _timer;
+    private Timer? _maintenanceTimer;
     private bool _wanted;
     private bool _recording;
     private bool _settingsHooked;
     private DateTimeOffset _lastWrite = DateTimeOffset.MinValue;
-    private DateTimeOffset _lastMaintenance = DateTimeOffset.MinValue;
     private int _maintaining;
     private int _ticking;
     private bool _writeFailureLogged;
@@ -46,10 +47,11 @@ public sealed partial class WindowsAppHistoryService
             }
 
             ApplyState();
-        }
 
-        // Retention applies even while recording is off, so old days still disappear on schedule.
-        RunMaintenanceInBackground();
+            // Retention applies even while recording is off (no recorder ticks then), so old days still disappear on
+            // schedule in a session that runs for days: maintenance has its own timer, started now and every 6 hours.
+            _maintenanceTimer ??= new Timer(_ => RunMaintenanceInBackground(), null, TimeSpan.Zero, MaintenanceInterval);
+        }
     }
 
     public void Stop()
@@ -58,6 +60,8 @@ public sealed partial class WindowsAppHistoryService
         {
             _wanted = false;
             ApplyState();
+            _maintenanceTimer?.Dispose();
+            _maintenanceTimer = null;
         }
     }
 
@@ -126,11 +130,6 @@ public sealed partial class WindowsAppHistoryService
                 {
                     WritePending(now);
                 }
-            }
-
-            if (now - _lastMaintenance >= MaintenanceInterval)
-            {
-                RunMaintenanceInBackground();
             }
         }
         catch (Exception ex)
@@ -236,7 +235,6 @@ public sealed partial class WindowsAppHistoryService
             return;
         }
 
-        _lastMaintenance = DateTimeOffset.UtcNow;
         int retention = HistoryOptions.EffectiveRetention(DateTimeOffset.UtcNow);
         _ = Task.Run(() =>
         {

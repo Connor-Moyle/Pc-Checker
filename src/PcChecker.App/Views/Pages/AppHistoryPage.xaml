@@ -118,6 +118,8 @@
                   IsOpen="{Binding HasError, Mode=OneWay}" IsClosable="True" Margin="0,0,0,12" />
       <ui:InfoBar Severity="Warning" Title="Windows' records are not shown" Message="{Binding FallbackMessage}"
                   IsOpen="{Binding HasFallbackMessage, Mode=OneWay}" IsClosable="True" Margin="0,0,0,12" />
+      <ui:InfoBar Severity="Informational" Title="About these figures" Message="{Binding NoteMessage}"
+                  IsOpen="{Binding HasNoteMessage, Mode=OneWay}" IsClosable="True" Margin="0,0,0,12" />
     </StackPanel>
 
     <ScrollViewer Grid.Row="2" Style="{StaticResource PageScroll}">

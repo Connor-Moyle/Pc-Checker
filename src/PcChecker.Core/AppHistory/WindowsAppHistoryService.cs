@@ -5,6 +5,7 @@ using PcChecker.Core.Common;
 using PcChecker.Core.History;
 using PcChecker.Core.Restore;
 using PcChecker.Core.Settings;
+using static PcChecker.Core.AppHistory.AppHistoryText;
 
 namespace PcChecker.Core.AppHistory;
 
@@ -58,7 +59,7 @@ public sealed partial class WindowsAppHistoryService : IAppHistoryService, IDisp
             }
         }
 
-        progress?.Report(new ProgressUpdate("Reading PC Checker's own recording…"));
+        progress?.Report(new ProgressUpdate(T("Reading PC Checker's own recording…")));
         return await Task.Run(() =>
         {
             FlushRecorder();

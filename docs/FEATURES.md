@@ -393,9 +393,10 @@ date range (**Today**, **Last 7 days**, **Last 30 days** or **Since a date**).
 same data Task Manager uses. Windows keeps them in
 `C:\Windows\System32\sru\SRUDB.dat`, an ESE database the Diagnostic Policy
 Service holds open, so PC Checker never reads it in place: the built-in
-`esentutl /y … /vss` copies it from a Volume Shadow Copy snapshot (first with
-`/vssrec`, so the snapshot is brought to a clean state), into a new folder
-under ProgramData that only Administrators and SYSTEM can open. The copy is
+`esentutl /y … /vssrec` copies it from a Volume Shadow Copy snapshot and
+replays its logs so the copy is clean (if that fails, a plain `/vss` copy is
+made and `esentutl /p` repairs the copy), into a new folder under ProgramData
+that only Administrators and SYSTEM can open. The copy is
 opened read-only with recovery off through esent.dll (ManagedEsent), the
 application resource usage table, the network data usage table and the id map
 (`SruDbIdMapTable`: programs as UTF-16 paths, Store apps and services as

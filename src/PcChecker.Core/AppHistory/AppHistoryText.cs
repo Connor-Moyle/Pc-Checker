@@ -6,6 +6,13 @@ namespace PcChecker.Core.AppHistory;
 /// <summary>How App history figures are written on the page. Pure.</summary>
 public static class AppHistoryText
 {
+    /// <summary>
+    /// Marks English interface text in this folder (failure messages, progress stages, notes) so
+    /// <c>build/extract-strings.py</c> adds it to the strings to translate. Returns the text unchanged; the page
+    /// translates it with Loc.T when it shows it.
+    /// </summary>
+    internal static string T(string english) => english;
+
     /// <summary>Processor time the way Task Manager shows it: hours:minutes:seconds, hours counting past 24 ("27:03:10").</summary>
     public static string CpuTime(TimeSpan time)
     {
@@ -27,14 +34,5 @@ public static class AppHistoryText
         null => "—",
         <= 0 => "0 MB",
         _ => ByteSize.Format(bytes.Value),
-    };
-
-    /// <summary>The page subtitle: what the numbers cover.</summary>
-    public static string RangeLabel(AppHistoryRangeKind kind, DateOnly? since) => kind switch
-    {
-        AppHistoryRangeKind.Today => "Today",
-        AppHistoryRangeKind.Last7Days => "The last 7 days",
-        AppHistoryRangeKind.Last30Days => "The last 30 days",
-        _ => since is { } date ? "Since " + date.ToString("d", CultureInfo.CurrentCulture) : "Since a date",
     };
 }
