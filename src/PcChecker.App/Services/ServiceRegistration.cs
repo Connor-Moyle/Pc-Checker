@@ -63,6 +63,7 @@ using PcChecker.Core.Startup;
 using PcChecker.Core.Storage;
 using PcChecker.Core.TaskManager;
 using PcChecker.Core.Updates;
+using PcChecker.Core.Upgrades;
 using PcChecker.Core.Users;
 using PcChecker.Core.WindowsFeatures;
 using PcChecker.Core.WindowsUpdate;
@@ -173,6 +174,8 @@ public static class ServiceRegistration
         Add<ISecurityStatusService, WindowsSecurityStatusService, DemoSecurityStatusService>(services, demo);
         Add<IPrivacyService, WindowsPrivacyService, DemoPrivacyService>(services, demo);
         Add<IBackupsService, WindowsBackupsService, DemoBackupsService>(services, demo);
+        Add<IPcieLinkReader, WindowsPcieLinkReader, DemoPcieLinkReader>(services, demo);
+        services.AddSingleton<IUpgradeAdvisorService, UpgradeAdvisorService>(); // reads the module services above, so it serves both modes
         Add<IForegroundAppTracker, WindowsForegroundAppTracker, DemoForegroundAppTracker>(services, demo);
         Add<IFrameRateMonitor, WindowsFrameRateMonitor, DemoFrameRateMonitor>(services, demo);
         Add<IGameProfileService, WindowsGameProfileService, DemoGameProfileService>(services, demo);
@@ -242,6 +245,7 @@ public static class ServiceRegistration
         services.AddSingleton<StorageViewModel>().AddSingleton<StoragePage>();
         services.AddSingleton<MemoryViewModel>().AddSingleton<MemoryPage>();
         services.AddSingleton<BatteryViewModel>().AddSingleton<BatteryPage>();
+        services.AddSingleton<UpgradeAdviceViewModel>().AddSingleton<UpgradeAdvicePage>();
         services.AddSingleton<DisplaysViewModel>().AddSingleton<DisplaysPage>();
         services.AddSingleton<AudioViewModel>().AddSingleton<AudioPage>();
         services.AddSingleton<InputViewModel>().AddSingleton<InputPage>();

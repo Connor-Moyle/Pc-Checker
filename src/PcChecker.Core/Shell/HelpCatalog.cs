@@ -99,6 +99,10 @@ public static class HelpCatalog
             T("Battery shows how worn the battery is, how long it lasts and how it was used, from Windows' battery report."),
             T("Read the health tile first. Save the full report if a shop or the maker asks for it."),
             Features, "Battery"),
+        new("upgrade-advice",
+            T("Upgrade advice says what to upgrade next and what in your current setup costs performance, from your hardware, drives, games and History."),
+            T("Do the free fixes first. Then read the top upgrade and why it is there; no prices, so compare them when you buy."),
+            Features, "Upgrade advice"),
 
         // Devices
         new("displays",

@@ -20,6 +20,7 @@ APP = ROOT / "src" / "PcChecker.App"
 OUT = APP / "Localization" / "strings.txt"
 CORE_SHELL = ROOT / "src" / "PcChecker.Core" / "Shell"
 CORE_MARKED = (CORE_SHELL, ROOT / "src" / "PcChecker.Core" / "Crashes", ROOT / "src" / "PcChecker.Core" / "AppHistory")
+CORE_MARKED += (ROOT / "src" / "PcChecker.Core" / "Upgrades",)  # the Upgrade advice rules (tr.T / tr.F and T marks)
 TEXT_ATTRS = ("Text", "ToolTip", "Content", "Title", "Header", "Message", "Subtitle", "PlaceholderText",
               "Description", "Label", "Unit", "Caption", "Reason", "ActionText")
 ATTR = re.compile(r'\b(?:[a-zA-Z]+:)?(?:[A-Z][A-Za-z]*\.)?(' + "|".join(TEXT_ATTRS) + r')="([^"]*)"')
