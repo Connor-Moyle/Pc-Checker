@@ -186,6 +186,18 @@ public class SecurityTests
     }
 
     [Fact]
+    public void Builder_falls_back_to_security_center_when_defender_cannot_be_read()
+    {
+        var on = SecurityCheckBuilder.Antivirus(new SecurityFacts { Antivirus = [new SecurityProduct("Windows Defender", 0x061100, true)] }, Now);
+        Assert.Equal(HealthStatus.Good, on.Status);
+
+        var none = SecurityCheckBuilder.Antivirus(new SecurityFacts { Antivirus = [new SecurityProduct("Windows Defender", 0x060100, true)] }, Now);
+        Assert.Equal(HealthStatus.Critical, none.Status);
+
+        Assert.Equal(HealthStatus.Unknown, SecurityCheckBuilder.Antivirus(new SecurityFacts(), Now).Status);
+    }
+
+    [Fact]
     public void Builder_flags_old_definitions_and_offers_the_update()
     {
         var facts = new SecurityFacts

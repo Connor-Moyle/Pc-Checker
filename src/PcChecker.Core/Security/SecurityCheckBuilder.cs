@@ -53,6 +53,15 @@ public static partial class SecurityCheckBuilder
         }
 
         var defender = facts.Defender;
+        if (defender is null && facts.Antivirus.FirstOrDefault(p => p.IsMicrosoft && p.State.Enabled) is { } microsoft)
+        {
+            // Defender's own status class could not be read, but Security Center says it is on.
+            return new SecurityCheck(SecurityCheckIds.Antivirus, title,
+                microsoft.State.UpToDate ? HealthStatus.Good : HealthStatus.Warning,
+                microsoft.State.UpToDate ? "Microsoft Defender is on and up to date" : "Microsoft Defender is on, but its definitions are out of date",
+                meaning, SecurityLinks.VirusProtection, microsoft.State.UpToDate ? SecurityFix.None : SecurityFix.UpdateDefinitions);
+        }
+
         if (defender is null)
         {
             bool noneRegistered = facts.Antivirus.Count > 0 && facts.Antivirus.All(p => !p.State.Enabled);
