@@ -321,10 +321,10 @@ public static class CrashPatternRules
         var hot = serious.Where(c => input.Contexts.TryGetValue(c.Id, out var ctx) && ctx.Overheating).ToList();
         if (hot.Count > 0)
         {
-            var part = input.Contexts[hot[0].Id].HotPart ?? "CPU";
+            var part = input.Contexts[hot[0].Id].HotPart ?? T("CPU");
             patterns.Add(new CrashPattern(CrashPatternKind.Overheating,
                 new CrashLine(hot.Count == 1 ? T("The {0} was overheating just before this crash.") : T("The {0} was overheating before {1} crashes."),
-                    part, hot.Count.ToString(CultureInfo.InvariantCulture)),
+                    new LocalizedText(part), hot.Count.ToString(CultureInfo.InvariantCulture)),
                 hot.Count >= 2 ? 3 : 2, hot.Select(c => c.Id).ToList())
             { Subject = part });
         }

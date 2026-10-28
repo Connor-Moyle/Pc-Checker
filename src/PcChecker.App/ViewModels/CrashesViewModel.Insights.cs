@@ -97,6 +97,15 @@ public sealed partial class CrashesViewModel
                 row.Insight = insight;
             }
 
+            // A driver looked up while this ran (InspectDriverAsync) is not in the snapshot: rebuild those rows with it.
+            foreach (var row in _allRows)
+            {
+                if (DriverModule(row.Crash) is { } key && _driverDetails.TryGetValue(key, out var now) && !ReferenceEquals(now, drivers.GetValueOrDefault(key)))
+                {
+                    Rebuild(row);
+                }
+            }
+
             UpdateSummaryCard();
             RefreshDetails();
         }
@@ -147,7 +156,7 @@ public sealed partial class CrashesViewModel
     {
         var key = DriverModule(crash);
         var driver = key is not null && drivers.TryGetValue(key, out var d) ? WithOffer(d) : null;
-        return CrashInsightBuilder.Build(crash, report.OverclockApplied, contexts.GetValueOrDefault(crash.Id), patterns, driver, game is not null, report.Events);
+        return CrashInsightBuilder.Build(crash, report.OverclockApplied, contexts.GetValueOrDefault(crash.Id), patterns, driver, game is not null, report.Events, Loc.Current);
     }
 
     /// <summary>The driver file a crash points at (blamed third-party driver or the reset graphics driver), or null.</summary>
@@ -261,7 +270,8 @@ public sealed partial class CrashesViewModel
         SummaryHeadline = card.Headline.Text(Loc.Current);
         SummaryDetail = card.Detail.Text(Loc.Current);
         _summaryCrashId = card.CrashId;
-        var row = _allRows.FirstOrDefault(r => r.Crash.Id == card.CrashId);
+        var fixCrashId = card.FixCrashId ?? card.CrashId;
+        var row = _allRows.FirstOrDefault(r => r.Crash.Id == fixCrashId);
         SummaryFix = card.TopFix is { } fix && row is not null ? new CrashFixRow(fix, row, 1) : null;
     }
 

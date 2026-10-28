@@ -97,7 +97,8 @@ public class CrashInsightTests
         Assert.Contains(CrashCause.GraphicsCard, StopCodeCatalog.Find(0x116)!.Causes);
         Assert.Equal(StopCodeCatalog.GeneralCauses, StopCodeCatalog.CausesOf(0x1E0));
         Assert.Same(StopCodeCatalog.Find(0x116)!.Steps, StopCodeCatalog.Find(0x116)!.FirstSteps);
-        Assert.Equal(StopCodeCatalog.ReferenceIndexUrl, StopCodeCatalog.Find(0x141)!.DocsUrl);
+        Assert.Equal(StopCodeCatalog.ReferenceIndexUrl, StopCodeCatalog.DocsUrlFor(0x1E0));
+        Assert.EndsWith("bug-check-0x141---video-engine-timeout-detected", StopCodeCatalog.Find(0x141)!.DocsUrl);
     }
 
     // ------------------------------------------------------------------ parameter decoding
@@ -116,6 +117,7 @@ public class CrashInsightTests
         Assert.Contains("write to", write);
         Assert.DoesNotContain("null", write);
         Assert.Contains("run code at", Text(BugCheckDecoder.Decode(0xD1, [0x10000000, 2, 8, 0], [])));
+        Assert.Contains("run code at", Text(BugCheckDecoder.Decode(0xD1, [0x10000000, 2, 2, 0], [])));
     }
 
     [Fact]
@@ -175,7 +177,7 @@ public class CrashInsightTests
 
         var withRecord = Text(BugCheckDecoder.Decode(0x124, [0, 0, 0, 0],
             whea: new WheaErrorInfo { Source = WheaErrorSource.MachineCheck, Fatal = true, Components = ["Processor"], ApicId = 6 }));
-        Assert.Contains("APIC ID 6 (core 3", withRecord);
+        Assert.Contains("APIC ID 6 (one logical processor)", withRecord);
         Assert.DoesNotContain("WHEA-Logger event", withRecord);
     }
 
@@ -215,6 +217,10 @@ public class CrashInsightTests
         Assert.Contains("single driver routine ran too long (501 of the 500", Text(BugCheckDecoder.Decode(0x133, [0, 501, 500, 0])));
         Assert.Contains("in total", Text(BugCheckDecoder.Decode(0x133, [1, 0x1E00, 0, 0])));
         Assert.Contains("nvlddmkm.sys", Text(BugCheckDecoder.Decode(0x116, [0, 0xFFFFF8061C9D3A40, 0xFFFFFFFFC000009A, 4], Modules)));
+        Assert.Contains("Last error", Text(BugCheckDecoder.Decode(0x116, [0, 0xFFFFF8061C9D3A40, 0xFFFFFFFFC000009A, 4], Modules)));
+        Assert.Contains("The drive answered", Text(BugCheckDecoder.Decode(0x7A, [1, 0xFFFFFFFFC000009C, 0, 0])));
+        Assert.Equal(0xC000009Au, BugCheckDecoder.Status32(0xFFFFFFFFC000009A));
+        Assert.Null(BugCheckDecoder.Status32(0xFFFFF8061C9D3A40));
         Assert.Contains("nvlddmkm.sys", Text(BugCheckDecoder.Decode(0x119, [2, 0, 0, 0], Modules)) + "nvlddmkm.sys");
         Assert.Contains("failed to submit work", Text(BugCheckDecoder.Decode(0x119, [2, 0, 0, 0])));
         var service = Text(BugCheckDecoder.Decode(0x3B, [0xC0000005, 0xFFFFF8061C200500, 0, 0], Modules));
@@ -241,7 +247,8 @@ public class CrashInsightTests
         BinaryPrimitives.WriteUInt32LittleEndian(data.AsSpan(6), 0xFFFFFFFF);
         BinaryPrimitives.WriteUInt16LittleEndian(data.AsSpan(10), 1);
         BinaryPrimitives.WriteUInt32LittleEndian(data.AsSpan(12), 1); // fatal
-        new Guid("E8F56FFE-919C-4CC5-BA88-65ABE14913BB").TryWriteBytes(data.AsSpan(96));
+        new Guid("E8F56FFE-919C-4CC5-BA88-65ABE14913BB").TryWriteBytes(data.AsSpan(80)); // NotificationType
+        BinaryPrimitives.WriteUInt64LittleEndian(data.AsSpan(96), 0x1234); // RecordID, must not be read as the type
         var descriptor = data.AsSpan(128);
         BinaryPrimitives.WriteUInt32LittleEndian(descriptor, 200);
         BinaryPrimitives.WriteUInt32LittleEndian(descriptor[4..], 192);
@@ -261,6 +268,13 @@ public class CrashInsightTests
         Assert.Equal("Bus error", info.ProcessorErrorType);
 
         Assert.Null(WheaRecord.ParseCper("NOPE"u8));
+
+        // A section length past the end of the data (or an offset that would wrap) is skipped, not thrown.
+        BinaryPrimitives.WriteUInt32LittleEndian(descriptor[4..], 4000);
+        Assert.Null(WheaRecord.ParseCper(data)!.ApicId);
+        BinaryPrimitives.WriteUInt32LittleEndian(descriptor, 0xFFFFFF00);
+        BinaryPrimitives.WriteUInt32LittleEndian(descriptor[4..], 0x200);
+        Assert.Null(WheaRecord.ParseCper(data)!.ApicId);
         Assert.Null(WheaRecord.FromHex("xyz"));
         Assert.Equal([0x43, 0x50], WheaRecord.FromHex("0x4350"));
     }
@@ -309,6 +323,8 @@ public class CrashInsightTests
         Assert.Null(CrashEventMapper.MapSystemEvent(Parse(Event(CrashEventMapper.ServiceControlManagerProvider, 7045, "2026-10-20T09:14:00.000Z",
             """<Data Name="ServiceName">Updater</Data><Data Name="ImagePath">"C:\Program Files\Tool\updater.exe" /service</Data>"""))));
         Assert.Contains("EventID=7045", CrashEventMapper.ContextQuery(90));
+        Assert.DoesNotContain("EventID=19", CrashEventMapper.ContextQuery(90));
+        Assert.Contains("EventID=19", CrashEventMapper.CorrectedWheaQuery(90));
     }
 
     [Fact]
@@ -737,10 +753,10 @@ public class CrashInsightTests
         Assert.True(tdr.Context!.HeavyLoad);
         Assert.Contains(tdr.Fixes.Take(2), f => f.Kind is CrashFixKind.UpdateDriver or CrashFixKind.RollBackDriver);
 
-        // 0x124: machine check on core 3, an overclock 20 minutes before, the CPU at 96 °C.
+        // 0x124: machine check on APIC ID 6, an overclock 20 minutes before, the CPU at 96 °C.
         var whea = Insight(report.Events.Single(e => e.BugCheckCode == 0x124));
         Assert.NotNull(whea.Crash.Whea);
-        Assert.Contains("core 3", Text(whea.Details));
+        Assert.Contains("APIC ID 6", Text(whea.Details));
         Assert.True(whea.Context!.Overheating);
         Assert.Equal(96, whea.Context.HotTemperature);
         Assert.Equal(3, whea.Context.WheaCorrectedHourBefore);
@@ -762,9 +778,12 @@ public class CrashInsightTests
         var dotnet = Insight(report.Events.Single(e => e.ExceptionCode == 0xE0434352));
         Assert.Equal(CrashFixKind.RepairDotNet, dotnet.Fixes[0].Kind);
 
-        var card = CrashSummaryRules.Build(report.Events.Select(e => Insight(e)).ToList(), Now);
+        var all = report.Events.Select(e => Insight(e)).ToList();
+        var card = CrashSummaryRules.Build(all, Now);
         Assert.NotNull(card);
         Assert.NotNull(card!.TopFix);
+        // The top fix belongs to the crash it was ranked for (its driver or module), which need not be the newest one.
+        Assert.Same(card.TopFix, all.Single(i => i.Crash.Id == card.FixCrashId).Fixes.First(f => f.Kind == card.TopFix!.Kind));
         Assert.Contains("Most likely cause across", card.Headline.Text());
     }
 

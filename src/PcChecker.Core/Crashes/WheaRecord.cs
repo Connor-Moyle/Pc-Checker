@@ -32,7 +32,7 @@ public sealed record WheaErrorInfo
     /// <summary>The parts named by the record's sections ("Processor", "Memory", "PCI Express"…), English keys.</summary>
     public IReadOnlyList<string> Components { get; init; } = [];
 
-    /// <summary>The processor's APIC id from the event or the processor section; core number ≈ APIC id ÷ 2 with SMT.</summary>
+    /// <summary>The processor's APIC id from the event or the processor section (a logical processor, not always the core number).</summary>
     public int? ApicId { get; init; }
 
     /// <summary>The machine-check bank that reported it.</summary>
@@ -161,7 +161,8 @@ public static class WheaRecord
 
         ushort sections = BinaryPrimitives.ReadUInt16LittleEndian(data[10..]);
         uint severity = BinaryPrimitives.ReadUInt32LittleEndian(data[12..]);
-        var notify = new Guid(data.Slice(96, 16));
+        // NotificationType sits at offset 80 of the 128-byte record header (after Creator ID; Record ID follows at 96).
+        var notify = new Guid(data.Slice(80, 16));
         var source = NotifyTypes.TryGetValue(notify, out var s) ? s : WheaErrorSource.Unknown;
         var components = new List<string>();
         int? apic = null;
@@ -183,7 +184,7 @@ public static class WheaRecord
                 components.Add(component);
             }
 
-            if (type == ProcessorGenericSection && offset + Math.Min(length, 160u) <= data.Length && length >= 160)
+            if (type == ProcessorGenericSection && length >= 160 && (ulong)offset + length <= (ulong)data.Length)
             {
                 var section = data.Slice((int)offset, (int)length);
                 ulong valid = BinaryPrimitives.ReadUInt64LittleEndian(section);
@@ -313,8 +314,8 @@ public static class WheaRecord
 
         if (info.ApicId is { } apic)
         {
-            lines.Add(new CrashLine(T("Processor APIC ID {0} (core {1} when SMT/Hyper-Threading is on). The same core every time points at that core's Curve Optimizer or undervolt setting."),
-                apic.ToString(CultureInfo.InvariantCulture), (apic / 2).ToString(CultureInfo.InvariantCulture)));
+            lines.Add(new CrashLine(T("Processor APIC ID {0} (one logical processor). The same ID every time points at one core, and on a tuned CPU at that core's Curve Optimizer or undervolt setting. The ID is not always the core number: with SMT/Hyper-Threading it is about twice the core number, and Intel hybrid CPUs number their E-cores differently."),
+                apic.ToString(CultureInfo.InvariantCulture)));
         }
 
         if (info.ProcessorErrorType is { } type)

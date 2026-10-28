@@ -1,4 +1,5 @@
 using System.Globalization;
+using PcChecker.Core.Localization;
 using static PcChecker.Core.Crashes.CrashText;
 
 namespace PcChecker.Core.Crashes;
@@ -65,7 +66,7 @@ public static class CrashInsightBuilder
     };
 
     public static CrashInsight Build(CrashEvent crash, bool overclockApplied, CrashContext? context = null, IReadOnlyList<CrashPattern>? allPatterns = null,
-        CrashDriverDetails? driver = null, bool isGame = false, IReadOnlyList<CrashEvent>? allEvents = null)
+        CrashDriverDetails? driver = null, bool isGame = false, IReadOnlyList<CrashEvent>? allEvents = null, Translator? tr = null)
     {
         ArgumentNullException.ThrowIfNull(crash);
         var patterns = allPatterns is null ? [] : CrashPatternRules.For(crash.Id, allPatterns);
@@ -82,7 +83,7 @@ public static class CrashInsightBuilder
         return new CrashInsight
         {
             Crash = crash,
-            Advice = CrashAdvice.For(crash, overclockApplied),
+            Advice = CrashAdvice.For(crash, overclockApplied, tr),
             Details = Details(crash, module),
             Causes = Causes(crash, context, patterns, driver, module, overclockApplied),
             Patterns = patterns,
@@ -180,7 +181,7 @@ public static class CrashInsightBuilder
 
         if (context?.Overheating == true)
         {
-            list.Add(new CauseGuess(new CrashLine(T("Overheating: the {0} reached {1} °C."), context.HotPart ?? "CPU",
+            list.Add(new CauseGuess(new CrashLine(T("Overheating: the {0} reached {1} °C."), new LocalizedText(context.HotPart ?? T("CPU")),
                 Math.Round(context.HotTemperature ?? 0).ToString("0", CultureInfo.CurrentCulture)), CauseConfidence.VeryLikely, CrashCause.Overheating));
         }
 

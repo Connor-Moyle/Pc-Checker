@@ -4,6 +4,7 @@
       xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
       xmlns:controls="clr-namespace:PcChecker.App.Controls"
       xmlns:vm="clr-namespace:PcChecker.App.ViewModels"
+      xmlns:conv="clr-namespace:PcChecker.App.Converters"
       xmlns:crash="clr-namespace:PcChecker.Core.Crashes;assembly=PcChecker.Core"
       xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
       xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -12,6 +13,7 @@
       Title="Crashes"
       ScrollViewer.CanContentScroll="False">
   <Page.Resources>
+    <conv:SymbolToIconConverter x:Key="SymbolToIcon" />
     <Style x:Key="Tile" TargetType="controls:StatCard">
       <Setter Property="Margin" Value="0" />
     </Style>

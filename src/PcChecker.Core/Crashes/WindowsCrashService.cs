@@ -25,6 +25,7 @@ public sealed partial class WindowsCrashService : ICrashService
 {
     private const int MaxEventsPerLog = 2000;
     private const int MaxContextEvents = 4000;
+    private const int MaxCorrectedWheaEvents = 2000;
     private const int MaxDumps = 200;
 
     private readonly ISettingsService _settings;
@@ -77,6 +78,7 @@ public sealed partial class WindowsCrashService : ICrashService
 
             progress?.Report(new ProgressUpdate(T("Reading events around the crashes…"), 85));
             var system = ReadXml("System", CrashEventMapper.ContextQuery(CrashRules.WindowDays), MaxContextEvents, CrashEventMapper.MapSystemEvent, warnings, cancellationToken);
+            system.AddRange(ReadXml("System", CrashEventMapper.CorrectedWheaQuery(CrashRules.WindowDays), MaxCorrectedWheaEvents, CrashEventMapper.MapSystemEvent, warnings, cancellationToken));
             system.AddRange(CrashSystemEventRules.FromSetupApi(ReadSetupApiLog(now)));
 
             var report = new CrashReport
@@ -104,7 +106,11 @@ public sealed partial class WindowsCrashService : ICrashService
 
             var now = DateTimeOffset.Now;
             var events = ReadLog("System", CrashEventMapper.SystemQuery(CrashRules.AttentionDays), [], cancellationToken);
-            return CrashRules.Glance(CrashRules.Merge(events, [], now, CrashRules.AttentionDays), now, CrashRules.AttentionDays, solved);
+
+            // Merge with the dump files as the full scan does, so a crash gets the same id here as on the Crashes page
+            // (a dump-only blue screen would otherwise be its Kernel-Power 41 event) and "Mark as solved" matches.
+            var dumps = ReadDumps(now, [], cancellationToken);
+            return CrashRules.Glance(CrashRules.Merge(events, dumps, now, CrashRules.AttentionDays), now, CrashRules.AttentionDays, solved);
         }, cancellationToken);
 
     private IReadOnlyCollection<string> SolvedIds()

@@ -188,7 +188,7 @@ public sealed partial class CrashesViewModel : ViewModelBase
         var report = await _crashes.ScanAsync(progress, linked.Token);
         var tr = Loc.Current;
         var built = await Task.Run(() => report.Events
-            .Select(e => (Crash: e, Advice: CrashAdvice.For(e, report.OverclockApplied, tr), Insight: CrashInsightBuilder.Build(e, report.OverclockApplied, allEvents: report.Events)))
+            .Select(e => (Crash: e, Advice: CrashAdvice.For(e, report.OverclockApplied, tr), Insight: CrashInsightBuilder.Build(e, report.OverclockApplied, allEvents: report.Events, tr: tr)))
             .ToList(), linked.Token);
         Apply(report, built);
         _ = LoadInsightsAsync(report);

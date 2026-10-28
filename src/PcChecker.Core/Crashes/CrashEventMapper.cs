@@ -203,9 +203,14 @@ public static class CrashEventMapper
     /// The System-log filter for the events around crashes: WHEA errors, disk and file-system errors, sleep and wake,
     /// Windows starts and new kernel driver services, <paramref name="days"/> back from now.
     /// </summary>
+    /// <summary>
+    /// The context events except corrected WHEA errors (fatal WHEA, disk, wake, boot, driver installs). Corrected WHEA
+    /// errors can number thousands on an unstable PC, so they are read by <see cref="CorrectedWheaQuery"/> with their own
+    /// limit and cannot crowd the rest out.
+    /// </summary>
     public static string ContextQuery(int days) =>
         $"*[System[(" +
-        $"(Provider[@Name='{WheaProvider}'] and (EventID=17 or EventID=18 or EventID=19 or EventID=20 or EventID=47)) or " +
+        $"(Provider[@Name='{WheaProvider}'] and (EventID=18 or EventID=20)) or " +
         $"(Provider[@Name='disk'] and (EventID=7 or EventID=11 or EventID=51 or EventID=153)) or " +
         $"(Provider[@Name='Ntfs' or @Name='Microsoft-Windows-Ntfs'] and EventID=55) or " +
         $"(Provider[@Name='{KernelPowerProvider}'] and (EventID=42 or EventID=107)) or " +
@@ -213,6 +218,10 @@ public static class CrashEventMapper
         $"(Provider[@Name='{KernelGeneralProvider}'] and EventID=12) or " +
         $"(Provider[@Name='{ServiceControlManagerProvider}'] and EventID=7045)" +
         $") and TimeCreated[timediff(@SystemTime) <= {WindowMs(days)}]]]";
+
+    /// <summary>Corrected WHEA errors (17 PCI Express, 19 processor, 47 memory), read separately from <see cref="ContextQuery"/>.</summary>
+    public static string CorrectedWheaQuery(int days) =>
+        $"*[System[Provider[@Name='{WheaProvider}'] and (EventID=17 or EventID=19 or EventID=47) and TimeCreated[timediff(@SystemTime) <= {WindowMs(days)}]]]";
 
     /// <summary>The context event this record is, or null for anything else (including 7045 for a non-driver service).</summary>
     public static CrashSystemEvent? MapSystemEvent(EventXmlRecord r)

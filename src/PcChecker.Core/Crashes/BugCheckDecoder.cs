@@ -198,9 +198,9 @@ public static class BugCheckDecoder
             case 0x117:
             case 0x141:
                 AddWhere(lines, P(2), modules, T("The graphics driver that stopped responding is {0}."));
-                if (Has(3) && P(3) != 0 && P(3) <= uint.MaxValue)
+                if (Has(3) && Status32(P(3)) is { } last and not 0)
                 {
-                    lines.Add(new CrashLine(T("Last error: {0}."), DescribeStatus((uint)P(3))));
+                    lines.Add(new CrashLine(T("Last error: {0}."), DescribeStatus(last)));
                 }
 
                 break;
@@ -222,13 +222,13 @@ public static class BugCheckDecoder
                     break;
                 }
 
-                if (P(1) <= uint.MaxValue && P(1) != 0)
+                if (Status32(P(1)) is { } error and not 0)
                 {
-                    lines.Add(new CrashLine(T("The error was: {0}."), DescribeStatus((uint)P(1))));
+                    lines.Add(new CrashLine(T("The error was: {0}."), DescribeStatus(error)));
                 }
 
                 AddWhere(lines, P(2), modules, T("It happened in {0}."));
-                if (P(1) == 0x80000003)
+                if (Status32(P(1)) == 0x80000003)
                 {
                     lines.Add(CrashLine.Of(T("A breakpoint in kernel code usually means a driver built for testing, or a debugger setting left on.")));
                 }
@@ -246,10 +246,9 @@ public static class BugCheckDecoder
             case 0x7A:
             case 0x77:
             {
-                ulong status = baseCode == 0x7A ? P(2) : P(1);
-                if (status is >= 0xC0000000 and <= 0xFFFFFFFF)
+                if (Status32(baseCode == 0x7A ? P(2) : P(1)) is { } status and >= 0xC0000000)
                 {
-                    lines.Add(new CrashLine(T("The drive answered: {0}."), DescribeStatus((uint)status)));
+                    lines.Add(new CrashLine(T("The drive answered: {0}."), DescribeStatus(status)));
                 }
 
                 break;
@@ -303,15 +302,29 @@ public static class BugCheckDecoder
         }
     }
 
+    /// <summary>
+    /// A 32-bit NTSTATUS from a parameter. x64 dumps often store it sign-extended (0xFFFFFFFFC000009A), so a value whose
+    /// upper half is all ones and whose bit 31 is set is read as its lower half. Null when it is not a 32-bit status.
+    /// </summary>
+    public static uint? Status32(ulong value) => value switch
+    {
+        <= uint.MaxValue => (uint)value,
+        _ when (value >> 32) == 0xFFFFFFFF && (value & 0x80000000) != 0 => (uint)value,
+        _ => null,
+    };
+
     /// <summary>"Access violation (0xc0000005)" or the code.</summary>
     private static string DescribeStatus(uint status) => ExceptionCodeCatalog.Describe(status);
 
-    /// <summary>The kind of access in 0x0A/0xD1 parameter 3 (bit 0 write, bit 3 execute) or 0x50 parameter 2 (0, 1/2, 10).</summary>
+    /// <summary>
+    /// The kind of access in 0x0A/0xD1 parameter 3 (0 read, 1 write, 2 or bit 3 execute; 0xD1 documents 2 and 8 as
+    /// execute) or 0x50 parameter 2 (0, 1/2, 10).
+    /// </summary>
     public static string Operation(ulong value, bool arm, bool irqlStyle)
     {
         if (irqlStyle)
         {
-            return (value & 0x8) != 0 ? T("run code at") : (value & 0x1) != 0 ? T("write to") : T("read from");
+            return (value & 0x8) != 0 || value == 2 ? T("run code at") : (value & 0x1) != 0 ? T("write to") : T("read from");
         }
 
         return value switch

@@ -3,8 +3,12 @@ using static PcChecker.Core.Crashes.CrashText;
 
 namespace PcChecker.Core.Crashes;
 
-/// <summary>The "Crash summary" card: the single most likely cause across recent crashes and the fix to try first.</summary>
-public sealed record CrashSummaryCard(CrashLine Headline, CrashLine Detail, CrashCause? Cause, CrashFix? TopFix, string? CrashId);
+/// <summary>
+/// The "Crash summary" card: the single most likely cause across recent crashes and the fix to try first.
+/// <see cref="CrashId"/> is the crash the card points at (the newest serious one); <see cref="FixCrashId"/> is the crash
+/// <see cref="TopFix"/> was ranked for, so a fix button acts on that crash's driver or module.
+/// </summary>
+public sealed record CrashSummaryCard(CrashLine Headline, CrashLine Detail, CrashCause? Cause, CrashFix? TopFix, string? CrashId, string? FixCrashId = null);
 
 /// <summary>
 /// Weighs the "probably caused by" guesses of the recent serious crashes (blue screens, shutdowns, driver resets) and
@@ -33,7 +37,7 @@ public static class CrashSummaryRules
             }
         }
 
-        var fixScores = new Dictionary<CrashFixKind, (double Score, CrashFix Fix, DateTimeOffset Time)>();
+        var fixScores = new Dictionary<CrashFixKind, (double Score, CrashFix Fix, DateTimeOffset Time, string CrashId)>();
         foreach (var insight in serious)
         {
             foreach (var (fix, rank) in insight.Fixes.Take(3).Select((f, i) => (f, i)))
@@ -41,22 +45,26 @@ public static class CrashSummaryRules
                 double s = fix.Score / (double)(rank + 1);
                 if (fixScores.TryGetValue(fix.Kind, out var existing))
                 {
-                    fixScores[fix.Kind] = (existing.Score + s, insight.Crash.Time > existing.Time ? fix : existing.Fix, insight.Crash.Time > existing.Time ? insight.Crash.Time : existing.Time);
+                    fixScores[fix.Kind] = insight.Crash.Time > existing.Time
+                        ? (existing.Score + s, fix, insight.Crash.Time, insight.Crash.Id)
+                        : (existing.Score + s, existing.Fix, existing.Time, existing.CrashId);
                 }
                 else
                 {
-                    fixScores[fix.Kind] = (s, fix, insight.Crash.Time);
+                    fixScores[fix.Kind] = (s, fix, insight.Crash.Time, insight.Crash.Id);
                 }
             }
         }
 
-        var top = fixScores.OrderByDescending(kv => kv.Value.Score).Select(kv => kv.Value.Fix).FirstOrDefault();
+        var best = fixScores.OrderByDescending(kv => kv.Value.Score).Select(kv => kv.Value).FirstOrDefault();
+        var top = best.Fix;
+        var fixCrashId = top is null ? null : best.CrashId;
         var newest = serious.OrderByDescending(i => i.Crash.Time).First();
         string count = serious.Count.ToString(CultureInfo.InvariantCulture);
         if (weights.Count == 0)
         {
             return new CrashSummaryCard(new CrashLine(T("{0} serious crashes in the last {1} days, without a clear common cause."), count, days.ToString(CultureInfo.InvariantCulture)),
-                CrashLine.Of(T("Start with the newest crash below and its first fix.")), null, top, newest.Crash.Id);
+                CrashLine.Of(T("Start with the newest crash below and its first fix.")), null, top, newest.Crash.Id, fixCrashId);
         }
 
         var cause = weights.OrderByDescending(kv => kv.Value).ThenBy(kv => kv.Key).First().Key;
@@ -65,7 +73,7 @@ public static class CrashSummaryRules
         var headline = serious.Count == 1
             ? new CrashLine(T("Most likely cause of the last crash: {0}."), new LocalizedText(CrashCauseText.Name(cause)))
             : new CrashLine(T("Most likely cause across {0} recent crashes: {1}."), count, new LocalizedText(CrashCauseText.Name(cause)));
-        return new CrashSummaryCard(headline, detail, cause, top, newest.Crash.Id);
+        return new CrashSummaryCard(headline, detail, cause, top, newest.Crash.Id, fixCrashId);
     }
 
     private static CrashSummaryCard? AppSummary(IReadOnlyList<CrashInsight> recent)
@@ -83,6 +91,6 @@ public static class CrashSummaryRules
             ? new CrashLine(T("Most of its crashes are in {0}."), new LocalizedText(module.Owner))
             : CrashLine.Of(T("Windows itself is stable: no blue screens or sudden shutdowns recently."));
         return new CrashSummaryCard(new CrashLine(T("No blue screens recently; {0} crashed most ({1} times)."), worst.Key, worst.Count().ToString(CultureInfo.InvariantCulture)),
-            detail, null, newest.Fixes.FirstOrDefault(), newest.Crash.Id);
+            detail, null, newest.Fixes.FirstOrDefault(), newest.Crash.Id, newest.Crash.Id);
     }
 }

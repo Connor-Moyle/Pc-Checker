@@ -621,7 +621,7 @@ public static partial class StopCodeCatalog
             T("Part of the graphics card stopped responding and Windows restarted it. The screen may have gone black for a moment."),
             [CrashCause.Driver, CrashCause.GraphicsCard, CrashCause.Overheating],
             [GpuDriver, ResetGpuOverclock, Temperatures, GpuPowerCables],
-            null),
+            "bug-check-0x141---video-engine-timeout-detected"),
         new(0x144, "BUGCODE_USB3_DRIVER", StopCodeArea.Driver,
             T("The USB 3 driver hit a fatal error, often because of a USB device or hub."),
             [CrashCause.Driver, CrashCause.PowerSupply, CrashCause.Firmware],

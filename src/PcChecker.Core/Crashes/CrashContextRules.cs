@@ -112,12 +112,12 @@ public static class CrashContextRules
         var parts = new List<(string Part, double Peak, double Warn, double Crit)>();
         if (Max(HistoryMetrics.CpuTemp) is { } cpuPeak)
         {
-            parts.Add(("CPU", cpuPeak, thresholds.CpuWarnC, thresholds.CpuCritC));
+            parts.Add((T("CPU"), cpuPeak, thresholds.CpuWarnC, thresholds.CpuCritC));
         }
 
         if (Max(HistoryMetrics.GpuTemp) is { } gpuPeak)
         {
-            parts.Add(("GPU", gpuPeak, thresholds.GpuWarnC, thresholds.GpuCritC));
+            parts.Add((T("GPU"), gpuPeak, thresholds.GpuWarnC, thresholds.GpuCritC));
         }
 
         bool overheating = parts.Any(p => p.Peak >= p.Crit);
@@ -180,11 +180,11 @@ public static class CrashContextRules
             if (c.Overheating && c.HotPart is { } part && c.HotTemperature is { } temp)
             {
                 double limit = part == "CPU" ? thresholds.CpuCritC : thresholds.GpuCritC;
-                lines.Add(new CrashLine(T("Overheating: the {0} reached {1} °C, above its {2} °C limit. Heat may have caused this crash."), part, Num(temp), Num(limit)));
+                lines.Add(new CrashLine(T("Overheating: the {0} reached {1} °C, above its {2} °C limit. Heat may have caused this crash."), new LocalizedText(part), Num(temp), Num(limit)));
             }
             else if (c.RunningHot && c.HotPart is { } warmPart && c.HotTemperature is { } warmTemp)
             {
-                lines.Add(new CrashLine(T("The {0} ran hot ({1} °C) but stayed below its critical limit."), warmPart, Num(warmTemp)));
+                lines.Add(new CrashLine(T("The {0} ran hot ({1} °C) but stayed below its critical limit."), new LocalizedText(warmPart), Num(warmTemp)));
             }
 
             if (c.HeavyLoad)
@@ -225,14 +225,14 @@ public static class CrashContextRules
 
     private static string Num(double value) => Math.Round(value).ToString("0", CultureInfo.CurrentCulture);
 
-    /// <summary>"20 minutes", "3 hours".</summary>
-    public static string Ago(TimeSpan span) =>
+    /// <summary>"20 min", "3 h" (a line, so the unit is shown in the page's language).</summary>
+    public static CrashLine Ago(TimeSpan span) =>
         span.TotalMinutes < 90
-            ? Math.Max(1, (int)Math.Round(span.TotalMinutes)).ToString(CultureInfo.InvariantCulture) + " min"
-            : ((int)Math.Round(span.TotalHours)).ToString(CultureInfo.InvariantCulture) + " h";
+            ? new CrashLine(T("{0} min"), Math.Max(1, (int)Math.Round(span.TotalMinutes)).ToString(CultureInfo.InvariantCulture))
+            : new CrashLine(T("{0} h"), ((int)Math.Round(span.TotalHours)).ToString(CultureInfo.InvariantCulture));
 
-    /// <summary>"45 min", "2 h 14 min", "3 days 4 h".</summary>
-    public static string Duration(TimeSpan span)
+    /// <summary>"45 min", "2 h 14 min", "3 d 4 h" (a line, so the units are shown in the page's language).</summary>
+    public static CrashLine Duration(TimeSpan span)
     {
         if (span < TimeSpan.Zero)
         {
@@ -241,14 +241,14 @@ public static class CrashContextRules
 
         if (span.TotalHours < 1)
         {
-            return ((int)span.TotalMinutes).ToString(CultureInfo.InvariantCulture) + " min";
+            return new CrashLine(T("{0} min"), ((int)span.TotalMinutes).ToString(CultureInfo.InvariantCulture));
         }
 
         if (span.TotalDays < 1)
         {
-            return string.Create(CultureInfo.InvariantCulture, $"{(int)span.TotalHours} h {span.Minutes} min");
+            return new CrashLine(T("{0} h {1} min"), ((int)span.TotalHours).ToString(CultureInfo.InvariantCulture), span.Minutes.ToString(CultureInfo.InvariantCulture));
         }
 
-        return string.Create(CultureInfo.InvariantCulture, $"{(int)span.TotalDays} d {span.Hours} h");
+        return new CrashLine(T("{0} d {1} h"), ((int)span.TotalDays).ToString(CultureInfo.InvariantCulture), span.Hours.ToString(CultureInfo.InvariantCulture));
     }
 }

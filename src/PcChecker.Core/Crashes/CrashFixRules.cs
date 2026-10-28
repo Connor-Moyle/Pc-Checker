@@ -351,7 +351,7 @@ public static class CrashFixRules
         {
             if (context.Overheating)
             {
-                add(CrashFixKind.CheckTemperatures, 130, new CrashLine(T("The {0} was overheating just before the crash."), context.HotPart ?? "CPU"), null);
+                add(CrashFixKind.CheckTemperatures, 130, new CrashLine(T("The {0} was overheating just before the crash."), new LocalizedText(context.HotPart ?? T("CPU"))), null);
                 add(CrashFixKind.CheckFans, 90, new CrashLine(T("Overheating often means a fan is slow, stopped or clogged with dust.")), null);
             }
 

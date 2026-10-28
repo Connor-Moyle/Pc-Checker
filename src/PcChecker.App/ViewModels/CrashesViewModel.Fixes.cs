@@ -225,7 +225,7 @@ public sealed partial class CrashesViewModel
         }
 
         if (!await _fix.Dialogs.ConfirmAsync(Loc.T("Roll back the driver?"),
-                Loc.F("PC Checker removes the current driver package of {0} so Windows goes back to the previous one. A restore point is made first and the change is recorded in the Action Journal. The screen may flicker; a restart may be needed.", driver.DeviceName ?? driver.FileName),
+                Loc.F("PC Checker removes the current driver package of {0}. Windows then uses another matching driver it still has (usually the previous one) or, if none is left, a basic Windows driver until you install one again. A restore point is made first and the change is recorded in the Action Journal. The screen may flicker; a restart may be needed.", driver.DeviceName ?? driver.FileName),
                 Loc.T("Roll back"), isDanger: true))
         {
             return;
@@ -412,7 +412,7 @@ public sealed partial class CrashesViewModel
     private async Task RepairWindowsFilesAsync()
     {
         if (!await _fix.Dialogs.ConfirmAsync(Loc.T("Repair Windows files?"),
-                Loc.T("PC Checker runs \"DISM /Online /Cleanup-Image /RestoreHealth\" (repairs the Windows image from Windows Update) and then \"sfc /scannow\" (repairs damaged Windows files). Together they take 10 to 40 minutes. A restore point is made first and the steps are recorded in the Action Journal."),
+                Loc.T("PC Checker runs \"DISM /Online /Cleanup-Image /RestoreHealth\" (repairs the Windows image from Windows Update) and then \"sfc /scannow\" (repairs damaged Windows files). Together they take 10 to 40 minutes. You can cancel while DISM runs; sfc is left to finish once it starts. A restore point is made first and the steps are recorded in the Action Journal."),
                 Loc.T("Repair")))
         {
             return;
