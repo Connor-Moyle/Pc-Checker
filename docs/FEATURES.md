@@ -205,6 +205,58 @@ Temperatures and Power pages; without them only memory, free space and
 health scores are recorded. Demo mode shows 30 days of generated history and
 writes nothing to disk.
 
+### Crashes
+
+Blue screens, sudden shutdowns, graphics driver resets and app crashes from
+the last 90 days, explained in plain words. The page only reads; it never
+changes or deletes anything.
+
+- **Where it looks**: the System log (BugCheck event 1001, Kernel-Power 41,
+  EventLog 6008, Display 4101), the Application log (Application Error 1000,
+  Application Hang 1002), the small memory dumps in `%SystemRoot%\Minidump`,
+  `MEMORY.DMP` and the graphics driver reports in
+  `%SystemRoot%\LiveKernelReports\WATCHDOG`. Values come from the event data
+  and the dump headers, never from the translated message, so it works on
+  every Windows language.
+- **One entry per incident**: a dump is matched to its BugCheck event, a
+  Kernel-Power 41 that repeats a blue screen and an EventLog 6008 next to it
+  are folded in, and dumps whose event was cleared get their own entry.
+- **Tiles**: blue screens, sudden shutdowns, driver resets and app crashes in
+  the last 30 days.
+- **Timeline**: newest first, grouped by day, with a filter by type and date
+  range (7, 30 or 90 days). Right-click a crash to copy its details, ask
+  Claude, search online, open Event Viewer or the dump folder; Ctrl+C copies
+  the selected crash.
+- **Details**: what the stop code or error means, the likely cause, first
+  steps (safest first), buttons to the right PC Checker page (Drivers, Memory
+  test, Storage, Health, Temperatures, and Overclock when PC Checker has an
+  overclock applied and the stop code points at hardware), Microsoft's bug
+  check reference for the code, and *Ask Claude about this crash*, which opens
+  Ask Claude with the details filled in.
+- **Probably caused by**: read from small memory dumps. A driver whose memory
+  a stop-code parameter or the crash address points into, else the first
+  driver from outside Windows on the crashing thread's stack, else the
+  graphics driver for a graphics stop code. It is labelled as a best guess.
+- **Stop codes explained**: about 50 common ones, such as
+  IRQL_NOT_LESS_OR_EQUAL, SYSTEM_SERVICE_EXCEPTION, PAGE_FAULT_IN_NONPAGED_AREA,
+  DPC_WATCHDOG_VIOLATION, CLOCK_WATCHDOG_TIMEOUT, WHEA_UNCORRECTABLE_ERROR,
+  VIDEO_TDR_FAILURE, MEMORY_MANAGEMENT and CRITICAL_PROCESS_DIED. App crashes
+  explain their exception code (access violation, stack buffer overrun, heap
+  corruption, .NET exception, illegal instruction and more).
+- **Most crashing apps**: programs by number of crashes and hangs, with the
+  file they crash in most often; *Show these* filters the timeline.
+- **Hardware errors**: WHEA reports are explained on the Health page; this
+  page shows how many there were and links there.
+- **Dashboard**: *What needs attention* mentions blue screens and sudden
+  shutdowns from the last 7 days.
+
+Limitations: the guess uses no debugging symbols and does not walk the stack,
+so it can be wrong; WinDbg gives the definitive answer. Complete and kernel
+dumps (`MEMORY.DMP`) only give the stop code and parameters, not the driver
+list. Overclocks set in the BIOS or other tools cannot be seen. Demo mode
+shows two blue screens, a sudden shutdown, three driver resets and crashes of
+two games.
+
 ---
 
 ## Task manager

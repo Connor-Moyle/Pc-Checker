@@ -141,6 +141,7 @@ limitations, is in [docs/FEATURES.md](docs/FEATURES.md).
 | **Temperatures** | Live readings for every sensor your hardware exposes (CPU, GPU, drives, motherboard/VRM, memory, PSU, AIO), with gauges, min/max/average, sparklines, thresholds and alerts. Advanced mode shows every sensor kind (loads, clocks, fans, voltages). |
 | **Power** | Per-component watts where sensors exist, an estimated total (clearly marked as an estimate when there is no PSU sensor), battery discharge, session energy and cost at your electricity price, and power-plan switching. |
 | **History** | Up to 90 days of temperatures, loads, power, memory, free space and health scores, recorded in the background (also from the tray) and kept only on your PC. Charts per metric with hover values, a list of notable events such as temperature peaks and sudden drops in free space, and CSV export. |
+| **Crashes** | Blue screens, sudden shutdowns, graphics driver resets and app crashes from the last 90 days on one timeline, read from the event logs and memory dumps on any Windows language. Each one says what it means, which driver probably caused it (a best guess from the dump), what to try first and which page helps, with *Ask Claude about this crash*, Event Viewer and the dump folder one click away, plus the most crashing apps. |
 
 ### Task manager
 
