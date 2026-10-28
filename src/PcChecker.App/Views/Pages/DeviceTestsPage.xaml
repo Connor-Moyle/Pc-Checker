@@ -14,7 +14,7 @@
     <Style x:Key="Tile" TargetType="controls:StatCard">
       <Setter Property="Margin" Value="0" />
     </Style>
-    <Style x:Key="TestCard" TargetType="ui:Card">
+    <Style x:Key="TestCard" TargetType="ui:Card" BasedOn="{StaticResource {x:Type ui:Card}}">
       <Setter Property="Padding" Value="16" />
       <Setter Property="VerticalAlignment" Value="Stretch" />
       <Setter Property="VerticalContentAlignment" Value="Stretch" />
