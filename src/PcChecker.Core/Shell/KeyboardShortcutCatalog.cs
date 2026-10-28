@@ -57,6 +57,12 @@ public static class KeyboardShortcutCatalog
         [
             new("Ctrl+Shift+O", T("Show or hide the in-game overlay (the default key; you can change it here)")),
         ],
+        ["device-tests"] =
+        [
+            new("Left / Right", T("Previous or next screen test (in the full-screen test)")),
+            new("H", T("Hide or show the hint (in the full-screen test)")),
+            new("Esc", T("Leave the full-screen test")),
+        ],
     };
 
     /// <summary>The extra keys of the page with <paramref name="pageKey"/> (empty when it has none).</summary>

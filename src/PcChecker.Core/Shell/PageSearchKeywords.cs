@@ -23,6 +23,7 @@ public static class PageSearchKeywords
         ["displays"] = T("monitor screen resolution refresh rate hdr brightness"),
         ["audio"] = T("sound speakers microphone volume"),
         ["input"] = T("mouse keyboard pointer polling rate dpi"),
+        ["device-tests"] = T("test controller gamepad joystick stick drift vibration keyboard tester rollover ghosting mouse buttons double click dead pixel stuck pixel screen test backlight bleed banding speaker test left right channel microphone test mic"),
         ["fans"] = T("fan curve cooling speed rpm"),
         ["lighting"] = T("rgb leds openrgb colours colors"),
         ["software"] = T("programs uninstall installed apps"),

@@ -146,3 +146,8 @@ public sealed partial class AppHistoryViewModel : IRefreshablePage
 {
     ICommand IRefreshablePage.RefreshKeyCommand => RefreshNowCommand;
 }
+
+public sealed partial class DeviceTestsViewModel : IRefreshablePage
+{
+    ICommand IRefreshablePage.RefreshKeyCommand => RefreshDevicesCommand;
+}

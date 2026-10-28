@@ -113,6 +113,10 @@ public static class HelpCatalog
             T("Keyboard & Mouse shows the mouse speed, pointer precision, polling rate and keyboard repeat settings."),
             T("Measure the polling rate first. Settings you change here can be set back with one click."),
             Features, "Keyboard & Mouse"),
+        new("device-tests",
+            T("Device tests checks that your controller, keyboard, mouse, screen, speakers and microphone work. Nothing on the PC is changed."),
+            T("Open the test for the device that misbehaves. Turn the volume down before the speaker test; Esc leaves the full-screen screen test."),
+            Features, "Device tests"),
 
         // Cooling & RGB
         new("fans",

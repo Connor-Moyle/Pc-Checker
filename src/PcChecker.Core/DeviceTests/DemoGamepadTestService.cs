@@ -24,7 +24,8 @@ public sealed class DemoGamepadTestService : IGamepadTestService
         GamepadButtons.DPadLeft, GamepadButtons.Menu, GamepadButtons.View,
     ];
 
-    private readonly Stopwatch _clock = Stopwatch.StartNew();
+    // Starts at the first reading, so the loop begins with the sticks at rest when the test opens.
+    private readonly Stopwatch _clock = new();
     private readonly Random _random = DemoData.CreateRandom(360);
 
     public event EventHandler? GamepadsChanged
@@ -44,6 +45,11 @@ public sealed class DemoGamepadTestService : IGamepadTestService
         if (id != DemoId)
         {
             return null;
+        }
+
+        if (!_clock.IsRunning)
+        {
+            _clock.Start();
         }
 
         double t = _clock.Elapsed.TotalSeconds;

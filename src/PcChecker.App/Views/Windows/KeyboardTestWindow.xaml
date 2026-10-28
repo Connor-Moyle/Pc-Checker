@@ -1,0 +1,115 @@
+<ui:FluentWindow x:Class="PcChecker.App.Views.Windows.KeyboardTestWindow"
+                 xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                 xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+                 xmlns:vm="clr-namespace:PcChecker.App.ViewModels"
+                 xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+                 xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+                 d:DataContext="{d:DesignInstance vm:KeyboardTestViewModel}"
+                 mc:Ignorable="d"
+                 Title="Keyboard test"
+                 Width="1100" Height="640" MinWidth="720" MinHeight="460"
+                 WindowStartupLocation="CenterOwner"
+                 WindowBackdropType="Mica"
+                 ExtendsContentIntoTitleBar="True"
+                 WindowCornerPreference="Round">
+  <Window.Resources>
+    <Style x:Key="KeyBorder" TargetType="Border">
+      <Setter Property="CornerRadius" Value="4" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="BorderBrush" Value="{DynamicResource ControlStrokeColorDefaultBrush}" />
+      <Setter Property="Background" Value="{DynamicResource ControlFillColorDefaultBrush}" />
+      <Style.Triggers>
+        <DataTrigger Binding="{Binding State}" Value="{x:Static vm:KeyCapState.Tested}">
+          <Setter Property="Background" Value="{DynamicResource AccentGreenBrush}" />
+        </DataTrigger>
+        <DataTrigger Binding="{Binding State}" Value="{x:Static vm:KeyCapState.Held}">
+          <Setter Property="Background" Value="{DynamicResource AccentBlueBrush}" />
+        </DataTrigger>
+      </Style.Triggers>
+    </Style>
+    <Style x:Key="KeyText" TargetType="TextBlock">
+      <Setter Property="FontSize" Value="13" />
+      <Setter Property="HorizontalAlignment" Value="Center" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+      <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+      <Style.Triggers>
+        <DataTrigger Binding="{Binding State}" Value="{x:Static vm:KeyCapState.Tested}">
+          <Setter Property="Foreground" Value="{DynamicResource OnAccentTextBrush}" />
+        </DataTrigger>
+        <DataTrigger Binding="{Binding State}" Value="{x:Static vm:KeyCapState.Held}">
+          <Setter Property="Foreground" Value="{DynamicResource OnAccentTextBrush}" />
+        </DataTrigger>
+      </Style.Triggers>
+    </Style>
+  </Window.Resources>
+
+  <Grid>
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="*" />
+      <RowDefinition Height="Auto" />
+    </Grid.RowDefinitions>
+
+    <ui:TitleBar Grid.Row="0" Title="Keyboard test" ShowMaximize="True" ShowMinimize="False" />
+
+    <!-- Counters -->
+    <Grid Grid.Row="1" Margin="24,8,24,8">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*" />
+        <ColumnDefinition Width="Auto" />
+      </Grid.ColumnDefinitions>
+      <StackPanel Grid.Column="0">
+        <ui:TextBlock FontTypography="BodyStrong" TextWrapping="Wrap"
+                      Text="Press every key. Keys light up blue while held and turn green once tested." />
+        <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+          <ui:TextBlock Text="{Binding TestedText}" Margin="0,0,24,0" />
+          <ui:TextBlock Text="{Binding HeldText}" Margin="0,0,24,0" />
+          <ui:TextBlock FontWeight="SemiBold" Text="{Binding RolloverText}" />
+        </StackPanel>
+        <ui:TextBlock Style="{StaticResource Muted}" Text="{Binding RolloverAdvice}" TextWrapping="Wrap" Margin="0,4,0,0" />
+      </StackPanel>
+      <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top">
+        <ui:Button Content="Start again" Icon="{ui:SymbolIcon ArrowClockwise24}" Command="{Binding ResetCommand}" Margin="0,0,8,0"
+                   ToolTip="Clears the tested keys and the rollover count." />
+        <ui:Button Content="Close" Icon="{ui:SymbolIcon Dismiss24}" Click="OnClose" />
+      </StackPanel>
+    </Grid>
+
+    <!-- The on-screen keyboard, scaled to fit the window. -->
+    <Viewbox Grid.Row="2" Margin="24,8,24,8" Stretch="Uniform">
+      <ItemsControl ItemsSource="{Binding Keys}" Width="{Binding LayoutWidth}" Height="{Binding LayoutHeight}"
+                    AutomationProperties.Name="On-screen keyboard" Focusable="False">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <Canvas />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemContainerStyle>
+          <Style TargetType="ContentPresenter">
+            <Setter Property="Canvas.Left" Value="{Binding Left}" />
+            <Setter Property="Canvas.Top" Value="{Binding Top}" />
+          </Style>
+        </ItemsControl.ItemContainerStyle>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate DataType="{x:Type vm:KeyCapItem}">
+            <Border Style="{StaticResource KeyBorder}" Width="{Binding Width}" Height="{Binding Height}"
+                    AutomationProperties.Name="{Binding Label}">
+              <TextBlock Style="{StaticResource KeyText}" Text="{Binding Label}" />
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </Viewbox>
+
+    <StackPanel Grid.Row="3" Margin="24,0,24,16">
+      <ui:TextBlock Text="{Binding LastKeyText}" />
+      <ui:TextBlock Text="{Binding OtherKeysText}" TextWrapping="Wrap" Margin="0,2,0,0"
+                    Visibility="{Binding OtherKeysText, Converter={StaticResource NullToVisibility}}" />
+      <ui:TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,6,0,0"
+                    Text="The Windows key, Alt+Tab, Ctrl+Alt+Del and the Fn key are handled by Windows or by the keyboard itself, so they cannot be captured here (the Windows key may open Start). Print Screen only shows when released. Close this window with the mouse or Alt+F4." />
+    </StackPanel>
+  </Grid>
+</ui:FluentWindow>
